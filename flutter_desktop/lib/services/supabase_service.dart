@@ -251,4 +251,25 @@ class SupabaseService {
       );
     }
   }
+
+  static Future<void> createReport({
+    required String title,
+    required String reportType,
+    Map<String, dynamic>? parameters,
+    String? generatedBy,
+  }) async {
+    final report = {
+      'title': title,
+      'report_type': reportType,
+      'parameters': parameters ?? {},
+      'generated_by': generatedBy ?? 'system',
+      'generated_at': DateTime.now().toIso8601String(),
+    };
+
+    await _client.from('reports').insert(report);
+  }
+
+
+
+
 }
