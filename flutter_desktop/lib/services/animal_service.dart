@@ -23,13 +23,12 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Load animals and stats from Supabase
       _animals = await SupabaseService.getAnimals();
-      _stats = await SupabaseService.getStats();
+      final statsData = await SupabaseService.getStats();
+      _stats = AnimalStats.fromMap(statsData);
       _error = null;
     } catch (e) {
       _error = 'Erro ao carregar dados: $e';
-      // Fallback to mock data if Supabase fails
       _loadMockData();
     }
 
@@ -38,7 +37,6 @@ class AnimalService extends ChangeNotifier {
   }
 
   void _loadMockData() {
-    // Dados simulados para funcionamento offline - fallback
     _animals = [
       Animal(
         id: "OV001",
@@ -106,7 +104,8 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> addAnimal(Animal animal) async {
     try {
-      final newAnimal = await SupabaseService.createAnimal(animal.toJson());
+      final newAnimal =
+          await SupabaseService.createAnimal(animal.toJson());
       if (newAnimal != null) {
         _animals.insert(0, newAnimal);
         await _refreshStats();
@@ -120,7 +119,8 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> updateAnimal(Animal animal) async {
     try {
-      final updatedAnimal = await SupabaseService.updateAnimal(animal.id, animal.toJson());
+      final updatedAnimal =
+          await SupabaseService.updateAnimal(animal.id, animal.toJson());
       if (updatedAnimal != null) {
         final index = _animals.indexWhere((a) => a.id == animal.id);
         if (index >= 0) {
@@ -151,7 +151,8 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> _refreshStats() async {
     try {
-      _stats = await SupabaseService.getStats();
+      final statsData = await SupabaseService.getStats();
+      _stats = AnimalStats.fromMap(statsData);
     } catch (e) {
       print('Error refreshing stats: $e');
     }
