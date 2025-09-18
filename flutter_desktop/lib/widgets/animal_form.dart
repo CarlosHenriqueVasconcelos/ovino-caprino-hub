@@ -1,0 +1,397 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+import '../models/animal.dart';
+import '../services/animal_service.dart';
+
+class AnimalFormDialog extends StatefulWidget {
+  final Animal? animal;
+  
+  const AnimalFormDialog({super.key, this.animal});
+
+  @override
+  State<AnimalFormDialog> createState() => _AnimalFormDialogState();
+}
+
+class _AnimalFormDialogState extends State<AnimalFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _codeController = TextEditingController();
+  final _breedController = TextEditingController();
+  final _weightController = TextEditingController();
+  final _locationController = TextEditingController();
+  
+  String _species = 'Ovino';
+  String _gender = 'Fêmea';
+  String _status = 'Saudável';
+  DateTime _birthDate = DateTime.now();
+  bool _pregnant = false;
+  DateTime? _expectedDelivery;
+  DateTime? _lastVaccination;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animal != null) {
+      _loadAnimalData();
+    }
+  }
+
+  void _loadAnimalData() {
+    final animal = widget.animal!;
+    _nameController.text = animal.name;
+    _codeController.text = animal.code;
+    _breedController.text = animal.breed;
+    _weightController.text = animal.weight.toString();
+    _locationController.text = animal.location;
+    _species = animal.species;
+    _gender = animal.gender;
+    _status = animal.status;
+    _birthDate = animal.birthDate;
+    _pregnant = animal.pregnant;
+    _expectedDelivery = animal.expectedDelivery;
+    _lastVaccination = animal.lastVaccination;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return AlertDialog(
+      title: Text(widget.animal == null ? 'Novo Animal' : 'Editar Animal'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Basic Info
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _codeController,
+                        decoration: const InputDecoration(
+                          labelText: 'Código *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Species and Gender
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _species,
+                        decoration: const InputDecoration(
+                          labelText: 'Espécie',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ['Ovino', 'Caprino'].map((species) {
+                          return DropdownMenuItem(
+                            value: species,
+                            child: Text(species),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _species = value!;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _gender,
+                        decoration: const InputDecoration(
+                          labelText: 'Sexo',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ['Macho', 'Fêmea'].map((gender) {
+                          return DropdownMenuItem(
+                            value: gender,
+                            child: Text(gender),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _gender = value!;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Breed and Weight
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _breedController,
+                        decoration: const InputDecoration(
+                          labelText: 'Raça *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _weightController,
+                        decoration: const InputDecoration(
+                          labelText: 'Peso (kg) *',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          if (double.tryParse(value!) == null) {
+                            return 'Valor inválido';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Birth Date
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _birthDate,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _birthDate = date;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Data de Nascimento',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    child: Text(
+                      '${_birthDate.day.toString().padLeft(2, '0')}/${_birthDate.month.toString().padLeft(2, '0')}/${_birthDate.year}',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Location and Status
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _locationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Localização *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _status,
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ['Saudável', 'Em tratamento', 'Reprodutor', 'Vendido']
+                            .map((status) {
+                          return DropdownMenuItem(
+                            value: status,
+                            child: Text(status),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _status = value!;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Pregnancy
+                if (_gender == 'Fêmea') ...[
+                  CheckboxListTile(
+                    title: const Text('Gestante'),
+                    value: _pregnant,
+                    onChanged: (value) {
+                      setState(() {
+                        _pregnant = value ?? false;
+                        if (!_pregnant) {
+                          _expectedDelivery = null;
+                        }
+                      });
+                    },
+                  ),
+                  if (_pregnant) ...[
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _expectedDelivery ?? DateTime.now().add(const Duration(days: 150)),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _expectedDelivery = date;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Previsão de Parto',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          _expectedDelivery != null
+                              ? '${_expectedDelivery!.day.toString().padLeft(2, '0')}/${_expectedDelivery!.month.toString().padLeft(2, '0')}/${_expectedDelivery!.year}'
+                              : 'Selecionar data',
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _saveAnimal,
+          child: Text(widget.animal == null ? 'Criar' : 'Salvar'),
+        ),
+      ],
+    );
+  }
+
+  void _saveAnimal() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    
+    final animal = Animal(
+      id: widget.animal?.id ?? const Uuid().v4(),
+      code: _codeController.text,
+      name: _nameController.text,
+      species: _species,
+      breed: _breedController.text,
+      gender: _gender,
+      birthDate: _birthDate,
+      weight: double.parse(_weightController.text),
+      status: _status,
+      location: _locationController.text,
+      pregnant: _pregnant,
+      expectedDelivery: _expectedDelivery,
+      lastVaccination: _lastVaccination,
+      createdAt: widget.animal?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      if (widget.animal == null) {
+        await animalService.addAnimal(animal);
+      } else {
+        await animalService.updateAnimal(animal);
+      }
+      
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.animal == null 
+                  ? 'Animal criado com sucesso!'
+                  : 'Animal atualizado com sucesso!',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao salvar animal: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _codeController.dispose();
+    _breedController.dispose();
+    _weightController.dispose();
+    _locationController.dispose();
+    super.dispose();
+  }
+}
