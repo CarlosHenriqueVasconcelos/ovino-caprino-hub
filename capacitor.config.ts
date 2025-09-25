@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.51224177907a406bbac2e32221d24291',
-  appName: 'bego-ovino-caprino',
+  appId: 'app.lovable.5b800dc3feea418091de97770bbc43ff',
+  appName: 'ovino-caprino-hub',
   webDir: 'dist',
   server: {
-    url: "https://51224177-907a-406b-bac2-e32221d24291.lovableproject.com?forceHideBadge=true",
+    url: "https://5b800dc3-feea-4180-91de-97770bbc43ff.lovableproject.com?forceHideBadge=true",
     cleartext: true
   },
   plugins: {

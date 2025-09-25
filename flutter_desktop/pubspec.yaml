@@ -1,5 +1,5 @@
-name: fazenda_sao_petronio
-description: Sistema de Gestão Pecuária - Fazenda São Petrônio
+name: bego_ovino_caprino
+description: Sistema de Gestão para Ovinocultura e Caprinocultura
 
 publish_to: 'none'
 
@@ -11,12 +11,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  provider: ^6.1.2
+  uuid: ^4.3.3
+  supabase_flutter: ^2.3.4
+  http: ^1.1.2
+  path_provider: ^2.1.2
+  shared_preferences: ^2.2.2
   cupertino_icons: ^1.0.2
   intl: ^0.18.1
-  provider: ^6.0.5
-  supabase_flutter: ^2.0.0
-  http: ^1.1.0
-  uuid: ^4.2.1
 
 dev_dependencies:
   flutter_test:
@@ -25,5 +27,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    #- assets/images/
