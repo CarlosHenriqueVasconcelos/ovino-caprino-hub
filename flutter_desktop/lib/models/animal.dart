@@ -2,6 +2,8 @@ class Animal {
   final String id;
   final String code;
   final String name;
+  final String nameColor;
+  final String category;
   final String species;
   final String breed;
   final String gender;
@@ -20,6 +22,8 @@ class Animal {
     required this.id,
     required this.code,
     required this.name,
+    required this.nameColor,
+    required this.category,
     required this.species,
     required this.breed,
     required this.gender,
@@ -41,6 +45,8 @@ class Animal {
       id: map['id']?.toString() ?? '',
       code: map['code'] ?? '',
       name: map['name'] ?? '',
+      nameColor: map['name_color'] ?? 'blue',
+      category: map['category'] ?? 'Não especificado',
       species: map['species'] ?? '',
       breed: map['breed'] ?? '',
       gender: map['gender'] ?? '',
@@ -76,6 +82,8 @@ class Animal {
       'id': id,
       'code': code,
       'name': name,
+      'name_color': nameColor,
+      'category': category,
       'species': species,
       'breed': breed,
       'gender': gender,
@@ -127,6 +135,10 @@ class AnimalStats {
   final int birthsThisMonth;
   final double avgWeight;
   final double revenue;
+  final int maleReproducers;
+  final int maleLambs;
+  final int femaleLambs;
+  final int femaleReproducers;
 
   AnimalStats({
     required this.totalAnimals,
@@ -137,6 +149,10 @@ class AnimalStats {
     required this.birthsThisMonth,
     required this.avgWeight,
     required this.revenue,
+    this.maleReproducers = 0,
+    this.maleLambs = 0,
+    this.femaleLambs = 0,
+    this.femaleReproducers = 0,
   });
 
   /// Criação a partir de Map (usado pelo SupabaseService)
@@ -150,6 +166,10 @@ class AnimalStats {
       vaccinesThisMonth: map['vaccinesThisMonth'] ?? 0,
       birthsThisMonth: map['birthsThisMonth'] ?? 0,
       avgWeight: (map['avgWeight'] as num?)?.toDouble() ?? 0.0,
+      maleReproducers: map['maleReproducers'] ?? 0,
+      maleLambs: map['maleLambs'] ?? 0,
+      femaleLambs: map['femaleLambs'] ?? 0,
+      femaleReproducers: map['femaleReproducers'] ?? 0,
     );
   }
 }

@@ -11,6 +11,9 @@ import '../widgets/reports_screen.dart';
 import '../widgets/financial_management_screen.dart';
 import '../widgets/system_settings_screen.dart';
 import '../widgets/vaccination_alerts.dart';
+import '../widgets/vaccination_form.dart';
+import '../widgets/medication_management_screen.dart';
+import '../widgets/history_screen.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   const CompleteDashboardScreen({super.key});
@@ -39,6 +42,11 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       title: 'Peso & Crescimento',
       icon: Icons.monitor_weight,
       label: 'Peso',
+    ),
+    TabData(
+      title: 'Vacinações e Medicamentos',
+      icon: Icons.medication,
+      label: 'Vacinas',
     ),
     TabData(
       title: 'Anotações',
@@ -109,6 +117,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   _buildDashboardTab(),
                   const BreedingManagementScreen(),
                   const WeightTrackingScreen(),
+                  const MedicationManagementScreen(),
                   const NotesManagementScreen(),
                   const ReportsScreen(),
                   const FinancialManagementScreen(),
@@ -348,10 +357,10 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
+      crossAxisCount: 5,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.4,
+      childAspectRatio: 1.3,
       children: [
         StatsCard(
           title: 'Total de Animais',
@@ -361,25 +370,39 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
           color: theme.colorScheme.primary,
         ),
         StatsCard(
-          title: 'Animais Saudáveis',
-          value: '${stats.healthy}',
-          icon: Icons.favorite,
-          trend: '${((stats.healthy / stats.totalAnimals) * 100).toStringAsFixed(0)}% do rebanho',
-          color: theme.colorScheme.tertiary,
+          title: 'Machos Reprodutores',
+          value: '${stats.maleReproducers}',
+          icon: Icons.male,
+          trend: 'Reprodutores ativos',
+          color: Colors.blue,
         ),
         StatsCard(
-          title: 'Fêmeas Gestantes',
-          value: '${stats.pregnant}',
+          title: 'Machos Borrego',
+          value: '${stats.maleLambs}',
           icon: Icons.child_care,
-          trend: '${stats.birthsThisMonth} partos próximos',
-          color: theme.colorScheme.secondary,
+          trend: 'Em crescimento',
+          color: Colors.lightBlue,
         ),
         StatsCard(
-          title: 'Receita Mensal',
-          value: 'R\$ ${stats.revenue.toStringAsFixed(2).replaceAll('.', ',')}',
-          icon: Icons.trending_up,
-          trend: '+12% vs. mês anterior',
-          color: theme.colorScheme.primary,
+          title: 'Fêmeas Borregas',
+          value: '${stats.femaleLambs}',
+          icon: Icons.child_friendly,
+          trend: 'Em crescimento',
+          color: Colors.pink,
+        ),
+        StatsCard(
+          title: 'Fêmeas Reprodutoras',
+          value: '${stats.femaleReproducers}',
+          icon: Icons.female,
+          trend: 'Reprodução ativa',
+          color: Colors.purple,
+        ),
+        StatsCard(
+          title: 'Animais em Tratamento',
+          value: '${stats.underTreatment}',
+          icon: Icons.medical_services,
+          trend: 'Necessita atenção',
+          color: Colors.orange,
         ),
       ],
     );
@@ -482,10 +505,10 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 4,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.2,
+              crossAxisCount: 5,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.6,
               children: [
                 _buildActionCard(
                   title: 'Novo Animal',
@@ -500,10 +523,16 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   onTap: () => _showVaccinationForm(context),
                 ),
                 _buildActionCard(
+                  title: 'Agendar Medicamento',
+                  icon: Icons.medication,
+                  color: Colors.teal,
+                  onTap: () => _showMedicationForm(context),
+                ),
+                _buildActionCard(
                   title: 'Gerar Relatório',
                   icon: Icons.description,
                   color: Colors.purple,
-                  onTap: () => _tabController.animateTo(4), // Reports tab
+                  onTap: () => _tabController.animateTo(5), // Reports tab
                 ),
                 _buildActionCard(
                   title: 'Ver Histórico',
@@ -527,12 +556,12 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
         child: Column(
@@ -541,16 +570,16 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             Icon(
               icon,
               color: color,
-              size: 32,
+              size: 24,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w600,
-                fontSize: 12,
+                fontSize: 11,
               ),
             ),
           ],
@@ -676,108 +705,19 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   void _showVaccinationForm(BuildContext context, {animal}) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Agendar Vacinação',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              if (animal != null) ...[
-                Text('Animal: ${animal.code} - ${animal.name}'),
-                const SizedBox(height: 16),
-              ],
-              const TextField(
-                decoration: InputDecoration(
-                  labelText: 'Tipo de Vacina',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancelar'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vacinação agendada!')),
-                      );
-                    },
-                    child: const Text('Agendar'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (context) => VaccinationFormDialog(animalId: animal?.id),
     );
   }
 
+  void _showMedicationForm(BuildContext context) {
+    // Navega para a aba de medicamentos
+    _tabController.animateTo(3);
+  }
+
   void _showHistory(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 500),
-          child: Column(
-            children: [
-              Text(
-                'Histórico de Ações',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: 10,
-                  itemBuilder: (context, index) {
-                    final actions = [
-                      'Animal OV001 cadastrado',
-                      'Vacinação aplicada em CAP002',
-                      'Peso atualizado para OV003',
-                      'Relatório de saúde gerado',
-                      'Animal CAP001 marcado como prenhe',
-                    ];
-                    final dates = [
-                      'Hoje, 14:30',
-                      'Ontem, 09:15',
-                      'Ontem, 16:45',
-                      '2 dias atrás',
-                      '3 dias atrás',
-                    ];
-                    
-                    return ListTile(
-                      leading: const Icon(Icons.history),
-                      title: Text(actions[index % actions.length]),
-                      subtitle: Text(dates[index % dates.length]),
-                      trailing: const Icon(Icons.chevron_right),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar'),
-                ),
-              ),
-            ],
-          ),
-        ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const HistoryScreen(),
       ),
     );
   }

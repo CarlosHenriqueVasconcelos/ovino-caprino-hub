@@ -41,7 +41,9 @@ class AnimalService extends ChangeNotifier {
       Animal(
         id: "OV001",
         code: "OV001",
-        name: "Benedita",
+        name: "18",
+        nameColor: "blue",
+        category: "Fêmea Reprodutora",
         species: "Ovino",
         breed: "Santa Inês",
         gender: "Fêmea",
@@ -58,7 +60,9 @@ class AnimalService extends ChangeNotifier {
       Animal(
         id: "CP002",
         code: "CP002",
-        name: "Joaquim",
+        name: "25",
+        nameColor: "red",
+        category: "Macho Reprodutor",
         species: "Caprino",
         breed: "Boer",
         gender: "Macho",
@@ -74,7 +78,9 @@ class AnimalService extends ChangeNotifier {
       Animal(
         id: "OV003",
         code: "OV003",
-        name: "Esperança",
+        name: "18",
+        nameColor: "green",
+        category: "Fêmea Borrega",
         species: "Ovino",
         breed: "Morada Nova",
         gender: "Fêmea",
@@ -99,6 +105,10 @@ class AnimalService extends ChangeNotifier {
       birthsThisMonth: 3,
       avgWeight: 51.2,
       revenue: 15450.00,
+      maleReproducers: 5,
+      maleLambs: 8,
+      femaleLambs: 12,
+      femaleReproducers: 15,
     );
   }
 

@@ -1,30 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
+import '../services/supabase_service.dart';
+import '../widgets/vaccination_form.dart';
 
-class VaccinationAlertsWidget extends StatelessWidget {
+class VaccinationAlertsWidget extends StatefulWidget {
   const VaccinationAlertsWidget({super.key});
+
+  @override
+  State<VaccinationAlertsWidget> createState() => _VaccinationAlertsWidgetState();
+}
+
+class _VaccinationAlertsWidgetState extends State<VaccinationAlertsWidget> {
+  List<Map<String, dynamic>> _upcomingVaccinations = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVaccinations();
+  }
+
+  Future<void> _loadVaccinations() async {
+    setState(() => _isLoading = true);
+    try {
+      final vaccinations = await SupabaseService.getVaccinations();
+      final now = DateTime.now();
+      
+      // Filtra vacinações agendadas nos próximos 7 dias
+      final upcoming = vaccinations.where((vacc) {
+        if (vacc['status'] != 'Agendada') return false;
+        
+        final scheduledDate = DateTime.parse(vacc['scheduled_date']);
+        final daysUntil = scheduledDate.difference(now).inDays;
+        
+        return daysUntil >= 0 && daysUntil <= 7;
+      }).toList();
+      
+      setState(() {
+        _upcomingVaccinations = List<Map<String, dynamic>>.from(upcoming);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    if (_isLoading) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
     return Consumer<AnimalService>(
       builder: (context, animalService, child) {
         final now = DateTime.now();
         
-        // Find animals that need vaccination (more than 90 days since last vaccination)
-        final alerts = animalService.animals
+        // Alertas de vacinação vencida (mais de 90 dias)
+        final overdueAnimals = animalService.animals
             .where((animal) => animal.lastVaccination != null)
             .where((animal) {
               final lastVacc = DateTime.parse(animal.lastVaccination!);
               final daysSince = now.difference(lastVacc).inDays;
               return daysSince > 90;
             })
-            .take(5)
+            .take(3)
             .toList();
 
-        if (alerts.isEmpty) {
+        final hasAlerts = overdueAnimals.isNotEmpty || _upcomingVaccinations.isNotEmpty;
+
+        if (!hasAlerts) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -41,7 +93,7 @@ class VaccinationAlertsWidget extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Vacinações em Dia',
+                          'Vacinações e Medicamentos em Dia',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -76,7 +128,7 @@ class VaccinationAlertsWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      'Alertas de Vacinação',
+                      'Alertas de Vacinação e Medicamentos',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -89,7 +141,7 @@ class VaccinationAlertsWidget extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        '${alerts.length}',
+                        '${overdueAnimals.length + _upcomingVaccinations.length}',
                         style: TextStyle(
                           color: theme.colorScheme.onError,
                           fontWeight: FontWeight.bold,
@@ -101,125 +153,155 @@ class VaccinationAlertsWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: alerts.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final animal = alerts[index];
-                    final daysSince = now.difference(DateTime.parse(animal.lastVaccination!)).inDays;
-                    
-                    String urgencyText;
-                    Color urgencyColor;
-                    
-                    if (daysSince > 180) {
-                      urgencyText = 'URGENTE';
-                      urgencyColor = theme.colorScheme.error;
-                    } else if (daysSince > 120) {
-                      urgencyText = 'ATENÇÃO';
-                      urgencyColor = Colors.orange;
-                    } else {
-                      urgencyText = 'PRÓXIMO';
-                      urgencyColor = Colors.amber;
-                    }
-                    
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: urgencyColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: urgencyColor.withOpacity(0.3),
-                          width: 1.5,
+                // Vacinações vencidas
+                if (overdueAnimals.isNotEmpty) ...[
+                  Text(
+                    'Vacinações Vencidas',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: overdueAnimals.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final animal = overdueAnimals[index];
+                      final daysSince = now.difference(DateTime.parse(animal.lastVaccination!)).inDays;
+                      
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.error.withOpacity(0.3),
+                            width: 1.5,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: urgencyColor.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.vaccines,
-                              color: urgencyColor,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      '${animal.code} - ${animal.name}',
-                                      style: theme.textTheme.titleMedium?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: urgencyColor,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        urgencyText,
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Última vacinação há $daysSince dias',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                  ),
-                                ),
-                                Text(
-                                  '${animal.species} • ${animal.breed}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.5),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            children: [
-                              ElevatedButton(
-                                onPressed: () => _scheduleVaccination(context, animal),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: urgencyColor,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.check_circle, size: 16),
-                                    SizedBox(width: 4),
-                                    Text('Aplicar'),
-                                  ],
-                                ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.error.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ],
+                              child: Icon(
+                                Icons.vaccines,
+                                color: theme.colorScheme.error,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${animal.code} - ${animal.name}',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Última vacinação há $daysSince dias',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => _scheduleVaccination(context, animal),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.colorScheme.error,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Aplicar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Vacinações agendadas
+                if (_upcomingVaccinations.isNotEmpty) ...[
+                  Text(
+                    'Próximas Vacinações (7 dias)',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _upcomingVaccinations.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final vaccination = _upcomingVaccinations[index];
+                      final scheduledDate = DateTime.parse(vaccination['scheduled_date']);
+                      final daysUntil = scheduledDate.difference(now).inDays;
+                      
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.3),
+                            width: 1.5,
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.calendar_today,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    vaccination['vaccine_name'] ?? 'Vacina',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    daysUntil == 0 ? 'Hoje' : 'Em $daysUntil dias',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -231,50 +313,7 @@ class VaccinationAlertsWidget extends StatelessWidget {
   void _scheduleVaccination(BuildContext context, animal) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Vacinação'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Animal: ${animal.code} - ${animal.name}'),
-            const SizedBox(height: 16),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Tipo de Vacina',
-                border: OutlineInputBorder(),
-                hintText: 'Ex: V8, Antirrábica, etc.',
-              ),
-            ),
-            const SizedBox(height: 16),
-            const TextField(
-              decoration: InputDecoration(
-                labelText: 'Observações (opcional)',
-                border: OutlineInputBorder(),
-                maxLines: 2,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Vacinação aplicada em ${animal.name}!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
+      builder: (context) => VaccinationFormDialog(animalId: animal.id),
+    ).then((_) => _loadVaccinations());
   }
 }

@@ -24,10 +24,33 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   String _species = 'Ovino';
   String _gender = 'Fêmea';
   String _status = 'Saudável';
+  String _category = 'Não especificado';
+  String _nameColor = 'blue';
   DateTime _birthDate = DateTime.now();
   bool _pregnant = false;
   DateTime? _expectedDelivery;
   DateTime? _lastVaccination;
+
+  final List<String> _categories = [
+    'Macho Reprodutor',
+    'Macho Borrego',
+    'Fêmea Borrega',
+    'Fêmea Vazia',
+    'Macho Vazio',
+    'Fêmea Reprodutora',
+    'Não especificado',
+  ];
+
+  final Map<String, Color> _colorOptions = {
+    'blue': Colors.blue,
+    'red': Colors.red,
+    'green': Colors.green,
+    'yellow': Colors.yellow,
+    'orange': Colors.orange,
+    'purple': Colors.purple,
+    'pink': Colors.pink,
+    'brown': Colors.brown,
+  };
 
   @override
   void initState() {
@@ -47,6 +70,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _species = animal.species;
     _gender = animal.gender;
     _status = animal.status;
+    _category = animal.category;
+    _nameColor = animal.nameColor;
     _birthDate = animal.birthDate;
     _pregnant = animal.pregnant;
     _expectedDelivery = animal.expectedDelivery;
@@ -60,22 +85,24 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     return AlertDialog(
       title: Text(widget.animal == null ? 'Novo Animal' : 'Editar Animal'),
       content: SizedBox(
-        width: 500,
+        width: 600,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Basic Info
+                // Nome e Código
                 Row(
                   children: [
                     Expanded(
+                      flex: 2,
                       child: TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Nome *',
+                          labelText: 'Nome/Número *',
                           border: OutlineInputBorder(),
+                          hintText: 'Ex: 18',
                         ),
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
@@ -85,8 +112,43 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _nameColor,
+                        decoration: const InputDecoration(
+                          labelText: 'Cor *',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _colorOptions.entries.map((entry) {
+                          return DropdownMenuItem(
+                            value: entry.key,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: entry.value,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(entry.key),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _nameColor = value!;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
                       child: TextFormField(
                         controller: _codeController,
                         decoration: const InputDecoration(
@@ -105,7 +167,28 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Species and Gender
+                // Categoria
+                DropdownButtonFormField<String>(
+                  value: _category,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _categories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _category = value!;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Espécie e Sexo
                 Row(
                   children: [
                     Expanded(
@@ -153,7 +236,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Breed and Weight
+                // Raça e Peso
                 Row(
                   children: [
                     Expanded(
@@ -195,7 +278,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Birth Date
+                // Data de Nascimento
                 InkWell(
                   onTap: () async {
                     final date = await showDatePicker(
@@ -223,7 +306,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Location and Status
+                // Localização e Status
                 Row(
                   children: [
                     Expanded(
@@ -267,7 +350,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Pregnancy
+                // Gestação
                 if (_gender == 'Fêmea') ...[
                   CheckboxListTile(
                     title: const Text('Gestante'),
@@ -339,6 +422,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       id: widget.animal?.id ?? const Uuid().v4(),
       code: _codeController.text,
       name: _nameController.text,
+      nameColor: _nameColor,
+      category: _category,
       species: _species,
       breed: _breedController.text,
       gender: _gender,
