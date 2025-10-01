@@ -32,9 +32,21 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Adicionar colunas que faltam na tabela animals
+      await db.execute('ALTER TABLE animals ADD COLUMN updated_at TEXT');
+      await db.execute('ALTER TABLE vaccinations ADD COLUMN updated_at TEXT');
+      await db.execute('ALTER TABLE notes ADD COLUMN updated_at TEXT');
+      await db.execute('ALTER TABLE breeding_records ADD COLUMN updated_at TEXT');
+      await db.execute('ALTER TABLE financial_records ADD COLUMN updated_at TEXT');
+    }
   }
   
   static Future<String> getApplicationDocumentsPath() async {
@@ -80,10 +92,11 @@ class DatabaseService {
         vaccine_type TEXT,
         scheduled_date TEXT NOT NULL,
         applied_date TEXT,
-        status TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Agendada',
         veterinarian TEXT,
         notes TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
 
@@ -110,9 +123,10 @@ class DatabaseService {
         male_animal_id TEXT,
         breeding_date TEXT NOT NULL,
         expected_birth TEXT,
-        status TEXT,
+        status TEXT DEFAULT 'Cobertura',
         notes TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
 
@@ -124,10 +138,11 @@ class DatabaseService {
         title TEXT NOT NULL,
         content TEXT,
         category TEXT,
-        priority TEXT,
+        priority TEXT DEFAULT 'Média',
         date TEXT NOT NULL,
         created_by TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
 
@@ -141,7 +156,8 @@ class DatabaseService {
         description TEXT,
         date TEXT NOT NULL,
         animal_id TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       )
     ''');
 
@@ -149,11 +165,22 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE reports (
         id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        data TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        title TEXT NOT NULL,
+        report_type TEXT NOT NULL,
+        parameters TEXT NOT NULL DEFAULT '{}',
+        generated_at TEXT NOT NULL,
+        generated_by TEXT
       )
     ''');
+
+    // Criar índices para melhor performance
+    await db.execute('CREATE INDEX idx_animals_code ON animals(code)');
+    await db.execute('CREATE INDEX idx_animals_species ON animals(species)');
+    await db.execute('CREATE INDEX idx_animals_status ON animals(status)');
+    await db.execute('CREATE INDEX idx_vaccinations_animal_id ON vaccinations(animal_id)');
+    await db.execute('CREATE INDEX idx_breeding_female ON breeding_records(female_animal_id)');
+    await db.execute('CREATE INDEX idx_notes_animal_id ON notes(animal_id)');
+    await db.execute('CREATE INDEX idx_financial_animal_id ON financial_records(animal_id)');
   }
 
   // ==================== ANIMAIS ====================
