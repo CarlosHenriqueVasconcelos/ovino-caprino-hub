@@ -360,4 +360,84 @@ class DatabaseService {
     await db.delete('financial_records');
     await db.delete('reports');
   }
+
+  // ==================== DADOS DE EXEMPLO ====================
+  
+  static Future<void> loadSampleData() async {
+    final db = await database;
+    
+    // Verificar se já existem dados
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM animals')
+    ) ?? 0;
+    
+    if (count > 0) {
+      print('Banco já possui dados. Use clearAllData() primeiro se quiser resetar.');
+      return;
+    }
+    
+    // Inserir animais de exemplo
+    final now = DateTime.now().toIso8601String();
+    
+    await db.insert('animals', {
+      'id': 'OV001',
+      'code': 'OV001',
+      'name': '18',
+      'name_color': 'blue',
+      'category': 'Fêmea Reprodutora',
+      'species': 'Ovino',
+      'breed': 'Santa Inês',
+      'gender': 'Fêmea',
+      'birth_date': '2022-03-15',
+      'weight': 45.5,
+      'status': 'Saudável',
+      'location': 'Pasto A1',
+      'last_vaccination': '2024-08-15',
+      'pregnant': 1,
+      'expected_delivery': '2024-12-20',
+      'created_at': now,
+      'updated_at': now,
+    });
+    
+    await db.insert('animals', {
+      'id': 'CP002',
+      'code': 'CP002',
+      'name': '25',
+      'name_color': 'red',
+      'category': 'Macho Reprodutor',
+      'species': 'Caprino',
+      'breed': 'Boer',
+      'gender': 'Macho',
+      'birth_date': '2021-07-22',
+      'weight': 65.2,
+      'status': 'Reprodutor',
+      'location': 'Pasto B2',
+      'last_vaccination': '2024-09-01',
+      'pregnant': 0,
+      'created_at': now,
+      'updated_at': now,
+    });
+    
+    await db.insert('animals', {
+      'id': 'OV003',
+      'code': 'OV003',
+      'name': '18',
+      'name_color': 'green',
+      'category': 'Fêmea Borrega',
+      'species': 'Ovino',
+      'breed': 'Morada Nova',
+      'gender': 'Fêmea',
+      'birth_date': '2023-01-10',
+      'weight': 38.0,
+      'status': 'Em tratamento',
+      'location': 'Enfermaria',
+      'last_vaccination': '2024-07-20',
+      'pregnant': 0,
+      'health_issue': 'Verminose',
+      'created_at': now,
+      'updated_at': now,
+    });
+    
+    print('Dados de exemplo carregados com sucesso!');
+  }
 }

@@ -262,11 +262,28 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             );
           }
 
-          // Offline message removed: continue rendering with local data
-
           final stats = animalService.stats;
           if (stats == null) {
-            return const Center(child: Text('Nenhum dado disponível'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Carregando dados...'),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => animalService.loadData(),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Recarregar'),
+                  ),
+                ],
+              ),
+            );
           }
 
           return Column(
@@ -427,6 +444,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
 
   Widget _buildQuickActions() {
     final theme = Theme.of(context);
+    final animalService = Provider.of<AnimalService>(context, listen: false);
     
     return Card(
       child: Padding(

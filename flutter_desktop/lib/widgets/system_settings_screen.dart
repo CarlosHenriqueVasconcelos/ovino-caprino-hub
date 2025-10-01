@@ -259,40 +259,26 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    Consumer<AnimalService>(
-                      builder: (context, animalService, _) {
-                        final isOffline = animalService.error != null;
-                        
-                        return Column(
-                          children: [
-                            ListTile(
-                              leading: Icon(
-                                isOffline ? Icons.cloud_off : Icons.cloud_done,
-                                color: isOffline ? theme.colorScheme.error : theme.colorScheme.tertiary,
-                              ),
-                              title: Text(isOffline ? 'Modo Offline' : 'Conectado ao Supabase'),
-                              subtitle: Text(
-                                isOffline 
-                                  ? 'Usando dados locais - ${animalService.error}'
-                                  : 'Dados sincronizados com a nuvem'
-                              ),
-                              trailing: isOffline 
-                                ? ElevatedButton.icon(
-                                    onPressed: animalService.loadData,
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Reconectar'),
-                                  )
-                                : Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.tertiary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: theme.colorScheme.tertiary.withOpacity(0.3)),
-                                    ),
-                                    child: Text(
-                                      'Online',
-                                      style: TextStyle(
-                                        color: theme.colorScheme.tertiary,
+                    ListTile(
+                      leading: Icon(
+                        Icons.storage,
+                        color: theme.colorScheme.primary,
+                      ),
+                      title: const Text('Banco de Dados Local'),
+                      subtitle: const Text(
+                        'Todos os dados são armazenados localmente no dispositivo'
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          'SQLite',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 12,
                                       ),

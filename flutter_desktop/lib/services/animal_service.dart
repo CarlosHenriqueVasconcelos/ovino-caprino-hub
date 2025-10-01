@@ -26,10 +26,21 @@ class AnimalService extends ChangeNotifier {
       _animals = await DatabaseService.getAnimals();
       final statsData = await DatabaseService.getStats();
       _stats = AnimalStats.fromMap(statsData);
+      
+      // Se não houver dados, carregar dados de exemplo no banco
+      if (_animals.isEmpty) {
+        await DatabaseService.loadSampleData();
+        _animals = await DatabaseService.getAnimals();
+        final newStatsData = await DatabaseService.getStats();
+        _stats = AnimalStats.fromMap(newStatsData);
+      }
+      
       _error = null;
     } catch (e) {
       _error = 'Erro ao carregar dados: $e';
       print('Error loading data: $e');
+      // Em caso de erro, carregar dados de exemplo em memória
+      _loadMockData();
     }
 
     _isLoading = false;
