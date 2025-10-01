@@ -1,319 +1,251 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
-import '../widgets/vaccination_form.dart';
+import '../services/database_service.dart';
 
-class VaccinationAlertsWidget extends StatefulWidget {
-  const VaccinationAlertsWidget({super.key});
+class VaccinationAlerts extends StatefulWidget {
+  const VaccinationAlerts({super.key});
 
   @override
-  State<VaccinationAlertsWidget> createState() => _VaccinationAlertsWidgetState();
+  State<VaccinationAlerts> createState() => _VaccinationAlertsState();
 }
 
-class _VaccinationAlertsWidgetState extends State<VaccinationAlertsWidget> {
-  List<Map<String, dynamic>> _upcomingVaccinations = [];
-  bool _isLoading = true;
+class _VaccinationAlertsState extends State<VaccinationAlerts> {
+  List<Map<String, dynamic>> _vaccinations = [];
+  List<Map<String, dynamic>> _medications = [];
 
   @override
   void initState() {
     super.initState();
-    _loadVaccinations();
+    _loadData();
   }
 
-  Future<void> _loadVaccinations() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadData() async {
     try {
-      final vaccinations = await SupabaseService.getVaccinations();
-      final now = DateTime.now();
-      
-      // Filtra vacinações agendadas nos próximos 7 dias
-      final upcoming = vaccinations.where((vacc) {
-        if (vacc['status'] != 'Agendada') return false;
-        
-        final scheduledDate = DateTime.parse(vacc['scheduled_date']);
-        final daysUntil = scheduledDate.difference(now).inDays;
-        
-        return daysUntil >= 0 && daysUntil <= 7;
-      }).toList();
-      
-      setState(() {
-        _upcomingVaccinations = List<Map<String, dynamic>>.from(upcoming);
-        _isLoading = false;
-      });
+      final vaccinations = await DatabaseService.getVaccinations();
+      final medications = await DatabaseService.getMedications();
+      if (mounted) {
+        setState(() {
+          _vaccinations = vaccinations;
+          _medications = medications;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      print('Error loading data: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    if (_isLoading) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
+    final animals = Provider.of<AnimalService>(context).animals;
+
+    // Find overdue vaccinations and medications
+    final overdueVaccinations = _getOverdueVaccinations(animals);
+    final overdueMedications = _getOverdueMedications(animals);
+    final allAlerts = [...overdueVaccinations, ...overdueMedications];
+
+    if (allAlerts.isEmpty) {
+      return const SizedBox.shrink();
     }
 
-    return Consumer<AnimalService>(
-      builder: (context, animalService, child) {
-        final now = DateTime.now();
-        
-        // Alertas de vacinação vencida (mais de 90 dias)
-        final overdueAnimals = animalService.animals
-            .where((animal) => animal.lastVaccination != null)
-            .where((animal) {
-              final lastVacc = DateTime.parse(animal.lastVaccination!);
-              final daysSince = now.difference(lastVacc).inDays;
-              return daysSince > 90;
-            })
-            .take(3)
-            .toList();
-
-        final hasAlerts = overdueAnimals.isNotEmpty || _upcomingVaccinations.isNotEmpty;
-
-        if (!hasAlerts) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    color: theme.colorScheme.primary,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Vacinações e Medicamentos em Dia',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Todas as vacinações estão atualizadas! 🎉',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.warning,
-                      color: theme.colorScheme.error,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Alertas de Vacinação e Medicamentos',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.error,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        '${overdueAnimals.length + _upcomingVaccinations.length}',
-                        style: TextStyle(
-                          color: theme.colorScheme.onError,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.notifications_active,
+                  color: theme.colorScheme.error,
                 ),
-                const SizedBox(height: 16),
-                
-                // Vacinações vencidas
-                if (overdueAnimals.isNotEmpty) ...[
-                  Text(
-                    'Vacinações Vencidas',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.error,
-                    ),
+                const SizedBox(width: 12),
+                Text(
+                  'Alertas de Vacinação e Medicamentos',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 8),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: overdueAnimals.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final animal = overdueAnimals[index];
-                      final daysSince = now.difference(DateTime.parse(animal.lastVaccination!)).inDays;
-                      
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.error.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: theme.colorScheme.error.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.error.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.vaccines,
-                                color: theme.colorScheme.error,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${animal.code} - ${animal.name}',
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Última vacinação há $daysSince dias',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => _scheduleVaccination(context, animal),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.error,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Aplicar'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                ),
+                const Spacer(),
+                Text(
+                  '${allAlerts.length} pendente${allAlerts.length > 1 ? 's' : ''}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Vacinações agendadas
-                if (_upcomingVaccinations.isNotEmpty) ...[
-                  Text(
-                    'Próximas Vacinações (7 dias)',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _upcomingVaccinations.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final vaccination = _upcomingVaccinations[index];
-                      final scheduledDate = DateTime.parse(vaccination['scheduled_date']);
-                      final daysUntil = scheduledDate.difference(now).inDays;
-                      
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.orange.withOpacity(0.3),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.calendar_today,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    vaccination['vaccine_name'] ?? 'Vacina',
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    daysUntil == 0 ? 'Hoje' : 'Em $daysUntil dias',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                ),
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 120,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: allAlerts.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final alert = allAlerts[index];
+                  return _buildAlertCard(theme, alert);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _scheduleVaccination(BuildContext context, animal) {
-    showDialog(
-      context: context,
-      builder: (context) => VaccinationFormDialog(animalId: animal.id),
-    ).then((_) => _loadVaccinations());
+  Widget _buildAlertCard(ThemeData theme, Map<String, dynamic> alert) {
+    final isVaccination = alert['type'] == 'vaccination';
+    final icon = isVaccination ? Icons.vaccines : Icons.medication;
+    final typeLabel = isVaccination ? 'Vacinação' : 'Medicamento';
+    
+    return Container(
+      width: 250,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.error.withOpacity(0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: theme.colorScheme.error,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  alert['animalName'],
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.error.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              typeLabel,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${alert['description']}',
+            style: theme.textTheme.bodySmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Text(
+            'Atrasado há ${alert['daysOverdue']} dias',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _getOverdueVaccinations(List<dynamic> animals) {
+    final now = DateTime.now();
+    final alerts = <Map<String, dynamic>>[];
+
+    // Check scheduled vaccinations
+    for (var vaccination in _vaccinations) {
+      if (vaccination['next_date'] != null) {
+        final nextDate = DateTime.tryParse(vaccination['next_date']);
+        if (nextDate != null && nextDate.isBefore(now)) {
+          final daysOverdue = now.difference(nextDate).inDays;
+          final animal = animals.firstWhere(
+            (a) => a.id == vaccination['animal_id'],
+            orElse: () => null,
+          );
+          
+          if (animal != null) {
+            alerts.add({
+              'type': 'vaccination',
+              'animalName': '${animal.name} (${animal.code})',
+              'daysOverdue': daysOverdue,
+              'description': vaccination['vaccine_name'] ?? 'Vacina não especificada',
+            });
+          }
+        }
+      }
+    }
+
+    // Check animals without recent vaccination
+    for (var animal in animals) {
+      if (animal.lastVaccination != null) {
+        final daysSinceVaccination = now.difference(animal.lastVaccination!).inDays;
+        
+        // Alert if vaccination is overdue (assuming 180 days cycle)
+        if (daysSinceVaccination > 180) {
+          alerts.add({
+            'type': 'vaccination',
+            'animalName': '${animal.name} (${animal.code})',
+            'daysOverdue': daysSinceVaccination - 180,
+            'description': 'Vacinação de rotina atrasada',
+          });
+        }
+      }
+    }
+
+    return alerts;
+  }
+
+  List<Map<String, dynamic>> _getOverdueMedications(List<dynamic> animals) {
+    final now = DateTime.now();
+    final alerts = <Map<String, dynamic>>[];
+
+    for (var medication in _medications) {
+      if (medication['next_date'] != null) {
+        final nextDate = DateTime.tryParse(medication['next_date']);
+        if (nextDate != null && nextDate.isBefore(now)) {
+          final daysOverdue = now.difference(nextDate).inDays;
+          final animal = animals.firstWhere(
+            (a) => a.id == medication['animal_id'],
+            orElse: () => null,
+          );
+          
+          if (animal != null) {
+            alerts.add({
+              'type': 'medication',
+              'animalName': '${animal.name} (${animal.code})',
+              'daysOverdue': daysOverdue,
+              'description': medication['medication_name'] ?? 'Medicamento não especificado',
+            });
+          }
+        }
+      }
+    }
+
+    return alerts;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

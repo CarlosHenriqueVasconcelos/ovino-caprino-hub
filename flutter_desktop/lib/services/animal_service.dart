@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/animal.dart';
-import 'supabase_service.dart';
+import 'database_service.dart';
 
 class AnimalService extends ChangeNotifier {
   List<Animal> _animals = [];
@@ -23,13 +23,13 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _animals = await SupabaseService.getAnimals();
-      final statsData = await SupabaseService.getStats();
+      _animals = await DatabaseService.getAnimals();
+      final statsData = await DatabaseService.getStats();
       _stats = AnimalStats.fromMap(statsData);
       _error = null;
     } catch (e) {
       _error = 'Erro ao carregar dados: $e';
-      _loadMockData();
+      print('Error loading data: $e');
     }
 
     _isLoading = false;
@@ -114,13 +114,10 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> addAnimal(Animal animal) async {
     try {
-      final newAnimal =
-          await SupabaseService.createAnimal(animal.toJson());
-      if (newAnimal != null) {
-        _animals.insert(0, newAnimal);
-        await _refreshStats();
-        notifyListeners();
-      }
+      final newAnimal = await DatabaseService.createAnimal(animal.toJson());
+      _animals.insert(0, newAnimal);
+      await _refreshStats();
+      notifyListeners();
     } catch (e) {
       _error = 'Erro ao adicionar animal: $e';
       notifyListeners();
@@ -129,15 +126,12 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> updateAnimal(Animal animal) async {
     try {
-      final updatedAnimal =
-          await SupabaseService.updateAnimal(animal.id, animal.toJson());
-      if (updatedAnimal != null) {
-        final index = _animals.indexWhere((a) => a.id == animal.id);
-        if (index >= 0) {
-          _animals[index] = updatedAnimal;
-          await _refreshStats();
-          notifyListeners();
-        }
+      final updatedAnimal = await DatabaseService.updateAnimal(animal.id, animal.toJson());
+      final index = _animals.indexWhere((a) => a.id == animal.id);
+      if (index >= 0) {
+        _animals[index] = updatedAnimal;
+        await _refreshStats();
+        notifyListeners();
       }
     } catch (e) {
       _error = 'Erro ao atualizar animal: $e';
@@ -147,12 +141,10 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> removeAnimal(String id) async {
     try {
-      final success = await SupabaseService.deleteAnimal(id);
-      if (success) {
-        _animals.removeWhere((animal) => animal.id == id);
-        await _refreshStats();
-        notifyListeners();
-      }
+      await DatabaseService.deleteAnimal(id);
+      _animals.removeWhere((animal) => animal.id == id);
+      await _refreshStats();
+      notifyListeners();
     } catch (e) {
       _error = 'Erro ao remover animal: $e';
       notifyListeners();
@@ -161,11 +153,29 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> _refreshStats() async {
     try {
-      final statsData = await SupabaseService.getStats();
+      final statsData = await DatabaseService.getStats();
       _stats = AnimalStats.fromMap(statsData);
     } catch (e) {
       print('Error refreshing stats: $e');
     }
+  }
+
+  Future<void> syncWithSupabase() async {
+    // Sincronização manual com Supabase (backup)
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      // Aqui você pode implementar a lógica de sincronização
+      // Por exemplo, enviar dados locais para o Supabase
+      await Future.delayed(const Duration(seconds: 2)); // Simulação
+      _error = null;
+    } catch (e) {
+      _error = 'Erro ao sincronizar: $e';
+    }
+    
+    _isLoading = false;
+    notifyListeners();
   }
 
   void clearError() {

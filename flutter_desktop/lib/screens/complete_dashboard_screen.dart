@@ -337,7 +337,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
               _buildQuickActions(),
               const SizedBox(height: 32),
               // Vaccination Alerts
-              const VaccinationAlertsWidget(),
+              const VaccinationAlerts(),
               const SizedBox(height: 32),
               // Stats Overview
               _buildStatsGrid(stats),

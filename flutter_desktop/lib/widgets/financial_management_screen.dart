@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 import 'financial_form.dart';
 
 class FinancialManagementScreen extends StatefulWidget {
@@ -14,6 +14,7 @@ class FinancialManagementScreen extends StatefulWidget {
 class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
   List<Map<String, dynamic>> _financialRecords = [];
   bool _isLoading = true;
+  bool _isUnlocked = false;
   String _selectedType = 'Todos';
   String _selectedPeriod = 'Este Mês';
 
@@ -29,11 +30,123 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
   Future<void> _loadFinancialRecords() async {
     setState(() => _isLoading = true);
     try {
-      _financialRecords = await SupabaseService.getFinancialRecords();
+      final db = await Provider.of<AnimalService>(context, listen: false);
+      // Carregar do banco local
+      _financialRecords = await DatabaseService.getFinancialRecords();
     } catch (e) {
       print('Error loading financial records: $e');
     }
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Widget _buildPasswordScreen(ThemeData theme) {
+    final passwordController = TextEditingController();
+    
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            theme.colorScheme.primary.withOpacity(0.05),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: Center(
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lock,
+                  size: 64,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Área Protegida',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Digite a senha para acessar os dados financeiros',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  maxLength: 1,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineLarge,
+                  decoration: InputDecoration(
+                    labelText: 'Senha (1-5)',
+                    hintText: 'Digite um número de 1 a 5',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    counterText: '',
+                  ),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (value) => _checkPassword(value),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _checkPassword(passwordController.text),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Desbloquear'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _checkPassword(String password) {
+    if (password.isEmpty) {
+      _showError('Digite a senha');
+      return;
+    }
+    
+    final int? pass = int.tryParse(password);
+    if (pass == null || pass < 1 || pass > 5) {
+      _showError('Senha deve ser um número de 1 a 5');
+      return;
+    }
+    
+    // Aqui você pode validar contra uma senha armazenada
+    // Por enquanto, qualquer número de 1 a 5 desbloqueia
+    setState(() {
+      _isUnlocked = true;
+    });
+    
+    _loadFinancialRecords();
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
   }
 
   List<Map<String, dynamic>> get _filteredRecords {
@@ -66,6 +179,10 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (!_isUnlocked) {
+      return _buildPasswordScreen(theme);
+    }
 
     return Container(
       decoration: BoxDecoration(

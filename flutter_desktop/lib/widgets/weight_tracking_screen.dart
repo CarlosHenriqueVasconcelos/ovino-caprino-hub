@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../models/animal.dart';
+import 'lamb_weight_tracking.dart';
 
 class WeightTrackingScreen extends StatefulWidget {
   const WeightTrackingScreen({super.key});
@@ -10,14 +11,65 @@ class WeightTrackingScreen extends StatefulWidget {
   State<WeightTrackingScreen> createState() => _WeightTrackingScreenState();
 }
 
-class _WeightTrackingScreenState extends State<WeightTrackingScreen> {
+class _WeightTrackingScreenState extends State<WeightTrackingScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   String _selectedCategory = 'Todos';
   final List<String> _categories = ['Todos', 'Jovens (< 12 meses)', 'Adultos', 'Reprodutores'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    return Column(
+      children: [
+        // Tab Bar
+        Container(
+          color: theme.scaffoldBackgroundColor,
+          child: TabBar(
+            controller: _tabController,
+            labelColor: theme.colorScheme.primary,
+            unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+            indicatorColor: theme.colorScheme.primary,
+            tabs: const [
+              Tab(
+                icon: Icon(Icons.monitor_weight),
+                text: 'Geral',
+              ),
+              Tab(
+                icon: Icon(Icons.baby_changing_station),
+                text: 'Controle Borregos',
+              ),
+            ],
+          ),
+        ),
+        
+        // Tab View
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildGeneralWeightTracking(theme),
+              const LambWeightTracking(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeneralWeightTracking(ThemeData theme) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
