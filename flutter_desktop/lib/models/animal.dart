@@ -18,6 +18,12 @@ class Animal {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // === NOVOS CAMPOS (opcionais) ===
+  final double? birthWeight;
+  final double? weight30Days;
+  final double? weight60Days;
+  final double? weight90Days;
+
   Animal({
     required this.id,
     required this.code,
@@ -37,39 +43,101 @@ class Animal {
     this.healthIssue,
     required this.createdAt,
     required this.updatedAt,
+
+    // novos parâmetros nomeados (mantêm compatibilidade com quem chama birthWeight:)
+    this.birthWeight,
+    this.weight30Days,
+    this.weight60Days,
+    this.weight90Days,
   });
 
   /// Construtor compatível com Supabase (fromMap)
   factory Animal.fromMap(Map<String, dynamic> map) {
+    // Helpers de conversão robustos
+    double? _toDouble(dynamic v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      if (v is String) {
+        // aceita "12,3" e "12.3"
+        return double.tryParse(v.replaceAll(',', '.'));
+      }
+      return null;
+    }
+
+    DateTime _toDate(dynamic v, {DateTime? fallback}) {
+      if (v == null) return fallback ?? DateTime.now();
+      if (v is DateTime) return v;
+      return DateTime.tryParse(v.toString()) ?? (fallback ?? DateTime.now());
+    }
+
+    DateTime? _toDateOrNull(dynamic v) {
+      if (v == null) return null;
+      if (v is DateTime) return v;
+      return DateTime.tryParse(v.toString());
+    }
+
+    bool _toBool(dynamic v) {
+      if (v is bool) return v;
+      if (v is num) return v != 0;
+      if (v is String) {
+        final s = v.toLowerCase().trim();
+        return s == 'true' || s == '1' || s == 'yes' || s == 'y';
+      }
+      return false;
+    }
+
+    // Tenta ler as chaves nas duas convenções
+    double? _readBirthWeight() =>
+        _toDouble(map['birthWeight'] ?? map['birth_weight']);
+
+    double? _read30d() => _toDouble(
+          map['weight30Days'] ??
+              map['weight_30_days'] ??
+              map['weight30'] ??
+              map['weight_30d'],
+        );
+
+    double? _read60d() => _toDouble(
+          map['weight60Days'] ??
+              map['weight_60_days'] ??
+              map['weight60'] ??
+              map['weight_60d'],
+        );
+
+    double? _read90d() => _toDouble(
+          map['weight90Days'] ??
+              map['weight_90_days'] ??
+              map['weight90'] ??
+              map['weight_90d'],
+        );
+
     return Animal(
       id: map['id']?.toString() ?? '',
       code: map['code'] ?? '',
       name: map['name'] ?? '',
-      nameColor: map['name_color'] ?? 'blue',
+      nameColor: map['name_color'] ?? map['nameColor'] ?? 'blue',
       category: map['category'] ?? 'Não especificado',
       species: map['species'] ?? '',
       breed: map['breed'] ?? '',
       gender: map['gender'] ?? '',
-      birthDate: map['birth_date'] != null
-          ? DateTime.tryParse(map['birth_date'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      weight: (map['weight'] is num) ? (map['weight'] as num).toDouble() : 0.0,
+      birthDate: _toDate(map['birth_date'] ?? map['birthDate']),
+      weight: (_toDouble(map['weight']) ?? 0.0),
       status: map['status'] ?? 'Ativo',
       location: map['location'] ?? '',
-      lastVaccination: map['last_vaccination'] != null
-          ? DateTime.tryParse(map['last_vaccination'].toString())
-          : null,
-      pregnant: map['pregnant'] == true,
-      expectedDelivery: map['expected_delivery'] != null
-          ? DateTime.tryParse(map['expected_delivery'].toString())
-          : null,
-      healthIssue: map['health_issue'],
-      createdAt: map['created_at'] != null
-          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
-      updatedAt: map['updated_at'] != null
-          ? DateTime.tryParse(map['updated_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      lastVaccination:
+          _toDateOrNull(map['last_vaccination'] ?? map['lastVaccination']),
+      pregnant: _toBool(map['pregnant']),
+      expectedDelivery:
+          _toDateOrNull(map['expected_delivery'] ?? map['expectedDelivery']),
+      healthIssue: map['health_issue'] ?? map['healthIssue'],
+      createdAt: _toDate(map['created_at'] ?? map['createdAt']),
+      updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
+
+      // Novos campos lidos do mapa
+      birthWeight: _readBirthWeight(),
+      weight30Days: _read30d(),
+      weight60Days: _read60d(),
+      weight90Days: _read90d(),
     );
   }
 
@@ -78,6 +146,9 @@ class Animal {
 
   /// Exporta para Map (compatível com Supabase)
   Map<String, dynamic> toMap() {
+    String _dateOnly(DateTime? d) =>
+        d == null ? '' : d.toIso8601String().split('T')[0];
+
     return {
       'id': id,
       'code': code,
@@ -87,16 +158,22 @@ class Animal {
       'species': species,
       'breed': breed,
       'gender': gender,
-      'birth_date': birthDate.toIso8601String().split('T')[0],
+      'birth_date': _dateOnly(birthDate),
       'weight': weight,
       'status': status,
       'location': location,
-      'last_vaccination': lastVaccination?.toIso8601String().split('T')[0],
+      'last_vaccination': _dateOnly(lastVaccination),
       'pregnant': pregnant,
-      'expected_delivery': expectedDelivery?.toIso8601String().split('T')[0],
+      'expected_delivery': _dateOnly(expectedDelivery),
       'health_issue': healthIssue,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+
+      // Novos campos em snake_case (padrão Supabase)
+      'birth_weight': birthWeight,
+      'weight_30_days': weight30Days,
+      'weight_60_days': weight60Days,
+      'weight_90_days': weight90Days,
     };
   }
 
@@ -114,9 +191,7 @@ class Animal {
     } else {
       final years = ageInMonths ~/ 12;
       final remainingMonths = ageInMonths % 12;
-      return remainingMonths > 0
-          ? '${years}a ${remainingMonths}m'
-          : '$years anos';
+      return remainingMonths > 0 ? '${years}a ${remainingMonths}m' : '$years anos';
     }
   }
 
@@ -157,19 +232,25 @@ class AnimalStats {
 
   /// Criação a partir de Map (usado pelo SupabaseService)
   factory AnimalStats.fromMap(Map<String, dynamic> map) {
+    double _d(dynamic v) =>
+        v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
+
+    int _i(dynamic v) =>
+        v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
+
     return AnimalStats(
-      totalAnimals: map['totalAnimals'] ?? 0,
-      healthy: map['healthy'] ?? 0,
-      pregnant: map['pregnant'] ?? 0,
-      revenue: (map['revenue'] as num?)?.toDouble() ?? 0.0,
-      underTreatment: map['underTreatment'] ?? 0,
-      vaccinesThisMonth: map['vaccinesThisMonth'] ?? 0,
-      birthsThisMonth: map['birthsThisMonth'] ?? 0,
-      avgWeight: (map['avgWeight'] as num?)?.toDouble() ?? 0.0,
-      maleReproducers: map['maleReproducers'] ?? 0,
-      maleLambs: map['maleLambs'] ?? 0,
-      femaleLambs: map['femaleLambs'] ?? 0,
-      femaleReproducers: map['femaleReproducers'] ?? 0,
+      totalAnimals: _i(map['totalAnimals']),
+      healthy: _i(map['healthy']),
+      pregnant: _i(map['pregnant']),
+      revenue: _d(map['revenue']),
+      underTreatment: _i(map['underTreatment']),
+      vaccinesThisMonth: _i(map['vaccinesThisMonth']),
+      birthsThisMonth: _i(map['birthsThisMonth']),
+      avgWeight: _d(map['avgWeight']),
+      maleReproducers: _i(map['maleReproducers']),
+      maleLambs: _i(map['maleLambs']),
+      femaleLambs: _i(map['femaleLambs']),
+      femaleReproducers: _i(map['femaleReproducers']),
     );
   }
 }

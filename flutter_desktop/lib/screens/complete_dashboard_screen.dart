@@ -596,7 +596,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
     final alerts = animalService.animals
         .where((animal) => animal.lastVaccination != null)
         .where((animal) {
-          final lastVacc = DateTime.parse(animal.lastVaccination!);
+          final lastVacc = animal.lastVaccination!;
           final daysSince = now.difference(lastVacc).inDays;
           return daysSince > 90; // Alert if more than 90 days
         })
@@ -647,7 +647,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             ),
             const SizedBox(height: 16),
             ...alerts.map((animal) {
-              final daysSince = now.difference(DateTime.parse(animal.lastVaccination!)).inDays;
+              final daysSince = now.difference(animal.lastVaccination!).inDays;
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
