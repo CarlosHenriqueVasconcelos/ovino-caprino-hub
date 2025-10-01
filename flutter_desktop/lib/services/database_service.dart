@@ -1,5 +1,8 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io' show Platform, Directory;
 import '../models/animal.dart';
 
 class DatabaseService {
@@ -12,14 +15,31 @@ class DatabaseService {
   }
 
   static Future<Database> _initDatabase() async {
-    final databasePath = await getDatabasesPath();
-    final path = join(databasePath, 'bego_ovino_caprino.db');
+    String path;
+    
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // Para desktop, usar o diretório de documentos do app
+      final appDocDir = await getApplicationDocumentsPath();
+      final dbPath = join(appDocDir, 'BEGO_Agritech');
+      // Criar diretório se não existir
+      await Directory(dbPath).create(recursive: true);
+      path = join(dbPath, 'bego_ovino_caprino.db');
+    } else {
+      // Para mobile, usar getDatabasesPath
+      final databasePath = await getDatabasesPath();
+      path = join(databasePath, 'bego_ovino_caprino.db');
+    }
 
     return await openDatabase(
       path,
       version: 1,
       onCreate: _onCreate,
     );
+  }
+  
+  static Future<String> getApplicationDocumentsPath() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
   }
 
   static Future<void> _onCreate(Database db, int version) async {
