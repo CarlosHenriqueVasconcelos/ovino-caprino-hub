@@ -7,7 +7,7 @@ import { ReportsGenerator } from "./ReportsGenerator";
 import { VaccinationAlerts } from "./VaccinationAlerts";
 import { SearchAnimals } from "./SearchAnimals";
 import { Dialog, DialogContent } from "./ui/dialog";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Animal, AnimalStats } from "@/lib/types";
 import { useToast } from "./ui/use-toast";
 import { Button } from "./ui/button";

@@ -7,7 +7,7 @@ import { Textarea } from "./ui/textarea";
 import { Switch } from "./ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { useToast } from "./ui/use-toast";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Animal } from "@/lib/types";
 
 interface AnimalFormProps {

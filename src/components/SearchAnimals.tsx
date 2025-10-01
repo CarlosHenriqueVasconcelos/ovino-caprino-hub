@@ -4,7 +4,7 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Button } from "./ui/button";
 import { AnimalCard } from "./AnimalCard";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Animal } from "@/lib/types";
 import { useToast } from "./ui/use-toast";
 import { Search, Filter, X } from "lucide-react";

@@ -9,7 +9,7 @@ import { Textarea } from "./ui/textarea";
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Plus, DollarSign, TrendingUp, TrendingDown, Calculator } from "lucide-react";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { FinancialRecord } from "@/lib/types";
 
 export function FinancialControl() {

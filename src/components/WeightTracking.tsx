@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Animal } from "@/lib/types";
 import { useToast } from "./ui/use-toast";
 import { Scale, TrendingUp, Plus, Calendar } from "lucide-react";

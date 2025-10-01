@@ -9,7 +9,7 @@ import { useToast } from "./ui/use-toast";
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Plus, Heart, Calendar, Baby, CheckCircle } from "lucide-react";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { BreedingRecord, Animal } from "@/lib/types";
 
 export function BreedingManagement() {

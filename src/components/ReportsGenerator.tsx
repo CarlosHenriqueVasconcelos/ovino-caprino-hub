@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import { FileText, Download, Calendar, TrendingUp, Shield, Heart, DollarSign } from "lucide-react";
 
 interface ReportsGeneratorProps {

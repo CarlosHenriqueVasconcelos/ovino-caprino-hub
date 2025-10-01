@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Vaccination, Animal } from "@/lib/types";
 import { useToast } from "./ui/use-toast";
 import { Calendar, AlertTriangle, Clock, CheckCircle } from "lucide-react";

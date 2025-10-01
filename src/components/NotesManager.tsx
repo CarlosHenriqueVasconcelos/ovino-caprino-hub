@@ -9,7 +9,7 @@ import { useToast } from "./ui/use-toast";
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Plus, FileText, Heart, AlertTriangle, Edit, Trash2 } from "lucide-react";
-import { AnimalService } from "@/lib/animal-service";
+import { AnimalService } from "@/lib/offline-animal-service";
 import type { Note, Animal } from "@/lib/types";
 
 export function NotesManager() {

@@ -15,6 +15,7 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react";
+import { localSync } from "@/lib/local-db";
 
 interface BackupRecord {
   id: string;
@@ -29,6 +30,7 @@ export function BackupManager() {
   const [backupProgress, setBackupProgress] = useState(0);
   const [isBackupRunning, setIsBackupRunning] = useState(false);
   const [isRestoreDialogOpen, setIsRestoreDialogOpen] = useState(false);
+  const lastSync = localSync.getLastSync();
 
   const backupHistory: BackupRecord[] = [
     {
@@ -59,20 +61,17 @@ export function BackupManager() {
     setBackupProgress(0);
 
     try {
-      // Simular processo de backup
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setBackupProgress(i);
-      }
+      const { syncToCloud } = await import("@/lib/sync");
+      await syncToCloud((p) => setBackupProgress(p));
 
       toast({
-        title: "Backup criado com sucesso!",
-        description: "Todos os dados foram salvos com segurança."
+        title: "Backup enviado para a nuvem!",
+        description: "Dados locais sincronizados com sucesso."
       });
     } catch (error) {
       toast({
         title: "Erro no backup",
-        description: "Não foi possível criar o backup dos dados.",
+        description: error instanceof Error ? error.message : "Falha ao sincronizar",
         variant: "destructive"
       });
     } finally {
@@ -219,8 +218,8 @@ export function BackupManager() {
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <p className="font-medium">Supabase Cloud</p>
-              <p className="text-sm text-muted-foreground">Conectado</p>
-              <Badge className="mt-2 bg-green-100 text-green-800">Online</Badge>
+               <p className="text-sm text-muted-foreground">{navigator.onLine ? 'Conectado' : 'Offline'}</p>
+               <Badge className="mt-2 bg-green-100 text-green-800">{navigator.onLine ? 'Online' : 'Offline'}</Badge>
             </div>
             
             <div className="text-center p-4 border rounded-lg">
@@ -228,8 +227,8 @@ export function BackupManager() {
                 <Database className="h-6 w-6 text-blue-600" />
               </div>
               <p className="font-medium">Última Sincronização</p>
-              <p className="text-sm text-muted-foreground">Há 5 minutos</p>
-              <Badge className="mt-2">Automática</Badge>
+               <p className="text-sm text-muted-foreground">{/* atualizado dinamicamente */}</p>
+               <Badge className="mt-2">Manual</Badge>
             </div>
             
             <div className="text-center p-4 border rounded-lg">
