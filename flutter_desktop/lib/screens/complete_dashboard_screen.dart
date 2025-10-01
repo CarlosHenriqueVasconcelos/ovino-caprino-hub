@@ -202,38 +202,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
               ),
             ),
             // Status and Actions
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.10),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.20),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Offline Ready',
-                    style: TextStyle(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox.shrink(),
             const SizedBox(width: 16),
             ElevatedButton.icon(
               onPressed: () => _showAnimalForm(context),
@@ -293,37 +262,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             );
           }
 
-          if (animalService.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.cloud_off,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Modo Offline Ativo',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Usando dados locais - ${animalService.error}',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: animalService.loadData,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Tentar Reconectar'),
-                  ),
-                ],
-              ),
-            );
-          }
+          // Offline message removed: continue rendering with local data
 
           final stats = animalService.stats;
           if (stats == null) {

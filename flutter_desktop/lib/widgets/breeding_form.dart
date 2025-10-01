@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class BreedingFormDialog extends StatefulWidget {
   const BreedingFormDialog({super.key});
@@ -210,15 +211,17 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
     try {
       final breeding = {
+        'id': const Uuid().v4(),
         'female_animal_id': _femaleAnimalId!,
         'male_animal_id': _maleAnimalId,
         'breeding_date': _breedingDate.toIso8601String().split('T')[0],
         'expected_birth': _expectedBirth?.toIso8601String().split('T')[0],
         'status': _status,
         'notes': _notesController.text.isEmpty ? null : _notesController.text,
+        'created_at': DateTime.now().toIso8601String(),
       };
 
-      await SupabaseService.createBreedingRecord(breeding);
+      await DatabaseService.createBreedingRecord(breeding);
       
       // If status is "Confirmada", update the female animal as pregnant
       if (_status == 'Confirmada') {
@@ -228,7 +231,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         updatedFemale['pregnant'] = true;
         updatedFemale['expected_delivery'] = _expectedBirth?.toIso8601String().split('T')[0];
         
-        await SupabaseService.updateAnimal(_femaleAnimalId!, updatedFemale);
+        await DatabaseService.updateAnimal(_femaleAnimalId!, updatedFemale);
         animalService.loadData(); // Refresh data
       }
       

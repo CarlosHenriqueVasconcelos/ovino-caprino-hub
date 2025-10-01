@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 import '../widgets/vaccination_form.dart';
 import '../widgets/breeding_form.dart';
 import '../widgets/notes_form.dart';
@@ -83,7 +83,7 @@ class _VaccinationsTabState extends State<_VaccinationsTab> {
   Future<void> _loadVaccinations() async {
     setState(() => _isLoading = true);
     try {
-      _vaccinations = await SupabaseService.getVaccinations();
+      _vaccinations = await DatabaseService.getVaccinations();
     } catch (e) {
       // ignore: avoid_print
       print('Error loading vaccinations: $e');
@@ -213,7 +213,7 @@ class _BreedingTabState extends State<_BreedingTab> {
   Future<void> _loadBreedingRecords() async {
     setState(() => _isLoading = true);
     try {
-      _breedingRecords = await SupabaseService.getBreedingRecords();
+      _breedingRecords = await DatabaseService.getBreedingRecords();
     } catch (e) {
       // ignore: avoid_print
       print('Error loading breeding records: $e');
@@ -352,7 +352,7 @@ class _NotesTabState extends State<_NotesTab> {
   Future<void> _loadNotes() async {
     setState(() => _isLoading = true);
     try {
-      _notes = await SupabaseService.getNotes();
+      _notes = await DatabaseService.getNotes();
     } catch (e) {
       // ignore: avoid_print
       print('Error loading notes: $e');
@@ -490,7 +490,7 @@ class _FinancialTabState extends State<_FinancialTab> {
   Future<void> _loadFinancialRecords() async {
     setState(() => _isLoading = true);
     try {
-      _financialRecords = await SupabaseService.getFinancialRecords();
+      _financialRecords = await DatabaseService.getFinancialRecords();
     } catch (e) {
       // ignore: avoid_print
       print('Error loading financial records: $e');

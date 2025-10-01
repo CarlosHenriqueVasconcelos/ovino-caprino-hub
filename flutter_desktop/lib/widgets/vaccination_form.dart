@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class VaccinationFormDialog extends StatefulWidget {
   final String? animalId;
@@ -253,6 +253,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
 
     try {
       final vaccination = {
+        'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId!,
         'vaccine_name': _vaccineNameController.text,
         'vaccine_type': _vaccineType,
@@ -261,9 +262,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
         'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
         'notes': _notesController.text.isEmpty ? null : _notesController.text,
         'status': _status,
+        'created_at': DateTime.now().toIso8601String(),
       };
 
-      await SupabaseService.createVaccination(vaccination);
+      await DatabaseService.createVaccination(vaccination);
       
       if (mounted) {
         Navigator.of(context).pop();

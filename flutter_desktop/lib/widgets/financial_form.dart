@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class FinancialFormDialog extends StatefulWidget {
   const FinancialFormDialog({super.key});
@@ -255,15 +256,17 @@ class _FinancialFormDialogState extends State<FinancialFormDialog> {
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
       
       final financialRecord = {
+        'id': const Uuid().v4(),
         'type': _type,
         'category': _category,
         'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
         'amount': amount,
         'date': _date.toIso8601String().split('T')[0],
         'animal_id': _selectedAnimalId,
+        'created_at': DateTime.now().toIso8601String(),
       };
 
-      await SupabaseService.createFinancialRecord(financialRecord);
+      await DatabaseService.createFinancialRecord(financialRecord);
       
       if (mounted) {
         Navigator.of(context).pop();

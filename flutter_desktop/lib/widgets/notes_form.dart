@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class NotesFormDialog extends StatefulWidget {
   final String? animalId;
@@ -239,6 +240,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
 
     try {
       final note = {
+        'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId,
         'title': _titleController.text,
         'content': _contentController.text.isEmpty ? null : _contentController.text,
@@ -246,9 +248,10 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
         'priority': _priority,
         'date': _date.toIso8601String().split('T')[0],
         'created_by': _createdByController.text.isEmpty ? null : _createdByController.text,
+        'created_at': DateTime.now().toIso8601String(),
       };
 
-      await SupabaseService.createNote(note);
+      await DatabaseService.createNote(note);
       
       if (mounted) {
         Navigator.of(context).pop();

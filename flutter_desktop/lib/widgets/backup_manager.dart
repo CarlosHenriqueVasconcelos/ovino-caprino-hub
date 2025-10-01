@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:convert';
 import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class BackupManager extends StatefulWidget {
   const BackupManager({super.key});
@@ -188,76 +189,8 @@ class _BackupManagerState extends State<BackupManager> {
                         ),
                         const SizedBox(height: 24),
                         
-                        // Auto Backup Settings
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.schedule,
-                                      color: theme.colorScheme.secondary,
-                                      size: 32,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      'Backup Automático',
-                                      style: theme.textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                
-                                SwitchListTile(
-                                  value: _autoBackupEnabled,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _autoBackupEnabled = value;
-                                    });
-                                  },
-                                  title: const Text('Habilitar backup automático'),
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                
-                                if (_autoBackupEnabled) ...[
-                                  const SizedBox(height: 16),
-                                  DropdownButtonFormField<String>(
-                                    value: _autoBackupFrequency,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Frequência',
-                                      border: OutlineInputBorder(),
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(value: 'daily', child: Text('Diariamente')),
-                                      DropdownMenuItem(value: 'weekly', child: Text('Semanalmente')),
-                                      DropdownMenuItem(value: 'monthly', child: Text('Mensalmente')),
-                                    ],
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _autoBackupFrequency = value!;
-                                      });
-                                    },
-                                  ),
-                                ],
-                                
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _saveAutoBackupSettings,
-                                    icon: const Icon(Icons.save),
-                                    label: const Text('Salvar Configurações'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // Backup automático removido (sempre manual conforme requisito)
+                        const SizedBox.shrink(),
                       ],
                     ),
                   ),
@@ -389,36 +322,40 @@ class _BackupManagerState extends State<BackupManager> {
   }
 
   Future<void> _performManualBackup() async {
-    setState(() {
-      _isBackupRunning = true;
-    });
-
+    setState(() { _isBackupRunning = true; });
     try {
-      // Simulate backup process
-      await Future.delayed(const Duration(seconds: 3));
-      
-      // In a real implementation, you would:
-      // 1. Fetch all data from Supabase
-      // 2. Create JSON export
-      // 3. Save to local file or cloud storage
-      
+      // 1) Ler dados locais (SQLite)
+      final animals = await DatabaseService.getAnimals();
+      final vaccinations = await DatabaseService.getVaccinations();
+      final breeding = await DatabaseService.getBreedingRecords();
+      final notes = await DatabaseService.getNotes();
+      final financial = await DatabaseService.getFinancialRecords();
+
+      // 2) Enviar para a nuvem (somente no clique de backup)
+      await SupabaseService.upsertRows('animals', animals.map((a) => a.toJson()).toList());
+      await SupabaseService.upsertRows('vaccinations', vaccinations);
+      await SupabaseService.upsertRows('breeding_records', breeding);
+      await SupabaseService.upsertRows('notes', notes);
+      await SupabaseService.upsertRows('financial_records', financial);
+
+      // 3) Criar export JSON opcional e salvar localmente
       final backupData = await _createBackupData();
       await _saveBackupToFile(backupData);
-      
+
       setState(() {
         _lastBackupDate = DateTime.now();
         _backupHistory.insert(0, {
           'date': DateTime.now(),
           'type': 'Manual',
-          'size': '2.4 MB',
+          'size': '${backupData.toString().length ~/ 1024} KB',
           'status': 'Sucesso',
         });
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Backup criado com sucesso!'),
+            content: const Text('Backup enviado para a nuvem com sucesso!'),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
@@ -427,16 +364,14 @@ class _BackupManagerState extends State<BackupManager> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao criar backup: $e'),
+            content: Text('Erro no backup: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isBackupRunning = false;
-        });
+        setState(() { _isBackupRunning = false; });
       }
     }
   }
@@ -483,12 +418,12 @@ class _BackupManagerState extends State<BackupManager> {
   }
 
   Future<Map<String, dynamic>> _createBackupData() async {
-    // Fetch all data from Supabase
-    final animals = await SupabaseService.getAnimals();
-    final vaccinations = await SupabaseService.getVaccinations();
-    final breedingRecords = await SupabaseService.getBreedingRecords();
-    final notes = await SupabaseService.getNotes();
-    final financialRecords = await SupabaseService.getFinancialRecords();
+    // Exporta dados do banco local
+    final animals = await DatabaseService.getAnimals();
+    final vaccinations = await DatabaseService.getVaccinations();
+    final breedingRecords = await DatabaseService.getBreedingRecords();
+    final notes = await DatabaseService.getNotes();
+    final financialRecords = await DatabaseService.getFinancialRecords();
     
     return {
       'backup_date': DateTime.now().toIso8601String(),

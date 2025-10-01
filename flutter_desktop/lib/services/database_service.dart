@@ -77,8 +77,10 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         animal_id TEXT NOT NULL,
         vaccine_name TEXT NOT NULL,
-        date TEXT NOT NULL,
-        next_date TEXT,
+        vaccine_type TEXT,
+        scheduled_date TEXT NOT NULL,
+        applied_date TEXT,
+        status TEXT NOT NULL,
         veterinarian TEXT,
         notes TEXT,
         created_at TEXT NOT NULL
@@ -104,12 +106,11 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE breeding_records (
         id TEXT PRIMARY KEY,
-        female_id TEXT NOT NULL,
-        male_id TEXT NOT NULL,
+        female_animal_id TEXT NOT NULL,
+        male_animal_id TEXT,
         breeding_date TEXT NOT NULL,
-        expected_delivery TEXT,
-        actual_delivery TEXT,
-        offspring_count INTEGER,
+        expected_birth TEXT,
+        status TEXT,
         notes TEXT,
         created_at TEXT NOT NULL
       )
@@ -121,9 +122,11 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         animal_id TEXT,
         title TEXT NOT NULL,
-        content TEXT NOT NULL,
+        content TEXT,
         category TEXT,
+        priority TEXT,
         date TEXT NOT NULL,
+        created_by TEXT,
         created_at TEXT NOT NULL
       )
     ''');

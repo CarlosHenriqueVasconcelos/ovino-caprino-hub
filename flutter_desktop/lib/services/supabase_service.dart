@@ -103,4 +103,9 @@ class SupabaseService {
       'revenue': revenue,
     };
   }
+  // -------------------- Backup (Upsert) --------------------
+  static Future<void> upsertRows(String table, List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return;
+    await _client.from(table).upsert(rows);
+  }
 }
