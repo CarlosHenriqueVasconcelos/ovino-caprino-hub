@@ -96,7 +96,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 Row(
                   children: [
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
@@ -114,6 +114,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
+                      flex: 2,
                       child: DropdownButtonFormField<String>(
                         value: _nameColor,
                         decoration: const InputDecoration(
@@ -124,17 +125,23 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           return DropdownMenuItem(
                             value: entry.key,
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
-                                  width: 20,
-                                  height: 20,
+                                  width: 16,
+                                  height: 16,
                                   decoration: BoxDecoration(
                                     color: entry.value,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(entry.key),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    entry.key,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                           );
@@ -148,7 +155,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      flex: 2,
+                      flex: 3,
                       child: TextFormField(
                         controller: _codeController,
                         decoration: const InputDecoration(

@@ -20,6 +20,13 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     _loadData();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recarrega quando retorna para a tela
+    _loadData();
+  }
+
   Future<void> _loadData() async {
     try {
       final vaccinations = await DatabaseService.getVaccinations();
@@ -80,7 +87,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 120,
+              height: 130,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: allAlerts.length,
