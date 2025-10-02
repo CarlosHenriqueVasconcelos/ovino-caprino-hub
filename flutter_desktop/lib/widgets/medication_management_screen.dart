@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
@@ -24,11 +25,11 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final vaccinations = await SupabaseService.getVaccinations();
-      // Carrega medicamentos (podemos usar a mesma estrutura de vacinações por enquanto)
+      final vaccinations = await DatabaseService.getVaccinations();
+      final medications = await DatabaseService.getMedications();
       setState(() {
         _vaccinations = List<Map<String, dynamic>>.from(vaccinations);
-        _medications = []; // Inicialmente vazio
+        _medications = List<Map<String, dynamic>>.from(medications);
         _isLoading = false;
       });
     } catch (e) {
@@ -411,8 +412,11 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
     try {
+      final now = DateTime.now().toIso8601String();
+      
       if (_type == 'Vacinação') {
         final vaccination = {
+          'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
           'vaccine_name': _nameController.text,
           'vaccine_type': _vaccineType,
@@ -420,8 +424,24 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
           'notes': _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendada',
+          'created_at': now,
+          'updated_at': now,
         };
-        await SupabaseService.createVaccination(vaccination);
+        await DatabaseService.createVaccination(vaccination);
+      } else {
+        // Medicamento
+        final medication = {
+          'id': const Uuid().v4(),
+          'animal_id': _selectedAnimalId!,
+          'medication_name': _nameController.text,
+          'date': _scheduledDate.toIso8601String().split('T')[0],
+          'next_date': _scheduledDate.add(const Duration(days: 30)).toIso8601String().split('T')[0],
+          'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
+          'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
+          'notes': _notesController.text.isEmpty ? null : _notesController.text,
+          'created_at': now,
+        };
+        await DatabaseService.createMedication(medication);
       }
       
       if (mounted) {

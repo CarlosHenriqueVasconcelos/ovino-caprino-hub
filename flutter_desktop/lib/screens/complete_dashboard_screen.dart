@@ -383,6 +383,12 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                 ),
                 const Spacer(),
                 OutlinedButton.icon(
+                  onPressed: () => _showSearchDialog(context),
+                  icon: const Icon(Icons.search),
+                  label: const Text('Buscar Animal'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
                   onPressed: () => _showAnimalForm(context),
                   icon: const Icon(Icons.add),
                   label: const Text('Adicionar Animal'),
@@ -677,6 +683,153 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
         builder: (context) => const HistoryScreen(),
       ),
     );
+  }
+
+  void _showSearchDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _AnimalSearchDialog(),
+    );
+  }
+}
+
+class _AnimalSearchDialog extends StatefulWidget {
+  @override
+  State<_AnimalSearchDialog> createState() => _AnimalSearchDialogState();
+}
+
+class _AnimalSearchDialogState extends State<_AnimalSearchDialog> {
+  final _searchController = TextEditingController();
+  List<dynamic> _filteredAnimals = [];
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadAllAnimals();
+  }
+
+  void _loadAllAnimals() {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    setState(() {
+      _filteredAnimals = animalService.animals;
+    });
+  }
+
+  void _filterAnimals(String query) {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    if (query.isEmpty) {
+      setState(() {
+        _filteredAnimals = animalService.animals;
+      });
+      return;
+    }
+
+    setState(() {
+      _filteredAnimals = animalService.animals.where((animal) {
+        final searchLower = query.toLowerCase();
+        return animal.name.toLowerCase().contains(searchLower) ||
+               animal.code.toLowerCase().contains(searchLower) ||
+               animal.category.toLowerCase().contains(searchLower) ||
+               animal.breed.toLowerCase().contains(searchLower);
+      }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Buscar Animal'),
+      content: SizedBox(
+        width: 600,
+        height: 500,
+        child: Column(
+          children: [
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar por nome, código, categoria ou raça',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _filterAnimals('');
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: _filterAnimals,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _filteredAnimals.isEmpty
+                  ? const Center(child: Text('Nenhum animal encontrado'))
+                  : ListView.builder(
+                      itemCount: _filteredAnimals.length,
+                      itemBuilder: (context, index) {
+                        final animal = _filteredAnimals[index];
+                        return Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getColor(animal.nameColor),
+                              child: Text(
+                                animal.name[0],
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                            title: Text('${animal.name} (${animal.code})'),
+                            subtitle: Text('${animal.category} - ${animal.breed}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _showAnimalFormFromDialog(context, animal);
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+      ],
+    );
+  }
+
+  Color _getColor(String colorName) {
+    const colorMap = {
+      'blue': Colors.blue,
+      'red': Colors.red,
+      'green': Colors.green,
+      'yellow': Colors.yellow,
+      'orange': Colors.orange,
+      'purple': Colors.purple,
+      'pink': Colors.pink,
+      'brown': Colors.brown,
+    };
+    return colorMap[colorName] ?? Colors.grey;
+  }
+
+  void _showAnimalFormFromDialog(BuildContext context, animal) {
+    showDialog(
+      context: context,
+      builder: (context) => AnimalFormDialog(animal: animal),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }
 
