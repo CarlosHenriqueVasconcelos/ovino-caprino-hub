@@ -17,7 +17,9 @@ export type Database = {
       animals: {
         Row: {
           birth_date: string
+          birth_weight: number | null
           breed: string
+          category: string | null
           code: string
           created_at: string
           expected_delivery: string | null
@@ -27,15 +29,21 @@ export type Database = {
           last_vaccination: string | null
           location: string
           name: string
+          name_color: string | null
           pregnant: boolean | null
           species: string
           status: string
           updated_at: string
           weight: number
+          weight_30_days: number | null
+          weight_60_days: number | null
+          weight_90_days: number | null
         }
         Insert: {
           birth_date: string
+          birth_weight?: number | null
           breed: string
+          category?: string | null
           code: string
           created_at?: string
           expected_delivery?: string | null
@@ -45,15 +53,21 @@ export type Database = {
           last_vaccination?: string | null
           location: string
           name: string
+          name_color?: string | null
           pregnant?: boolean | null
           species: string
           status?: string
           updated_at?: string
           weight: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
         }
         Update: {
           birth_date?: string
+          birth_weight?: number | null
           breed?: string
+          category?: string | null
           code?: string
           created_at?: string
           expected_delivery?: string | null
@@ -63,11 +77,15 @@ export type Database = {
           last_vaccination?: string | null
           location?: string
           name?: string
+          name_color?: string | null
           pregnant?: boolean | null
           species?: string
           status?: string
           updated_at?: string
           weight?: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
         }
         Relationships: []
       }
@@ -159,6 +177,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "financial_records_animal_id_fkey"
+            columns: ["animal_id"]
+            isOneToOne: false
+            referencedRelation: "animals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medications: {
+        Row: {
+          animal_id: string
+          created_at: string
+          date: string
+          dosage: string | null
+          id: string
+          medication_name: string
+          next_date: string | null
+          notes: string | null
+          updated_at: string
+          veterinarian: string | null
+        }
+        Insert: {
+          animal_id: string
+          created_at?: string
+          date: string
+          dosage?: string | null
+          id?: string
+          medication_name: string
+          next_date?: string | null
+          notes?: string | null
+          updated_at?: string
+          veterinarian?: string | null
+        }
+        Update: {
+          animal_id?: string
+          created_at?: string
+          date?: string
+          dosage?: string | null
+          id?: string
+          medication_name?: string
+          next_date?: string | null
+          notes?: string | null
+          updated_at?: string
+          veterinarian?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_medications_animal"
             columns: ["animal_id"]
             isOneToOne: false
             referencedRelation: "animals"
