@@ -1,3 +1,5 @@
+// flutter_desktop/lib/models/animal.dart
+
 class Animal {
   final String id;
   final String code;
@@ -18,7 +20,7 @@ class Animal {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  // === NOVOS CAMPOS (opcionais) ===
+  // Marcos de peso (opcionais)
   final double? birthWeight;
   final double? weight30Days;
   final double? weight60Days;
@@ -43,24 +45,17 @@ class Animal {
     this.healthIssue,
     required this.createdAt,
     required this.updatedAt,
-
-    // novos parâmetros nomeados (mantêm compatibilidade com quem chama birthWeight:)
     this.birthWeight,
     this.weight30Days,
     this.weight60Days,
     this.weight90Days,
   });
 
-  /// Construtor compatível com Supabase (fromMap)
   factory Animal.fromMap(Map<String, dynamic> map) {
-    // Helpers de conversão robustos
     double? _toDouble(dynamic v) {
       if (v == null) return null;
       if (v is num) return v.toDouble();
-      if (v is String) {
-        // aceita "12,3" e "12.3"
-        return double.tryParse(v.replaceAll(',', '.'));
-      }
+      if (v is String) return double.tryParse(v.replaceAll(',', '.'));
       return null;
     }
 
@@ -86,7 +81,6 @@ class Animal {
       return false;
     }
 
-    // Tenta ler as chaves nas duas convenções
     double? _readBirthWeight() =>
         _toDouble(map['birthWeight'] ?? map['birth_weight']);
 
@@ -122,7 +116,7 @@ class Animal {
       gender: map['gender'] ?? '',
       birthDate: _toDate(map['birth_date'] ?? map['birthDate']),
       weight: (_toDouble(map['weight']) ?? 0.0),
-      status: map['status'] ?? 'Ativo',
+      status: map['status'] ?? 'Saudável',
       location: map['location'] ?? '',
       lastVaccination:
           _toDateOrNull(map['last_vaccination'] ?? map['lastVaccination']),
@@ -132,8 +126,6 @@ class Animal {
       healthIssue: map['health_issue'] ?? map['healthIssue'],
       createdAt: _toDate(map['created_at'] ?? map['createdAt']),
       updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
-
-      // Novos campos lidos do mapa
       birthWeight: _readBirthWeight(),
       weight30Days: _read30d(),
       weight60Days: _read60d(),
@@ -141,15 +133,14 @@ class Animal {
     );
   }
 
-  /// Construtor original fromJson (mantém compatibilidade)
   factory Animal.fromJson(Map<String, dynamic> json) => Animal.fromMap(json);
 
-  /// Exporta para Map (compatível com Supabase)
   Map<String, dynamic> toMap() {
-    String _dateOnly(DateTime? d) =>
-        d == null ? '' : d.toIso8601String().split('T')[0];
+    String? _dateOnlyOrNull(DateTime? d) =>
+        d == null ? null : d.toIso8601String().split('T')[0];
 
-    return {
+    // mapa base com obrigatórios e opcionais mais comuns
+    final map = <String, dynamic>{
       'id': id,
       'code': code,
       'name': name,
@@ -158,34 +149,39 @@ class Animal {
       'species': species,
       'breed': breed,
       'gender': gender,
-      'birth_date': _dateOnly(birthDate),
+      'birth_date': _dateOnlyOrNull(birthDate), // nunca null aqui
       'weight': weight,
       'status': status,
       'location': location,
-      'last_vaccination': _dateOnly(lastVaccination),
-      'pregnant': pregnant,
-      'expected_delivery': _dateOnly(expectedDelivery),
-      'health_issue': healthIssue,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-
-      // Novos campos em snake_case (padrão Supabase)
-      'birth_weight': birthWeight,
-      'weight_30_days': weight30Days,
-      'weight_60_days': weight60Days,
-      'weight_90_days': weight90Days,
+      'pregnant': pregnant ? 1 : 0, // INTEGER no SQLite
     };
+
+    // adicionar somente se não for null/vazio
+    void put(String key, dynamic value) {
+      if (value == null) return;
+      if (value is String && value.isEmpty) return;
+      map[key] = value;
+    }
+
+    put('last_vaccination', _dateOnlyOrNull(lastVaccination));
+    put('expected_delivery', _dateOnlyOrNull(expectedDelivery));
+    put('health_issue', healthIssue);
+    put('birth_weight', birthWeight);
+    put('weight_30_days', weight30Days);
+    put('weight_60_days', weight60Days);
+    put('weight_90_days', weight90Days);
+
+    return map;
   }
 
-  /// Alias para manter compatibilidade
   Map<String, dynamic> toJson() => toMap();
 
-  /// Texto de idade formatado
   String get ageText {
     final now = DateTime.now();
     final ageInMonths =
         (now.year - birthDate.year) * 12 + (now.month - birthDate.month);
-
     if (ageInMonths < 12) {
       return '$ageInMonths meses';
     } else {
@@ -195,10 +191,7 @@ class Animal {
     }
   }
 
-  /// Emoji para espécie
-  String get speciesIcon {
-    return species == 'Ovino' ? '🐑' : '🐐';
-  }
+  String get speciesIcon => species == 'Ovino' ? '🐑' : '🐐';
 }
 
 class AnimalStats {
@@ -230,11 +223,9 @@ class AnimalStats {
     this.femaleReproducers = 0,
   });
 
-  /// Criação a partir de Map (usado pelo SupabaseService)
   factory AnimalStats.fromMap(Map<String, dynamic> map) {
     double _d(dynamic v) =>
         v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
-
     int _i(dynamic v) =>
         v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
 
@@ -251,6 +242,59 @@ class AnimalStats {
       maleLambs: _i(map['maleLambs']),
       femaleLambs: _i(map['femaleLambs']),
       femaleReproducers: _i(map['femaleReproducers']),
+    );
+  }
+}
+
+// Facilita atualizações parciais
+extension AnimalCopy on Animal {
+  Animal copyWith({
+    String? id,
+    String? code,
+    String? name,
+    String? nameColor,
+    String? category,
+    String? species,
+    String? breed,
+    String? gender,
+    DateTime? birthDate,
+    double? weight,
+    String? status,
+    String? location,
+    DateTime? lastVaccination,
+    bool? pregnant,
+    DateTime? expectedDelivery,
+    String? healthIssue,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    double? birthWeight,
+    double? weight30Days,
+    double? weight60Days,
+    double? weight90Days,
+  }) {
+    return Animal(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      name: name ?? this.name,
+      nameColor: nameColor ?? this.nameColor,
+      category: category ?? this.category,
+      species: species ?? this.species,
+      breed: breed ?? this.breed,
+      gender: gender ?? this.gender,
+      birthDate: birthDate ?? this.birthDate,
+      weight: weight ?? this.weight,
+      status: status ?? this.status,
+      location: location ?? this.location,
+      lastVaccination: lastVaccination ?? this.lastVaccination,
+      pregnant: pregnant ?? this.pregnant,
+      expectedDelivery: expectedDelivery ?? this.expectedDelivery,
+      healthIssue: healthIssue ?? this.healthIssue,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      birthWeight: birthWeight ?? this.birthWeight,
+      weight30Days: weight30Days ?? this.weight30Days,
+      weight60Days: weight60Days ?? this.weight60Days,
+      weight90Days: weight90Days ?? this.weight90Days,
     );
   }
 }

@@ -1,331 +1,149 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:path/path.dart';
+// flutter_desktop/lib/services/database_service.dart
+//
+// Camada de COMPATIBILIDADE com o serviço antigo.
+// Mantém a mesma API estática (getAnimals, createAnimal, etc.)
+// mas delega para o AppDatabase (local_db.dart) novo.
+
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
+import 'package:sqflite/sqflite.dart' as sqflite show Sqflite;
 import 'package:path_provider/path_provider.dart';
-import 'dart:io' show Platform, Directory;
+
 import '../models/animal.dart';
+import '../data/local_db.dart';
 
 class DatabaseService {
-  static Database? _database;
-  
-  static Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+  static AppDatabase? _app;
+  static Future<ffi.Database> get database async {
+    _app ??= await AppDatabase.open();
+    return _app!.db;
   }
 
-  static Future<Database> _initDatabase() async {
-    String path;
-    
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      // Para desktop, usar o diretório de documentos do app
-      final appDocDir = await getApplicationDocumentsPath();
-      final dbPath = join(appDocDir, 'BEGO_Agritech');
-      // Criar diretório se não existir
-      await Directory(dbPath).create(recursive: true);
-      path = join(dbPath, 'bego_ovino_caprino.db');
-    } else {
-      // Para mobile, usar getDatabasesPath
-      final databasePath = await getDatabasesPath();
-      path = join(databasePath, 'bego_ovino_caprino.db');
-    }
+  /// Caminho atual do DB (útil para logs ou tela de config)
+  static Future<String> dbPath() => AppDatabase.dbPath();
 
-    return await openDatabase(
-      path,
-      version: 2,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
-  }
+  // ======================================================
+  // === API ESTÁTICA COMPATÍVEL COM O ARQUIVO ANTIGO  ===
+  // ======================================================
 
-  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Adicionar colunas que faltam na tabela animals
-      await db.execute('ALTER TABLE animals ADD COLUMN updated_at TEXT');
-      await db.execute('ALTER TABLE vaccinations ADD COLUMN updated_at TEXT');
-      await db.execute('ALTER TABLE notes ADD COLUMN updated_at TEXT');
-      await db.execute('ALTER TABLE breeding_records ADD COLUMN updated_at TEXT');
-      await db.execute('ALTER TABLE financial_records ADD COLUMN updated_at TEXT');
-    }
-  }
-  
-  static Future<String> getApplicationDocumentsPath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
-  }
-
-  static Future<void> _onCreate(Database db, int version) async {
-    // Tabela de animais
-    await db.execute('''
-      CREATE TABLE animals (
-        id TEXT PRIMARY KEY,
-        code TEXT NOT NULL,
-        name TEXT NOT NULL,
-        name_color TEXT,
-        category TEXT,
-        species TEXT NOT NULL,
-        breed TEXT NOT NULL,
-        gender TEXT NOT NULL,
-        birth_date TEXT NOT NULL,
-        weight REAL NOT NULL,
-        status TEXT NOT NULL,
-        location TEXT,
-        last_vaccination TEXT,
-        pregnant INTEGER DEFAULT 0,
-        expected_delivery TEXT,
-        health_issue TEXT,
-        birth_weight REAL,
-        weight_30_days REAL,
-        weight_60_days REAL,
-        weight_90_days REAL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de vacinações
-    await db.execute('''
-      CREATE TABLE vaccinations (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT NOT NULL,
-        vaccine_name TEXT NOT NULL,
-        vaccine_type TEXT,
-        scheduled_date TEXT NOT NULL,
-        applied_date TEXT,
-        status TEXT NOT NULL DEFAULT 'Agendada',
-        veterinarian TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de medicamentos
-    await db.execute('''
-      CREATE TABLE medications (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT NOT NULL,
-        medication_name TEXT NOT NULL,
-        date TEXT NOT NULL,
-        next_date TEXT,
-        dosage TEXT,
-        veterinarian TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de reprodução
-    await db.execute('''
-      CREATE TABLE breeding_records (
-        id TEXT PRIMARY KEY,
-        female_animal_id TEXT NOT NULL,
-        male_animal_id TEXT,
-        breeding_date TEXT NOT NULL,
-        expected_birth TEXT,
-        status TEXT DEFAULT 'Cobertura',
-        notes TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de anotações
-    await db.execute('''
-      CREATE TABLE notes (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT,
-        title TEXT NOT NULL,
-        content TEXT,
-        category TEXT,
-        priority TEXT DEFAULT 'Média',
-        date TEXT NOT NULL,
-        created_by TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de registros financeiros
-    await db.execute('''
-      CREATE TABLE financial_records (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        description TEXT,
-        date TEXT NOT NULL,
-        animal_id TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Tabela de relatórios
-    await db.execute('''
-      CREATE TABLE reports (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        report_type TEXT NOT NULL,
-        parameters TEXT NOT NULL DEFAULT '{}',
-        generated_at TEXT NOT NULL,
-        generated_by TEXT
-      )
-    ''');
-
-    // Criar índices para melhor performance
-    await db.execute('CREATE INDEX idx_animals_code ON animals(code)');
-    await db.execute('CREATE INDEX idx_animals_species ON animals(species)');
-    await db.execute('CREATE INDEX idx_animals_status ON animals(status)');
-    await db.execute('CREATE INDEX idx_vaccinations_animal_id ON vaccinations(animal_id)');
-    await db.execute('CREATE INDEX idx_breeding_female ON breeding_records(female_animal_id)');
-    await db.execute('CREATE INDEX idx_notes_animal_id ON notes(animal_id)');
-    await db.execute('CREATE INDEX idx_financial_animal_id ON financial_records(animal_id)');
-  }
-
-  // ==================== ANIMAIS ====================
-  
+  // --------- ANIMAIS ---------
   static Future<List<Animal>> getAnimals() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('animals');
-    return List.generate(maps.length, (i) => Animal.fromMap(maps[i]));
+    final rows = await db.query('animals');
+    return rows.map((m) => Animal.fromMap(m)).toList();
+    // ou: List.generate(rows.length, (i) => Animal.fromMap(rows[i]));
   }
 
   static Future<Animal> createAnimal(Map<String, dynamic> animal) async {
     final db = await database;
-    await db.insert('animals', animal);
-    return Animal.fromMap(animal);
+    final data = _withoutNulls(animal);
+    await db.insert('animals', data);
+    return Animal.fromMap(data);
   }
 
   static Future<Animal> updateAnimal(String id, Map<String, dynamic> animal) async {
     final db = await database;
-    await db.update(
-      'animals',
-      animal,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    return Animal.fromMap(animal);
+    final data = _withoutNulls(animal);
+    await db.update('animals', data, where: 'id = ?', whereArgs: [id]);
+    return Animal.fromMap({...data, 'id': id});
   }
 
   static Future<void> deleteAnimal(String id) async {
     final db = await database;
-    await db.delete(
-      'animals',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('animals', where: 'id = ?', whereArgs: [id]);
   }
 
-  // ==================== VACINAÇÕES ====================
-  
+  // --------- VACINAÇÕES ---------
   static Future<List<Map<String, dynamic>>> getVaccinations() async {
     final db = await database;
-    return await db.query('vaccinations');
+    final rows = await db.query('vaccinations');
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   static Future<void> createVaccination(Map<String, dynamic> vaccination) async {
     final db = await database;
-    await db.insert('vaccinations', vaccination);
+    await db.insert('vaccinations', _withoutNulls(vaccination));
   }
 
-  // ==================== MEDICAMENTOS ====================
-  
+  // --------- MEDICAMENTOS ---------
   static Future<List<Map<String, dynamic>>> getMedications() async {
     final db = await database;
-    return await db.query('medications');
+    final rows = await db.query('medications');
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   static Future<void> createMedication(Map<String, dynamic> medication) async {
     final db = await database;
-    await db.insert('medications', medication);
+    await db.insert('medications', _withoutNulls(medication));
   }
 
-  // ==================== REPRODUÇÃO ====================
-  
+  // --------- REPRODUÇÃO ---------
   static Future<List<Map<String, dynamic>>> getBreedingRecords() async {
     final db = await database;
-    return await db.query('breeding_records');
+    final rows = await db.query('breeding_records');
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   static Future<void> createBreedingRecord(Map<String, dynamic> record) async {
     final db = await database;
-    await db.insert('breeding_records', record);
+    await db.insert('breeding_records', _withoutNulls(record));
   }
 
-  // ==================== ANOTAÇÕES ====================
-  
+  // --------- ANOTAÇÕES ---------
   static Future<List<Map<String, dynamic>>> getNotes() async {
     final db = await database;
-    return await db.query('notes');
+    final rows = await db.query('notes');
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   static Future<void> createNote(Map<String, dynamic> note) async {
     final db = await database;
-    await db.insert('notes', note);
+    await db.insert('notes', _withoutNulls(note));
   }
 
-  // ==================== FINANCEIRO ====================
-  
+  // --------- FINANCEIRO ---------
   static Future<List<Map<String, dynamic>>> getFinancialRecords() async {
     final db = await database;
-    return await db.query('financial_records');
+    final rows = await db.query('financial_records');
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   static Future<void> createFinancialRecord(Map<String, dynamic> record) async {
     final db = await database;
-    await db.insert('financial_records', record);
+    await db.insert('financial_records', _withoutNulls(record));
   }
 
-  // ==================== ESTATÍSTICAS ====================
-  
+  // --------- ESTATÍSTICAS ---------
   static Future<Map<String, dynamic>> getStats() async {
     final db = await database;
-    
-    final totalAnimals = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals')
-    ) ?? 0;
-    
-    final healthy = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE status = ?', ['Saudável'])
-    ) ?? 0;
-    
-    final pregnant = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE pregnant = 1')
-    ) ?? 0;
-    
-    final underTreatment = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE status = ?', ['Em tratamento'])
-    ) ?? 0;
-    
-    final maleReproducers = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE category = ?', ['Macho Reprodutor'])
-    ) ?? 0;
-    
-    final maleLambs = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE category = ?', ['Macho Borrego'])
-    ) ?? 0;
-    
-    final femaleLambs = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE category = ?', ['Fêmea Borrega'])
-    ) ?? 0;
-    
-    final femaleReproducers = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals WHERE category = ?', ['Fêmea Reprodutora'])
-    ) ?? 0;
-    
-    final revenueResult = await db.rawQuery(
-      'SELECT SUM(amount) as total FROM financial_records WHERE type = ?',
-      ['receita']
-    );
-    
-    final revenue = (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
-    
-    final avgWeightResult = await db.rawQuery(
-      'SELECT AVG(weight) as avg FROM animals'
-    );
-    
-    final avgWeight = (avgWeightResult.first['avg'] as num?)?.toDouble() ?? 0.0;
+
+    int _firstInt(List<Map<String, Object?>> r) {
+      if (r.isEmpty) return 0;
+      final v = r.first.values.first;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
+    double _firstDouble(List<Map<String, Object?>> r) {
+      if (r.isEmpty) return 0.0;
+      final v = r.first.values.first;
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0.0;
+      return 0.0;
+    }
+
+    final totalAnimals = _firstInt(await db.rawQuery('SELECT COUNT(*) AS c FROM animals'));
+    final healthy = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE status = 'Saudável' OR status = 'Ativo'"));
+    final pregnant = _firstInt(await db.rawQuery('SELECT COUNT(*) AS c FROM animals WHERE pregnant = 1'));
+    final underTreatment = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE status = 'Em tratamento' OR status = 'Tratamento'"));
+    final maleReproducers = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE category = 'Macho Reprodutor'"));
+    final maleLambs = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE category = 'Macho Borrego'"));
+    final femaleLambs = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE category = 'Fêmea Borrega'"));
+    final femaleReproducers = _firstInt(await db.rawQuery("SELECT COUNT(*) AS c FROM animals WHERE category = 'Fêmea Reprodutora'"));
+
+    final revenue = _firstDouble(await db.rawQuery("SELECT SUM(amount) AS total FROM financial_records WHERE type = 'receita'"));
+    final avgWeight = _firstDouble(await db.rawQuery('SELECT AVG(weight) AS avg FROM animals'));
 
     return {
       'totalAnimals': totalAnimals,
@@ -343,13 +161,13 @@ class DatabaseService {
     };
   }
 
-  // ==================== BACKUP ====================
-  
+  // --------- BACKUP / SYNC ---------
+  /// Compat: era chamado pelo botão de backup com um callback.
   static Future<void> syncWithSupabase(Function onSync) async {
-    // Esta função será chamada manualmente pelo botão de backup
     await onSync();
   }
 
+  // --------- LIMPEZA ---------
   static Future<void> clearAllData() async {
     final db = await database;
     await db.delete('animals');
@@ -359,26 +177,24 @@ class DatabaseService {
     await db.delete('notes');
     await db.delete('financial_records');
     await db.delete('reports');
+    await db.delete('push_tokens');
+    await db.delete('animal_weights');
   }
 
-  // ==================== DADOS DE EXEMPLO ====================
-  
+  // --------- DADOS EXEMPLO ---------
   static Future<void> loadSampleData() async {
     final db = await database;
-    
-    // Verificar se já existem dados
-    final count = Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM animals')
-    ) ?? 0;
-    
-    if (count > 0) {
-      print('Banco já possui dados. Use clearAllData() primeiro se quiser resetar.');
+
+    final cnt = await db.rawQuery('SELECT COUNT(*) AS c FROM animals');
+    final has = cnt.isNotEmpty && (cnt.first['c'] is num) && (cnt.first['c'] as num) > 0;
+    if (has) {
+      // ignore: avoid_print
+      print('Banco já possui dados. Use clearAllData() para resetar.');
       return;
     }
-    
-    // Inserir animais de exemplo
+
     final now = DateTime.now().toIso8601String();
-    
+
     await db.insert('animals', {
       'id': 'OV001',
       'code': 'OV001',
@@ -398,7 +214,7 @@ class DatabaseService {
       'created_at': now,
       'updated_at': now,
     });
-    
+
     await db.insert('animals', {
       'id': 'CP002',
       'code': 'CP002',
@@ -417,7 +233,7 @@ class DatabaseService {
       'created_at': now,
       'updated_at': now,
     });
-    
+
     await db.insert('animals', {
       'id': 'OV003',
       'code': 'OV003',
@@ -437,7 +253,25 @@ class DatabaseService {
       'created_at': now,
       'updated_at': now,
     });
-    
+
+    // ignore: avoid_print
     print('Dados de exemplo carregados com sucesso!');
+  }
+
+  // --------- COMPAT util antigo ---------
+  static Future<String> getApplicationDocumentsPath() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  // ================== HELPERS ==================
+  static Map<String, dynamic> _withoutNulls(Map<String, dynamic> m) {
+    final out = <String, dynamic>{};
+    m.forEach((k, v) {
+      if (v == null) return;
+      if (v is String && v.isEmpty) return;
+      out[k] = v;
+    });
+    return out;
   }
 }

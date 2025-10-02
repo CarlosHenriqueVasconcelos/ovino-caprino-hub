@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
+import '../services/backup_service.dart';
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -20,7 +21,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Usa Provider para acessar o serviço
     final animalService = context.watch<AnimalService>();
 
     return Container(
@@ -47,11 +47,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.settings,
-                          size: 28,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.settings, size: 28, color: theme.colorScheme.primary),
                         const SizedBox(width: 12),
                         Text(
                           'Configurações do Sistema',
@@ -75,7 +71,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Notifications Settings
+            // Notifications
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -84,63 +80,37 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.notifications,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.notifications, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Notificações',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Notificações', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     SwitchListTile(
                       title: const Text('Ativar Notificações'),
                       subtitle: const Text('Receber alertas do sistema'),
                       value: _notificationsEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          _notificationsEnabled = value;
-                        });
-                      },
+                      onChanged: (value) => setState(() => _notificationsEnabled = value),
                     ),
-
                     if (_notificationsEnabled) ...[
                       const Divider(),
                       SwitchListTile(
                         title: const Text('Lembretes de Vacinação'),
                         subtitle: const Text('Alertas quando vacinações estiverem próximas'),
                         value: _vaccinationReminders,
-                        onChanged: (value) {
-                          setState(() {
-                            _vaccinationReminders = value;
-                          });
-                        },
+                        onChanged: (v) => setState(() => _vaccinationReminders = v),
                       ),
                       SwitchListTile(
                         title: const Text('Lembretes de Parto'),
                         subtitle: const Text('Alertas para partos previstos'),
                         value: _birthReminders,
-                        onChanged: (value) {
-                          setState(() {
-                            _birthReminders = value;
-                          });
-                        },
+                        onChanged: (v) => setState(() => _birthReminders = v),
                       ),
                       SwitchListTile(
                         title: const Text('Monitoramento de Peso'),
                         subtitle: const Text('Alertas para animais fora da faixa de peso ideal'),
                         value: _weightTracking,
-                        onChanged: (value) {
-                          setState(() {
-                            _weightTracking = value;
-                          });
-                        },
+                        onChanged: (v) => setState(() => _weightTracking = v),
                       ),
                     ],
                   ],
@@ -149,7 +119,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Backup Settings
+            // Backup & Dados
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -158,32 +128,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.backup,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.backup, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Backup e Dados',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Backup e Dados', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     SwitchListTile(
                       title: const Text('Backup Automático'),
                       subtitle: const Text('Fazer backup dos dados automaticamente'),
                       value: _autoBackup,
-                      onChanged: (value) {
-                        setState(() {
-                          _autoBackup = value;
-                        });
-                      },
+                      onChanged: (v) => setState(() => _autoBackup = v),
                     ),
-
                     if (_autoBackup) ...[
                       const Divider(),
                       ListTile(
@@ -196,25 +152,16 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                             DropdownMenuItem(value: 'weekly', child: Text('Semanal')),
                             DropdownMenuItem(value: 'monthly', child: Text('Mensal')),
                           ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _backupFrequency = value;
-                              });
-                            }
-                          },
+                          onChanged: (value) => setState(() => _backupFrequency = value ?? _backupFrequency),
                         ),
                       ),
                     ],
-
                     const Divider(),
-
-                    // Backup Actions
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => _performBackup(),
+                            onPressed: _performBackup,
                             icon: const Icon(Icons.cloud_upload),
                             label: const Text('Fazer Backup Agora'),
                           ),
@@ -222,7 +169,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () => _restoreBackup(),
+                            onPressed: _restoreBackup,
                             icon: const Icon(Icons.cloud_download),
                             label: const Text('Restaurar Backup'),
                           ),
@@ -235,7 +182,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Database Status
+            // Status do Banco
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -244,61 +191,31 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.storage,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.storage, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Status do Banco de Dados',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Status do Banco de Dados', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     ListTile(
-                      leading: Icon(
-                        Icons.storage,
-                        color: theme.colorScheme.primary,
-                      ),
+                      leading: Icon(Icons.storage, color: theme.colorScheme.primary),
                       title: const Text('Banco de Dados Local'),
-                      subtitle: const Text(
-                        'Todos os dados são armazenados localmente no dispositivo',
-                      ),
+                      subtitle: const Text('Todos os dados são armazenados localmente no dispositivo'),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.3),
-                          ),
+                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
                         ),
-                        child: Text(
-                          'SQLite',
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
+                        child: Text('SQLite', style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.w600, fontSize: 12)),
                       ),
                     ),
-
                     const Divider(),
-
                     ListTile(
-                      leading: Icon(
-                        Icons.analytics,
-                        color: theme.colorScheme.secondary,
-                      ),
+                      leading: Icon(Icons.analytics, color: theme.colorScheme.secondary),
                       title: const Text('Total de Registros'),
-                      subtitle: Text(
-                        '${animalService.animals.length} animais cadastrados',
-                      ),
+                      subtitle: Text('${animalService.animals.length} animais cadastrados'),
                       trailing: TextButton.icon(
                         onPressed: () => _showDataStatistics(animalService),
                         icon: const Icon(Icons.info_outline),
@@ -311,7 +228,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // System Actions
+            // Ações do Sistema
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -320,49 +237,36 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.build,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.build, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Ações do Sistema',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text('Ações do Sistema', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     ListTile(
                       leading: Icon(Icons.info, color: theme.colorScheme.primary),
                       title: const Text('Sobre o BEGO Agritech'),
                       subtitle: const Text('Versão 1.0.0 - Sistema de Gestão Pecuária'),
-                      onTap: () => _showAboutDialog(),
+                      onTap: _showAboutDialog,
                     ),
-
                     ListTile(
                       leading: Icon(Icons.help, color: theme.colorScheme.secondary),
                       title: const Text('Ajuda e Suporte'),
                       subtitle: const Text('Documentação e tutoriais'),
-                      onTap: () => _showHelp(),
+                      onTap: _showHelp,
                     ),
-
                     ListTile(
                       leading: Icon(Icons.bug_report, color: theme.colorScheme.tertiary),
                       title: const Text('Reportar Problema'),
                       subtitle: const Text('Enviar feedback ou relatar bugs'),
-                      onTap: () => _reportIssue(),
+                      onTap: _reportIssue,
                     ),
-
                     const Divider(),
-
                     ListTile(
                       leading: Icon(Icons.delete_forever, color: theme.colorScheme.error),
                       title: const Text('Limpar Dados'),
                       subtitle: const Text('Apagar todos os dados locais (irreversível)'),
-                      onTap: () => _confirmDataClear(),
+                      onTap: _confirmDataClear,
                     ),
                   ],
                 ),
@@ -387,15 +291,25 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     }
   }
 
-  void _performBackup() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Backup iniciado com sucesso!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        action: SnackBarAction(
-          label: 'Ver Progresso',
-          onPressed: () {},
+  Future<void> _performBackup() async {
+    final backup = context.read<BackupService>();
+    final stream = backup.backupAll();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Backup para Supabase'),
+        content: StreamBuilder<String>(
+          stream: stream,
+          builder: (_, snap) => Text(snap.data ?? 'Preparando...'),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
       ),
     );
   }
@@ -410,10 +324,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           'Tem certeza de que deseja continuar?',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -433,7 +344,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   void _showDataStatistics(AnimalService animalService) {
     final stats = animalService.stats;
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -453,10 +363,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               )
             : const Text('Dados não disponíveis'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fechar'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
         ],
       ),
     );
@@ -469,10 +376,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -483,22 +387,13 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
-          children: [
-            Text('🐑'),
-            SizedBox(width: 8),
-            Text('BEGO Agritech'),
-            SizedBox(width: 8),
-            Text('🐐'),
-          ],
+          children: [Text('🐑'), SizedBox(width: 8), Text('BEGO Agritech'), SizedBox(width: 8), Text('🐐')],
         ),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Sistema Completo de Gestão para Ovinocultura e Caprinocultura',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Text('Sistema Completo de Gestão para Ovinocultura e Caprinocultura', style: TextStyle(fontWeight: FontWeight.bold)),
             SizedBox(height: 16),
             Text('Versão: 1.0.0'),
             Text('Desenvolvido com Flutter'),
@@ -506,18 +401,12 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             Text('Funciona Offline: Sim'),
             SizedBox(height: 16),
             Text(
-              'Este sistema permite o controle completo do rebanho, '
-              'desde o cadastro de animais até o controle financeiro, '
+              'Este sistema permite o controle completo do rebanho, desde o cadastro de animais até o controle financeiro, '
               'com funcionalidades offline para uso em campo.',
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fechar'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar'))],
       ),
     );
   }
@@ -545,26 +434,16 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Limpar Todos os Dados'),
-          ],
+          children: [Icon(Icons.warning, color: Colors.red), SizedBox(width: 8), Text('Limpar Todos os Dados')],
         ),
         content: const Text(
           'ATENÇÃO: Esta ação irá apagar TODOS os dados locais permanentemente. '
-          'Certifique-se de ter um backup antes de continuar. '
-          'Esta ação NÃO PODE ser desfeita.',
+          'Certifique-se de ter um backup antes de continuar. Esta ação NÃO PODE ser desfeita.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancelar')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             onPressed: () {
               Navigator.of(context).pop();
               _clearAllData();
@@ -581,12 +460,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       SnackBar(
         content: const Text('Todos os dados foram removidos.'),
         backgroundColor: Theme.of(context).colorScheme.error,
-        action: SnackBarAction(
-          label: 'Reiniciar App',
-          onPressed: () {
-            // Restart app logic would go here
-          },
-        ),
+        action: SnackBarAction(label: 'Reiniciar App', onPressed: () {}),
       ),
     );
   }
