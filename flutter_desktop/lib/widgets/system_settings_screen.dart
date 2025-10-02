@@ -16,10 +16,12 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   bool _weightTracking = true;
   bool _autoBackup = false;
   String _backupFrequency = 'daily';
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Usa Provider para acessar o serviço
+    final animalService = context.watch<AnimalService>();
 
     return Container(
       decoration: BoxDecoration(
@@ -96,7 +98,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     SwitchListTile(
                       title: const Text('Ativar Notificações'),
                       subtitle: const Text('Receber alertas do sistema'),
@@ -107,7 +109,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         });
                       },
                     ),
-                    
+
                     if (_notificationsEnabled) ...[
                       const Divider(),
                       SwitchListTile(
@@ -120,7 +122,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           });
                         },
                       ),
-                      
                       SwitchListTile(
                         title: const Text('Lembretes de Parto'),
                         subtitle: const Text('Alertas para partos previstos'),
@@ -131,7 +132,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           });
                         },
                       ),
-                      
                       SwitchListTile(
                         title: const Text('Monitoramento de Peso'),
                         subtitle: const Text('Alertas para animais fora da faixa de peso ideal'),
@@ -172,7 +172,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     SwitchListTile(
                       title: const Text('Backup Automático'),
                       subtitle: const Text('Fazer backup dos dados automaticamente'),
@@ -183,7 +183,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         });
                       },
                     ),
-                    
+
                     if (_autoBackup) ...[
                       const Divider(),
                       ListTile(
@@ -206,9 +206,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         ),
                       ),
                     ],
-                    
+
                     const Divider(),
-                    
+
                     // Backup Actions
                     Row(
                       children: [
@@ -258,7 +258,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     ListTile(
                       leading: Icon(
                         Icons.storage,
@@ -266,46 +266,44 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ),
                       title: const Text('Banco de Dados Local'),
                       subtitle: const Text(
-                        'Todos os dados são armazenados localmente no dispositivo'
+                        'Todos os dados são armazenados localmente no dispositivo',
                       ),
                       trailing: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.3)),
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withOpacity(0.3),
+                          ),
                         ),
                         child: Text(
                           'SQLite',
                           style: TextStyle(
                             color: theme.colorScheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                            ),
-                            
-                            const Divider(),
-                            
-                            ListTile(
-                              leading: Icon(
-                                Icons.analytics,
-                                color: theme.colorScheme.secondary,
-                              ),
-                              title: Text('Total de Registros'),
-                              subtitle: Text(
-                                '${animalService.animals.length} animais cadastrados'
-                              ),
-                              trailing: TextButton.icon(
-                                onPressed: () => _showDataStatistics(animalService),
-                                icon: const Icon(Icons.info_outline),
-                                label: const Text('Detalhes'),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const Divider(),
+
+                    ListTile(
+                      leading: Icon(
+                        Icons.analytics,
+                        color: theme.colorScheme.secondary,
+                      ),
+                      title: const Text('Total de Registros'),
+                      subtitle: Text(
+                        '${animalService.animals.length} animais cadastrados',
+                      ),
+                      trailing: TextButton.icon(
+                        onPressed: () => _showDataStatistics(animalService),
+                        icon: const Icon(Icons.info_outline),
+                        label: const Text('Detalhes'),
+                      ),
                     ),
                   ],
                 ),
@@ -336,30 +334,30 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    
+
                     ListTile(
                       leading: Icon(Icons.info, color: theme.colorScheme.primary),
                       title: const Text('Sobre o BEGO Agritech'),
                       subtitle: const Text('Versão 1.0.0 - Sistema de Gestão Pecuária'),
                       onTap: () => _showAboutDialog(),
                     ),
-                    
+
                     ListTile(
                       leading: Icon(Icons.help, color: theme.colorScheme.secondary),
                       title: const Text('Ajuda e Suporte'),
                       subtitle: const Text('Documentação e tutoriais'),
                       onTap: () => _showHelp(),
                     ),
-                    
+
                     ListTile(
                       leading: Icon(Icons.bug_report, color: theme.colorScheme.tertiary),
                       title: const Text('Reportar Problema'),
                       subtitle: const Text('Enviar feedback ou relatar bugs'),
                       onTap: () => _reportIssue(),
                     ),
-                    
+
                     const Divider(),
-                    
+
                     ListTile(
                       leading: Icon(Icons.delete_forever, color: theme.colorScheme.error),
                       title: const Text('Limpar Dados'),
@@ -409,7 +407,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         title: const Text('Restaurar Backup'),
         content: const Text(
           'Esta ação substituirá todos os dados atuais pelos dados do backup. '
-          'Tem certeza de que deseja continuar?'
+          'Tem certeza de que deseja continuar?',
         ),
         actions: [
           TextButton(
@@ -435,23 +433,25 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   void _showDataStatistics(AnimalService animalService) {
     final stats = animalService.stats;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Estatísticas dos Dados'),
-        content: stats != null ? Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildStatItem('Total de Animais', '${stats.totalAnimals}'),
-            _buildStatItem('Animais Saudáveis', '${stats.healthy}'),
-            _buildStatItem('Em Tratamento', '${stats.underTreatment}'),
-            _buildStatItem('Fêmeas Gestantes', '${stats.pregnant}'),
-            _buildStatItem('Peso Médio', '${stats.avgWeight.toStringAsFixed(1)} kg'),
-            _buildStatItem('Receita Total', 'R\$ ${stats.revenue.toStringAsFixed(2)}'),
-          ],
-        ) : const Text('Dados não disponíveis'),
+        content: stats != null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStatItem('Total de Animais', '${stats.totalAnimals}'),
+                  _buildStatItem('Animais Saudáveis', '${stats.healthy}'),
+                  _buildStatItem('Em Tratamento', '${stats.underTreatment}'),
+                  _buildStatItem('Fêmeas Gestantes', '${stats.pregnant}'),
+                  _buildStatItem('Peso Médio', '${stats.avgWeight.toStringAsFixed(1)} kg'),
+                  _buildStatItem('Receita Total', 'R\$ ${stats.revenue.toStringAsFixed(2)}'),
+                ],
+              )
+            : const Text('Dados não disponíveis'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
