@@ -111,48 +111,241 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Widget _buildVaccinationCard(Map<String, dynamic> vaccination) {
     final status = vaccination['status'] ?? 'Agendada';
     Color statusColor = Colors.orange;
-    if (status == 'Aplicada') statusColor = Colors.green;
-    if (status == 'Cancelada') statusColor = Colors.red;
+    IconData statusIcon = Icons.schedule;
+    if (status == 'Aplicada') {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    }
+    if (status == 'Cancelada') {
+      statusColor = Colors.red;
+      statusIcon = Icons.cancel;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.2),
-          child: Icon(Icons.vaccines, color: statusColor),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border(left: BorderSide(color: statusColor, width: 4)),
         ),
-        title: Text(vaccination['vaccine_name'] ?? 'Sem nome'),
-        subtitle: Text(
-          'Tipo: ${vaccination['vaccine_type']}\n'
-          'Data: ${vaccination['scheduled_date']}\n'
-          'Status: $status',
-        ),
-        isThreeLine: true,
-        trailing: IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: () => _showVaccinationOptions(vaccination),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.vaccines, color: statusColor, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          vaccination['vaccine_name'] ?? 'Sem nome',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(statusIcon, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              status,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => _showVaccinationOptions(vaccination),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.category_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tipo: ${vaccination['vaccine_type'] ?? 'N/A'}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Data: ${_formatDate(vaccination['scheduled_date'])}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDetails(vaccination, isVaccination: true),
+                  icon: const Icon(Icons.visibility, size: 18),
+                  label: const Text('Ver Detalhes'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMedicationCard(Map<String, dynamic> medication) {
+    const Color medicationColor = Color(0xFF6366F1);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: const CircleAvatar(
-          child: Icon(Icons.medication),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: const Border(left: BorderSide(color: medicationColor, width: 4)),
         ),
-        title: Text(medication['name'] ?? 'Sem nome'),
-        subtitle: Text(
-          'Dosagem: ${medication['dosage']}\n'
-          'Data: ${medication['scheduled_date']}',
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: medicationColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.medication, color: medicationColor, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          medication['medication_name'] ?? 'Sem nome',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (medication['dosage'] != null)
+                          Text(
+                            medication['dosage'],
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => _showMedicationOptions(medication),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Data: ${_formatDate(medication['date'])}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+              if (medication['next_date'] != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.event_repeat, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Próxima: ${_formatDate(medication['next_date'])}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDetails(medication, isVaccination: false),
+                  icon: const Icon(Icons.visibility, size: 18),
+                  label: const Text('Ver Detalhes'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        isThreeLine: true,
-        trailing: IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: () => _showMedicationOptions(medication),
-        ),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dt = DateTime.parse(date.toString());
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    } catch (e) {
+      return date.toString();
+    }
+  }
+
+  void _showDetails(Map<String, dynamic> data, {required bool isVaccination}) async {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    final animalId = data['animal_id'];
+    final animal = animalService.animals.firstWhere(
+      (a) => a.id == animalId,
+      orElse: () => animalService.animals.first,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => _DetailsDialog(
+        data: data,
+        animal: animal,
+        isVaccination: isVaccination,
       ),
     );
   }
@@ -473,5 +666,282 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     _notesController.dispose();
     _dosageController.dispose();
     super.dispose();
+  }
+}
+
+class _DetailsDialog extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final dynamic animal;
+  final bool isVaccination;
+
+  const _DetailsDialog({
+    required this.data,
+    required this.animal,
+    required this.isVaccination,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accentColor = isVaccination
+        ? (data['status'] == 'Aplicada'
+            ? Colors.green
+            : data['status'] == 'Cancelada'
+                ? Colors.red
+                : Colors.orange)
+        : const Color(0xFF6366F1);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: accentColor.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isVaccination ? Icons.vaccines : Icons.medication,
+                      color: accentColor,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isVaccination ? 'Detalhes da Vacinação' : 'Detalhes do Medicamento',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isVaccination
+                              ? data['vaccine_name'] ?? 'Sem nome'
+                              : data['medication_name'] ?? 'Sem nome',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+
+            // Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Animal
+                    _buildDetailSection(
+                      icon: Icons.pets,
+                      title: 'Animal',
+                      content: '${animal.name} (${animal.code})',
+                      color: accentColor,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Nome
+                    _buildDetailSection(
+                      icon: isVaccination ? Icons.vaccines : Icons.medication,
+                      title: isVaccination ? 'Nome da Vacina' : 'Nome do Medicamento',
+                      content: isVaccination
+                          ? data['vaccine_name'] ?? 'N/A'
+                          : data['medication_name'] ?? 'N/A',
+                      color: accentColor,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tipo ou Dosagem
+                    if (isVaccination) ...[
+                      _buildDetailSection(
+                        icon: Icons.category,
+                        title: 'Tipo de Vacina',
+                        content: data['vaccine_type'] ?? 'N/A',
+                        color: accentColor,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDetailSection(
+                        icon: Icons.info_outline,
+                        title: 'Status',
+                        content: data['status'] ?? 'N/A',
+                        color: accentColor,
+                      ),
+                    ] else ...[
+                      _buildDetailSection(
+                        icon: Icons.medication_liquid,
+                        title: 'Dosagem',
+                        content: data['dosage'] ?? 'N/A',
+                        color: accentColor,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Datas
+                    _buildDetailSection(
+                      icon: Icons.calendar_today,
+                      title: isVaccination ? 'Data Agendada' : 'Data de Aplicação',
+                      content: _formatDate(
+                          isVaccination ? data['scheduled_date'] : data['date']),
+                      color: accentColor,
+                    ),
+                    if (isVaccination && data['applied_date'] != null) ...[
+                      const SizedBox(height: 16),
+                      _buildDetailSection(
+                        icon: Icons.event_available,
+                        title: 'Data de Aplicação',
+                        content: _formatDate(data['applied_date']),
+                        color: accentColor,
+                      ),
+                    ],
+                    if (!isVaccination && data['next_date'] != null) ...[
+                      const SizedBox(height: 16),
+                      _buildDetailSection(
+                        icon: Icons.event_repeat,
+                        title: 'Próxima Aplicação',
+                        content: _formatDate(data['next_date']),
+                        color: accentColor,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Veterinário
+                    if (data['veterinarian'] != null &&
+                        data['veterinarian'].toString().isNotEmpty)
+                      _buildDetailSection(
+                        icon: Icons.person,
+                        title: 'Veterinário',
+                        content: data['veterinarian'],
+                        color: accentColor,
+                      ),
+                    if (data['veterinarian'] != null &&
+                        data['veterinarian'].toString().isNotEmpty)
+                      const SizedBox(height: 16),
+
+                    // Observações
+                    if (data['notes'] != null && data['notes'].toString().isNotEmpty)
+                      _buildDetailSection(
+                        icon: Icons.notes,
+                        title: 'Observações',
+                        content: data['notes'],
+                        color: accentColor,
+                        isMultiline: true,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accentColor,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Fechar',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+    bool isMultiline = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dt = DateTime.parse(date.toString());
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    } catch (e) {
+      return date.toString();
+    }
   }
 }
