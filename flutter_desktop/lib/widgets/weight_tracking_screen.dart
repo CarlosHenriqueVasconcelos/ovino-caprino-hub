@@ -11,10 +11,16 @@ class WeightTrackingScreen extends StatefulWidget {
   State<WeightTrackingScreen> createState() => _WeightTrackingScreenState();
 }
 
-class _WeightTrackingScreenState extends State<WeightTrackingScreen> with SingleTickerProviderStateMixin {
+class _WeightTrackingScreenState extends State<WeightTrackingScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedCategory = 'Todos';
-  final List<String> _categories = ['Todos', 'Jovens (< 12 meses)', 'Adultos', 'Reprodutores'];
+  final List<String> _categories = [
+    'Todos',
+    'Jovens (< 12 meses)',
+    'Adultos',
+    'Reprodutores'
+  ];
 
   @override
   void initState() {
@@ -40,21 +46,18 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
           child: TabBar(
             controller: _tabController,
             labelColor: theme.colorScheme.primary,
-            unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+            unselectedLabelColor:
+                theme.colorScheme.onSurface.withOpacity(0.6),
             indicatorColor: theme.colorScheme.primary,
             tabs: const [
+              Tab(icon: Icon(Icons.monitor_weight), text: 'Geral'),
               Tab(
-                icon: Icon(Icons.monitor_weight),
-                text: 'Geral',
-              ),
-              Tab(
-                icon: Icon(Icons.baby_changing_station),
-                text: 'Controle Borregos',
-              ),
+                  icon: Icon(Icons.baby_changing_station),
+                  text: 'Controle Borregos'),
             ],
           ),
         ),
-        
+
         // Tab View
         Expanded(
           child: TabBarView(
@@ -94,11 +97,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.monitor_weight,
-                          size: 28,
-                          color: theme.colorScheme.primary,
-                        ),
+                        Icon(Icons.monitor_weight,
+                            size: 28, color: theme.colorScheme.primary),
                         const SizedBox(width: 12),
                         Text(
                           'Controle de Peso e Desenvolvimento',
@@ -114,7 +114,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                       'Monitore o desenvolvimento dos animais através do controle de peso. '
                       'Acompanhe o crescimento por categoria de idade e identifique animais com peso inadequado.',
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color:
+                            theme.colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -144,13 +145,14 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                           return FilterChip(
                             label: Text(category),
                             selected: isSelected,
-                            onSelected: (selected) {
+                            onSelected: (_) {
                               setState(() {
                                 _selectedCategory = category;
                               });
                             },
                             backgroundColor: theme.colorScheme.surface,
-                            selectedColor: theme.colorScheme.primary.withOpacity(0.2),
+                            selectedColor: theme.colorScheme.primary
+                                .withOpacity(0.2),
                             checkmarkColor: theme.colorScheme.primary,
                           );
                         }).toList(),
@@ -162,18 +164,18 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
             ),
             const SizedBox(height: 24),
 
-            // Weight Statistics
+            // Weight Statistics + List
             Consumer<AnimalService>(
               builder: (context, animalService, _) {
-                final filteredAnimals = _getFilteredAnimals(animalService.animals);
-                
+                // ⚠️ SEMPRE trabalhar com cópia mutável, nunca diretamente com animalService.animals
+                final filteredAnimals =
+                    _getFilteredAnimals(animalService.animals);
+
                 return Column(
                   children: [
-                    // Statistics Cards
                     _buildWeightStats(theme, filteredAnimals),
                     const SizedBox(height: 24),
-                    
-                    // Animals Weight List
+
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -182,12 +184,11 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                           children: [
                             Text(
                               'Peso dos Animais',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: theme.textTheme.headlineSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 24),
-                            
+
                             if (filteredAnimals.isEmpty)
                               _buildEmptyState(theme)
                             else
@@ -207,21 +208,27 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
   }
 
   List<Animal> _getFilteredAnimals(List<Animal> animals) {
+    // Ponto crítico: comece de uma CÓPIA mutável
+    final base = animals.toList(growable: true);
+
     switch (_selectedCategory) {
       case 'Jovens (< 12 meses)':
-        return animals.where((animal) {
-          final ageInMonths = _getAgeInMonths(animal.birthDate);
-          return ageInMonths < 12;
-        }).toList();
+        return base
+            .where((a) => _getAgeInMonths(a.birthDate) < 12)
+            .toList();
       case 'Adultos':
-        return animals.where((animal) {
-          final ageInMonths = _getAgeInMonths(animal.birthDate);
-          return ageInMonths >= 12 && animal.status != 'Reprodutor';
-        }).toList();
+        return base
+            .where((a) =>
+                _getAgeInMonths(a.birthDate) >= 12 &&
+                !(a.category).contains('Reprodutor'))
+            .toList();
       case 'Reprodutores':
-        return animals.where((animal) => animal.status == 'Reprodutor').toList();
+        return base
+            .where((a) => (a.category).contains('Reprodutor'))
+            .toList();
       default:
-        return animals;
+        // 'Todos' → devolve a cópia, nunca a lista original do service
+        return base;
     }
   }
 
@@ -231,18 +238,20 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
   }
 
   Widget _buildWeightStats(ThemeData theme, List<Animal> animals) {
-    if (animals.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (animals.isEmpty) return const SizedBox.shrink();
 
     final weights = animals.map((a) => a.weight).toList();
-    final avgWeight = weights.reduce((a, b) => a + b) / weights.length;
+    final avgWeight =
+        weights.reduce((a, b) => a + b) / weights.length;
     final minWeight = weights.reduce((a, b) => a < b ? a : b);
     final maxWeight = weights.reduce((a, b) => a > b ? a : b);
 
-    // Calculate weight categories
-    final underweight = animals.where((a) => a.weight < _getIdealWeightRange(a)['min']!).length;
-    final overweight = animals.where((a) => a.weight > _getIdealWeightRange(a)['max']!).length;
+    final underweight = animals
+        .where((a) => a.weight < _getIdealWeightRange(a)['min']!)
+        .length;
+    final overweight = animals
+        .where((a) => a.weight > _getIdealWeightRange(a)['max']!)
+        .length;
     final normalWeight = animals.length - underweight - overweight;
 
     return GridView.count(
@@ -285,7 +294,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
     );
   }
 
-  Widget _buildStatCard(ThemeData theme, {
+  Widget _buildStatCard(
+    ThemeData theme, {
     required String title,
     required String value,
     required IconData icon,
@@ -326,16 +336,11 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
         padding: const EdgeInsets.all(48),
         child: Column(
           children: [
-            Icon(
-              Icons.monitor_weight_outlined,
-              size: 64,
-              color: theme.colorScheme.outline,
-            ),
+            Icon(Icons.monitor_weight_outlined,
+                size: 64, color: theme.colorScheme.outline),
             const SizedBox(height: 16),
-            Text(
-              'Nenhum animal encontrado',
-              style: theme.textTheme.headlineSmall,
-            ),
+            Text('Nenhum animal encontrado',
+                style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
               'Ajuste os filtros ou adicione animais ao rebanho',
@@ -351,16 +356,16 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
   }
 
   Widget _buildAnimalWeightList(ThemeData theme, List<Animal> animals) {
-    // Sort animals by weight
-    animals.sort((a, b) => a.weight.compareTo(b.weight));
+    // NUNCA ordene a lista recebida diretamente — crie uma cópia
+    final sorted = [...animals]..sort((a, b) => a.weight.compareTo(b.weight));
 
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: animals.length,
+      itemCount: sorted.length,
       separatorBuilder: (context, index) => const Divider(),
       itemBuilder: (context, index) {
-        final animal = animals[index];
+        final animal = sorted[index];
         final weightRange = _getIdealWeightRange(animal);
         final isUnderweight = animal.weight < weightRange['min']!;
         final isOverweight = animal.weight > weightRange['max']!;
@@ -403,7 +408,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Animal Info
               Expanded(
                 child: Column(
@@ -426,7 +431,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                   ],
                 ),
               ),
-              
+
               // Weight Info
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -440,11 +445,13 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor.withOpacity(0.3)),
+                      border: Border.all(
+                          color: statusColor.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -472,9 +479,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
   }
 
   Map<String, double> _getIdealWeightRange(Animal animal) {
-    // Simplified weight ranges based on species, gender, and age
     final ageInMonths = _getAgeInMonths(animal.birthDate);
-    
+
     if (animal.species == 'Ovino') {
       if (ageInMonths < 6) {
         return {'min': 15.0, 'max': 25.0};
@@ -485,7 +491,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen> with Single
       } else {
         return {'min': 40.0, 'max': 65.0};
       }
-    } else { // Caprino
+    } else {
+      // Caprino
       if (ageInMonths < 6) {
         return {'min': 10.0, 'max': 20.0};
       } else if (ageInMonths < 12) {
