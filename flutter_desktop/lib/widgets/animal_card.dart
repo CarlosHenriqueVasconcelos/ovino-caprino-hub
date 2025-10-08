@@ -26,6 +26,41 @@ class AnimalCard extends StatelessWidget {
     }
   }
 
+  Color _parseColor(String colorName) {
+    final colorMap = {
+      'red': Colors.red,
+      'blue': Colors.blue,
+      'green': Colors.green,
+      'yellow': Colors.yellow,
+      'orange': Colors.orange,
+      'purple': Colors.purple,
+      'pink': Colors.pink,
+      'brown': Colors.brown,
+      'grey': Colors.grey,
+      'black': Colors.black,
+      'white': Colors.white,
+      'cyan': Colors.cyan,
+      'teal': Colors.teal,
+      'indigo': Colors.indigo,
+      'lime': Colors.lime,
+      'amber': Colors.amber,
+      // Português
+      'vermelho': Colors.red,
+      'azul': Colors.blue,
+      'verde': Colors.green,
+      'amarelo': Colors.yellow,
+      'laranja': Colors.orange,
+      'roxo': Colors.purple,
+      'rosa': Colors.pink,
+      'marrom': Colors.brown,
+      'cinza': Colors.grey,
+      'preto': Colors.black,
+      'branco': Colors.white,
+    };
+
+    return colorMap[colorName.toLowerCase()] ?? Colors.black;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -58,6 +93,7 @@ class AnimalCard extends StatelessWidget {
                         animal.name,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: _parseColor(animal.nameColor),
                         ),
                       ),
                       Text(
