@@ -17,9 +17,12 @@ import '../widgets/vaccination_alerts.dart' show VaccinationAlerts;
 import '../widgets/vaccination_form.dart';
 import '../widgets/medication_management_screen.dart';
 import '../widgets/history_screen.dart';
+import '../services/database_service.dart';
+import 'package:uuid/uuid.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
-  const CompleteDashboardScreen({super.key});
+  final int? initialTab;
+  const CompleteDashboardScreen({super.key, this.initialTab});
 
   @override
   State<CompleteDashboardScreen> createState() =>
@@ -81,12 +84,20 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(
+      length: _tabs.length, 
+      vsync: this,
+      initialIndex: widget.initialTab ?? 0,
+    );
     _tabController.addListener(() {
       setState(() {
         _currentIndex = _tabController.index;
       });
     });
+  }
+  
+  void _goToTab(int index) {
+    _tabController.animateTo(index);
   }
 
   @override
@@ -122,15 +133,15 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: const [
-                  _DashboardTabContent(),
-                  BreedingManagementScreen(),
-                  WeightTrackingScreen(),
-                  MedicationManagementScreen(),
-                  NotesManagementScreen(),
-                  ReportsScreen(),
-                  FinancialManagementScreen(),
-                  SystemSettingsScreen(),
+                children: [
+                  _DashboardTabContent(onGoToTab: _goToTab),
+                  const BreedingManagementScreen(),
+                  const WeightTrackingScreen(),
+                  const MedicationManagementScreen(),
+                  const NotesManagementScreen(),
+                  const ReportsScreen(),
+                  const FinancialManagementScreen(),
+                  const SystemSettingsScreen(),
                 ],
               ),
             ),
@@ -266,7 +277,8 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
 }
 
 class _DashboardTabContent extends StatelessWidget {
-  const _DashboardTabContent();
+  final void Function(int) onGoToTab;
+  const _DashboardTabContent({required this.onGoToTab});
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +329,7 @@ class _DashboardTabContent extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Alertas (vacinações/medicações) — seu widget original
-              const VaccinationAlerts(),
+              VaccinationAlerts(onGoToVaccinations: () => onGoToTab(3)),
               const SizedBox(height: 32),
 
               // Estatísticas (mesmo layout com StatsCard)
@@ -325,7 +337,7 @@ class _DashboardTabContent extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Rebanho com barra de busca fixa + grid original de AnimalCard
-              _HerdSection(),
+              const _HerdSection(),
             ],
           );
         },
@@ -397,6 +409,8 @@ class _StatsOverview extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+  
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -413,6 +427,18 @@ class _QuickActions extends StatelessWidget {
       showDialog(
         context: context,
         builder: (context) => VaccinationFormDialog(animalId: animal?.id),
+      );
+    }
+    
+    void showMedicationDialog() {
+      showDialog(
+        context: context,
+        builder: (context) => _MedicationFormDialog(
+          onSaved: () {
+            // Recarregar dados se necessário
+            animalService.loadAnimals();
+          },
+        ),
       );
     }
 
@@ -461,12 +487,7 @@ class _QuickActions extends StatelessWidget {
                   title: 'Agendar Medicamento',
                   icon: Icons.medication,
                   color: Colors.teal,
-                  // OBS: se quiser trocar de aba programaticamente a partir daqui,
-                  // faça via callback do pai usando TabController. Mantive sua lógica visual.
-                  onTap: () {
-                    // noop: abre aba de medicamentos se você preferir:
-                    // DefaultTabController.of(context)?.animateTo(3);
-                  },
+                  onTap: showMedicationDialog,
                 ),
                 _ActionCard(
                   title: 'Gerar Relatório',
@@ -538,6 +559,8 @@ class _ActionCard extends StatelessWidget {
 }
 
 class _HerdSection extends StatefulWidget {
+  const _HerdSection();
+  
   @override
   State<_HerdSection> createState() => _HerdSectionState();
 }
@@ -701,4 +724,201 @@ class TabData {
     required this.icon,
     required this.label,
   });
+}
+
+// Dialog para agendar medicamento
+class _MedicationFormDialog extends StatefulWidget {
+  final VoidCallback onSaved;
+
+  const _MedicationFormDialog({required this.onSaved});
+
+  @override
+  State<_MedicationFormDialog> createState() => _MedicationFormDialogState();
+}
+
+class _MedicationFormDialogState extends State<_MedicationFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _dosageController = TextEditingController();
+  final _veterinarianController = TextEditingController();
+  final _notesController = TextEditingController();
+  
+  DateTime _scheduledDate = DateTime.now();
+  String? _selectedAnimalId;
+
+  @override
+  Widget build(BuildContext context) {
+    final animalService = Provider.of<AnimalService>(context);
+    
+    return AlertDialog(
+      title: const Text('Agendar Medicamento'),
+      content: SizedBox(
+        width: 500,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Animal
+                DropdownButtonFormField<String>(
+                  value: _selectedAnimalId,
+                  decoration: const InputDecoration(
+                    labelText: 'Animal *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: animalService.animals.map((animal) {
+                    return DropdownMenuItem(
+                      value: animal.id,
+                      child: Text('${animal.name} (${animal.code})'),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() => _selectedAnimalId = value);
+                  },
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Selecione um animal';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Nome do medicamento
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do Medicamento *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) return 'Campo obrigatório';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                
+                // Dosagem
+                TextFormField(
+                  controller: _dosageController,
+                  decoration: const InputDecoration(
+                    labelText: 'Dosagem',
+                    border: OutlineInputBorder(),
+                    hintText: 'Ex: 5ml, 2 comprimidos',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Data
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _scheduledDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      setState(() => _scheduledDate = date);
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Data Agendada *',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    child: Text(
+                      '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Veterinário
+                TextFormField(
+                  controller: _veterinarianController,
+                  decoration: const InputDecoration(
+                    labelText: 'Veterinário',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Observações
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Observações',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          child: const Text('Agendar'),
+        ),
+      ],
+    );
+  }
+
+  void _save() async {
+    if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
+
+    try {
+      final now = DateTime.now().toIso8601String();
+      
+      final medication = {
+        'id': const Uuid().v4(),
+        'animal_id': _selectedAnimalId!,
+        'medication_name': _nameController.text,
+        'date': _scheduledDate.toIso8601String().split('T')[0],
+        'next_date': _scheduledDate.add(const Duration(days: 30)).toIso8601String().split('T')[0],
+        'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
+        'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
+        'notes': _notesController.text.isEmpty ? null : _notesController.text,
+        'created_at': now,
+      };
+      
+      await DatabaseService.createMedication(medication);
+      
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onSaved();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Medicamento agendado com sucesso!'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _dosageController.dispose();
+    _veterinarianController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
 }

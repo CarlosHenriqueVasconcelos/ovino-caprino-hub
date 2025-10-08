@@ -4,7 +4,8 @@ import '../data/local_db.dart';
 import 'vaccination_form.dart';
 
 class VaccinationAlerts extends StatefulWidget {
-  const VaccinationAlerts({super.key});
+  final VoidCallback onGoToVaccinations;
+  const VaccinationAlerts({super.key, required this.onGoToVaccinations});
 
   @override
   State<VaccinationAlerts> createState() => _VaccinationAlertsState();
@@ -368,8 +369,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 child: const Text('Aplicar'),
               ),
               OutlinedButton.icon(
-                onPressed: () =>
-                    DefaultTabController.of(context)?.animateTo(3),
+                onPressed: widget.onGoToVaccinations,
                 icon: const Icon(Icons.open_in_new, size: 16),
                 label: const Text('Ver vacinas'),
               ),
@@ -432,7 +432,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
           ),
           const SizedBox(width: 12),
           OutlinedButton.icon(
-            onPressed: () => DefaultTabController.of(context)?.animateTo(3),
+            onPressed: widget.onGoToVaccinations,
             icon: const Icon(Icons.open_in_new, size: 16),
             label: const Text('Ver medicações'),
           ),
