@@ -41,6 +41,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _goToVaccination(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ManagementScreen(initialTab: 0),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -223,32 +231,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                           const SizedBox(height: 16),
                                           if (vaccinations.isNotEmpty)
-                                            AlertCard(
-                                              title: 'Vacinações Pendentes',
-                                              description: '${vaccinations.length} vacinação(ões) agendada(s)',
-                                              icon: Icons.vaccines,
-                                              color: theme.colorScheme.error,
-                                              onTap: () => _goToManagement(context, 0),
-                                            ),
-                                          if (vaccinations.isNotEmpty && medications.isNotEmpty)
-                                            const SizedBox(height: 12),
+                                            ...vaccinations.take(3).map((vacc) {
+                                              final color = _getAlertColorForDate(vacc['scheduled_date']);
+                                              return Padding(
+                                                padding: const EdgeInsets.only(bottom: 12),
+                                                child: AlertCard(
+                                                  title: 'Vacinação: ${vacc['vaccine_name']}',
+                                                  description: _getVaccinationDescription(vacc),
+                                                  icon: Icons.vaccines,
+                                                  color: color,
+                                                  onTap: () => _goToVaccination(context),
+                                                ),
+                                              );
+                                            }).toList(),
                                           if (medications.isNotEmpty)
-                                            AlertCard(
-                                              title: 'Medicamentos Pendentes',
-                                              description: '${medications.length} medicamento(s) a aplicar',
-                                              icon: Icons.medical_services,
-                                              color: theme.colorScheme.error,
-                                              onTap: () => _goToManagement(context, 0),
-                                            ),
-                                          if ((vaccinations.isNotEmpty || medications.isNotEmpty) && _hasUpcomingBirths(animals))
-                                            const SizedBox(height: 12),
+                                            ...medications.take(3).map((med) {
+                                              final color = _getAlertColorForDate(med['next_date']);
+                                              return Padding(
+                                                padding: const EdgeInsets.only(bottom: 12),
+                                                child: AlertCard(
+                                                  title: 'Medicamento: ${med['medication_name']}',
+                                                  description: _getMedicationDescription(med),
+                                                  icon: Icons.medical_services,
+                                                  color: color,
+                                                  onTap: () => _goToVaccination(context),
+                                                ),
+                                              );
+                                            }).toList(),
                                           if (_hasUpcomingBirths(animals))
-                                            AlertCard(
-                                              title: 'Partos Previstos',
-                                              description: _getUpcomingBirthsText(animals),
-                                              icon: Icons.child_care,
-                                              color: theme.colorScheme.tertiary,
-                                              onTap: () => _goToManagement(context, 1),
+                                            Padding(
+                                              padding: const EdgeInsets.only(bottom: 12),
+                                              child: AlertCard(
+                                                title: 'Partos Previstos',
+                                                description: _getUpcomingBirthsText(animals),
+                                                icon: Icons.child_care,
+                                                color: theme.colorScheme.tertiary,
+                                                onTap: () => _goToManagement(context, 1),
+                                              ),
                                             ),
                                           if (vaccinations.isEmpty && medications.isEmpty && !_hasUpcomingBirths(animals))
                                             Center(
@@ -523,5 +542,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     
     return '$count parto(s) previsto(s) nos próximos 30 dias';
+  }
+
+  Color _getAlertColorForDate(dynamic dateStr) {
+    if (dateStr == null) return Colors.grey;
+    
+    final date = DateTime.tryParse(dateStr.toString());
+    if (date == null) return Colors.grey;
+    
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    
+    if (difference < 0) {
+      return Colors.red; // Atrasado
+    } else if (difference <= 2) {
+      return Colors.red; // Urgente (0-2 dias)
+    } else if (difference <= 5) {
+      return Colors.orange; // Atenção (3-5 dias)
+    } else {
+      return Colors.blue; // Normal (6+ dias)
+    }
+  }
+
+  String _getVaccinationDescription(Map<String, dynamic> vacc) {
+    final dateStr = vacc['scheduled_date'];
+    if (dateStr == null) return 'Data não informada';
+    
+    final date = DateTime.tryParse(dateStr.toString());
+    if (date == null) return 'Data inválida';
+    
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    final formattedDate = DateFormat('dd/MM/yyyy').format(date);
+    
+    if (difference < 0) {
+      return 'ATRASADO - Agendado para $formattedDate';
+    } else if (difference == 0) {
+      return 'HOJE - $formattedDate';
+    } else if (difference == 1) {
+      return 'AMANHÃ - $formattedDate';
+    } else if (difference <= 5) {
+      return 'Em $difference dias - $formattedDate';
+    } else {
+      return 'Agendado para $formattedDate';
+    }
+  }
+
+  String _getMedicationDescription(Map<String, dynamic> med) {
+    final dateStr = med['next_date'];
+    if (dateStr == null) return 'Data não informada';
+    
+    final date = DateTime.tryParse(dateStr.toString());
+    if (date == null) return 'Data inválida';
+    
+    final now = DateTime.now();
+    final difference = date.difference(now).inDays;
+    final formattedDate = DateFormat('dd/MM/yyyy').format(date);
+    
+    if (difference < 0) {
+      return 'ATRASADO - Previsto para $formattedDate';
+    } else if (difference == 0) {
+      return 'HOJE - $formattedDate';
+    } else if (difference == 1) {
+      return 'AMANHÃ - $formattedDate';
+    } else if (difference <= 5) {
+      return 'Em $difference dias - $formattedDate';
+    } else {
+      return 'Previsto para $formattedDate';
+    }
   }
 }
