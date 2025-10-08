@@ -14,6 +14,7 @@ import '../widgets/vaccination_alerts.dart';
 import '../widgets/vaccination_form.dart';
 import '../widgets/medication_management_screen.dart';
 import '../widgets/history_screen.dart';
+import '../widgets/vaccination_alerts.dart' show VaccinationAlerts;
 
 class CompleteDashboardScreen extends StatefulWidget {
   const CompleteDashboardScreen({super.key});
@@ -186,7 +187,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'BEGO Agritech',
+                    'Fazenda São Petronio',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,

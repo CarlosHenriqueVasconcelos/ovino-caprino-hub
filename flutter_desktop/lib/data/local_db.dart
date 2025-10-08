@@ -3,6 +3,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../models/animal.dart'; // ADIÇÃO: para mapear Animal quando necessário
+
 class AppDatabase {
   final Database db;
   AppDatabase(this.db);
@@ -314,5 +316,162 @@ class AppDatabase {
         END;
       ''');
     }
+  }
+}
+
+/// ======================================================================
+/// BACKWARDS-COMPAT: Classe "shim" que mantém a API antiga (estática),
+/// redirecionando para o AppDatabase por baixo. NÃO remove nada existente.
+/// ======================================================================
+class DatabaseService {
+  // ---------- ANIMAIS ----------
+  static Future<List<Animal>> getAnimals() async {
+    final app = await AppDatabase.open();
+    final rows = await app.db.query('animals', orderBy: 'name COLLATE NOCASE');
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  static Future<Animal> createAnimal(Map<String, dynamic> animal) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('animals', animal);
+    return Animal.fromMap(animal);
+  }
+
+  static Future<Animal> updateAnimal(String id, Map<String, dynamic> animal) async {
+    final app = await AppDatabase.open();
+    await app.db.update('animals', animal, where: 'id = ?', whereArgs: [id]);
+    return Animal.fromMap(animal);
+  }
+
+  static Future<void> deleteAnimal(String id) async {
+    final app = await AppDatabase.open();
+    await app.db.delete('animals', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ---------- VACINAÇÕES ----------
+  static Future<List<Map<String, dynamic>>> getVaccinations() async {
+    final app = await AppDatabase.open();
+    return await app.db.query('vaccinations');
+  }
+
+  static Future<void> createVaccination(Map<String, dynamic> vaccination) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('vaccinations', vaccination);
+  }
+
+  // ---------- MEDICAMENTOS ----------
+  static Future<List<Map<String, dynamic>>> getMedications() async {
+    final app = await AppDatabase.open();
+    return await app.db.query('medications');
+  }
+
+  static Future<void> createMedication(Map<String, dynamic> medication) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('medications', medication);
+  }
+
+  // ---------- REPRODUÇÃO ----------
+  static Future<List<Map<String, dynamic>>> getBreedingRecords() async {
+    final app = await AppDatabase.open();
+    return await app.db.query('breeding_records');
+  }
+
+  static Future<void> createBreedingRecord(Map<String, dynamic> record) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('breeding_records', record);
+  }
+
+  // ---------- ANOTAÇÕES ----------
+  static Future<List<Map<String, dynamic>>> getNotes() async {
+    final app = await AppDatabase.open();
+    return await app.db.query('notes');
+  }
+
+  static Future<void> createNote(Map<String, dynamic> note) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('notes', note);
+  }
+
+  // ---------- FINANCEIRO ----------
+  static Future<List<Map<String, dynamic>>> getFinancialRecords() async {
+    final app = await AppDatabase.open();
+    return await app.db.query('financial_records');
+  }
+
+  static Future<void> createFinancialRecord(Map<String, dynamic> record) async {
+    final app = await AppDatabase.open();
+    await app.db.insert('financial_records', record);
+  }
+
+  // ---------- ESTATÍSTICAS ----------
+  static Future<Map<String, dynamic>> getStats() async {
+    final app = await AppDatabase.open();
+    final db = app.db;
+
+    Future<int> _count(String sql, [List<Object?>? args]) async {
+      final r = await db.rawQuery(sql, args);
+      if (r.isEmpty) return 0;
+      final v = r.first.values.first;
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
+    final totalAnimals = await _count('SELECT COUNT(*) FROM animals');
+    final healthy =
+        await _count('SELECT COUNT(*) FROM animals WHERE status = ?', ['Saudável']);
+    final pregnant =
+        await _count('SELECT COUNT(*) FROM animals WHERE pregnant = 1');
+    final underTreatment =
+        await _count('SELECT COUNT(*) FROM animals WHERE status = ?', ['Em tratamento']);
+    final maleReproducers =
+        await _count('SELECT COUNT(*) FROM animals WHERE category = ?', ['Macho Reprodutor']);
+    final maleLambs =
+        await _count('SELECT COUNT(*) FROM animals WHERE category = ?', ['Macho Borrego']);
+    final femaleLambs =
+        await _count('SELECT COUNT(*) FROM animals WHERE category = ?', ['Fêmea Borrega']);
+    final femaleReproducers =
+        await _count('SELECT COUNT(*) FROM animals WHERE category = ?', ['Fêmea Reprodutora']);
+
+    final revenueResult =
+        await db.rawQuery('SELECT SUM(amount) as total FROM financial_records WHERE type = ?', ['receita']);
+    final revenueRaw = revenueResult.isNotEmpty ? revenueResult.first['total'] : null;
+    final revenue = (revenueRaw is num) ? revenueRaw.toDouble() : 0.0;
+
+    final avgWeightResult = await db.rawQuery('SELECT AVG(weight) as avg FROM animals');
+    final avgRaw = avgWeightResult.isNotEmpty ? avgWeightResult.first['avg'] : null;
+    final avgWeight = (avgRaw is num) ? avgRaw.toDouble() : 0.0;
+
+    return {
+      'totalAnimals': totalAnimals,
+      'healthy': healthy,
+      'pregnant': pregnant,
+      'underTreatment': underTreatment,
+      'maleReproducers': maleReproducers,
+      'maleLambs': maleLambs,
+      'femaleLambs': femaleLambs,
+      'femaleReproducers': femaleReproducers,
+      'revenue': revenue,
+      'avgWeight': avgWeight,
+      'vaccinesThisMonth': 0,
+      'birthsThisMonth': 0,
+    };
+  }
+
+  // ---------- BACKUP / UTIL ----------
+  static Future<void> syncWithSupabase(Future<void> Function() onSync) async {
+    await onSync();
+  }
+
+  static Future<void> clearAllData() async {
+    final app = await AppDatabase.open();
+    await app.db.delete('animals');
+    await app.db.delete('vaccinations');
+    await app.db.delete('medications');
+    await app.db.delete('breeding_records');
+    await app.db.delete('notes');
+    await app.db.delete('financial_records');
+    await app.db.delete('reports');
   }
 }
