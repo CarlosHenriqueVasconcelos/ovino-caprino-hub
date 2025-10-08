@@ -60,6 +60,21 @@ class DatabaseService {
     await db.insert('vaccinations', v);
   }
 
+  static Future<void> updateVaccination(String id, Map<String, dynamic> updates) async {
+    final db = await database;
+    final v = Map<String, dynamic>.from(_withoutNulls(updates));
+    
+    if (v.containsKey('scheduled_date')) {
+      v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
+    }
+    if (v.containsKey('applied_date')) {
+      v['applied_date'] = _toIsoDate(v['applied_date']);
+    }
+    v['updated_at'] = _nowIso();
+
+    await db.update('vaccinations', v, where: 'id = ?', whereArgs: [id]);
+  }
+
   // ================== MEDICAMENTOS ==================
   static Future<List<Map<String, dynamic>>> getMedications() async {
     final db = await database;
@@ -73,10 +88,29 @@ class DatabaseService {
 
     m['date'] = _toIsoDate(m['date']);
     m['next_date'] = _toIsoDate(m['next_date']);
+    m['applied_date'] = _toIsoDate(m['applied_date']);
     m['created_at'] ??= _nowIso();
     m['updated_at'] = _nowIso();
 
     await db.insert('medications', m);
+  }
+
+  static Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
+    final db = await database;
+    final m = Map<String, dynamic>.from(_withoutNulls(updates));
+    
+    if (m.containsKey('date')) {
+      m['date'] = _toIsoDate(m['date']);
+    }
+    if (m.containsKey('next_date')) {
+      m['next_date'] = _toIsoDate(m['next_date']);
+    }
+    if (m.containsKey('applied_date')) {
+      m['applied_date'] = _toIsoDate(m['applied_date']);
+    }
+    m['updated_at'] = _nowIso();
+
+    await db.update('medications', m, where: 'id = ?', whereArgs: [id]);
   }
 
   // ================== REPRODUÇÃO ==================

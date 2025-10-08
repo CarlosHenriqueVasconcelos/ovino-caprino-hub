@@ -15,6 +15,10 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   List<Map<String, dynamic>> _vaccinations = [];
   List<Map<String, dynamic>> _medications = [];
   bool _isLoading = true;
+  
+  // Filtros de status
+  String _vaccinationFilter = 'Atrasadas';
+  String _medicationFilter = 'Atrasados';
 
   @override
   void initState() {
@@ -34,6 +38,126 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       });
     } catch (e) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  List<Map<String, dynamic>> _filterVaccinations() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (_vaccinationFilter) {
+      case 'Atrasadas':
+        return _vaccinations.where((v) {
+          if (v['status'] != 'Agendada') return false;
+          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
+          if (scheduledDate == null) return false;
+          return scheduledDate.isBefore(today);
+        }).toList();
+      case 'Agendadas':
+        return _vaccinations.where((v) {
+          if (v['status'] != 'Agendada') return false;
+          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
+          if (scheduledDate == null) return false;
+          return !scheduledDate.isBefore(today);
+        }).toList();
+      case 'Aplicadas':
+        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
+      case 'Canceladas':
+        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
+      default:
+        return _vaccinations;
+    }
+  }
+
+  List<Map<String, dynamic>> _filterMedications() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (_medicationFilter) {
+      case 'Atrasados':
+        return _medications.where((m) {
+          if (m['status'] != 'Agendado') return false;
+          final date = DateTime.tryParse(m['date'] ?? '');
+          if (date == null) return false;
+          return date.isBefore(today);
+        }).toList();
+      case 'Agendados':
+        return _medications.where((m) {
+          if (m['status'] != 'Agendado') return false;
+          final date = DateTime.tryParse(m['date'] ?? '');
+          if (date == null) return false;
+          return !date.isBefore(today);
+        }).toList();
+      case 'Aplicados':
+        return _medications.where((m) => m['status'] == 'Aplicado').toList();
+      case 'Cancelados':
+        return _medications.where((m) => m['status'] == 'Cancelado').toList();
+      default:
+        return _medications;
+    }
+  }
+
+  int _countVaccinationsByStatus(String status) {
+    return _filterVaccinationsForCount(status).length;
+  }
+
+  List<Map<String, dynamic>> _filterVaccinationsForCount(String status) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (status) {
+      case 'Atrasadas':
+        return _vaccinations.where((v) {
+          if (v['status'] != 'Agendada') return false;
+          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
+          if (scheduledDate == null) return false;
+          return scheduledDate.isBefore(today);
+        }).toList();
+      case 'Agendadas':
+        return _vaccinations.where((v) {
+          if (v['status'] != 'Agendada') return false;
+          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
+          if (scheduledDate == null) return false;
+          return !scheduledDate.isBefore(today);
+        }).toList();
+      case 'Aplicadas':
+        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
+      case 'Canceladas':
+        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
+      default:
+        return _vaccinations;
+    }
+  }
+
+  int _countMedicationsByStatus(String status) {
+    return _filterMedicationsForCount(status).length;
+  }
+
+  List<Map<String, dynamic>> _filterMedicationsForCount(String status) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (status) {
+      case 'Atrasados':
+        return _medications.where((m) {
+          if (m['status'] != 'Agendado') return false;
+          final date = DateTime.tryParse(m['date'] ?? '');
+          if (date == null) return false;
+          return date.isBefore(today);
+        }).toList();
+      case 'Agendados':
+        return _medications.where((m) {
+          if (m['status'] != 'Agendado') return false;
+          final date = DateTime.tryParse(m['date'] ?? '');
+          if (date == null) return false;
+          return !date.isBefore(today);
+        }).toList();
+      case 'Aplicados':
+        return _medications.where((m) => m['status'] == 'Aplicado').toList();
+      case 'Cancelados':
+        return _medications.where((m) => m['status'] == 'Cancelado').toList();
+      default:
+        return _medications;
     }
   }
 
@@ -71,19 +195,82 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_vaccinations.isEmpty) {
-      return const Center(
-        child: Text('Nenhuma vacinação agendada'),
-      );
-    }
+    final filteredVaccinations = _filterVaccinations();
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _vaccinations.length,
-      itemBuilder: (context, index) {
-        final vaccination = _vaccinations[index];
-        return _buildVaccinationCard(vaccination);
-      },
+    return Column(
+      children: [
+        // Sub-tabs para filtros
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  label: 'Atrasadas (${_countVaccinationsByStatus('Atrasadas')})',
+                  isSelected: _vaccinationFilter == 'Atrasadas',
+                  color: Colors.red,
+                  onTap: () => setState(() => _vaccinationFilter = 'Atrasadas'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Agendadas (${_countVaccinationsByStatus('Agendadas')})',
+                  isSelected: _vaccinationFilter == 'Agendadas',
+                  color: Colors.orange,
+                  onTap: () => setState(() => _vaccinationFilter = 'Agendadas'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Aplicadas (${_countVaccinationsByStatus('Aplicadas')})',
+                  isSelected: _vaccinationFilter == 'Aplicadas',
+                  color: Colors.green,
+                  onTap: () => setState(() => _vaccinationFilter = 'Aplicadas'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Canceladas (${_countVaccinationsByStatus('Canceladas')})',
+                  isSelected: _vaccinationFilter == 'Canceladas',
+                  color: Colors.grey,
+                  onTap: () => setState(() => _vaccinationFilter = 'Canceladas'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Lista filtrada
+        Expanded(
+          child: filteredVaccinations.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.vaccines_outlined,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nenhuma vacinação $_vaccinationFilter',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredVaccinations.length,
+                  itemBuilder: (context, index) {
+                    final vaccination = filteredVaccinations[index];
+                    return _buildVaccinationCard(vaccination);
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -92,19 +279,112 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_medications.isEmpty) {
-      return const Center(
-        child: Text('Nenhum medicamento agendado'),
-      );
-    }
+    final filteredMedications = _filterMedications();
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _medications.length,
-      itemBuilder: (context, index) {
-        final medication = _medications[index];
-        return _buildMedicationCard(medication);
-      },
+    return Column(
+      children: [
+        // Sub-tabs para filtros
+        Container(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  label: 'Atrasados (${_countMedicationsByStatus('Atrasados')})',
+                  isSelected: _medicationFilter == 'Atrasados',
+                  color: Colors.red,
+                  onTap: () => setState(() => _medicationFilter = 'Atrasados'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Agendados (${_countMedicationsByStatus('Agendados')})',
+                  isSelected: _medicationFilter == 'Agendados',
+                  color: Colors.orange,
+                  onTap: () => setState(() => _medicationFilter = 'Agendados'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Aplicados (${_countMedicationsByStatus('Aplicados')})',
+                  isSelected: _medicationFilter == 'Aplicados',
+                  color: Colors.green,
+                  onTap: () => setState(() => _medicationFilter = 'Aplicados'),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Cancelados (${_countMedicationsByStatus('Cancelados')})',
+                  isSelected: _medicationFilter == 'Cancelados',
+                  color: Colors.grey,
+                  onTap: () => setState(() => _medicationFilter = 'Cancelados'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Lista filtrada
+        Expanded(
+          child: filteredMedications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.medication_outlined,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Nenhum medicamento $_medicationFilter',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: filteredMedications.length,
+                  itemBuilder: (context, index) {
+                    final medication = filteredMedications[index];
+                    return _buildMedicationCard(medication);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? color : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey[300]!,
+            width: 2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
+          ),
+        ),
+      ),
     );
   }
 
@@ -204,6 +484,41 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ],
               ),
               const SizedBox(height: 16),
+              
+              // Botões de ação
+              if (status == 'Agendada') ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _markAsApplied(vaccination['id'], isVaccination: true),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Aplicar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _cancelItem(vaccination['id'], isVaccination: true),
+                        icon: const Icon(Icons.cancel, size: 18),
+                        label: const Text('Cancelar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -223,7 +538,17 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   }
 
   Widget _buildMedicationCard(Map<String, dynamic> medication) {
-    const Color medicationColor = Color(0xFF6366F1);
+    final status = medication['status'] ?? 'Agendado';
+    Color statusColor = Colors.orange;
+    IconData statusIcon = Icons.schedule;
+    if (status == 'Aplicado') {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle;
+    }
+    if (status == 'Cancelado') {
+      statusColor = Colors.red;
+      statusIcon = Icons.cancel;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -232,7 +557,7 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: const Border(left: BorderSide(color: medicationColor, width: 4)),
+          border: Border(left: BorderSide(color: statusColor, width: 4)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -244,10 +569,10 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: medicationColor.withOpacity(0.1),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.medication, color: medicationColor, size: 24),
+                    child: Icon(Icons.medication, color: statusColor, size: 24),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -262,14 +587,20 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                           ),
                         ),
                         const SizedBox(height: 4),
-                        if (medication['dosage'] != null)
-                          Text(
-                            medication['dosage'],
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
+                        Row(
+                          children: [
+                            Icon(statusIcon, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              status,
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -304,6 +635,41 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ),
               ],
               const SizedBox(height: 16),
+              
+              // Botões de ação
+              if (status == 'Agendado') ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _markAsApplied(medication['id'], isVaccination: false),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Aplicar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _cancelItem(medication['id'], isVaccination: false),
+                        icon: const Icon(Icons.cancel, size: 18),
+                        label: const Text('Cancelar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -361,6 +727,79 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
     );
   }
 
+  Future<void> _markAsApplied(String id, {required bool isVaccination}) async {
+    try {
+      final now = DateTime.now();
+      final today = now.toIso8601String().split('T')[0];
+      
+      if (isVaccination) {
+        await DatabaseService.updateVaccination(id, {
+          'status': 'Aplicada',
+          'applied_date': today,
+        });
+      } else {
+        await DatabaseService.updateMedication(id, {
+          'status': 'Aplicado',
+          'applied_date': today,
+        });
+      }
+      
+      await _loadData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isVaccination ? 'Vacinação aplicada com sucesso!' : 'Medicamento aplicado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao marcar como aplicado: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelItem(String id, {required bool isVaccination}) async {
+    try {
+      if (isVaccination) {
+        await DatabaseService.updateVaccination(id, {
+          'status': 'Cancelada',
+        });
+      } else {
+        await DatabaseService.updateMedication(id, {
+          'status': 'Cancelado',
+        });
+      }
+      
+      await _loadData();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isVaccination ? 'Vacinação cancelada' : 'Medicamento cancelado'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao cancelar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   void _showVaccinationOptions(Map<String, dynamic> vaccination) {
     showModalBottomSheet(
       context: context,
@@ -368,29 +807,31 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.check),
-            title: const Text('Marcar como aplicada'),
+            leading: const Icon(Icons.visibility),
+            title: const Text('Ver Detalhes'),
             onTap: () {
               Navigator.pop(context);
-              // Implementar
+              _showDetails(vaccination, isVaccination: true);
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.cancel),
-            title: const Text('Cancelar vacinação'),
-            onTap: () {
-              Navigator.pop(context);
-              // Implementar
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete),
-            title: const Text('Excluir'),
-            onTap: () {
-              Navigator.pop(context);
-              // Implementar
-            },
-          ),
+          if (vaccination['status'] == 'Agendada') ...[
+            ListTile(
+              leading: const Icon(Icons.check, color: Colors.green),
+              title: const Text('Marcar como aplicada'),
+              onTap: () {
+                Navigator.pop(context);
+                _markAsApplied(vaccination['id'], isVaccination: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: Colors.red),
+              title: const Text('Cancelar vacinação'),
+              onTap: () {
+                Navigator.pop(context);
+                _cancelItem(vaccination['id'], isVaccination: true);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -403,21 +844,31 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.check),
-            title: const Text('Marcar como aplicado'),
+            leading: const Icon(Icons.visibility),
+            title: const Text('Ver Detalhes'),
             onTap: () {
               Navigator.pop(context);
-              // Implementar
+              _showDetails(medication, isVaccination: false);
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.delete),
-            title: const Text('Excluir'),
-            onTap: () {
-              Navigator.pop(context);
-              // Implementar
-            },
-          ),
+          if (medication['status'] == 'Agendado') ...[
+            ListTile(
+              leading: const Icon(Icons.check, color: Colors.green),
+              title: const Text('Marcar como aplicado'),
+              onTap: () {
+                Navigator.pop(context);
+                _markAsApplied(medication['id'], isVaccination: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: Colors.red),
+              title: const Text('Cancelar medicamento'),
+              onTap: () {
+                Navigator.pop(context);
+                _cancelItem(medication['id'], isVaccination: false);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -632,6 +1083,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
           'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
           'notes': _notesController.text.isEmpty ? null : _notesController.text,
+          'status': 'Agendado',
           'created_at': now,
         };
         await DatabaseService.createMedication(medication);
