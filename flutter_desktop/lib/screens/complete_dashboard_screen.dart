@@ -436,7 +436,7 @@ class _QuickActions extends StatelessWidget {
         builder: (context) => _MedicationFormDialog(
           onSaved: () {
             // Recarregar dados se necessário
-            animalService.loadAnimals();
+            animalService.loadData();
           },
         ),
       );
