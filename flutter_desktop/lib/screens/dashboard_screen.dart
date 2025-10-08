@@ -54,18 +54,174 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              theme.colorScheme.primary.withOpacity(0.10),
-              theme.colorScheme.primary.withOpacity(0.02),
-            ],
+      body: Row(
+        children: [
+          // Sidebar
+          Container(
+            width: 280,
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              border: Border(
+                right: BorderSide(
+                  color: theme.colorScheme.outline.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header da Sidebar
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: theme.colorScheme.outline.withOpacity(0.2),
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.search,
+                            color: theme.colorScheme.primary,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Buscar Animal',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Digite código ou nome...',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _searchController.clear();
+                                      _searchQuery = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          filled: true,
+                          fillColor: theme.colorScheme.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                // Info da Busca
+                if (_searchQuery.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    color: theme.colorScheme.primary.withOpacity(0.05),
+                    child: Consumer<AnimalService>(
+                      builder: (context, animalService, _) {
+                        final matchCount = _getMatchingAnimals(animalService.animals).length;
+                        return Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '$matchCount resultado(s) encontrado(s)',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                // Dicas
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Dicas de busca',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTip(
+                          context,
+                          Icons.tag,
+                          'Digite o código do animal',
+                          'Ex: OV001, CP002',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTip(
+                          context,
+                          Icons.abc,
+                          'Busque pelo nome',
+                          'Ex: Benedita, Valente',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTip(
+                          context,
+                          Icons.pets,
+                          'Filtre por raça',
+                          'Ex: Santa Inês, Dorper',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Column(
+          // Main Content
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.colorScheme.primary.withOpacity(0.10),
+                    theme.colorScheme.primary.withOpacity(0.02),
+                  ],
+                ),
+              ),
+              child: Column(
           children: [
             // Header
             Container(
@@ -131,29 +287,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
 
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Consumer<AnimalService>(
-                  builder: (context, animalService, _) {
-                    final stats = animalService.stats;
-                    if (stats == null) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Consumer<AnimalService>(
+                      builder: (context, animalService, _) {
+                        final stats = animalService.stats;
+                        if (stats == null) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Stats Overview
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.5,
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Stats Overview
+                            GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 1.5,
+                              children: [
                             StatsCard(
                               title: 'Total de Animais',
                               value: '${stats.totalAnimals}',
@@ -186,11 +342,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               color: theme.colorScheme.primary,
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 32),
+                            ),
+                            const SizedBox(height: 32),
 
-                        // Alerts & Quick Actions
-                        Row(
+                            // Alerts & Quick Actions
+                            Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Alerts
@@ -368,59 +524,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 32),
 
-                        // Animals Grid
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Column(
+                            // Animals Grid
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      children: [
-                                        Text(
-                                          'Rebanho',
-                                          style: theme.textTheme.headlineSmall?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        SizedBox(
-                                          width: 300,
-                                          child: TextField(
-                                            controller: _searchController,
-                                            decoration: InputDecoration(
-                                              hintText: 'Buscar animal...',
-                                              prefixIcon: const Icon(Icons.search),
-                                              suffixIcon: _searchQuery.isNotEmpty
-                                                  ? IconButton(
-                                                      icon: const Icon(Icons.clear),
-                                                      onPressed: () {
-                                                        setState(() {
-                                                          _searchController.clear();
-                                                          _searchQuery = '';
-                                                        });
-                                                      },
-                                                    )
-                                                  : null,
-                                              border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              contentPadding: const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
-                                              ),
-                                            ),
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _searchQuery = value.toLowerCase();
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                      ],
+                                    Text(
+                                      'Rebanho',
+                                      style: theme.textTheme.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                     const SizedBox(height: 24),
                                     GridView.builder(
@@ -442,13 +557,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -458,22 +573,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  List<Animal> _getMatchingAnimals(List<Animal> animals) {
+    if (_searchQuery.isEmpty) return [];
+    
+    return animals.where((animal) {
+      final searchableText = '${animal.name} ${animal.code} ${animal.breed}'.toLowerCase();
+      return searchableText.contains(_searchQuery);
+    }).toList();
+  }
+
   List<Animal> _getFilteredAnimals(List<Animal> animals) {
     if (_searchQuery.isEmpty) return animals;
 
-    final matching = <Animal>[];
-    final nonMatching = <Animal>[];
-
-    for (final animal in animals) {
-      final searchableText = '${animal.name} ${animal.code} ${animal.breed}'.toLowerCase();
-      if (searchableText.contains(_searchQuery)) {
-        matching.add(animal);
-      } else {
-        nonMatching.add(animal);
-      }
-    }
+    final matching = _getMatchingAnimals(animals);
+    final nonMatching = animals.where((a) => !matching.contains(a)).toList();
 
     return [...matching, ...nonMatching];
+  }
+
+  Widget _buildTip(BuildContext context, IconData icon, String title, String subtitle) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: theme.colorScheme.primary.withOpacity(0.7),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Future<Map<String, dynamic>> _loadAlerts() async {
