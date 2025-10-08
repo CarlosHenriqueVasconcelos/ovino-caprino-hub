@@ -1,9 +1,11 @@
+// lib/services/animal_service.dart
+import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
 import '../data/local_db.dart';      // AppDatabase
 import '../models/animal.dart';      // Animal e AnimalStats
-import '../models/alert_item.dart';  // AlertItem (novo)
+import '../models/alert_item.dart';  // AlertItem
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
@@ -24,6 +26,13 @@ class AnimalService extends ChangeNotifier {
 
   /// Alertas agregados (Vacinas + Medicações)
   UnmodifiableListView<AlertItem> get alerts => UnmodifiableListView(_alerts);
+
+  // ----------------- Construtor -----------------
+  /// Carrega automaticamente os dados ao iniciar o app (remove a necessidade
+  /// de ver o botão "Recarregar" na primeira abertura).
+  AnimalService() {
+    scheduleMicrotask(() => loadData());
+  }
 
   // ----------------- Acesso ao DB -----------------
   Future<void> _ensureDb() async {
@@ -126,6 +135,7 @@ class AnimalService extends ChangeNotifier {
 
   // ----------------- Alertas (Vacinas + Medicações) -----------------
   /// Recalcula o painel de alertas olhando até [horizonDays] dias à frente.
+  /// Inclui itens vencidos (overdue) e os que estão dentro do horizonte.
   Future<void> refreshAlerts({int horizonDays = 14}) async {
     try {
       await _ensureDb();
@@ -148,7 +158,7 @@ class AnimalService extends ChangeNotifier {
 
           final due = DateTime.tryParse(dateStr);
           if (due == null) continue;
-          if (due.isAfter(horizon)) continue;
+          if (due.isAfter(horizon)) continue; // mantemos vencidas + próximas
 
           final animalId = (row['animal_id'] ?? '').toString();
           final animal = animalsById[animalId];
@@ -224,6 +234,16 @@ class AnimalService extends ChangeNotifier {
         return int.tryParse(v.toString()) ?? 0;
       }
 
+      Future<double> _scalarDouble(String sql, [List<Object?>? args]) async {
+        final r = await _appDb!.db.rawQuery(sql, args);
+        if (r.isEmpty) return 0.0;
+        final v = r.first.values.first;
+        if (v == null) return 0.0;
+        if (v is double) return v;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString()) ?? 0.0;
+      }
+
       final totalAnimals = await _count('SELECT COUNT(*) FROM animals');
       final healthy = await _count(
         'SELECT COUNT(*) FROM animals WHERE status = ?',
@@ -253,24 +273,31 @@ class AnimalService extends ChangeNotifier {
         ['Fêmea Reprodutora'],
       );
 
-      double _scalarDouble(String sql, [List<Object?>? args]) {
-        // helper síncrono em cima do resultado (mas chamada será aguardada)
-        throw UnimplementedError();
-      }
-
-      final revenueResult = await _appDb!.db.rawQuery(
-        'SELECT SUM(amount) as total FROM financial_records WHERE type = ?',
+      final revenue = await _scalarDouble(
+        'SELECT SUM(amount) FROM financial_records WHERE type = ?',
         ['receita'],
       );
-      final revenue = (revenueResult.isNotEmpty && revenueResult.first['total'] is num)
-          ? (revenueResult.first['total'] as num).toDouble()
-          : 0.0;
 
-      final avgWeightResult =
-          await _appDb!.db.rawQuery('SELECT AVG(weight) as avg FROM animals');
-      final avgWeight = (avgWeightResult.isNotEmpty && avgWeightResult.first['avg'] is num)
-          ? (avgWeightResult.first['avg'] as num).toDouble()
-          : 0.0;
+      final avgWeight = await _scalarDouble(
+        'SELECT AVG(weight) FROM animals',
+      );
+
+      // Mês atual YYYY-MM (sem dependência extra)
+      final now = DateTime.now();
+      final ym =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+
+      final vaccinesThisMonth = await _count(
+        "SELECT COUNT(*) FROM vaccinations "
+        "WHERE substr(COALESCE(applied_date, scheduled_date),1,7) = ?",
+        [ym],
+      );
+
+      final birthsThisMonth = await _count(
+        "SELECT COUNT(*) FROM animals "
+        "WHERE expected_delivery IS NOT NULL AND substr(expected_delivery,1,7) = ?",
+        [ym],
+      );
 
       _stats = AnimalStats.fromMap({
         'totalAnimals': totalAnimals,
@@ -283,8 +310,8 @@ class AnimalService extends ChangeNotifier {
         'femaleReproducers': femaleReproducers,
         'revenue': revenue,
         'avgWeight': avgWeight,
-        'vaccinesThisMonth': 0,
-        'birthsThisMonth': 0,
+        'vaccinesThisMonth': vaccinesThisMonth,
+        'birthsThisMonth': birthsThisMonth,
       });
     } catch (e) {
       debugPrint('Erro ao atualizar stats: $e');
