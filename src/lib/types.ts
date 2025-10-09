@@ -106,6 +106,50 @@ export interface FinancialRecord {
   updated_at: string;
 }
 
+export interface FinancialAccount {
+  id: string;
+  type: 'receita' | 'despesa';
+  category: string;
+  description?: string;
+  amount: number;
+  due_date: string;
+  payment_date?: string;
+  status: 'Pendente' | 'Pago' | 'Vencido' | 'Cancelado';
+  payment_method?: string;
+  installments?: number;
+  installment_number?: number;
+  parent_id?: string;
+  animal_id?: string;
+  supplier_customer?: string;
+  notes?: string;
+  cost_center?: string;
+  is_recurring?: boolean;
+  recurrence_frequency?: 'Mensal' | 'Semanal' | 'Anual';
+  recurrence_end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CostCenter {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface Budget {
+  id: string;
+  category: string;
+  cost_center?: string;
+  amount: number;
+  period: 'Mensal' | 'Trimestral' | 'Anual';
+  year: number;
+  month?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AnimalStats {
   totalAnimals: number;
   healthy: number;

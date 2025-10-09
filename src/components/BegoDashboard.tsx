@@ -6,6 +6,7 @@ import { VaccinationForm } from "./VaccinationForm";
 import { ReportsHub } from "./ReportsHub";
 import { VaccinationAlerts } from "./VaccinationAlerts";
 import { SearchAnimals } from "./SearchAnimals";
+import FinancialDashboard from "./FinancialDashboard";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { AnimalService } from "@/lib/offline-animal-service";
 import type { Animal, AnimalStats } from "@/lib/types";
@@ -25,6 +26,7 @@ export function BegoDashboard() {
   const [showAnimalForm, setShowAnimalForm] = useState(false);
   const [showVaccinationForm, setShowVaccinationForm] = useState(false);
   const [showReports, setShowReports] = useState(false);
+  const [showFinancial, setShowFinancial] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [editingAnimal, setEditingAnimal] = useState<Animal | undefined>();
 
@@ -163,7 +165,7 @@ export function BegoDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <Button 
             onClick={() => setShowAnimalForm(true)}
             className="h-auto p-4 flex-col gap-2 bg-emerald-600 hover:bg-emerald-700"
@@ -177,6 +179,13 @@ export function BegoDashboard() {
           >
             <Syringe className="h-5 w-5" />
             Agendar Vacinação
+          </Button>
+          <Button 
+            onClick={() => setShowFinancial(true)}
+            className="h-auto p-4 flex-col gap-2 bg-green-600 hover:bg-green-700"
+          >
+            💰
+            Financeiro
           </Button>
           <Button 
             onClick={() => setShowReports(true)}
@@ -250,7 +259,13 @@ export function BegoDashboard() {
         </DialogContent>
       </Dialog>
 
-      <SearchAnimals 
+      <Dialog open={showFinancial} onOpenChange={setShowFinancial}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-0">
+          <FinancialDashboard />
+        </DialogContent>
+      </Dialog>
+
+      <SearchAnimals
         open={showSearch} 
         onOpenChange={setShowSearch}
         onEditAnimal={(animal) => {
