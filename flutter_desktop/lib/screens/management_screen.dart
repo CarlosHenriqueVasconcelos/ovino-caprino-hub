@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
@@ -7,6 +8,17 @@ import '../widgets/vaccination_form.dart';
 import '../widgets/breeding_form.dart';
 import '../widgets/notes_form.dart';
 import '../widgets/financial_form.dart';
+
+/// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
+String _formatDateFromDb(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty || dateStr == '-') return '-';
+  try {
+    final date = DateTime.parse(dateStr);
+    return DateFormat('dd/MM/yyyy').format(date);
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 class ManagementScreen extends StatefulWidget {
   /// 0: Vacinações, 1: Reprodução, 2: Anotações, 3: Financeiro
@@ -172,9 +184,9 @@ class _VaccinationsTabState extends State<_VaccinationsTab> {
                                   if (animalFound != null)
                                     Text('Animal: ${animalFound.name} (${animalFound.code})'),
                                   Text('Tipo: ${vaccination['vaccine_type'] ?? '-'}'),
-                                  Text('Agendada: ${vaccination['scheduled_date'] ?? '-'}'),
+                                  Text('Agendada: ${_formatDateFromDb(vaccination['scheduled_date'])}'),
                                   if (vaccination['applied_date'] != null)
-                                    Text('Aplicada: ${vaccination['applied_date']}'),
+                                    Text('Aplicada: ${_formatDateFromDb(vaccination['applied_date'])}'),
                                 ],
                               ),
                               trailing: Chip(
@@ -311,9 +323,9 @@ class _BreedingTabState extends State<_BreedingTab> {
                                 children: [
                                   if (male != null)
                                     Text('Macho: ${male.name} (${male.code})'),
-                                  Text('Data: ${breeding['breeding_date'] ?? '-'}'),
+                                  Text('Data: ${_formatDateFromDb(breeding['breeding_date'])}'),
                                   if (breeding['expected_birth'] != null)
-                                    Text('Previsão: ${breeding['expected_birth']}'),
+                                    Text('Previsão: ${_formatDateFromDb(breeding['expected_birth'])}'),
                                 ],
                               ),
                               trailing: Chip(
@@ -451,7 +463,7 @@ class _NotesTabState extends State<_NotesTab> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                  Text('Data: ${note['date'] ?? '-'}'),
+                                  Text('Data: ${_formatDateFromDb(note['date'])}'),
                                 ],
                               ),
                               trailing: Chip(
@@ -658,7 +670,7 @@ class _FinancialTabState extends State<_FinancialTab> {
                                 children: [
                                   if ((record['description'] ?? '').toString().isNotEmpty)
                                     Text(record['description']),
-                                  Text('Data: ${record['date'] ?? '-'}'),
+                                  Text('Data: ${_formatDateFromDb(record['date'])}'),
                                 ],
                               ),
                               trailing: Text(

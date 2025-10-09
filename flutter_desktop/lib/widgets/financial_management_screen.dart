@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
 import 'financial_form.dart';
+
+/// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
+String _formatDateFromDb(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty || dateStr == '-') return '-';
+  try {
+    final date = DateTime.parse(dateStr);
+    return DateFormat('dd/MM/yyyy').format(date);
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 class FinancialManagementScreen extends StatefulWidget {
   const FinancialManagementScreen({super.key});
@@ -611,7 +623,7 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                     ),
                   ],
                 ),
-                Text('Data: ${record['date'] ?? '-'}'),
+                Text('Data: ${_formatDateFromDb(record['date'])}'),
                 if (record['animal_id'] != null)
                   Consumer<AnimalService>(
                     builder: (context, animalService, _) {

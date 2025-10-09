@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
 import 'notes_form.dart';
+
+/// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
+String _formatDateFromDb(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty || dateStr == '-') return '-';
+  try {
+    final date = DateTime.parse(dateStr);
+    return DateFormat('dd/MM/yyyy').format(date);
+  } catch (e) {
+    return dateStr;
+  }
+}
 
 class NotesManagementScreen extends StatefulWidget {
   const NotesManagementScreen({super.key});
@@ -458,7 +470,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                       const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'Data: ${note['date'] ?? '-'}',
+                        'Data: ${_formatDateFromDb(note['date'])}',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
@@ -630,7 +642,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                       _buildDetailSection(
                         icon: Icons.calendar_today,
                         title: 'Data',
-                        content: note['date'] ?? 'N/A',
+                        content: _formatDateFromDb(note['date']),
                         color: categoryColor,
                       ),
                       const SizedBox(height: 16),
