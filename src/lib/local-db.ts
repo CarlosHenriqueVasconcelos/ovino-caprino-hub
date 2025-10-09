@@ -11,6 +11,7 @@ const KEYS = {
   breeding: 'bego_offline_breeding',
   financial: 'bego_offline_financial',
   reports: 'bego_offline_reports',
+  weights: 'bego_offline_weights',
   lastSync: 'bego_last_sync',
   dbVersion: 'bego_db_version'
 } as const;
@@ -178,6 +179,47 @@ export const localReports = {
   create(input: Omit<Report, 'id' | 'generated_at'>): Report {
     const record: Report = { id: genId('rep'), generated_at: new Date().toISOString(), ...input };
     const all = loadArray<Report>(KEYS.reports); all.push(record); saveArray(KEYS.reports, all); return record;
+  }
+};
+
+// Animal Weights
+export interface AnimalWeight {
+  id: string;
+  animal_id: string;
+  date: string; // YYYY-MM-DD
+  weight: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const localWeights = {
+  all(): AnimalWeight[] {
+    return loadArray<AnimalWeight>(KEYS.weights);
+  },
+  forAnimal(animal_id: string): AnimalWeight[] {
+    return this.all().filter(w => w.animal_id === animal_id)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  },
+  create(input: Omit<AnimalWeight, 'id' | 'created_at' | 'updated_at'>): AnimalWeight {
+    const now = new Date().toISOString();
+    const record: AnimalWeight = { id: genId('weight'), created_at: now, updated_at: now, ...input };
+    const all = loadArray<AnimalWeight>(KEYS.weights);
+    all.push(record);
+    saveArray(KEYS.weights, all);
+    return record;
+  },
+  update(id: string, updates: Partial<AnimalWeight>): AnimalWeight {
+    const all = loadArray<AnimalWeight>(KEYS.weights);
+    const idx = all.findIndex(w => w.id === id);
+    if (idx === -1) throw new Error('Peso não encontrado');
+    const updated: AnimalWeight = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    all[idx] = updated;
+    saveArray(KEYS.weights, all);
+    return updated;
+  },
+  delete(id: string) {
+    const all = loadArray<AnimalWeight>(KEYS.weights);
+    saveArray(KEYS.weights, all.filter(w => w.id !== id));
   }
 };
 

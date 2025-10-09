@@ -3,7 +3,7 @@ import { AnimalCard } from "./AnimalCard";
 import { StatsCard } from "./StatsCard";
 import { AnimalForm } from "./AnimalForm";
 import { VaccinationForm } from "./VaccinationForm";
-import { ReportsGenerator } from "./ReportsGenerator";
+import { ReportsHub } from "./ReportsHub";
 import { VaccinationAlerts } from "./VaccinationAlerts";
 import { SearchAnimals } from "./SearchAnimals";
 import { Dialog, DialogContent } from "./ui/dialog";
@@ -245,8 +245,8 @@ export function BegoDashboard() {
       </Dialog>
 
       <Dialog open={showReports} onOpenChange={setShowReports}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <ReportsGenerator onClose={() => setShowReports(false)} />
+        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto p-0">
+          <ReportsHub onClose={() => setShowReports(false)} />
         </DialogContent>
       </Dialog>
 

@@ -13,6 +13,12 @@ export interface Animal {
   pregnant: boolean;
   expected_delivery?: string;
   health_issue?: string;
+  name_color?: string;
+  category?: string;
+  birth_weight?: number;
+  weight_30_days?: number;
+  weight_60_days?: number;
+  weight_90_days?: number;
   created_at: string;
   updated_at: string;
 }
@@ -49,8 +55,8 @@ export interface Medication {
 export interface Report {
   id: string;
   title: string;
-  report_type: 'Animais' | 'Vacinações' | 'Reprodução' | 'Saúde' | 'Financeiro';
-  parameters: Record<string, any>;
+  report_type: 'Animais' | 'Pesos' | 'Vacinações' | 'Medicações' | 'Reprodução' | 'Saúde' | 'Financeiro' | 'Anotações';
+  parameters: string | Record<string, any>;
   generated_at: string;
   generated_by?: string;
 }
@@ -64,6 +70,7 @@ export interface Note {
   priority: 'Baixa' | 'Média' | 'Alta';
   date: string;
   created_by?: string;
+  is_read?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -76,6 +83,13 @@ export interface BreedingRecord {
   expected_birth?: string;
   status: 'Cobertura' | 'Confirmada' | 'Nasceu' | 'Perdida';
   notes?: string;
+  stage?: string;
+  mating_start_date?: string;
+  mating_end_date?: string;
+  separation_date?: string;
+  ultrasound_date?: string;
+  ultrasound_result?: string;
+  birth_date?: string;
   created_at: string;
   updated_at: string;
 }
