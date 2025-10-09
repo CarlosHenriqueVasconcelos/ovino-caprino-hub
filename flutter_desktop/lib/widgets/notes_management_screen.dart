@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
+import '../services/database_service.dart';
 import 'notes_form.dart';
 
 class NotesManagementScreen extends StatefulWidget {
@@ -16,14 +16,18 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   bool _isLoading = true;
   String _selectedCategory = 'Todas';
   String _selectedPriority = 'Todas';
+  bool _showOnlyUnread = true;
 
   final List<String> _categories = [
     'Todas',
+    'Geral',
     'Saúde',
     'Reprodução',
+    'Vacinação',
     'Alimentação',
-    'Comportamento',
-    'Geral'
+    'Manejo',
+    'Financeiro',
+    'Veterinário'
   ];
 
   final List<String> _priorities = ['Todas', 'Alta', 'Média', 'Baixa'];
@@ -37,7 +41,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   Future<void> _loadNotes() async {
     setState(() => _isLoading = true);
     try {
-      _notes = await SupabaseService.getNotes();
+      _notes = await DatabaseService.getNotes();
     } catch (e) {
       print('Error loading notes: $e');
     }
@@ -50,7 +54,8 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                           note['category'] == _selectedCategory;
       final priorityMatch = _selectedPriority == 'Todas' || 
                           note['priority'] == _selectedPriority;
-      return categoryMatch && priorityMatch;
+      final readMatch = !_showOnlyUnread || (note['is_read'] == 0 || note['is_read'] == null);
+      return categoryMatch && priorityMatch && readMatch;
     }).toList();
   }
 
@@ -124,11 +129,27 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Filtros',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'Filtros',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        FilterChip(
+                          label: const Text('Apenas não lidas'),
+                          selected: _showOnlyUnread,
+                          onSelected: (selected) {
+                            setState(() {
+                              _showOnlyUnread = selected;
+                            });
+                          },
+                          selectedColor: theme.colorScheme.primary.withOpacity(0.2),
+                          checkmarkColor: theme.colorScheme.primary,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     
@@ -456,16 +477,34 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showNoteDetails(note, animal),
-                      icon: const Icon(Icons.visibility, size: 18),
-                      label: const Text('Ver Detalhes'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showNoteDetails(note, animal),
+                          icon: const Icon(Icons.visibility, size: 18),
+                          label: const Text('Ver Detalhes'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ),
-                    ),
+                      if (note['is_read'] == 0 || note['is_read'] == null) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _markAsRead(note['id']),
+                            icon: const Icon(Icons.check, size: 18),
+                            label: const Text('Marcar como Lida'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -635,22 +674,45 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
               // Footer
               Padding(
                 padding: const EdgeInsets.all(24),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: categoryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  children: [
+                    if (note['is_read'] == 0 || note['is_read'] == null)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _markAsRead(note['id']);
+                          },
+                          icon: const Icon(Icons.check, size: 18),
+                          label: const Text('Marcar como Lida'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (note['is_read'] == 0 || note['is_read'] == null)
+                      const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Fechar',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
-                    child: const Text(
-                      'Fechar',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -658,6 +720,31 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _markAsRead(String noteId) async {
+    try {
+      await DatabaseService.updateNote(noteId, {'is_read': 1});
+      await _loadNotes();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Anotação marcada como lida!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao marcar como lida: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildDetailSection({

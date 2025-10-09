@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS notes (
   priority TEXT DEFAULT 'Média',
   date TEXT NOT NULL,
   created_by TEXT,
+  is_read INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL

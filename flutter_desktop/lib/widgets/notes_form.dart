@@ -248,6 +248,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
         'priority': _priority,
         'date': _date.toIso8601String().split('T')[0],
         'created_by': _createdByController.text.isEmpty ? null : _createdByController.text,
+        'is_read': 0,
         'created_at': DateTime.now().toIso8601String(),
       };
 

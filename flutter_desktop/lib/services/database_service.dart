@@ -176,9 +176,22 @@ class DatabaseService {
     final db = await database;
     final n = Map<String, dynamic>.from(_withoutNulls(note));
     n['date'] = _toIsoDate(n['date']) ?? _today();
+    n['is_read'] ??= 0;
     n['created_at'] ??= _nowIso();
     n['updated_at'] = _nowIso();
     await db.insert('notes', n);
+  }
+
+  static Future<void> updateNote(String id, Map<String, dynamic> updates) async {
+    final db = await database;
+    final n = Map<String, dynamic>.from(_withoutNulls(updates));
+    
+    if (n.containsKey('date')) {
+      n['date'] = _toIsoDate(n['date']);
+    }
+    n['updated_at'] = _nowIso();
+
+    await db.update('notes', n, where: 'id = ?', whereArgs: [id]);
   }
 
   // ================== FINANCEIRO ==================
