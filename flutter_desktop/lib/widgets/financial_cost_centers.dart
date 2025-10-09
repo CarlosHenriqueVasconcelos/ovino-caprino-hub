@@ -13,7 +13,6 @@ class FinancialCostCentersScreen extends StatefulWidget {
 }
 
 class _FinancialCostCentersScreenState extends State<FinancialCostCentersScreen> {
-  final FinancialService _financialService = FinancialService();
   List<CostCenter> costCenters = [];
   bool isLoading = true;
 
@@ -26,7 +25,7 @@ class _FinancialCostCentersScreenState extends State<FinancialCostCentersScreen>
   Future<void> _loadCostCenters() async {
     setState(() => isLoading = true);
     
-    final centers = await _financialService.getAllCostCenters();
+    final centers = await FinancialService.getAllCostCenters();
     
     setState(() {
       costCenters = centers;
@@ -84,7 +83,7 @@ class _FinancialCostCentersScreenState extends State<FinancialCostCentersScreen>
         createdAt: DateTime.now(),
       );
 
-      await _financialService.createCostCenter(costCenter);
+      await FinancialService.createCostCenter(costCenter);
       await _loadCostCenters();
       widget.onUpdate?.call();
 
@@ -116,7 +115,7 @@ class _FinancialCostCentersScreenState extends State<FinancialCostCentersScreen>
     );
 
     if (confirm == true) {
-      await _financialService.deleteCostCenter(costCenter.id);
+      await FinancialService.deleteCostCenter(costCenter.id);
       await _loadCostCenters();
       widget.onUpdate?.call();
 

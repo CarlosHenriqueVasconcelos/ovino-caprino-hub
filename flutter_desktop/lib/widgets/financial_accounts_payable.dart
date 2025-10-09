@@ -14,7 +14,6 @@ class FinancialAccountsPayable extends StatefulWidget {
 }
 
 class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
-  final FinancialService _financialService = FinancialService();
   List<FinancialAccount> accounts = [];
   String filterStatus = 'Todos';
   bool isLoading = true;
@@ -28,7 +27,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
   Future<void> _loadAccounts() async {
     setState(() => isLoading = true);
     
-    final allAccounts = await _financialService.getAllAccounts();
+    final allAccounts = await FinancialService.getAllAccounts();
     final filtered = allAccounts
         .where((a) => a.type == 'despesa')
         .toList()
@@ -46,7 +45,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
   }
 
   Future<void> _markAsPaid(FinancialAccount account) async {
-    await _financialService.markAsPaid(account.id, DateTime.now());
+    await FinancialService.markAsPaid(account.id, DateTime.now());
     await _loadAccounts();
     widget.onUpdate?.call();
     
@@ -77,7 +76,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
     );
 
     if (confirm == true) {
-      await _financialService.deleteAccount(account.id);
+      await FinancialService.deleteAccount(account.id);
       await _loadAccounts();
       widget.onUpdate?.call();
       

@@ -1,298 +1,347 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import '../services/financial_service.dart';
+import '../models/financial_account.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import '../services/animal_service.dart';
-import '../services/database_service.dart';
 
-class FinancialFormDialog extends StatefulWidget {
-  const FinancialFormDialog({super.key});
+class FinancialFormScreen extends StatefulWidget {
+  final String type;
+  final FinancialAccount? account;
+
+  const FinancialFormScreen({
+    super.key,
+    required this.type,
+    this.account,
+  });
 
   @override
-  State<FinancialFormDialog> createState() => _FinancialFormDialogState();
+  State<FinancialFormScreen> createState() => _FinancialFormScreenState();
 }
 
-class _FinancialFormDialogState extends State<FinancialFormDialog> {
+class _FinancialFormScreenState extends State<FinancialFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
-  
-  String _type = 'receita';
-  String _category = 'Venda de Animais';
-  String? _selectedAnimalId;
-  DateTime _date = DateTime.now();
 
-  final Map<String, List<String>> _categoriesByType = {
-    'receita': [
-      'Venda de Animais',
-      'Venda de Leite',
-      'Venda de Carne', 
-      'Aluguel de Reprodutor',
-      'Subsídios',
-      'Outras Receitas',
-    ],
-    'despesa': [
-      'Ração',
-      'Medicamentos',
-      'Vacinas',
-      'Veterinário',
-      'Mão de Obra',
-      'Energia Elétrica',
-      'Combustível',
-      'Manutenção',
-      'Impostos',
-      'Outras Despesas',
-    ],
-  };
+  late TextEditingController _descriptionController;
+  late TextEditingController _amountController;
+  late TextEditingController _dueDateController;
+  late TextEditingController _supplierCustomerController;
+  late TextEditingController _notesController;
+
+  String? _selectedCategory;
+  String? _selectedPaymentMethod;
+  String? _selectedCostCenter;
+  DateTime? _selectedDueDate;
+  List<CostCenter> _costCenters = [];
+
+  final List<String> _expenseCategories = [
+    'Alimentação',
+    'Medicamentos',
+    'Veterinário',
+    'Manutenção',
+    'Equipamentos',
+    'Energia',
+    'Água',
+    'Funcionários',
+    'Transporte',
+    'Outros',
+  ];
+
+  final List<String> _revenueCategories = [
+    'Venda de Animais',
+    'Venda de Leite',
+    'Venda de Lã',
+    'Serviços',
+    'Outros',
+  ];
+
+  final List<String> _paymentMethods = [
+    'Dinheiro',
+    'PIX',
+    'Cartão de Crédito',
+    'Cartão de Débito',
+    'Transferência',
+    'Boleto',
+    'Cheque',
+  ];
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final animalService = Provider.of<AnimalService>(context);
-    
-    return AlertDialog(
-      title: Text(_type == 'receita' ? 'Nova Receita' : 'Nova Despesa'),
-      content: SizedBox(
-        width: 500,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Type Selection
-                Row(
-                  children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: Row(
-                          children: [
-                            Icon(Icons.trending_up, 
-                                color: theme.colorScheme.primary),
-                            const SizedBox(width: 8),
-                            const Text('Receita'),
-                          ],
-                        ),
-                        value: 'receita',
-                        groupValue: _type,
-                        onChanged: (value) {
-                          setState(() {
-                            _type = value!;
-                            _category = _categoriesByType[_type]![0];
-                          });
-                        },
-                      ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        title: Row(
-                          children: [
-                            Icon(Icons.trending_down, 
-                                color: theme.colorScheme.error),
-                            const SizedBox(width: 8),
-                            const Text('Despesa'),
-                          ],
-                        ),
-                        value: 'despesa',
-                        groupValue: _type,
-                        onChanged: (value) {
-                          setState(() {
-                            _type = value!;
-                            _category = _categoriesByType[_type]![0];
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Category
-                DropdownButtonFormField<String>(
-                  value: _category,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoria *',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _categoriesByType[_type]!.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _category = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                
-                // Amount and Date
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _amountController,
-                        decoration: InputDecoration(
-                          labelText: 'Valor (R\$) *',
-                          border: const OutlineInputBorder(),
-                          prefixText: 'R\$ ',
-                          prefixStyle: TextStyle(
-                            color: _type == 'receita' 
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.error,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Campo obrigatório';
-                          }
-                          if (double.tryParse(value!.replaceAll(',', '.')) == null) {
-                            return 'Valor inválido';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _date,
-                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _date = date;
-                            });
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Data *',
-                            border: OutlineInputBorder(),
-                            suffixIcon: Icon(Icons.calendar_today),
-                          ),
-                          child: Text(
-                            '${_date.day.toString().padLeft(2, '0')}/${_date.month.toString().padLeft(2, '0')}/${_date.year}',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Animal (Optional for some categories)
-                if (_category == 'Venda de Animais' || _category == 'Aluguel de Reprodutor') ...[
-                  DropdownButtonFormField<String>(
-                    value: _selectedAnimalId,
-                    decoration: const InputDecoration(
-                      labelText: 'Animal Relacionado',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Nenhum animal específico'),
-                      ),
-                      ...animalService.animals.map((animal) {
-                        return DropdownMenuItem(
-                          value: animal.id,
-                          child: Text('${animal.name} (${animal.code})'),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedAnimalId = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                
-                // Description
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Descrição',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _saveFinancialRecord,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _type == 'receita' 
-                ? theme.colorScheme.primary
-                : theme.colorScheme.error,
-          ),
-          child: const Text('Salvar'),
-        ),
-      ],
-    );
+  void initState() {
+    super.initState();
+    _initializeControllers();
+    _loadCostCenters();
   }
 
-  void _saveFinancialRecord() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _initializeControllers() {
+    final account = widget.account;
+    
+    _descriptionController = TextEditingController(text: account?.description ?? '');
+    _amountController = TextEditingController(
+      text: account?.amount.toStringAsFixed(2).replaceAll('.', ',') ?? '',
+    );
+    _dueDateController = TextEditingController(
+      text: account != null ? DateFormat('dd/MM/yyyy').format(account.dueDate) : '',
+    );
+    _supplierCustomerController = TextEditingController(text: account?.supplierCustomer ?? '');
+    _notesController = TextEditingController(text: account?.notes ?? '');
 
-    try {
-      final amount = double.parse(_amountController.text.replaceAll(',', '.'));
-      
-      final financialRecord = {
-        'id': const Uuid().v4(),
-        'type': _type,
-        'category': _category,
-        'description': _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        'amount': amount,
-        'date': _date.toIso8601String().split('T')[0],
-        'animal_id': _selectedAnimalId,
-        'created_at': DateTime.now().toIso8601String(),
-      };
+    _selectedCategory = account?.category;
+    _selectedPaymentMethod = account?.paymentMethod;
+    _selectedCostCenter = account?.costCenter;
+    _selectedDueDate = account?.dueDate;
+  }
 
-      await DatabaseService.createFinancialRecord(financialRecord);
-      
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_type == "receita" ? "Receita" : "Despesa"} registrada com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao registrar ${_type}: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    }
+  Future<void> _loadCostCenters() async {
+    final centers = await FinancialService.getAllCostCenters();
+    setState(() {
+      _costCenters = centers;
+    });
   }
 
   @override
   void dispose() {
     _descriptionController.dispose();
     _amountController.dispose();
+    _dueDateController.dispose();
+    _supplierCustomerController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDueDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    
+    if (picked != null) {
+      setState(() {
+        _selectedDueDate = picked;
+        _dueDateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
+    }
+  }
+
+  Future<void> _saveAccount() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedDueDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a data de vencimento')),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Valor inválido')),
+      );
+      return;
+    }
+
+    final account = FinancialAccount(
+      id: widget.account?.id ?? const Uuid().v4(),
+      type: widget.type,
+      category: _selectedCategory ?? '',
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      amount: amount,
+      dueDate: _selectedDueDate!,
+      status: widget.account?.status ?? 'Pendente',
+      paymentMethod: _selectedPaymentMethod,
+      supplierCustomer: _supplierCustomerController.text.isEmpty ? null : _supplierCustomerController.text,
+      notes: _notesController.text.isEmpty ? null : _notesController.text,
+      costCenter: _selectedCostCenter,
+      createdAt: widget.account?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      if (widget.account != null) {
+        await FinancialService.updateAccount(account);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Conta atualizada com sucesso')),
+          );
+        }
+      } else {
+        await FinancialService.createAccount(account);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Conta criada com sucesso')),
+          );
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.account != null;
+    final categories = widget.type == 'receita' ? _revenueCategories : _expenseCategories;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          isEditing
+              ? 'Editar ${widget.type == 'receita' ? 'Receita' : 'Despesa'}'
+              : 'Nova ${widget.type == 'receita' ? 'Receita' : 'Despesa'}',
+        ),
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            DropdownButtonFormField<String>(
+              value: _selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Categoria *',
+                border: OutlineInputBorder(),
+              ),
+              items: categories.map((cat) {
+                return DropdownMenuItem(value: cat, child: Text(cat));
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                });
+              },
+              validator: (value) => value == null ? 'Selecione uma categoria' : null,
+            ),
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Descrição',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(
+                labelText: 'Valor *',
+                border: OutlineInputBorder(),
+                prefixText: 'R\$ ',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+              ],
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Informe o valor';
+                final amount = double.tryParse(value.replaceAll(',', '.'));
+                if (amount == null || amount <= 0) return 'Valor inválido';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _dueDateController,
+              decoration: const InputDecoration(
+                labelText: 'Data de Vencimento *',
+                border: OutlineInputBorder(),
+                suffixIcon: Icon(Icons.calendar_today),
+              ),
+              readOnly: true,
+              onTap: () => _selectDate(context),
+              validator: (value) => value == null || value.isEmpty ? 'Selecione a data' : null,
+            ),
+            const SizedBox(height: 16),
+
+            DropdownButtonFormField<String>(
+              value: _selectedPaymentMethod,
+              decoration: const InputDecoration(
+                labelText: 'Forma de Pagamento',
+                border: OutlineInputBorder(),
+              ),
+              items: _paymentMethods.map((method) {
+                return DropdownMenuItem(value: method, child: Text(method));
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedPaymentMethod = value;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _supplierCustomerController,
+              decoration: InputDecoration(
+                labelText: widget.type == 'receita' ? 'Cliente' : 'Fornecedor',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            if (_costCenters.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: _selectedCostCenter,
+                decoration: const InputDecoration(
+                  labelText: 'Centro de Custo',
+                  border: OutlineInputBorder(),
+                ),
+                items: _costCenters.map((center) {
+                  return DropdownMenuItem(value: center.id, child: Text(center.name));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCostCenter = value;
+                  });
+                },
+              ),
+            if (_costCenters.isNotEmpty) const SizedBox(height: 16),
+
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Observações',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 24),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saveAccount,
+                    child: const Text('Salvar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

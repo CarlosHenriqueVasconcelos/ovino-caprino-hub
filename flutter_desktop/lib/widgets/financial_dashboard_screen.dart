@@ -11,7 +11,6 @@ class FinancialDashboardScreen extends StatefulWidget {
 }
 
 class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
-  final FinancialService _financialService = FinancialService();
   Map<String, dynamic> stats = {};
   List<FinancialAccount> upcomingAccounts = [];
   bool isLoading = true;
@@ -25,11 +24,11 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
   Future<void> _loadData() async {
     setState(() => isLoading = true);
     
-    await _financialService.generateRecurringAccounts();
-    await _financialService.updateOverdueStatus();
+    await FinancialService.generateRecurringAccounts();
+    await FinancialService.updateOverdueStatus();
     
-    final dashboardStats = await _financialService.getDashboardStats();
-    final upcoming = await _financialService.getUpcomingAccounts(7);
+    final dashboardStats = await FinancialService.getDashboardStats();
+    final upcoming = await FinancialService.getUpcomingAccounts(7);
     
     setState(() {
       stats = dashboardStats;
@@ -65,16 +64,16 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Saldo do Mês',
-                    stats['monthBalance'] ?? 0.0,
+                    stats['balance'] ?? 0.0,
                     Icons.account_balance_wallet,
-                    (stats['monthBalance'] ?? 0.0) >= 0 ? Colors.green : Colors.red,
+                    (stats['balance'] ?? 0.0) >= 0 ? Colors.green : Colors.red,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
                     'A Vencer (7 dias)',
-                    stats['upcoming'] ?? 0.0,
+                    stats['totalUpcoming'] ?? 0.0,
                     Icons.schedule,
                     Colors.orange,
                   ),
@@ -87,7 +86,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Vencidas',
-                    stats['overdue'] ?? 0.0,
+                    stats['totalOverdue'] ?? 0.0,
                     Icons.warning,
                     Colors.red,
                   ),
@@ -111,7 +110,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Receitas do Mês',
-                    stats['monthRevenue'] ?? 0.0,
+                    stats['totalRevenue'] ?? 0.0,
                     Icons.arrow_upward,
                     Colors.green,
                   ),
@@ -120,7 +119,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Despesas do Mês',
-                    stats['monthExpense'] ?? 0.0,
+                    stats['totalExpense'] ?? 0.0,
                     Icons.arrow_downward,
                     Colors.red,
                   ),
