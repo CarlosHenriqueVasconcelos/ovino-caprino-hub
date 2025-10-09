@@ -31,6 +31,21 @@ export interface Vaccination {
   updated_at: string;
 }
 
+export interface Medication {
+  id: string;
+  animal_id: string;
+  medication_name: string;
+  dosage?: string;
+  date: string;
+  next_date?: string;
+  applied_date?: string;
+  veterinarian?: string;
+  notes?: string;
+  status: 'Agendado' | 'Aplicado' | 'Cancelado';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Report {
   id: string;
   title: string;

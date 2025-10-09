@@ -1,16 +1,18 @@
 // Local offline-first database using localStorage, aligned with src/lib/types.ts
 // Source of truth is local; cloud is backup via manual sync
 
-import type { Animal, Vaccination, Note, BreedingRecord, FinancialRecord, Report, AnimalStats } from "./types";
+import type { Animal, Vaccination, Medication, Note, BreedingRecord, FinancialRecord, Report, AnimalStats } from "./types";
 
 const KEYS = {
   animals: 'bego_offline_animals',
   vaccinations: 'bego_offline_vaccinations',
+  medications: 'bego_offline_medications',
   notes: 'bego_offline_notes',
   breeding: 'bego_offline_breeding',
   financial: 'bego_offline_financial',
   reports: 'bego_offline_reports',
-  lastSync: 'bego_last_sync'
+  lastSync: 'bego_last_sync',
+  dbVersion: 'bego_db_version'
 } as const;
 
 function loadArray<T>(key: string): T[] {
@@ -89,6 +91,39 @@ export const localVaccinations = {
     all[idx] = updated;
     saveArray(KEYS.vaccinations, all);
     return updated;
+  }
+};
+
+// Medications
+export const localMedications = {
+  all(): Medication[] {
+    const data = loadArray<Medication>(KEYS.medications);
+    return data.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  },
+  forAnimal(animal_id?: string): Medication[] {
+    const all = this.all();
+    return animal_id ? all.filter(m => m.animal_id === animal_id) : all;
+  },
+  create(input: Omit<Medication, 'id' | 'created_at' | 'updated_at'>): Medication {
+    const now = new Date().toISOString();
+    const record: Medication = { id: genId('med'), created_at: now, updated_at: now, ...input };
+    const all = loadArray<Medication>(KEYS.medications);
+    all.push(record);
+    saveArray(KEYS.medications, all);
+    return record;
+  },
+  update(id: string, updates: Partial<Medication>): Medication {
+    const all = loadArray<Medication>(KEYS.medications);
+    const idx = all.findIndex(m => m.id === id);
+    if (idx === -1) throw new Error('Medicamento não encontrado');
+    const updated: Medication = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    all[idx] = updated;
+    saveArray(KEYS.medications, all);
+    return updated;
+  },
+  delete(id: string) {
+    const all = loadArray<Medication>(KEYS.medications);
+    saveArray(KEYS.medications, all.filter(m => m.id !== id));
   }
 };
 
@@ -185,3 +220,53 @@ export const localSync = {
   getLastSync(): Date | null { const raw = localStorage.getItem(KEYS.lastSync); return raw ? new Date(raw) : null; },
   setLastSync() { localStorage.setItem(KEYS.lastSync, new Date().toISOString()); }
 };
+
+// Database migrations
+const DB_VERSION = 2;
+
+function getCurrentVersion(): number {
+  const raw = localStorage.getItem(KEYS.dbVersion);
+  return raw ? parseInt(raw, 10) : 0;
+}
+
+function setVersion(version: number) {
+  localStorage.setItem(KEYS.dbVersion, version.toString());
+}
+
+// Migration functions
+function migrateV1toV2() {
+  // Add status and applied_date to existing medications
+  const medications = loadArray<any>(KEYS.medications);
+  const migrated = medications.map(med => ({
+    ...med,
+    status: med.status || 'Agendado',
+    applied_date: med.applied_date || undefined
+  }));
+  saveArray(KEYS.medications, migrated);
+  console.log(`✅ Migração v1→v2: ${migrated.length} medicamentos atualizados`);
+}
+
+export function runMigrations() {
+  const currentVersion = getCurrentVersion();
+  
+  if (currentVersion >= DB_VERSION) {
+    return; // Already up to date
+  }
+
+  console.log(`🔄 Iniciando migrações do banco local (v${currentVersion} → v${DB_VERSION})`);
+
+  if (currentVersion < 1) {
+    // First time, just set version
+    setVersion(1);
+  }
+
+  if (currentVersion < 2) {
+    migrateV1toV2();
+    setVersion(2);
+  }
+
+  console.log('✅ Migrações concluídas com sucesso!');
+}
+
+// Run migrations on import
+runMigrations();
