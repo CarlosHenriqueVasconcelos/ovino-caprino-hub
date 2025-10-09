@@ -85,7 +85,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: _tabs.length, 
+      length: _tabs.length,
       vsync: this,
       initialIndex: widget.initialTab ?? 0,
     );
@@ -95,7 +95,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       });
     });
   }
-  
+
   void _goToTab(int index) {
     _tabController.animateTo(index);
   }
@@ -218,6 +218,15 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
               ),
             ),
             const SizedBox(width: 16),
+
+            // ⬇️ Botão para recarregar os dados
+            OutlinedButton.icon(
+              onPressed: () => context.read<AnimalService>().loadData(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Recarregar dados'),
+            ),
+            const SizedBox(width: 12),
+
             ElevatedButton.icon(
               onPressed: () => _showAnimalForm(context),
               icon: const Icon(Icons.add),
@@ -410,7 +419,7 @@ class _StatsOverview extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions();
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -429,7 +438,7 @@ class _QuickActions extends StatelessWidget {
         builder: (context) => VaccinationFormDialog(animalId: animal?.id),
       );
     }
-    
+
     void showMedicationDialog() {
       showDialog(
         context: context,
@@ -560,7 +569,7 @@ class _ActionCard extends StatelessWidget {
 
 class _HerdSection extends StatefulWidget {
   const _HerdSection();
-  
+
   @override
   State<_HerdSection> createState() => _HerdSectionState();
 }
@@ -742,14 +751,14 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   final _dosageController = TextEditingController();
   final _veterinarianController = TextEditingController();
   final _notesController = TextEditingController();
-  
+
   DateTime _scheduledDate = DateTime.now();
   String? _selectedAnimalId;
 
   @override
   Widget build(BuildContext context) {
     final animalService = Provider.of<AnimalService>(context);
-    
+
     return AlertDialog(
       title: const Text('Agendar Medicamento'),
       content: SizedBox(
@@ -782,7 +791,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Nome do medicamento
                 TextFormField(
                   controller: _nameController,
@@ -796,7 +805,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Dosagem
                 TextFormField(
                   controller: _dosageController,
@@ -807,7 +816,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Data
                 InkWell(
                   onTap: () async {
@@ -833,7 +842,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Veterinário
                 TextFormField(
                   controller: _veterinarianController,
@@ -843,7 +852,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Observações
                 TextFormField(
                   controller: _notesController,
@@ -876,21 +885,27 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
 
     try {
       final now = DateTime.now().toIso8601String();
-      
+
       final medication = {
         'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId!,
         'medication_name': _nameController.text,
         'date': _scheduledDate.toIso8601String().split('T')[0],
-        'next_date': _scheduledDate.add(const Duration(days: 30)).toIso8601String().split('T')[0],
+        'next_date': _scheduledDate
+            .add(const Duration(days: 30))
+            .toIso8601String()
+            .split('T')[0],
         'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
-        'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
-        'notes': _notesController.text.isEmpty ? null : _notesController.text,
+        'veterinarian': _veterinarianController.text.isEmpty
+            ? null
+            : _veterinarianController.text,
+        'notes':
+            _notesController.text.isEmpty ? null : _notesController.text,
         'created_at': now,
       };
-      
+
       await DatabaseService.createMedication(medication);
-      
+
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();

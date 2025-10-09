@@ -182,6 +182,10 @@ class AnimalService extends ChangeNotifier {
       try {
         final meds = await _appDb!.db.query('medications');
         for (final row in meds) {
+          // ✅ ADIÇÃO: respeitar status se existir (Agendado/Aplicado/Cancelado)
+          final mstatus = (row['status'] ?? 'Agendado').toString();
+          if (mstatus == 'Aplicado' || mstatus == 'Cancelado') continue;
+
           final nextStr = row['next_date']?.toString();
           if (nextStr == null || nextStr.isEmpty) continue;
 

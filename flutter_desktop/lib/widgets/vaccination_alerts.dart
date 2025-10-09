@@ -50,16 +50,33 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         LIMIT 200
       ''');
 
-      // Medicações com next_date próximo (≤ 30 dias)
-      final meds = await db.rawQuery('''
-        SELECT m.*, a.name AS animal_name, a.code AS animal_code
-        FROM medications m
-        LEFT JOIN animals a ON a.id = m.animal_id
-        WHERE m.next_date IS NOT NULL
-          AND date(m.next_date) <= date('now', '+30 day')
-        ORDER BY date(m.next_date) ASC
-        LIMIT 200
-      ''');
+      // Medicações com next_date próximo (≤ 30 dias) e status 'Agendado'
+      // Tentamos com filtro de status (bancos já migrados); se falhar (coluna não existe),
+      // fazemos fallback sem o filtro de status.
+      List<Map<String, dynamic>> meds;
+      try {
+        meds = await db.rawQuery('''
+          SELECT m.*, a.name AS animal_name, a.code AS animal_code
+          FROM medications m
+          LEFT JOIN animals a ON a.id = m.animal_id
+          WHERE m.next_date IS NOT NULL
+            AND (m.status IS NULL OR m.status = 'Agendado')
+            AND date(m.next_date) <= date('now', '+30 day')
+          ORDER BY date(m.next_date) ASC
+          LIMIT 200
+        ''');
+      } catch (_) {
+        // Fallback para bancos sem a coluna "status"
+        meds = await db.rawQuery('''
+          SELECT m.*, a.name AS animal_name, a.code AS animal_code
+          FROM medications m
+          LEFT JOIN animals a ON a.id = m.animal_id
+          WHERE m.next_date IS NOT NULL
+            AND date(m.next_date) <= date('now', '+30 day')
+          ORDER BY date(m.next_date) ASC
+          LIMIT 200
+        ''');
+      }
 
       setState(() {
         _vaccines = vacs;
@@ -179,9 +196,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Vacinas Agendadas',
                 total: _vaccines.length,
                 page: _vacPage,
-                onPrev: _vacPage > 0
-                    ? () => setState(() => _vacPage--)
-                    : null,
+                onPrev: _vacPage > 0 ? () => setState(() => _vacPage--) : null,
                 onNext: (_vacPage + 1) * _pageSize < _vaccines.length
                     ? () => setState(() => _vacPage++)
                     : null,
@@ -200,9 +215,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Medicações (próximas)',
                 total: _meds.length,
                 page: _medPage,
-                onPrev: _medPage > 0
-                    ? () => setState(() => _medPage--)
-                    : null,
+                onPrev: _medPage > 0 ? () => setState(() => _medPage--) : null,
                 onNext: (_medPage + 1) * _pageSize < _meds.length
                     ? () => setState(() => _medPage++)
                     : null,
@@ -361,19 +374,11 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             ),
           ),
           const SizedBox(width: 12),
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton(
-                onPressed: () => _openVaccineForm(context, row),
-                child: const Text('Aplicar'),
-              ),
-              OutlinedButton.icon(
-                onPressed: widget.onGoToVaccinations,
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('Ver vacinas'),
-              ),
-            ],
+          // ✅ Sem botão "Aplicar" aqui — apenas atalho para a aba de vacinas
+          OutlinedButton.icon(
+            onPressed: widget.onGoToVaccinations,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Ver vacinas'),
           ),
         ],
       ),
@@ -389,6 +394,9 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     final nextStr = (row['next_date'] ?? '').toString();
     final nextDate = _parseDate(nextStr);
     final days = _daysFromNow(nextDate);
+
+    // Se existir 'status', respeitamos (Agendado, Aplicado, Cancelado)
+    final status = (row['status'] ?? 'Agendado').toString();
 
     final overdue = nextDate != null && days < 0;
     final color = overdue ? theme.colorScheme.error : Colors.teal;
@@ -425,6 +433,16 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: color,
                       fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                if (status != 'Agendado')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Status: $status',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      ),
                     ),
                   ),
               ],

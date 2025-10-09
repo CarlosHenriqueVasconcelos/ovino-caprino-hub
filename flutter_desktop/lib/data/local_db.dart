@@ -3,7 +3,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import '../models/animal.dart'; // ADIÇÃO: para mapear Animal quando necessário
+import '../models/animal.dart'; // para mapear Animal no shim DatabaseService
 
 class AppDatabase {
   final Database db;
@@ -26,11 +26,13 @@ class AppDatabase {
     final db = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 5,
+        // ⬆️ bump para disparar migrations
+        version: 7,
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
         onUpgrade: (db, oldV, newV) async => _migrate(db, oldV, newV),
         onOpen: (db) async {
+          // Garantias idempotentes
           await _ensureCoreColumns(db);
           await _ensureTriggers(db);
         },
@@ -110,6 +112,9 @@ class AppDatabase {
         dosage TEXT,
         veterinarian TEXT,
         notes TEXT,
+        -- 🔹 colunas novas já previstas na criação
+        status TEXT NOT NULL DEFAULT 'Agendado',
+        applied_date TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT
       );
@@ -192,6 +197,7 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
 
     await _ensureTriggers(db);
   }
@@ -224,6 +230,42 @@ class AppDatabase {
       await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
       await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
       await _safeAddColumn(db, table: 'medications', column: 'updated_at', typeSql: 'TEXT');
+    }
+    // v6: garante novas colunas de medications
+    if (oldV < 6) {
+      await _safeAddColumn(
+        db,
+        table: 'medications',
+        column: 'status',
+        typeSql: 'TEXT',
+        defaultSql: "'Agendado'",
+        backfillSql: "UPDATE medications SET status = COALESCE(status, 'Agendado');",
+      );
+      await _safeAddColumn(
+        db,
+        table: 'medications',
+        column: 'applied_date',
+        typeSql: 'TEXT',
+      );
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
+    }
+    // v7: reforço idempotente
+    if (oldV < 7) {
+      await _safeAddColumn(
+        db,
+        table: 'medications',
+        column: 'status',
+        typeSql: 'TEXT',
+        defaultSql: "'Agendado'",
+        backfillSql: "UPDATE medications SET status = COALESCE(status, 'Agendado');",
+      );
+      await _safeAddColumn(
+        db,
+        table: 'medications',
+        column: 'applied_date',
+        typeSql: 'TEXT',
+      );
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
     }
   }
 
@@ -286,6 +328,11 @@ class AppDatabase {
         backfillSql: "UPDATE medications SET created_at = COALESCE(created_at, datetime('now'));");
     await _safeAddColumn(db, table: 'medications', column: 'updated_at', typeSql: 'TEXT',
         backfillSql: "UPDATE medications SET updated_at = COALESCE(updated_at, datetime('now'));");
+    // 🔸 novas colunas garantidas mesmo sem bump
+    await _safeAddColumn(db, table: 'medications', column: 'status', typeSql: 'TEXT',
+        defaultSql: "'Agendado'",
+        backfillSql: "UPDATE medications SET status = COALESCE(status, 'Agendado');");
+    await _safeAddColumn(db, table: 'medications', column: 'applied_date', typeSql: 'TEXT');
 
     await _safeAddColumn(db, table: 'notes', column: 'created_at', typeSql: 'TEXT',
         backfillSql: "UPDATE notes SET created_at = COALESCE(created_at, datetime('now'));");
@@ -320,8 +367,9 @@ class AppDatabase {
 }
 
 /// ======================================================================
-/// BACKWARDS-COMPAT: Classe "shim" que mantém a API antiga (estática),
-/// redirecionando para o AppDatabase por baixo. NÃO remove nada existente.
+/// BACKWARDS-COMPAT: Classe "shim" que mantém a API antiga (estática)
+/// redirecionando para o AppDatabase por baixo. Nada do que você usava
+/// foi removido.
 /// ======================================================================
 class DatabaseService {
   // ---------- ANIMAIS ----------
