@@ -1,3 +1,4 @@
+// lib/services/reports_service.dart
 // Service for generating comprehensive reports with filters and KPIs
 import 'database_service.dart';
 import '../models/animal.dart';
@@ -48,18 +49,32 @@ class ReportSummary {
 }
 
 class ReportsService {
+  // ----------------- Helpers -----------------
+  static DateTime? _toDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    if (v is String) return DateTime.tryParse(v);
+    return DateTime.tryParse(v.toString());
+  }
+
+  static bool _between(DateTime? d, DateTime start, DateTime end) {
+    if (d == null) return false;
+    // inclui bordas (>= start && <= end)
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
+    return !d.isBefore(s) && !d.isAfter(e);
+  }
+
   // ============ Animais Report ============
   static Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) async {
     var animals = await DatabaseService.getAnimals();
-    
-    // Filter by created_at
+
+    // Filter by created_at (robusto a String/DateTime)
     animals = animals.where((a) {
-      final createdAt = DateTime.tryParse(a.createdAt);
-      if (createdAt == null) return false;
-      return createdAt.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             createdAt.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final createdAt = _toDate(a.createdAt);
+      return _between(createdAt, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.species != null && filters.species != 'Todos') {
       animals = animals.where((a) => a.species == filters.species).toList();
     }
@@ -72,12 +87,12 @@ class ReportsService {
     if (filters.category != null && filters.category != 'Todos') {
       animals = animals.where((a) => a.category == filters.category).toList();
     }
-    
+
     final ovinos = animals.where((a) => a.species == 'Ovino').length;
     final caprinos = animals.where((a) => a.species == 'Caprino').length;
     final machos = animals.where((a) => a.gender == 'Macho').length;
     final femeas = animals.where((a) => a.gender == 'Fêmea').length;
-    
+
     return {
       'summary': {
         'total': animals.length,
@@ -92,7 +107,9 @@ class ReportsService {
         'species': a.species,
         'breed': a.breed,
         'gender': a.gender,
-        'birth_date': a.birthDate,
+        'birth_date': a.birthDate is DateTime
+            ? (a.birthDate as DateTime).toIso8601String().split('T')[0]
+            : a.birthDate,
         'weight': a.weight,
         'status': a.status,
         'location': a.location,
@@ -108,7 +125,7 @@ class ReportsService {
     final db = await DatabaseService.database;
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Query animal_weights within period
     final weights = await db.query(
       'animal_weights',
@@ -118,7 +135,7 @@ class ReportsService {
         filters.endDate.toIso8601String().split('T')[0],
       ],
     );
-    
+
     // Group by animal
     final byAnimal = <String, List<Map<String, dynamic>>>{};
     for (var w in weights) {
@@ -126,15 +143,23 @@ class ReportsService {
       byAnimal.putIfAbsent(animalId, () => []);
       byAnimal[animalId]!.add(w);
     }
-    
+
     final animalStats = byAnimal.entries.map((entry) {
       final animalId = entry.key;
       final weighings = entry.value;
       final animal = animalMap[animalId];
-      
-      final weightValues = weighings.map((w) => (w['weight'] as num).toDouble()).toList();
+
+      final weightValues = weighings
+          .map((w) => (w['weight'] as num).toDouble())
+          .toList();
+
+      // ordenar por data desc
       weighings.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
-      
+
+      final double lastWeight = weighings.isEmpty
+          ? 0
+          : (weighings[0]['weight'] as num).toDouble();
+
       return {
         'animal_id': animalId,
         'animal_code': animal?.code ?? 'N/A',
@@ -143,21 +168,22 @@ class ReportsService {
         'min': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a < b ? a : b),
         'max': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a > b ? a : b),
         'avg': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a + b) / weightValues.length,
-        'last_weight': weighings.isEmpty ? 0 : weighings[0]['weight'],
+        'last_weight': lastWeight,
         'last_date': weighings.isEmpty ? '' : weighings[0]['date'],
       };
     }).toList();
-    
+
     final allLastWeights = animalStats
-        .map((s) => s['last_weight'] as double)
+        .map((s) => (s['last_weight'] as num).toDouble())
         .where((w) => w > 0)
         .toList();
-    
+
     return {
       'summary': {
         'total_weighings': weights.length,
         'animals_weighed': byAnimal.length,
-        'avg_last_weight': allLastWeights.isEmpty ? 0 
+        'avg_last_weight': allLastWeights.isEmpty
+            ? 0
             : allLastWeights.reduce((a, b) => a + b) / allLastWeights.length,
       },
       'data': animalStats,
@@ -169,28 +195,25 @@ class ReportsService {
     var vaccinations = await DatabaseService.getVaccinations();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Filter by effective date (applied_date if exists, else scheduled_date)
     vaccinations = vaccinations.where((v) {
       final effectiveDate = v['applied_date'] ?? v['scheduled_date'];
-      if (effectiveDate == null) return false;
-      final date = DateTime.tryParse(effectiveDate);
-      if (date == null) return false;
-      return date.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             date.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final d = _toDate(effectiveDate);
+      return _between(d, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.status != null && filters.status != 'Todos') {
       vaccinations = vaccinations.where((v) => v['status'] == filters.status).toList();
     }
     if (filters.vaccineType != null && filters.vaccineType != 'Todos') {
       vaccinations = vaccinations.where((v) => v['vaccine_type'] == filters.vaccineType).toList();
     }
-    
+
     final scheduled = vaccinations.where((v) => v['status'] == 'Agendada').length;
     final applied = vaccinations.where((v) => v['status'] == 'Aplicada').length;
     final cancelled = vaccinations.where((v) => v['status'] == 'Cancelada').length;
-    
+
     return {
       'summary': {
         'total': vaccinations.length,
@@ -220,27 +243,24 @@ class ReportsService {
     var medications = await DatabaseService.getMedications();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Filter by event date
     medications = medications.where((m) {
       final eventDate = (m['status'] == 'Aplicado' && m['applied_date'] != null)
           ? m['applied_date']
           : m['date'];
-      if (eventDate == null) return false;
-      final date = DateTime.tryParse(eventDate);
-      if (date == null) return false;
-      return date.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             date.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final d = _toDate(eventDate);
+      return _between(d, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.medicationStatus != null && filters.medicationStatus != 'Todos') {
       medications = medications.where((m) => m['status'] == filters.medicationStatus).toList();
     }
-    
+
     final scheduled = medications.where((m) => m['status'] == 'Agendado').length;
     final applied = medications.where((m) => m['status'] == 'Aplicado').length;
     final cancelled = medications.where((m) => m['status'] == 'Cancelado').length;
-    
+
     return {
       'summary': {
         'total': medications.length,
@@ -271,25 +291,23 @@ class ReportsService {
     var breeding = await DatabaseService.getBreedingRecords();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Filter by breeding_date
     breeding = breeding.where((b) {
-      final date = DateTime.tryParse(b['breeding_date'] ?? '');
-      if (date == null) return false;
-      return date.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             date.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final d = _toDate(b['breeding_date']);
+      return _between(d, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
       breeding = breeding.where((b) => b['stage'] == filters.breedingStage).toList();
     }
-    
+
     final byStage = <String, int>{};
     for (var b in breeding) {
       final stage = b['stage'] ?? 'Não definido';
       byStage[stage] = (byStage[stage] ?? 0) + 1;
     }
-    
+
     return {
       'summary': {
         'total': breeding.length,
@@ -323,29 +341,27 @@ class ReportsService {
     var financial = await DatabaseService.getFinancialRecords();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Filter by date
     financial = financial.where((f) {
-      final date = DateTime.tryParse(f['date'] ?? '');
-      if (date == null) return false;
-      return date.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             date.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final d = _toDate(f['date']);
+      return _between(d, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.financialType != null && filters.financialType != 'Todos') {
       financial = financial.where((f) => f['type'] == filters.financialType).toList();
     }
     if (filters.financialCategory != null && filters.financialCategory != 'Todos') {
       financial = financial.where((f) => f['category'] == filters.financialCategory).toList();
     }
-    
+
     final revenue = financial
         .where((f) => f['type'] == 'receita')
         .fold<double>(0, (sum, f) => sum + ((f['amount'] as num?)?.toDouble() ?? 0));
     final expense = financial
         .where((f) => f['type'] == 'despesa')
         .fold<double>(0, (sum, f) => sum + ((f['amount'] as num?)?.toDouble() ?? 0));
-    
+
     return {
       'summary': {
         'revenue': revenue,
@@ -371,28 +387,26 @@ class ReportsService {
     var notes = await DatabaseService.getNotes();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
-    
+
     // Filter by date
     notes = notes.where((n) {
-      final date = DateTime.tryParse(n['date'] ?? '');
-      if (date == null) return false;
-      return date.isAfter(filters.startDate.subtract(const Duration(days: 1))) &&
-             date.isBefore(filters.endDate.add(const Duration(days: 1)));
+      final d = _toDate(n['date']);
+      return _between(d, filters.startDate, filters.endDate);
     }).toList();
-    
+
     if (filters.notesIsRead != null) {
       notes = notes.where((n) => (n['is_read'] == 1) == filters.notesIsRead!).toList();
     }
     if (filters.notesPriority != null && filters.notesPriority != 'Todos') {
       notes = notes.where((n) => n['priority'] == filters.notesPriority).toList();
     }
-    
+
     final read = notes.where((n) => n['is_read'] == 1).length;
     final unread = notes.where((n) => n['is_read'] != 1).length;
     final high = notes.where((n) => n['priority'] == 'Alta').length;
     final medium = notes.where((n) => n['priority'] == 'Média').length;
     final low = notes.where((n) => n['priority'] == 'Baixa').length;
-    
+
     return {
       'summary': {
         'total': notes.length,
