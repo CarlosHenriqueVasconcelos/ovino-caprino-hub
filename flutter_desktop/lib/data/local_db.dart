@@ -1,3 +1,4 @@
+// lib/data/local_db.dart
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -25,8 +26,7 @@ class AppDatabase {
     final db = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        // Pode deixar 1. Se já existir um banco antigo, apague o arquivo para recriar.
-        version: 1,
+        version: 1, // se precisar recriar, apague o arquivo .db
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
       ),
@@ -38,16 +38,14 @@ class AppDatabase {
 
   static Future<String> dbPath() => _resolveDbPath();
 
-  /// Criação completa do schema (alinhado ao Supabase), usando tipos SQLite:
-  /// - TEXT p/ uuid/timestamp/date
-  /// - REAL p/ numeric
-  /// - INTEGER p/ boolean (0/1)
+  /// Schema puro (tipos SQLite equivalentes ao Supabase):
+  /// - uuid/timestamp/date -> TEXT
+  /// - numeric -> REAL
+  /// - boolean -> INTEGER (0/1)
   static Future<void> _createAll(Database db) async {
-    // =========================
-    // TABELA: animals
-    // =========================
+    // ============== ANIMALS ==============
     await db.execute('''
-      CREATE TABLE animals (
+      CREATE TABLE IF NOT EXISTS animals (
         id TEXT PRIMARY KEY,
         code TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
@@ -57,9 +55,9 @@ class AppDatabase {
         birth_date TEXT NOT NULL,              -- 'YYYY-MM-DD'
         weight REAL NOT NULL,
         status TEXT NOT NULL DEFAULT 'Saudável',
-        location TEXT NOT NULL DEFAULT '',
+        location TEXT NOT NULL,                -- igual Supabase (NOT NULL)
         last_vaccination TEXT,                 -- 'YYYY-MM-DD'
-        pregnant INTEGER DEFAULT 0,            -- 0/1
+        pregnant INTEGER DEFAULT 0,            -- boolean 0/1
         expected_delivery TEXT,                -- 'YYYY-MM-DD'
         health_issue TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -73,122 +71,41 @@ class AppDatabase {
       );
     ''');
 
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code    ON animals(code);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status  ON animals(status);');
 
-    // =========================
-    // TABELA: animal_weights
-    // =========================
+    // ============== BREEDING_RECORDS ==============
     await db.execute('''
-      CREATE TABLE animal_weights (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        animal_id TEXT NOT NULL,
-        date TEXT NOT NULL,
-        weight REAL NOT NULL,
-        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
-
-    // =========================
-    // TABELA: vaccinations
-    // =========================
-    await db.execute('''
-      CREATE TABLE vaccinations (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT NOT NULL,
-        vaccine_name TEXT NOT NULL,
-        vaccine_type TEXT NOT NULL,
-        scheduled_date TEXT NOT NULL,          -- 'YYYY-MM-DD'
-        applied_date TEXT,                     -- 'YYYY-MM-DD'
-        veterinarian TEXT,
-        notes TEXT,
-        status TEXT NOT NULL DEFAULT 'Agendada' CHECK (status IN ('Agendada','Aplicada','Cancelada')),
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
-
-    // =========================
-    // TABELA: medications
-    // =========================
-    await db.execute('''
-      CREATE TABLE medications (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT NOT NULL,
-        medication_name TEXT NOT NULL,
-        date TEXT NOT NULL,                    -- 'YYYY-MM-DD'
-        next_date TEXT,                        -- 'YYYY-MM-DD'
-        dosage TEXT,
-        veterinarian TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        status TEXT NOT NULL DEFAULT 'Agendado',
-        applied_date TEXT,                     -- 'YYYY-MM-DD'
-        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
-
-    // =========================
-    // TABELA: breeding_records
-    // =========================
-    await db.execute('''
-      CREATE TABLE breeding_records (
+      CREATE TABLE IF NOT EXISTS breeding_records (
         id TEXT PRIMARY KEY,
         female_animal_id TEXT,
         male_animal_id TEXT,
-        breeding_date TEXT NOT NULL,           -- 'YYYY-MM-DD'
-        expected_birth TEXT,                   -- 'YYYY-MM-DD'
+        breeding_date TEXT NOT NULL,           -- date
+        expected_birth TEXT,                   -- date
         status TEXT NOT NULL DEFAULT 'Cobertura',
         notes TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        -- campos multiestágio
-        mating_start_date TEXT,                -- 'YYYY-MM-DD'
-        mating_end_date TEXT,                  -- 'YYYY-MM-DD'
-        separation_date TEXT,                  -- 'YYYY-MM-DD'
-        ultrasound_date TEXT,                  -- 'YYYY-MM-DD'
+        -- multiestágio (igual ao Supabase atual)
+        mating_start_date TEXT,
+        mating_end_date TEXT,
+        separation_date TEXT,
+        ultrasound_date TEXT,
         ultrasound_result TEXT,
-        birth_date TEXT,                       -- 'YYYY-MM-DD'
+        birth_date TEXT,
         stage TEXT DEFAULT 'Encabritamento',
         FOREIGN KEY (female_animal_id) REFERENCES animals(id) ON DELETE SET NULL,
-        FOREIGN KEY (male_animal_id) REFERENCES animals(id) ON DELETE SET NULL
+        FOREIGN KEY (male_animal_id)   REFERENCES animals(id) ON DELETE SET NULL
       );
     ''');
+
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male   ON breeding_records(male_animal_id);');
 
-    // =========================
-    // TABELA: notes
-    // =========================
+    // ============== FINANCIAL_RECORDS ==============
     await db.execute('''
-      CREATE TABLE notes (
-        id TEXT PRIMARY KEY,
-        animal_id TEXT,
-        title TEXT NOT NULL,
-        content TEXT,
-        category TEXT NOT NULL,
-        priority TEXT NOT NULL DEFAULT 'Média',
-        date TEXT NOT NULL DEFAULT (date('now')),
-        created_by TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
-
-    // =========================
-    // TABELA: financial_records
-    // =========================
-    await db.execute('''
-      CREATE TABLE financial_records (
+      CREATE TABLE IF NOT EXISTS financial_records (
         id TEXT PRIMARY KEY,
         type TEXT NOT NULL CHECK (type IN ('receita','despesa')),
         category TEXT NOT NULL,
@@ -201,52 +118,131 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL
       );
     ''');
+
     await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
 
-    // =========================
-    // TABELA: reports
-    // =========================
+    // ============== MEDICATIONS ==============
     await db.execute('''
-      CREATE TABLE reports (
+      CREATE TABLE IF NOT EXISTS medications (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        medication_name TEXT NOT NULL,
+        date TEXT NOT NULL,                    -- date
+        next_date TEXT,                        -- date
+        dosage TEXT,
+        veterinarian TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        status TEXT NOT NULL DEFAULT 'Agendado',
+        applied_date TEXT,                     -- date
+        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
+      );
+    ''');
+
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
+
+    // ============== NOTES ==============
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notes (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT,
+        title TEXT NOT NULL,
+        content TEXT,
+        category TEXT NOT NULL,
+        priority TEXT NOT NULL DEFAULT 'Média',
+        date TEXT NOT NULL DEFAULT (date('now')),
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        is_read INTEGER NOT NULL DEFAULT 0,    -- boolean 0/1
+        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL
+      );
+    ''');
+
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
+
+    // ============== PUSH_TOKENS ==============
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS push_tokens (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        platform TEXT,
+        device_info TEXT NOT NULL DEFAULT '{}', -- jsonb -> TEXT
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+
+    // ============== REPORTS ==============
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS reports (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         report_type TEXT NOT NULL CHECK (report_type IN ('Animais','Vacinações','Reprodução','Saúde','Financeiro')),
-        parameters TEXT NOT NULL DEFAULT '{}',
+        parameters TEXT NOT NULL DEFAULT '{}', -- jsonb -> TEXT
         generated_at TEXT NOT NULL DEFAULT (datetime('now')),
         generated_by TEXT
       );
     ''');
 
-    // =========================
-    // TABELA: push_tokens
-    // =========================
+    // ============== VACCINATIONS ==============
     await db.execute('''
-      CREATE TABLE push_tokens (
+      CREATE TABLE IF NOT EXISTS vaccinations (
         id TEXT PRIMARY KEY,
-        token TEXT NOT NULL UNIQUE,
-        platform TEXT,
-        device_info TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        animal_id TEXT NOT NULL,
+        vaccine_name TEXT NOT NULL,
+        vaccine_type TEXT NOT NULL,
+        scheduled_date TEXT NOT NULL,          -- date
+        applied_date TEXT,                     -- date
+        veterinarian TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'Agendada' CHECK (status IN ('Agendada','Aplicada','Cancelada')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
       );
     ''');
 
-    // ========== TRIGGERS updated_at ==========
-    for (final tbl in [
-      'animals',
-      'vaccinations',
-      'medications',
-      'breeding_records',
-      'notes',
-      'financial_records',
-    ]) {
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
+
+    // ============== ANIMAL_WEIGHTS (extra local) ==============
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS animal_weights (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        date TEXT NOT NULL,                    -- 'YYYY-MM-DD'
+        weight REAL NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
+      );
+    ''');
+
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
+
+    // ============== TRIGGERS updated_at ==============
+    Future<void> _makeUpdatedAtTrigger(String table) async {
       await db.execute('''
-        CREATE TRIGGER IF NOT EXISTS ${tbl}_updated_at
-        AFTER UPDATE ON $tbl
+        CREATE TRIGGER IF NOT EXISTS ${table}_updated_at
+        AFTER UPDATE ON $table
         FOR EACH ROW
         BEGIN
-          UPDATE $tbl SET updated_at = datetime('now') WHERE id = OLD.id;
+          UPDATE $table SET updated_at = datetime('now') WHERE id = OLD.id;
         END;
       ''');
+    }
+
+    for (final tbl in [
+      'animals',
+      'breeding_records',
+      'financial_records',
+      'medications',
+      'notes',
+      'vaccinations',
+      'animal_weights',
+    ]) {
+      await _makeUpdatedAtTrigger(tbl);
     }
   }
 }
