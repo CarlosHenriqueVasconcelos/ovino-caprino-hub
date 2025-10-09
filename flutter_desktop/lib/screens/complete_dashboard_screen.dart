@@ -9,7 +9,7 @@ import '../widgets/animal_form.dart';
 import '../widgets/breeding_management_screen.dart';
 import '../widgets/weight_tracking_screen.dart';
 import '../widgets/notes_management_screen.dart';
-import '../widgets/reports_screen.dart';
+import '../widgets/reports_hub_screen.dart';
 import '../widgets/financial_management_screen.dart';
 import '../widgets/system_settings_screen.dart';
 // Importar APENAS o widget para evitar conflito de nomes
@@ -139,7 +139,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   const WeightTrackingScreen(),
                   const MedicationManagementScreen(),
                   const NotesManagementScreen(),
-                  const ReportsScreen(),
+                  const ReportsHubScreen(),
                   const FinancialManagementScreen(),
                   const SystemSettingsScreen(),
                 ],
