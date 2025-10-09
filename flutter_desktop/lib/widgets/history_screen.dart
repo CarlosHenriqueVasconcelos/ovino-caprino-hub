@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../services/database_service.dart';
+import '../models/animal.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -8,81 +11,152 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final List<HistoryItem> _historyItems = [
-    HistoryItem(
-      id: '1',
-      title: 'Animal OV001 cadastrado',
-      description: 'Novo ovino Santa Inês adicionado ao rebanho',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      type: HistoryType.animalAdded,
-      icon: Icons.add_circle,
-      color: Colors.green,
-    ),
-    HistoryItem(
-      id: '2',
-      title: 'Vacinação aplicada em CAP002',
-      description: 'Vacina V8 aplicada em Maria (Caprino Anglo-Nubiano)',
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      type: HistoryType.vaccination,
-      icon: Icons.vaccines,
-      color: Colors.blue,
-    ),
-    HistoryItem(
-      id: '3',
-      title: 'Peso atualizado para OV003',
-      description: 'Peso alterado de 45kg para 47kg - João (Ovino Morada Nova)',
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      type: HistoryType.weightUpdate,
-      icon: Icons.monitor_weight,
-      color: Colors.orange,
-    ),
-    HistoryItem(
-      id: '4',
-      title: 'Relatório de saúde gerado',
-      description: 'Relatório mensal de saúde do rebanho exportado',
-      timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 8)),
-      type: HistoryType.reportGenerated,
-      icon: Icons.description,
-      color: Colors.purple,
-    ),
-    HistoryItem(
-      id: '5',
-      title: 'Animal CAP001 marcado como prenhe',
-      description: 'Beatriz confirmada gestante - previsão de parto em 03/2024',
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      type: HistoryType.breeding,
-      icon: Icons.favorite,
-      color: Colors.pink,
-    ),
-    HistoryItem(
-      id: '6',
-      title: 'Status alterado para Em Tratamento',
-      description: 'OV002 - Pedro apresentou sintomas de verminose',
-      timestamp: DateTime.now().subtract(const Duration(days: 3)),
-      type: HistoryType.statusChange,
-      icon: Icons.medical_services,
-      color: Colors.red,
-    ),
-    HistoryItem(
-      id: '7',
-      title: 'Backup automático realizado',
-      description: 'Dados sincronizados com a nuvem com sucesso',
-      timestamp: DateTime.now().subtract(const Duration(days: 7)),
-      type: HistoryType.systemAction,
-      icon: Icons.cloud_upload,
-      color: Colors.grey,
-    ),
-  ];
-
+  List<HistoryItem> _historyItems = [];
+  bool _isLoading = true;
   String _selectedFilter = 'Todos';
   final List<String> _filterOptions = [
     'Todos',
     'Animais',
     'Vacinações',
-    'Saúde',
+    'Medicamentos',
     'Reprodução',
-    'Sistema',
+    'Financeiro',
+    'Anotações',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final List<HistoryItem> items = [];
+      
+      // Buscar animais cadastrados
+      final animals = await DatabaseService.getAnimals();
+      for (var animal in animals) {
+        items.add(HistoryItem(
+          id: animal.id,
+          title: 'Animal ${animal.code} cadastrado',
+          description: '${animal.name} - ${animal.species} ${animal.breed}',
+          timestamp: animal.createdAt,
+          type: HistoryType.animalAdded,
+          icon: Icons.add_circle,
+          color: Colors.green,
+        ));
+      }
+      
+      // Buscar vacinações aplicadas
+      final vaccinations = await DatabaseService.getVaccinations();
+      for (var vaccination in vaccinations.where((v) => v['status'] == 'Aplicada')) {
+        final animalId = vaccination['animal_id'];
+        final animal = animals.where((a) => a.id == animalId).firstOrNull;
+        final animalName = animal != null ? '${animal.name} (${animal.code})' : 'Animal desconhecido';
+        
+        final appliedDate = vaccination['applied_date'] != null 
+            ? DateTime.tryParse(vaccination['applied_date']) 
+            : null;
+        
+        items.add(HistoryItem(
+          id: vaccination['id'],
+          title: 'Vacinação aplicada',
+          description: '${vaccination['vaccine_name']} - $animalName',
+          timestamp: appliedDate ?? DateTime.parse(vaccination['created_at']),
+          type: HistoryType.vaccination,
+          icon: Icons.vaccines,
+          color: Colors.blue,
+        ));
+      }
+      
+      // Buscar medicamentos aplicados
+      final medications = await DatabaseService.getMedications();
+      for (var med in medications.where((m) => m['status'] == 'Aplicado')) {
+        final animalId = med['animal_id'];
+        final animal = animals.where((a) => a.id == animalId).firstOrNull;
+        final animalName = animal != null ? '${animal.name} (${animal.code})' : 'Animal desconhecido';
+        
+        final appliedDate = med['applied_date'] != null 
+            ? DateTime.tryParse(med['applied_date']) 
+            : null;
+        
+        items.add(HistoryItem(
+          id: med['id'],
+          title: 'Medicamento aplicado',
+          description: '${med['medication_name']} - $animalName',
+          timestamp: appliedDate ?? DateTime.parse(med['created_at']),
+          type: HistoryType.medication,
+          icon: Icons.medical_services,
+          color: Colors.orange,
+        ));
+      }
+      
+      // Buscar registros de reprodução
+      final breedingRecords = await DatabaseService.getBreedingRecords();
+      for (var breeding in breedingRecords) {
+        final femaleId = breeding['female_animal_id'];
+        final female = animals.where((a) => a.id == femaleId).firstOrNull;
+        final femaleName = female != null ? '${female.name} (${female.code})' : 'Fêmea desconhecida';
+        
+        items.add(HistoryItem(
+          id: breeding['id'],
+          title: 'Cobertura registrada',
+          description: 'Fêmea: $femaleName - Status: ${breeding['status']}',
+          timestamp: DateTime.parse(breeding['created_at']),
+          type: HistoryType.breeding,
+          icon: Icons.favorite,
+          color: Colors.pink,
+        ));
+      }
+      
+      // Buscar registros financeiros
+      final financialRecords = await DatabaseService.getFinancialRecords();
+      for (var record in financialRecords) {
+        final isReceita = record['type'] == 'receita';
+        items.add(HistoryItem(
+          id: record['id'],
+          title: isReceita ? 'Receita registrada' : 'Despesa registrada',
+          description: '${record['category']} - R\$ ${(record['amount'] as num).toStringAsFixed(2)}',
+          timestamp: DateTime.parse(record['created_at']),
+          type: HistoryType.financial,
+          icon: isReceita ? Icons.trending_up : Icons.trending_down,
+          color: isReceita ? Colors.green : Colors.red,
+        ));
+      }
+      
+      // Buscar anotações
+      final notes = await DatabaseService.getNotes();
+      for (var note in notes) {
+        items.add(HistoryItem(
+          id: note['id'],
+          title: 'Anotação criada',
+          description: '${note['title']} - ${note['category']}',
+          timestamp: DateTime.parse(note['created_at']),
+          type: HistoryType.note,
+          icon: Icons.notes,
+          color: Colors.purple,
+        ));
+      }
+      
+      // Ordenar por timestamp (mais recente primeiro)
+      items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      
+      setState(() {
+        _historyItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar histórico: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,88 +164,83 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final filteredItems = _getFilteredItems();
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Text(
-                  'Histórico de Atividades',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                
-                // Filter Dropdown
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButton<String>(
-                    value: _selectedFilter,
-                    underline: const SizedBox.shrink(),
-                    items: _filterOptions.map((filter) {
-                      return DropdownMenuItem(
-                        value: filter,
-                        child: Text(filter),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedFilter = value!;
-                      });
-                    },
-                  ),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                // Clear All Button
-                OutlinedButton.icon(
-                  onPressed: _showClearHistoryDialog,
-                  icon: const Icon(Icons.clear_all),
-                  label: const Text('Limpar Histórico'),
-                ),
-              ],
+      appBar: AppBar(
+        title: const Text('Histórico de Atividades'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          // Filter Dropdown
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(8),
             ),
-            
-            const SizedBox(height: 8),
-            Text(
-              'Acompanhe todas as atividades realizadas no sistema',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+            child: DropdownButton<String>(
+              value: _selectedFilter,
+              underline: const SizedBox.shrink(),
+              items: _filterOptions.map((filter) {
+                return DropdownMenuItem(
+                  value: filter,
+                  child: Text(filter),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedFilter = value!;
+                });
+              },
+            ),
+          ),
+          
+          // Refresh Button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadHistory,
+            tooltip: 'Atualizar',
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Acompanhe todas as atividades realizadas no sistema',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Activity Stats
+                  _buildActivityStats(theme),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // History List
+                  Expanded(
+                    child: filteredItems.isEmpty
+                        ? _buildEmptyState(theme)
+                        : ListView.separated(
+                            itemCount: filteredItems.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final item = filteredItems[index];
+                              return _buildHistoryCard(item, theme);
+                            },
+                          ),
+                  ),
+                ],
               ),
             ),
-            
-            const SizedBox(height: 32),
-            
-            // Activity Stats
-            _buildActivityStats(theme),
-            
-            const SizedBox(height: 24),
-            
-            // History List
-            Expanded(
-              child: filteredItems.isEmpty
-                  ? _buildEmptyState(theme)
-                  : ListView.separated(
-                      itemCount: filteredItems.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = filteredItems[index];
-                        return _buildHistoryCard(item, theme);
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -401,12 +470,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           return item.type == HistoryType.animalAdded;
         case 'Vacinações':
           return item.type == HistoryType.vaccination;
-        case 'Saúde':
-          return item.type == HistoryType.statusChange || item.type == HistoryType.weightUpdate;
+        case 'Medicamentos':
+          return item.type == HistoryType.medication;
         case 'Reprodução':
           return item.type == HistoryType.breeding;
-        case 'Sistema':
-          return item.type == HistoryType.systemAction || item.type == HistoryType.reportGenerated;
+        case 'Financeiro':
+          return item.type == HistoryType.financial;
+        case 'Anotações':
+          return item.type == HistoryType.note;
         default:
           return true;
       }
@@ -442,11 +513,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Text(item.description),
             const SizedBox(height: 16),
             Text(
-              'Data: ${item.timestamp.day}/${item.timestamp.month}/${item.timestamp.year} às ${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')}',
+              'Data: ${DateFormat('dd/MM/yyyy').format(item.timestamp)} às ${item.timestamp.hour.toString().padLeft(2, '0')}:${item.timestamp.minute.toString().padLeft(2, '0')}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Text(
-              'Tipo: ${item.type.name}',
+              'Tipo: ${_getTypeLabel(item.type)}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -465,54 +536,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remover Atividade'),
-        content: Text('Deseja remover "${item.title}" do histórico?'),
+        title: const Text('Informação'),
+        content: const Text('Para remover um item do histórico, você precisa excluir o registro original (animal, vacinação, etc.) no módulo correspondente.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _historyItems.remove(item);
-              });
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Atividade removida do histórico')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Remover'),
+            child: const Text('Entendi'),
           ),
         ],
       ),
     );
   }
 
+  String _getTypeLabel(HistoryType type) {
+    switch (type) {
+      case HistoryType.animalAdded:
+        return 'Animal';
+      case HistoryType.vaccination:
+        return 'Vacinação';
+      case HistoryType.medication:
+        return 'Medicamento';
+      case HistoryType.breeding:
+        return 'Reprodução';
+      case HistoryType.financial:
+        return 'Financeiro';
+      case HistoryType.note:
+        return 'Anotação';
+      default:
+        return 'Sistema';
+    }
+  }
+
   void _showClearHistoryDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Limpar Histórico'),
-        content: const Text('Esta ação irá remover todas as atividades do histórico. Deseja continuar?'),
+        title: const Text('Informação'),
+        content: const Text('O histórico é gerado automaticamente a partir dos registros do sistema. Para limpar o histórico, você precisa excluir os registros originais nos módulos correspondentes.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _historyItems.clear();
-              });
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Histórico limpo com sucesso')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Limpar Tudo'),
+            child: const Text('Entendi'),
           ),
         ],
       ),
@@ -543,9 +607,12 @@ class HistoryItem {
 enum HistoryType {
   animalAdded,
   vaccination,
+  medication,
+  breeding,
+  financial,
+  note,
   weightUpdate,
   statusChange,
-  breeding,
   reportGenerated,
   systemAction,
 }
