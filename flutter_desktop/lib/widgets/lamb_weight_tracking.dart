@@ -128,13 +128,13 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildMetricRow(theme, 'Nascimento', '3-5 kg', 'Peso inicial saudável'),
+                    _buildMetricRow(theme, 'Nascimento', '3,5-7 kg', 'Peso inicial saudável'),
                     const Divider(),
-                    _buildMetricRow(theme, '30 dias', '8-12 kg', 'Ganho: 5-7 kg (150-200g/dia)'),
+                    _buildMetricRow(theme, '30 dias', '10-15 kg', 'Ganho adequado'),
                     const Divider(),
-                    _buildMetricRow(theme, '60 dias', '14-18 kg', 'Ganho: 6-6 kg (200-250g/dia)'),
+                    _buildMetricRow(theme, '60 dias', '15-20 kg', 'Desenvolvimento normal'),
                     const Divider(),
-                    _buildMetricRow(theme, '90 dias', '20-28 kg', 'Ganho: 6-10 kg (200-300g/dia)'),
+                    _buildMetricRow(theme, '90 dias', '20-40 kg', 'Crescimento ideal'),
                   ],
                 ),
               ),
@@ -471,20 +471,20 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     if (ageInDays < 30) {
       relevantWeight = lamb.birthWeight;
-      minExpected = 3.0;
-      maxExpected = 5.0;
+      minExpected = 3.5;
+      maxExpected = 7.0;
     } else if (ageInDays < 60) {
       relevantWeight = lamb.weight30Days;
-      minExpected = 8.0;
-      maxExpected = 12.0;
+      minExpected = 10.0;
+      maxExpected = 15.0;
     } else if (ageInDays < 90) {
       relevantWeight = lamb.weight60Days;
-      minExpected = 14.0;
-      maxExpected = 18.0;
+      minExpected = 15.0;
+      maxExpected = 20.0;
     } else {
       relevantWeight = lamb.weight90Days;
       minExpected = 20.0;
-      maxExpected = 28.0;
+      maxExpected = 40.0;
     }
 
     if (relevantWeight == null) {
@@ -548,8 +548,10 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   void _showWeightEditDialog(Animal lamb) {
+    // Pega automaticamente o birthWeight do banco, ou usa o peso atual se não houver
+    final initialBirthWeight = lamb.birthWeight ?? lamb.weight;
     final birthWeightController = TextEditingController(
-      text: lamb.birthWeight?.toStringAsFixed(1) ?? '',
+      text: initialBirthWeight.toStringAsFixed(1),
     );
     final weight30Controller = TextEditingController(
       text: lamb.weight30Days?.toStringAsFixed(1) ?? '',
