@@ -72,35 +72,36 @@ class BreedingRecord {
   });
 
   factory BreedingRecord.fromMap(Map<String, dynamic> map) {
+    // Helper to safely parse dates
+    DateTime? _parseDate(dynamic value) {
+      if (value == null) return null;
+      if (value is String && value.isNotEmpty) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }
+
     return BreedingRecord(
-      id: map['id'] as String,
+      id: (map['id'] as String?) ?? '',
       femaleAnimalId: map['female_animal_id'] as String?,
       maleAnimalId: map['male_animal_id'] as String?,
-      breedingDate: DateTime.parse(map['breeding_date'] as String),
-      matingStartDate: map['mating_start_date'] != null
-          ? DateTime.parse(map['mating_start_date'] as String)
-          : null,
-      matingEndDate: map['mating_end_date'] != null
-          ? DateTime.parse(map['mating_end_date'] as String)
-          : null,
-      separationDate: map['separation_date'] != null
-          ? DateTime.parse(map['separation_date'] as String)
-          : null,
-      ultrasoundDate: map['ultrasound_date'] != null
-          ? DateTime.parse(map['ultrasound_date'] as String)
-          : null,
+      breedingDate: _parseDate(map['breeding_date']) ?? DateTime.now(),
+      matingStartDate: _parseDate(map['mating_start_date']),
+      matingEndDate: _parseDate(map['mating_end_date']),
+      separationDate: _parseDate(map['separation_date']),
+      ultrasoundDate: _parseDate(map['ultrasound_date']),
       ultrasoundResult: map['ultrasound_result'] as String?,
-      expectedBirth: map['expected_birth'] != null
-          ? DateTime.parse(map['expected_birth'] as String)
-          : null,
-      birthDate: map['birth_date'] != null
-          ? DateTime.parse(map['birth_date'] as String)
-          : null,
+      expectedBirth: _parseDate(map['expected_birth']),
+      birthDate: _parseDate(map['birth_date']),
       stage: BreedingStage.fromString(map['stage'] as String? ?? 'Encabritamento'),
-      status: map['status'] as String? ?? 'Cobertura',
+      status: (map['status'] as String?) ?? 'Cobertura',
       notes: map['notes'] as String?,
-      createdAt: DateTime.parse(map['created_at'] as String),
-      updatedAt: DateTime.parse(map['updated_at'] as String),
+      createdAt: _parseDate(map['created_at']) ?? DateTime.now(),
+      updatedAt: _parseDate(map['updated_at']) ?? DateTime.now(),
     );
   }
 
