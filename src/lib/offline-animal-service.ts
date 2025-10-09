@@ -1,5 +1,10 @@
-import type { Animal, Vaccination, Report, AnimalStats, Note, BreedingRecord, FinancialRecord } from "./types";
-import { localAnimals, localVaccinations, localNotes, localBreeding, localFinancial, localReports, localStats } from "./local-db";
+import type { Animal, Vaccination, Medication, Report, AnimalStats, Note, BreedingRecord, FinancialRecord } from "./types";
+import { localAnimals, localVaccinations, localMedications, localNotes, localBreeding, localFinancial, localReports, localStats } from "./local-db";
+
+// Event system for real-time updates
+const dispatchDataUpdate = (type: 'vaccination' | 'medication') => {
+  window.dispatchEvent(new CustomEvent('bego-data-update', { detail: { type } }));
+};
 
 export class AnimalService {
   async getAnimals(): Promise<Animal[]> { return localAnimals.all(); }
@@ -10,8 +15,29 @@ export class AnimalService {
 
   // Vaccinations
   async getVaccinations(animalId?: string): Promise<Vaccination[]> { return localVaccinations.forAnimal(animalId); }
-  async createVaccination(vaccination: Omit<Vaccination, 'id' | 'created_at' | 'updated_at'>): Promise<Vaccination> { return localVaccinations.create(vaccination); }
-  async updateVaccination(id: string, updates: Partial<Vaccination>): Promise<Vaccination> { return localVaccinations.update(id, updates); }
+  async createVaccination(vaccination: Omit<Vaccination, 'id' | 'created_at' | 'updated_at'>): Promise<Vaccination> { 
+    const result = localVaccinations.create(vaccination);
+    dispatchDataUpdate('vaccination');
+    return result;
+  }
+  async updateVaccination(id: string, updates: Partial<Vaccination>): Promise<Vaccination> { 
+    const result = localVaccinations.update(id, updates);
+    dispatchDataUpdate('vaccination');
+    return result;
+  }
+
+  // Medications
+  async getMedications(animalId?: string): Promise<Medication[]> { return localMedications.forAnimal(animalId); }
+  async createMedication(medication: Omit<Medication, 'id' | 'created_at' | 'updated_at'>): Promise<Medication> { 
+    const result = localMedications.create(medication);
+    dispatchDataUpdate('medication');
+    return result;
+  }
+  async updateMedication(id: string, updates: Partial<Medication>): Promise<Medication> { 
+    const result = localMedications.update(id, updates);
+    dispatchDataUpdate('medication');
+    return result;
+  }
 
   // Notes
   async getNotes(animalId?: string): Promise<Note[]> { return localNotes.forAnimal(animalId); }

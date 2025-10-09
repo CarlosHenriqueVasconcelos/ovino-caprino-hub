@@ -23,6 +23,16 @@ export function VaccinationAlerts() {
 
   useEffect(() => {
     loadVaccinationAlerts();
+
+    // Listen for data updates
+    const handleDataUpdate = (e: CustomEvent) => {
+      if (e.detail?.type === 'vaccination' || e.detail?.type === 'medication') {
+        loadVaccinationAlerts();
+      }
+    };
+
+    window.addEventListener('bego-data-update', handleDataUpdate as EventListener);
+    return () => window.removeEventListener('bego-data-update', handleDataUpdate as EventListener);
   }, []);
 
   const loadVaccinationAlerts = async () => {
