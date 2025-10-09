@@ -359,99 +359,117 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
             categoryIcon = Icons.note;
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.2),
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border(left: BorderSide(color: priorityColor, width: 4)),
             ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ExpansionTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: priorityColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(priorityIcon, color: priorityColor),
-            ),
-            title: Text(
-              note['title'] ?? 'Sem título',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(categoryIcon, size: 14, color: categoryColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      note['category'] ?? '-',
-                      style: TextStyle(color: categoryColor, fontWeight: FontWeight.w600),
-                    ),
-                    if (animal != null) ...[
-                      const SizedBox(width: 8),
-                      Text('•'),
-                      const SizedBox(width: 8),
-                      Text('${animal.name} (${animal.code})'),
-                    ],
-                  ],
-                ),
-                Text('Data: ${note['date'] ?? '-'}'),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: priorityColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: priorityColor.withOpacity(0.3)),
-              ),
-              child: Text(
-                note['priority'] ?? '-',
-                style: TextStyle(
-                  color: priorityColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            children: [
-              if (note['content'] != null && note['content'].toString().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withOpacity(0.2),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: categoryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(categoryIcon, color: categoryColor, size: 24),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Observações:',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              note['title'] ?? 'Sem título',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(categoryIcon, size: 14, color: categoryColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  note['category'] ?? '-',
+                                  style: TextStyle(
+                                    color: categoryColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: priorityColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: priorityColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          note['priority'] ?? '-',
+                          style: TextStyle(
+                            color: priorityColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Data: ${note['date'] ?? '-'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  if (animal != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.pets, size: 16, color: Colors.grey),
+                        const SizedBox(width: 8),
                         Text(
-                          note['content'],
-                          style: theme.textTheme.bodyMedium,
+                          'Animal: ${animal.name} (${animal.code})',
+                          style: const TextStyle(fontSize: 14),
                         ),
                       ],
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showNoteDetails(note, animal),
+                      icon: const Icon(Icons.visibility, size: 18),
+                      label: const Text('Ver Detalhes'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -463,5 +481,229 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
       context: context,
       builder: (context) => const NotesFormDialog(),
     ).then((_) => _loadNotes());
+  }
+
+  void _showNoteDetails(Map<String, dynamic> note, dynamic animal) {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    
+    Color priorityColor;
+    switch (note['priority']) {
+      case 'Alta':
+        priorityColor = Theme.of(context).colorScheme.error;
+        break;
+      case 'Média':
+        priorityColor = Theme.of(context).colorScheme.tertiary;
+        break;
+      default:
+        priorityColor = Theme.of(context).colorScheme.primary;
+    }
+
+    Color categoryColor;
+    IconData categoryIcon;
+    switch (note['category']) {
+      case 'Saúde':
+        categoryColor = Theme.of(context).colorScheme.error;
+        categoryIcon = Icons.medical_services;
+        break;
+      case 'Reprodução':
+        categoryColor = Theme.of(context).colorScheme.tertiary;
+        categoryIcon = Icons.favorite;
+        break;
+      case 'Alimentação':
+        categoryColor = Theme.of(context).colorScheme.secondary;
+        categoryIcon = Icons.restaurant;
+        break;
+      case 'Comportamento':
+        categoryColor = Theme.of(context).colorScheme.primary;
+        categoryIcon = Icons.psychology;
+        break;
+      default:
+        categoryColor = Theme.of(context).colorScheme.outline;
+        categoryIcon = Icons.note;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: 600,
+          constraints: const BoxConstraints(maxHeight: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: categoryColor.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(categoryIcon, color: categoryColor, size: 32),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        note['title'] ?? 'Detalhes da Anotação',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Categoria e Prioridade
+                      _buildDetailSection(
+                        icon: categoryIcon,
+                        title: 'Categoria',
+                        content: note['category'] ?? 'N/A',
+                        color: categoryColor,
+                      ),
+                      const SizedBox(height: 16),
+
+                      _buildDetailSection(
+                        icon: Icons.priority_high,
+                        title: 'Prioridade',
+                        content: note['priority'] ?? 'N/A',
+                        color: priorityColor,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Data
+                      _buildDetailSection(
+                        icon: Icons.calendar_today,
+                        title: 'Data',
+                        content: note['date'] ?? 'N/A',
+                        color: categoryColor,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Animal (se houver)
+                      if (animal != null) ...[
+                        _buildDetailSection(
+                          icon: Icons.pets,
+                          title: 'Animal',
+                          content: '${animal.name} (${animal.code}) - ${animal.breed}',
+                          color: categoryColor,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Criado por
+                      if (note['created_by'] != null && note['created_by'].toString().isNotEmpty)
+                        _buildDetailSection(
+                          icon: Icons.person,
+                          title: 'Criado por',
+                          content: note['created_by'],
+                          color: categoryColor,
+                        ),
+                      if (note['created_by'] != null && note['created_by'].toString().isNotEmpty)
+                        const SizedBox(height: 16),
+
+                      // Conteúdo/Observações
+                      if (note['content'] != null && note['content'].toString().isNotEmpty)
+                        _buildDetailSection(
+                          icon: Icons.notes,
+                          title: 'Observações',
+                          content: note['content'],
+                          color: categoryColor,
+                          isMultiline: true,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Footer
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: categoryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Fechar',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailSection({
+    required IconData icon,
+    required String title,
+    required String content,
+    required Color color,
+    bool isMultiline = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  content,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

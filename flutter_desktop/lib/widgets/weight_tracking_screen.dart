@@ -15,6 +15,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedCategory = 'Todos';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   final List<String> _categories = [
     'Todos',
     'Jovens (< 12 meses)',
@@ -31,6 +33,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -124,6 +127,41 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             ),
             const SizedBox(height: 24),
 
+            // Search Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Pesquisar animal',
+                    hintText: 'Digite o nome ou código do animal...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase();
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Filters Card
             Card(
               child: Padding(
@@ -209,27 +247,41 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
 
   List<Animal> _getFilteredAnimals(List<Animal> animals) {
     // Ponto crítico: comece de uma CÓPIA mutável
-    final base = animals.toList(growable: true);
+    var filtered = animals.toList(growable: true);
 
+    // Aplicar filtro de categoria
     switch (_selectedCategory) {
       case 'Jovens (< 12 meses)':
-        return base
+        filtered = filtered
             .where((a) => _getAgeInMonths(a.birthDate) < 12)
             .toList();
+        break;
       case 'Adultos':
-        return base
+        filtered = filtered
             .where((a) =>
                 _getAgeInMonths(a.birthDate) >= 12 &&
                 !(a.category).contains('Reprodutor'))
             .toList();
+        break;
       case 'Reprodutores':
-        return base
+        filtered = filtered
             .where((a) => (a.category).contains('Reprodutor'))
             .toList();
+        break;
       default:
-        // 'Todos' → devolve a cópia, nunca a lista original do service
-        return base;
+        // 'Todos' - mantém a lista filtrada
+        break;
     }
+
+    // Aplicar filtro de pesquisa
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((animal) {
+        return animal.name.toLowerCase().contains(_searchQuery) ||
+               animal.code.toLowerCase().contains(_searchQuery);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   int _getAgeInMonths(DateTime birthDate) {
@@ -432,6 +484,13 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                 ),
               ),
 
+              // Edit Button
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => _showWeightEditDialog(animal),
+                tooltip: 'Editar peso',
+              ),
+
               // Weight Info
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -503,5 +562,64 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
         return {'min': 35.0, 'max': 55.0};
       }
     }
+  }
+
+  void _showWeightEditDialog(Animal animal) {
+    final weightController = TextEditingController(
+      text: animal.weight.toStringAsFixed(1),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Editar Peso - ${animal.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: weightController,
+              decoration: const InputDecoration(
+                labelText: 'Peso atual (kg)',
+                border: OutlineInputBorder(),
+                suffixText: 'kg',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newWeight = double.tryParse(weightController.text);
+              if (newWeight != null && newWeight > 0) {
+                final updatedAnimal = animal.copyWith(
+                  weight: newWeight,
+                  updatedAt: DateTime.now(),
+                );
+
+                await Provider.of<AnimalService>(context, listen: false)
+                    .updateAnimal(updatedAnimal);
+                
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Peso atualizado com sucesso!')),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Peso inválido!')),
+                );
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
   }
 }
