@@ -91,36 +91,57 @@ export type Database = {
       }
       breeding_records: {
         Row: {
+          birth_date: string | null
           breeding_date: string
           created_at: string
           expected_birth: string | null
           female_animal_id: string | null
           id: string
           male_animal_id: string | null
+          mating_end_date: string | null
+          mating_start_date: string | null
           notes: string | null
+          separation_date: string | null
+          stage: string | null
           status: string
+          ultrasound_date: string | null
+          ultrasound_result: string | null
           updated_at: string
         }
         Insert: {
+          birth_date?: string | null
           breeding_date: string
           created_at?: string
           expected_birth?: string | null
           female_animal_id?: string | null
           id?: string
           male_animal_id?: string | null
+          mating_end_date?: string | null
+          mating_start_date?: string | null
           notes?: string | null
+          separation_date?: string | null
+          stage?: string | null
           status?: string
+          ultrasound_date?: string | null
+          ultrasound_result?: string | null
           updated_at?: string
         }
         Update: {
+          birth_date?: string | null
           breeding_date?: string
           created_at?: string
           expected_birth?: string | null
           female_animal_id?: string | null
           id?: string
           male_animal_id?: string | null
+          mating_end_date?: string | null
+          mating_start_date?: string | null
           notes?: string | null
+          separation_date?: string | null
+          stage?: string | null
           status?: string
+          ultrasound_date?: string | null
+          ultrasound_result?: string | null
           updated_at?: string
         }
         Relationships: [

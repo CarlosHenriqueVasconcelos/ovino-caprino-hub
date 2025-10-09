@@ -50,20 +50,30 @@ CREATE TABLE IF NOT EXISTS medications (
   medication_name TEXT NOT NULL,
   date TEXT NOT NULL,
   next_date TEXT,
+  applied_date TEXT,
   dosage TEXT,
+  status TEXT NOT NULL DEFAULT 'Agendado',
   veterinarian TEXT,
   notes TEXT,
   created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
 );
 
--- Tabela de reprodução
+-- Tabela de reprodução (Sistema multi-etapas)
 CREATE TABLE IF NOT EXISTS breeding_records (
   id TEXT PRIMARY KEY,
   female_animal_id TEXT NOT NULL,
   male_animal_id TEXT,
   breeding_date TEXT NOT NULL,
+  mating_start_date TEXT,
+  mating_end_date TEXT,
+  separation_date TEXT,
+  ultrasound_date TEXT,
+  ultrasound_result TEXT,
   expected_birth TEXT,
+  birth_date TEXT,
+  stage TEXT DEFAULT 'Encabritamento',
   status TEXT DEFAULT 'Cobertura',
   notes TEXT,
   created_at TEXT NOT NULL,
@@ -117,8 +127,11 @@ CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);
 CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);
 CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);
 CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);
+CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);
 CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);
 CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);
+CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);
 CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);
 CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);
 CREATE INDEX IF NOT EXISTS idx_financial_type ON financial_records(type);

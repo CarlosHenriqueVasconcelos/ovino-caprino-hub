@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/animal_service.dart';
-import '../services/supabase_service.dart';
-import 'breeding_form.dart';
+import '../models/animal.dart';
+import '../models/breeding_record.dart';
+import '../services/database_service.dart';
+import 'breeding_wizard_dialog.dart';
+import 'breeding_stage_actions.dart';
 
 class BreedingManagementScreen extends StatefulWidget {
   const BreedingManagementScreen({super.key});
@@ -11,415 +12,509 @@ class BreedingManagementScreen extends StatefulWidget {
   State<BreedingManagementScreen> createState() => _BreedingManagementScreenState();
 }
 
-class _BreedingManagementScreenState extends State<BreedingManagementScreen> {
-  List<Map<String, dynamic>> _breedingRecords = [];
+class _BreedingManagementScreenState extends State<BreedingManagementScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  List<BreedingRecord> _breedingRecords = [];
+  Map<String, Animal> _animalsMap = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadBreedingRecords();
+    _tabController = TabController(length: 5, vsync: this);
+    _loadData();
   }
 
-  Future<void> _loadBreedingRecords() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
+
     try {
-      _breedingRecords = await SupabaseService.getBreedingRecords();
+      final [breedingData, animalsData] = await Future.wait([
+        DatabaseService.getBreedingRecords(),
+        DatabaseService.getAnimals(),
+      ]);
+
+      final animals = (animalsData as List<Animal>);
+      final animalsMap = {for (var a in animals) a.id: a};
+
+      final records = (breedingData as List<Map<String, dynamic>>)
+          .map((e) => BreedingRecord.fromMap(e))
+          .toList();
+
+      setState(() {
+        _breedingRecords = records;
+        _animalsMap = animalsMap;
+        _isLoading = false;
+      });
     } catch (e) {
-      print('Error loading breeding records: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar dados: $e')),
+        );
+      }
     }
-    if (mounted) setState(() => _isLoading = false);
+  }
+
+  List<BreedingRecord> _filterByStage(BreedingStage stage) {
+    return _breedingRecords.where((r) => r.stage == stage).toList();
+  }
+
+  void _showBreedingWizard() {
+    showDialog(
+      context: context,
+      builder: (context) => BreedingWizardDialog(
+        onComplete: _loadData,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
-            Colors.transparent,
-          ],
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green.shade50,
+              Colors.blue.shade50,
+            ],
+          ),
         ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.pets, color: Colors.green.shade700, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.favorite,
-                          size: 28,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
                         Text(
-                          'Manejo Reprodutivo',
-                          style: theme.textTheme.headlineMedium?.copyWith(
+                          'Gestão de Reprodução',
+                          style: TextStyle(
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
                           ),
                         ),
-                        const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: () => _showBreedingForm(),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Nova Cobertura'),
+                        Text(
+                          'Controle completo do ciclo reprodutivo',
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Controle completo do ciclo reprodutivo, desde a cobertura até o nascimento dos filhotes. '
-                      'Acompanhe fêmeas prenhes, calcule previsões de parto e registre nascimentos.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _showBreedingWizard,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Nova Cobertura'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
 
-            // Breeding Records
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            // Tabs
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelColor: Colors.green,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.green,
+                tabs: [
+                  Tab(
+                    child: Row(
                       children: [
-                        Text(
-                          'Registros Reprodutivos',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        Consumer<AnimalService>(
-                          builder: (context, animalService, _) {
-                            final pregnantAnimals = animalService.animals
-                                .where((animal) => animal.pregnant)
-                                .length;
-                            
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.tertiary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: theme.colorScheme.tertiary.withOpacity(0.3),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.child_care,
-                                    size: 16,
-                                    color: theme.colorScheme.tertiary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '$pregnantAnimals Gestantes',
-                                    style: TextStyle(
-                                      color: theme.colorScheme.tertiary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                        const Icon(Icons.favorite),
+                        const SizedBox(width: 8),
+                        Text('Encabritamento (${_filterByStage(BreedingStage.encabritamento).length})'),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    
-                    if (_isLoading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (_breedingRecords.isEmpty)
-                      _buildEmptyState(theme)
-                    else
-                      _buildBreedingList(theme),
-                  ],
-                ),
+                  ),
+                  Tab(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.medical_services),
+                        const SizedBox(width: 8),
+                        Text('Aguardando Ultrassom (${_filterByStage(BreedingStage.aguardandoUltrassom).length})'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.pregnant_woman),
+                        const SizedBox(width: 8),
+                        Text('Gestantes (${_filterByStage(BreedingStage.gestacaoConfirmada).length})'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle),
+                        const SizedBox(width: 8),
+                        Text('Concluídos (${_filterByStage(BreedingStage.partoRealizado).length})'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.cancel),
+                        const SizedBox(width: 8),
+                        Text('Falhados (${_filterByStage(BreedingStage.falhou).length})'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 24),
-
-            // Pregnant Animals Card
-            _buildPregnantAnimalsCard(theme),
+            // Content
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildStageList(BreedingStage.encabritamento),
+                        _buildStageList(BreedingStage.aguardandoUltrassom),
+                        _buildStageList(BreedingStage.gestacaoConfirmada),
+                        _buildStageList(BreedingStage.partoRealizado),
+                        _buildStageList(BreedingStage.falhou),
+                      ],
+                    ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
+  Widget _buildStageList(BreedingStage stage) {
+    final records = _filterByStage(stage);
+
+    if (records.isEmpty) {
+      return Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.favorite_outline,
-              size: 64,
-              color: theme.colorScheme.outline,
-            ),
+            Icon(Icons.inbox, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
-              'Nenhum registro reprodutivo',
-              style: theme.textTheme.headlineSmall,
+              'Nenhum registro nesta etapa',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Registre coberturas e acompanhe a reprodução do rebanho',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: records.length,
+      itemBuilder: (context, index) {
+        return _buildBreedingCard(records[index]);
+      },
+    );
+  }
+
+  Widget _buildBreedingCard(BreedingRecord record) {
+    final female = _animalsMap[record.femaleAnimalId];
+    final male = _animalsMap[record.maleAnimalId];
+    final progress = record.progressPercentage();
+    final daysLeft = record.daysRemaining();
+
+    Color stageColor;
+    IconData stageIcon;
+
+    switch (record.stage) {
+      case BreedingStage.encabritamento:
+        stageColor = Colors.orange;
+        stageIcon = Icons.favorite;
+        break;
+      case BreedingStage.aguardandoUltrassom:
+        stageColor = Colors.blue;
+        stageIcon = Icons.medical_services;
+        break;
+      case BreedingStage.gestacaoConfirmada:
+        stageColor = Colors.purple;
+        stageIcon = Icons.pregnant_woman;
+        break;
+      case BreedingStage.partoRealizado:
+        stageColor = Colors.green;
+        stageIcon = Icons.check_circle;
+        break;
+      case BreedingStage.falhou:
+        stageColor = Colors.red;
+        stageIcon = Icons.cancel;
+        break;
+      default:
+        stageColor = Colors.grey;
+        stageIcon = Icons.help;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: stageColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(stageIcon, color: stageColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.stage.displayName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: stageColor,
+                        ),
+                      ),
+                      Text(
+                        'Iniciado em ${_formatDate(record.matingStartDate ?? record.breedingDate)}',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            
+            // Animals Info
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Fêmea',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        female != null ? '${female.code} - ${female.name}' : 'N/A',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Macho',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        male != null ? '${male.code} - ${male.name}' : 'N/A',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Progress and Days
+            if (progress != null && daysLeft != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Progresso',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              daysLeft >= 0 ? '$daysLeft dias restantes' : '${-daysLeft} dias atrasado',
+                              style: TextStyle(
+                                color: daysLeft >= 0 ? Colors.green : Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: AlwaysStoppedAnimation<Color>(stageColor),
+                          minHeight: 8,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _showBreedingForm(),
-              icon: const Icon(Icons.add),
-              label: const Text('Primeira Cobertura'),
-            ),
+            ],
+
+            // Expected/Actual Dates
+            if (record.stage == BreedingStage.encabritamento && record.matingEndDate != null) ...[
+              const SizedBox(height: 12),
+              _buildDateInfo('Data de Separação', record.matingEndDate!),
+            ],
+            if (record.stage == BreedingStage.gestacaoConfirmada && record.expectedBirth != null) ...[
+              const SizedBox(height: 12),
+              _buildDateInfo('Previsão de Parto', record.expectedBirth!),
+            ],
+            if (record.stage == BreedingStage.partoRealizado && record.birthDate != null) ...[
+              const SizedBox(height: 12),
+              _buildDateInfo('Data do Parto', record.birthDate!),
+            ],
+
+            // Notes
+            if (record.notes != null && record.notes!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.note, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        record.notes!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // Action Button
+            if (record.stage != BreedingStage.partoRealizado &&
+                record.stage != BreedingStage.falhou) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: BreedingStageActions(
+                  record: record,
+                  onUpdate: _loadData,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBreedingList(ThemeData theme) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _breedingRecords.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final breeding = _breedingRecords[index];
-        final animalService = Provider.of<AnimalService>(context, listen: false);
-
-        // Find female animal
-        final femaleMatches = animalService.animals.where(
-          (a) => a.id == breeding['female_animal_id'],
-        );
-        final female = femaleMatches.isNotEmpty ? femaleMatches.first : null;
-
-        // Find male animal if exists
-        final maleId = breeding['male_animal_id'];
-        var male;
-        if (maleId != null) {
-          final maleMatches = animalService.animals.where(
-            (a) => a.id == maleId,
-          );
-          male = maleMatches.isNotEmpty ? maleMatches.first : null;
-        }
-
-        Color statusColor;
-        IconData statusIcon;
-        switch (breeding['status']) {
-          case 'Nasceu':
-            statusColor = theme.colorScheme.primary;
-            statusIcon = Icons.child_care;
-            break;
-          case 'Confirmada':
-            statusColor = theme.colorScheme.tertiary;
-            statusIcon = Icons.check_circle;
-            break;
-          case 'Perdida':
-            statusColor = theme.colorScheme.error;
-            statusIcon = Icons.cancel;
-            break;
-          default:
-            statusColor = theme.colorScheme.secondary;
-            statusIcon = Icons.help_outline;
-        }
-
-        return Container(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.2),
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(statusIcon, color: statusColor),
-            ),
-            title: Text(
-              female?.name ?? 'Animal não encontrado',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (male != null)
-                  Text('Macho: ${male.name} (${male.code})'),
-                if (female != null)
-                  Text('Fêmea: ${female.code} - ${female.breed}'),
-                Text('Data da cobertura: ${breeding['breeding_date'] ?? '-'}'),
-                if (breeding['expected_birth'] != null)
-                  Text('Previsão de parto: ${breeding['expected_birth']}'),
-                if (breeding['notes'] != null && breeding['notes'].toString().isNotEmpty)
-                  Text('Observações: ${breeding['notes']}'),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: statusColor.withOpacity(0.3)),
-              ),
-              child: Text(
-                breeding['status'] ?? '-',
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
+  Widget _buildDateInfo(String label, DateTime date) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
             ),
           ),
-        );
-      },
+          const Spacer(),
+          Text(
+            _formatDate(date),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildPregnantAnimalsCard(ThemeData theme) {
-    return Consumer<AnimalService>(
-      builder: (context, animalService, _) {
-        final pregnantAnimals = animalService.animals
-            .where((animal) => animal.pregnant)
-            .toList();
-
-        if (pregnantAnimals.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.child_care,
-                      color: theme.colorScheme.tertiary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Fêmeas Gestantes',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: pregnantAnimals.length,
-                  separatorBuilder: (context, index) => const Divider(),
-                  itemBuilder: (context, index) {
-                    final animal = pregnantAnimals[index];
-                    final daysToDelivery = animal.expectedDelivery != null
-                        ? animal.expectedDelivery!.difference(DateTime.now()).inDays
-                        : null;
-
-                    return ListTile(
-                      leading: Text(
-                        animal.speciesIcon,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                      title: Text(
-                        '${animal.name} (${animal.code})',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Raça: ${animal.breed}'),
-                          if (animal.expectedDelivery != null) ...[
-                            Text(
-                              'Parto previsto: ${animal.expectedDelivery!.day.toString().padLeft(2, '0')}/${animal.expectedDelivery!.month.toString().padLeft(2, '0')}/${animal.expectedDelivery!.year}',
-                            ),
-                            if (daysToDelivery != null)
-                              Text(
-                                daysToDelivery > 0
-                                    ? 'Em $daysToDelivery dias'
-                                    : daysToDelivery == 0
-                                        ? 'Hoje!'
-                                        : 'Atrasado ${-daysToDelivery} dias',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: daysToDelivery <= 7
-                                      ? theme.colorScheme.error
-                                      : theme.colorScheme.tertiary,
-                                ),
-                              ),
-                          ],
-                        ],
-                      ),
-                      trailing: daysToDelivery != null && daysToDelivery <= 7
-                          ? Icon(
-                              Icons.warning,
-                              color: theme.colorScheme.error,
-                            )
-                          : null,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showBreedingForm() {
-    showDialog(
-      context: context,
-      builder: (context) => const BreedingFormDialog(),
-    ).then((_) => _loadBreedingRecords());
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

@@ -124,10 +124,45 @@ class DatabaseService {
     final db = await database;
     final r = Map<String, dynamic>.from(_withoutNulls(record));
     r['breeding_date'] = _toIsoDate(r['breeding_date']);
+    r['mating_start_date'] = _toIsoDate(r['mating_start_date']);
+    r['mating_end_date'] = _toIsoDate(r['mating_end_date']);
+    r['separation_date'] = _toIsoDate(r['separation_date']);
+    r['ultrasound_date'] = _toIsoDate(r['ultrasound_date']);
     r['expected_birth'] = _toIsoDate(r['expected_birth']);
+    r['birth_date'] = _toIsoDate(r['birth_date']);
     r['created_at'] ??= _nowIso();
     r['updated_at'] = _nowIso();
     await db.insert('breeding_records', r);
+  }
+
+  static Future<void> updateBreedingRecord(String id, Map<String, dynamic> updates) async {
+    final db = await database;
+    final r = Map<String, dynamic>.from(_withoutNulls(updates));
+    
+    if (r.containsKey('breeding_date')) {
+      r['breeding_date'] = _toIsoDate(r['breeding_date']);
+    }
+    if (r.containsKey('mating_start_date')) {
+      r['mating_start_date'] = _toIsoDate(r['mating_start_date']);
+    }
+    if (r.containsKey('mating_end_date')) {
+      r['mating_end_date'] = _toIsoDate(r['mating_end_date']);
+    }
+    if (r.containsKey('separation_date')) {
+      r['separation_date'] = _toIsoDate(r['separation_date']);
+    }
+    if (r.containsKey('ultrasound_date')) {
+      r['ultrasound_date'] = _toIsoDate(r['ultrasound_date']);
+    }
+    if (r.containsKey('expected_birth')) {
+      r['expected_birth'] = _toIsoDate(r['expected_birth']);
+    }
+    if (r.containsKey('birth_date')) {
+      r['birth_date'] = _toIsoDate(r['birth_date']);
+    }
+    r['updated_at'] = _nowIso();
+
+    await db.update('breeding_records', r, where: 'id = ?', whereArgs: [id]);
   }
 
   // ================== ANOTAÇÕES ==================
