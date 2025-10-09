@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      animal_weights: {
+        Row: {
+          animal_id: string
+          created_at: string
+          date: string
+          id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          animal_id: string
+          created_at?: string
+          date: string
+          id?: string
+          updated_at?: string
+          weight: number
+        }
+        Update: {
+          animal_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "animal_weights_animal_id_fkey"
+            columns: ["animal_id"]
+            isOneToOne: false
+            referencedRelation: "animals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       animals: {
         Row: {
           birth_date: string
