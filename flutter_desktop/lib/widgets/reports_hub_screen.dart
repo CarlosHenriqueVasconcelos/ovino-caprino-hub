@@ -42,6 +42,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   bool _sortAsc = true;
   int _currentPage = 0;
   static const int _pageSize = 25;
+  
+  // Financial reports password protection
+  bool _financialUnlocked = false;
 
   final List<String> _reportTypes = [
     'Animais',
@@ -59,6 +62,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     _tabController = TabController(length: _reportTypes.length, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
+        // Check if trying to access financial reports
+        if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
+          _showFinancialPasswordDialog();
+          return;
+        }
         setState(() {
           _currentPage = 0;
           _sortKey = '';
@@ -179,7 +187,77 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     }
   }
 
+  Future<void> _showFinancialPasswordDialog() async {
+    final TextEditingController passwordController = TextEditingController();
+    
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Acesso Protegido'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Digite a senha para acessar os relatórios financeiros:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              keyboardType: TextInputType.number,
+              maxLength: 1,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Senha (1-5)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Go back to previous tab
+              final currentIndex = _tabController.index;
+              if (currentIndex > 0) {
+                _tabController.animateTo(currentIndex - 1);
+              }
+              Navigator.of(context).pop();
+            },
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final password = passwordController.text;
+              if (password.isNotEmpty && 
+                  int.tryParse(password) != null && 
+                  int.parse(password) >= 1 && 
+                  int.parse(password) <= 5) {
+                setState(() {
+                  _financialUnlocked = true;
+                });
+                Navigator.of(context).pop();
+                _loadReport();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Senha inválida! Digite um número entre 1 e 5.')),
+                );
+              }
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _exportCSV() async {
+    // Check if trying to export financial reports
+    if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Acesso aos relatórios financeiros bloqueado')),
+      );
+      return;
+    }
+    
     if (_reportData == null || _reportData!['data'] == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nenhum dado para exportar')),
@@ -230,6 +308,14 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   }
 
   Future<void> _saveReport() async {
+    // Check if trying to save financial reports
+    if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Acesso aos relatórios financeiros bloqueado')),
+      );
+      return;
+    }
+    
     try {
       final period = _getPeriodRange();
       final reportType = _reportTypes[_tabController.index];
@@ -688,6 +774,31 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   }
 
   Widget _buildReportContent(ThemeData theme) {
+    // Check if financial reports are locked
+    if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock, size: 64, color: theme.colorScheme.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Relatórios Financeiros Bloqueados',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text('Clique na aba novamente para inserir a senha'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _showFinancialPasswordDialog,
+              icon: const Icon(Icons.lock_open),
+              label: const Text('Desbloquear'),
+            ),
+          ],
+        ),
+      );
+    }
+    
     if (_reportData == null) {
       return const Center(child: Text('Nenhum dado disponível'));
     }
