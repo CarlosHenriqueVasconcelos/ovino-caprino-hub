@@ -58,7 +58,7 @@ class BackupService {
   };
 
   static String _onConflict(String table) {
-    if (table == 'push_tokens') return 'token';
+    // Use a valid unique/PK column for upsert conflicts
     return 'id';
   }
 

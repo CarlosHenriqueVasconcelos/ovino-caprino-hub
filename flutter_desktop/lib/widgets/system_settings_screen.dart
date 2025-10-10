@@ -302,7 +302,15 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         title: const Text('Backup para Supabase'),
         content: StreamBuilder<String>(
           stream: stream,
-          builder: (_, snap) => Text(snap.data ?? 'Preparando...'),
+          builder: (_, snap) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const LinearProgressIndicator(),
+              const SizedBox(height: 12),
+              Text(snap.data ?? 'Preparando...'),
+            ],
+          ),
         ),
         actions: [
           TextButton(

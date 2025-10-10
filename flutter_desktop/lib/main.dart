@@ -11,6 +11,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/animal_service.dart';
+import 'data/local_db.dart';
+import 'services/backup_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,12 +40,22 @@ Future<void> main() async {
     }
 
     // Supabase (somente para backup manual)
+    const supabaseUrl = 'https://heueripmlmuvqdbwyxxs.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWVyaXBtbG11dnFkYnd5eHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjU2NzEsImV4cCI6MjA3MzAwMTY3MX0.KWvjNAVqnjqFgjfOz95QU4gOEMxIBHD2yxaRMlgnxEw';
     await Supabase.initialize(
-      url: 'https://heueripmlmuvqdbwyxxs.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWVyaXBtbG11dnFkYnd5eHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjU2NzEsImV4cCI6MjA3MzAwMTY3MX0.KWvjNAVqnjqFgjfOz95QU4gOEMxIBHD2yxaRMlgnxEw',
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
     );
 
-    runApp(const FazendaSaoPetronioApp());
+    // Abrir banco local e injetar serviços
+    final appDb = await AppDatabase.open();
+    final backupService = BackupService(
+      db: appDb,
+      supabaseUrl: supabaseUrl,
+      supabaseAnonKey: supabaseAnonKey,
+    );
+
+    runApp(FazendaSaoPetronioApp(db: appDb, backup: backupService));
   }, (error, stack) {
     debugPrint('=== Uncaught error ===');
     debugPrint('$error');
@@ -52,12 +64,16 @@ Future<void> main() async {
 }
 
 class FazendaSaoPetronioApp extends StatelessWidget {
-  const FazendaSaoPetronioApp({super.key});
+  final AppDatabase db;
+  final BackupService backup;
+  const FazendaSaoPetronioApp({super.key, required this.db, required this.backup});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AppDatabase>.value(value: db),
+        Provider<BackupService>.value(value: backup),
         ChangeNotifierProvider(create: (_) => AnimalService()),
       ],
       child: MaterialApp(
