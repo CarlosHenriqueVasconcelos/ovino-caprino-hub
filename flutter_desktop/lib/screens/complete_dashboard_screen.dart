@@ -334,7 +334,7 @@ class _DashboardTabContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Ações rápidas
-              _QuickActions(),
+              _QuickActions(onGoToTab: onGoToTab),
               const SizedBox(height: 32),
 
               // Alertas (vacinações/medicações) — seu widget original
@@ -418,7 +418,8 @@ class _StatsOverview extends StatelessWidget {
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions();
+  final void Function(int) onGoToTab;
+  const _QuickActions({required this.onGoToTab});
 
   @override
   Widget build(BuildContext context) {
@@ -502,9 +503,7 @@ class _QuickActions extends StatelessWidget {
                   title: 'Gerar Relatório',
                   icon: Icons.description,
                   color: Colors.purple,
-                  onTap: () {
-                    // DefaultTabController.of(context)?.animateTo(5);
-                  },
+                  onTap: () => onGoToTab(5),
                 ),
                 _ActionCard(
                   title: 'Ver Histórico',

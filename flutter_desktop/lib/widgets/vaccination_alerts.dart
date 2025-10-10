@@ -141,9 +141,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       );
     }
 
-    // Se não houver nenhum alerta, ocultar o card
-    if (_vaccines.isEmpty && _meds.isEmpty) return const SizedBox.shrink();
-
+    // Sempre mostrar o quadro, mesmo sem alertas
     final total = _vaccines.length + _meds.length;
 
     return Card(
@@ -225,6 +223,37 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 (row) => _medTile(context, theme, row),
               ),
             ],
+            
+            // Mensagem quando não há alertas
+            if (_vaccines.isEmpty && _meds.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 48,
+                        color: theme.colorScheme.primary.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Nenhum alerta no momento',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Todas as vacinações e medicações estão em dia',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
