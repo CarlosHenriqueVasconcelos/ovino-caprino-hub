@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/financial_service.dart';
-import '../models/budget.dart';
-import '../models/cost_center.dart';
+import '../models/financial_account.dart';
 
 class FinancialBudgetsScreen extends StatefulWidget {
   final VoidCallback? onUpdate;
@@ -47,7 +46,7 @@ class _FinancialBudgetsScreenState extends State<FinancialBudgetsScreen> {
     final categoryController = TextEditingController(text: budget?.category ?? '');
     final amountController = TextEditingController(text: budget?.amount.toString() ?? '');
     String period = budget?.period ?? 'Mensal';
-    String? costCenter = budget?.costCenterId;
+    String? costCenter = budget?.costCenter;
     int year = budget?.year ?? DateTime.now().year;
     int? month = budget?.month;
 
@@ -163,7 +162,7 @@ class _FinancialBudgetsScreenState extends State<FinancialBudgetsScreen> {
                   period: period,
                   year: year,
                   month: period == 'Mensal' ? month : null,
-                  costCenterId: costCenter,
+                  costCenter: costCenter,
                   createdAt: budget?.createdAt ?? DateTime.now(),
                   updatedAt: DateTime.now(),
                 );
