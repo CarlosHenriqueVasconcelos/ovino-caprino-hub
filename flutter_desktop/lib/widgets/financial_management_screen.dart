@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
-import 'financial_form.dart';
+import 'financial_form_dialog.dart';
 
 /// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
 String _formatDateFromDb(String? dateStr) {

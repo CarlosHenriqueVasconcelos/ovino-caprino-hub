@@ -196,6 +196,170 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          amount: number
+          category: string
+          cost_center_id: string | null
+          created_at: string
+          end_date: string
+          id: string
+          name: string
+          notes: string | null
+          period: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          cost_center_id?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          name: string
+          notes?: string | null
+          period: string
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          cost_center_id?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          period?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cost_centers: {
+        Row: {
+          active: boolean | null
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          active?: boolean | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      financial_accounts: {
+        Row: {
+          amount: number
+          animal_id: string | null
+          category: string
+          cost_center_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          installment_number: number | null
+          installments: number | null
+          is_recurring: boolean | null
+          notes: string | null
+          parent_id: string | null
+          payment_date: string | null
+          payment_method: string | null
+          recurrence_end_date: string | null
+          recurrence_frequency: string | null
+          status: string
+          supplier_customer: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          animal_id?: string | null
+          category: string
+          cost_center_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          installment_number?: number | null
+          installments?: number | null
+          is_recurring?: boolean | null
+          notes?: string | null
+          parent_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          status?: string
+          supplier_customer?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          animal_id?: string | null
+          category?: string
+          cost_center_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          installment_number?: number | null
+          installments?: number | null
+          is_recurring?: boolean | null
+          notes?: string | null
+          parent_id?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          recurrence_end_date?: string | null
+          recurrence_frequency?: string | null
+          status?: string
+          supplier_customer?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "financial_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_financial_accounts_cost_center"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_records: {
         Row: {
           amount: number

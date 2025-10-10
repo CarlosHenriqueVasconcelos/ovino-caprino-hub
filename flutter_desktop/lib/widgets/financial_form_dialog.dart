@@ -1,0 +1,383 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../services/financial_service.dart';
+import '../models/financial_account.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+
+class FinancialFormDialog extends StatefulWidget {
+  final FinancialAccount? account;
+
+  const FinancialFormDialog({super.key, this.account});
+
+  @override
+  State<FinancialFormDialog> createState() => _FinancialFormDialogState();
+}
+
+class _FinancialFormDialogState extends State<FinancialFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  late TextEditingController _descriptionController;
+  late TextEditingController _amountController;
+  late TextEditingController _dueDateController;
+  late TextEditingController _supplierCustomerController;
+  late TextEditingController _notesController;
+
+  String _selectedType = 'despesa';
+  String? _selectedCategory;
+  String? _selectedPaymentMethod;
+  String? _selectedCostCenter;
+  DateTime? _selectedDueDate;
+  List<CostCenter> _costCenters = [];
+
+  final List<String> _expenseCategories = [
+    'Alimentação',
+    'Medicamentos',
+    'Veterinário',
+    'Manutenção',
+    'Equipamentos',
+    'Energia',
+    'Água',
+    'Funcionários',
+    'Transporte',
+    'Outros',
+  ];
+
+  final List<String> _revenueCategories = [
+    'Venda de Animais',
+    'Venda de Leite',
+    'Venda de Lã',
+    'Serviços',
+    'Outros',
+  ];
+
+  final List<String> _paymentMethods = [
+    'Dinheiro',
+    'PIX',
+    'Cartão de Crédito',
+    'Cartão de Débito',
+    'Transferência',
+    'Boleto',
+    'Cheque',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+    _loadCostCenters();
+  }
+
+  void _initializeControllers() {
+    final account = widget.account;
+    
+    _descriptionController = TextEditingController(text: account?.description ?? '');
+    _amountController = TextEditingController(
+      text: account?.amount.toStringAsFixed(2).replaceAll('.', ',') ?? '',
+    );
+    _dueDateController = TextEditingController(
+      text: account != null ? DateFormat('dd/MM/yyyy').format(account.dueDate) : '',
+    );
+    _supplierCustomerController = TextEditingController(text: account?.supplierCustomer ?? '');
+    _notesController = TextEditingController(text: account?.notes ?? '');
+
+    _selectedType = account?.type ?? 'despesa';
+    _selectedCategory = account?.category;
+    _selectedPaymentMethod = account?.paymentMethod;
+    _selectedCostCenter = account?.costCenter;
+    _selectedDueDate = account?.dueDate;
+  }
+
+  Future<void> _loadCostCenters() async {
+    final centers = await FinancialService.getAllCostCenters();
+    setState(() {
+      _costCenters = centers;
+    });
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _amountController.dispose();
+    _dueDateController.dispose();
+    _supplierCustomerController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDueDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    
+    if (picked != null) {
+      setState(() {
+        _selectedDueDate = picked;
+        _dueDateController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
+    }
+  }
+
+  Future<void> _saveAccount() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedDueDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a data de vencimento')),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Valor inválido')),
+      );
+      return;
+    }
+
+    final account = FinancialAccount(
+      id: widget.account?.id ?? const Uuid().v4(),
+      type: _selectedType,
+      category: _selectedCategory ?? '',
+      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      amount: amount,
+      dueDate: _selectedDueDate!,
+      status: widget.account?.status ?? 'Pendente',
+      paymentMethod: _selectedPaymentMethod,
+      supplierCustomer: _supplierCustomerController.text.isEmpty ? null : _supplierCustomerController.text,
+      notes: _notesController.text.isEmpty ? null : _notesController.text,
+      costCenter: _selectedCostCenter,
+      createdAt: widget.account?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    try {
+      if (widget.account != null) {
+        await FinancialService.updateAccount(account);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Conta atualizada com sucesso')),
+          );
+        }
+      } else {
+        await FinancialService.createAccount(account);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Conta criada com sucesso')),
+          );
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.account != null;
+    final categories = _selectedType == 'receita' ? _revenueCategories : _expenseCategories;
+
+    return Dialog(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        child: Column(
+          children: [
+            AppBar(
+              title: Text(
+                isEditing
+                    ? 'Editar Lançamento'
+                    : 'Novo Lançamento',
+              ),
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'receita',
+                          label: Text('Receita'),
+                          icon: Icon(Icons.trending_up),
+                        ),
+                        ButtonSegment(
+                          value: 'despesa',
+                          label: Text('Despesa'),
+                          icon: Icon(Icons.trending_down),
+                        ),
+                      ],
+                      selected: {_selectedType},
+                      onSelectionChanged: (Set<String> newSelection) {
+                        setState(() {
+                          _selectedType = newSelection.first;
+                          _selectedCategory = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    DropdownButtonFormField<String>(
+                      value: _selectedCategory,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria *',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: categories.map((cat) {
+                        return DropdownMenuItem(value: cat, child: Text(cat));
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCategory = value;
+                        });
+                      },
+                      validator: (value) => value == null ? 'Selecione uma categoria' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Descrição',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _amountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Valor *',
+                        border: OutlineInputBorder(),
+                        prefixText: 'R\$ ',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Informe o valor';
+                        final amount = double.tryParse(value.replaceAll(',', '.'));
+                        if (amount == null || amount <= 0) return 'Valor inválido';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _dueDateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Data de Vencimento *',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      readOnly: true,
+                      onTap: () => _selectDate(context),
+                      validator: (value) => value == null || value.isEmpty ? 'Selecione a data' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    DropdownButtonFormField<String>(
+                      value: _selectedPaymentMethod,
+                      decoration: const InputDecoration(
+                        labelText: 'Forma de Pagamento',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _paymentMethods.map((method) {
+                        return DropdownMenuItem(value: method, child: Text(method));
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedPaymentMethod = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _supplierCustomerController,
+                      decoration: InputDecoration(
+                        labelText: _selectedType == 'receita' ? 'Cliente' : 'Fornecedor',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (_costCenters.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        value: _selectedCostCenter,
+                        decoration: const InputDecoration(
+                          labelText: 'Centro de Custo',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _costCenters.map((center) {
+                          return DropdownMenuItem(value: center.id, child: Text(center.name));
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCostCenter = value;
+                          });
+                        },
+                      ),
+                    if (_costCenters.isNotEmpty) const SizedBox(height: 16),
+
+                    TextFormField(
+                      controller: _notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Observações',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancelar'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _saveAccount,
+                            child: const Text('Salvar'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

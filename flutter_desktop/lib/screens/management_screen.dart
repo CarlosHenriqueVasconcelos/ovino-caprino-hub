@@ -7,7 +7,7 @@ import '../services/database_service.dart';
 import '../widgets/vaccination_form.dart';
 import '../widgets/breeding_form.dart';
 import '../widgets/notes_form.dart';
-import '../widgets/financial_form.dart';
+import '../widgets/financial_form_dialog.dart';
 
 /// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
 String _formatDateFromDb(String? dateStr) {
