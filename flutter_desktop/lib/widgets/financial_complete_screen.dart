@@ -15,6 +15,7 @@ class FinancialCompleteScreen extends StatefulWidget {
 }
 
 class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with SingleTickerProviderStateMixin {
+  static const String _correctPassword = '3'; // Senha fixa
   late TabController _tabController;
   final GlobalKey<_FinancialCompleteScreenState> _dashboardKey = GlobalKey();
   bool _isUnlocked = false;
@@ -90,8 +91,8 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineLarge,
                     decoration: InputDecoration(
-                      labelText: 'Senha (1-5)',
-                      hintText: 'Digite um número de 1 a 5',
+                      labelText: 'Senha',
+                      hintText: 'Digite a senha',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -126,13 +127,13 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
       return;
     }
     
-    final int? pass = int.tryParse(password);
-    if (pass == null || pass < 1 || pass > 5) {
-      _showError('Senha deve ser um número de 1 a 5');
+    // Verificar se a senha está correta
+    if (password != _correctPassword) {
+      _showError('Senha incorreta!');
       return;
     }
     
-    // Qualquer número de 1 a 5 desbloqueia
+    // Senha correta - desbloquear
     setState(() {
       _isUnlocked = true;
     });

@@ -188,6 +188,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   }
 
   Future<void> _showFinancialPasswordDialog() async {
+    const String correctPassword = '3'; // Senha fixa
     final TextEditingController passwordController = TextEditingController();
     
     await showDialog(
@@ -207,7 +208,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               maxLength: 1,
               obscureText: true,
               decoration: const InputDecoration(
-                labelText: 'Senha (1-5)',
+                labelText: 'Senha',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -228,10 +229,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
           ElevatedButton(
             onPressed: () {
               final password = passwordController.text;
-              if (password.isNotEmpty && 
-                  int.tryParse(password) != null && 
-                  int.parse(password) >= 1 && 
-                  int.parse(password) <= 5) {
+              
+              // Verificar senha correta
+              if (password == correctPassword) {
                 setState(() {
                   _financialUnlocked = true;
                 });
@@ -239,7 +239,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                 _loadReport();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Senha inválida! Digite um número entre 1 e 5.')),
+                  const SnackBar(content: Text('Senha incorreta!')),
                 );
               }
             },
