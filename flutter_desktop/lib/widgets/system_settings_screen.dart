@@ -328,7 +328,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Restaurar Backup'),
         content: const Text(
-          'Esta ação substituirá todos os dados atuais pelos dados do backup. '
+          'Esta ação substituirá todos os dados atuais pelos dados do backup do Supabase. '
           'Tem certeza de que deseja continuar?',
         ),
         actions: [
@@ -336,14 +336,44 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Restauração iniciada...'),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                ),
-              );
+              _performRestore();
             },
             child: const Text('Restaurar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performRestore() async {
+    final backup = context.read<BackupService>();
+    final stream = backup.restoreAll();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Restauração do Supabase'),
+        content: StreamBuilder<String>(
+          stream: stream,
+          builder: (_, snap) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const LinearProgressIndicator(),
+              const SizedBox(height: 12),
+              Text(snap.data ?? 'Preparando...'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Atualizar a UI recarregando os dados
+              context.read<AnimalService>().loadAnimals();
+            },
+            child: const Text('Fechar'),
           ),
         ],
       ),

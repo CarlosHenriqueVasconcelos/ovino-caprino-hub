@@ -80,4 +80,31 @@ class BackupService {
     }
     yield 'Backup concluído ✅';
   }
+
+  Stream<String> restoreAll() async* {
+    for (final table in _order) {
+      yield 'Baixando $table...';
+      
+      final response = await _supabase.from(table).select();
+      final rows = response as List<dynamic>;
+      
+      if (rows.isEmpty) {
+        yield '$table: nenhum dado na nuvem';
+        continue;
+      }
+
+      yield 'Restaurando $table (${rows.length})...';
+      
+      // Limpar tabela local antes de restaurar
+      await _db.db.delete(table);
+      
+      // Inserir dados do Supabase no banco local
+      for (final row in rows) {
+        await _db.db.insert(table, Map<String, dynamic>.from(row));
+      }
+
+      yield '$table: OK (${rows.length} registros)';
+    }
+    yield 'Restauração concluída ✅';
+  }
 }
