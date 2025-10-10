@@ -371,7 +371,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             onPressed: () {
               Navigator.of(context).pop();
               // Atualizar a UI recarregando os dados
-              context.read<AnimalService>().loadAnimals();
+              context.read<AnimalService>().loadData();
             },
             child: const Text('Fechar'),
           ),

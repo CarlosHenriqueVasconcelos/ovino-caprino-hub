@@ -28,8 +28,7 @@ Future<void> main() async {
     }
   };
 
-  // Log detalhado do sqflite (SQL/erros)
-  sqflite.Sqflite.devSetDebugModeOn(true);
+  
 
   // ============ Inicialização sob runZonedGuarded ============
   await runZonedGuarded<Future<void>>(() async {
