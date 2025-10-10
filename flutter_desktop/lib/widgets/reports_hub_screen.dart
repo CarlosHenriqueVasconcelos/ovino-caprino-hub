@@ -193,6 +193,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     await showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black87,
       builder: (context) => AlertDialog(
         title: const Text('Acesso Protegido'),
         content: Column(
@@ -678,22 +679,23 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
         
         if (currentReport == 'Reprodução') ...[
           SizedBox(
-            width: 200,
+            width: 220,
             child: DropdownButtonFormField<String>(
               value: _breedingStageFilter,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Estágio',
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Encabritamento', child: Text('Encabritamento')),
-                DropdownMenuItem(value: 'Separacao', child: Text('Separação')),
-                DropdownMenuItem(value: 'Aguardando_Ultrassom', child: Text('Aguardando Ultrassom')),
-                DropdownMenuItem(value: 'Gestacao_Confirmada', child: Text('Gestação Confirmada')),
-                DropdownMenuItem(value: 'Parto_Realizado', child: Text('Parto Realizado')),
-                DropdownMenuItem(value: 'Falhou', child: Text('Falhou')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Encabritamento', child: Text('Encabritamento', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Separacao', child: Text('Separação', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Aguardando_Ultrassom', child: Text('Aguardando Ultrassom', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Gestacao_Confirmada', child: Text('Gestação Confirmada', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Parto_Realizado', child: Text('Parto Realizado', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(value: 'Falhou', child: Text('Falhou', overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (v) {
                 setState(() => _breedingStageFilter = v!);
