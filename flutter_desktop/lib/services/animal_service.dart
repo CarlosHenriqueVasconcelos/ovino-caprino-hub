@@ -84,6 +84,21 @@ class AnimalService extends ChangeNotifier {
     map['created_at'] ??= nowIso;
     map['updated_at'] = nowIso;
 
+    // Regra: (name, name_color) deve ser único (case-insensitive)
+    final nameLc = (map['name'] ?? '').toString().toLowerCase();
+    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
+    final dup = await _appDb!.db.query(
+      'animals',
+      columns: ['id'],
+      where: 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ?',
+      whereArgs: [nameLc, colorLc],
+      limit: 1,
+    );
+    if (dup.isNotEmpty) {
+      throw Exception('Já existe um animal com este Nome + Cor.');
+    }
+
+
     await _appDb!.db.insert('animals', map);
 
     final saved = Animal.fromMap(map);
@@ -98,6 +113,20 @@ class AnimalService extends ChangeNotifier {
     await _ensureDb();
     final map = a.toMap();
     map['updated_at'] = DateTime.now().toIso8601String();
+        // Regra: (name, name_color) único; ignorar o próprio id
+    final nameLc = (map['name'] ?? '').toString().toLowerCase();
+    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
+    final dup = await _appDb!.db.query(
+      'animals',
+      columns: ['id'],
+      where: 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ? AND id <> ?',
+      whereArgs: [nameLc, colorLc, map['id']],
+      limit: 1,
+    );
+    if (dup.isNotEmpty) {
+      throw Exception('Já existe um animal com este Nome + Cor.');
+    }
+
 
     await _appDb!.db.update(
       'animals',

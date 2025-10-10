@@ -59,7 +59,7 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS animals (
         id TEXT PRIMARY KEY,
-        code TEXT NOT NULL UNIQUE,
+        code TEXT NOT NULL,
         name TEXT NOT NULL,
         species TEXT NOT NULL CHECK (species IN ('Ovino','Caprino')),
         breed TEXT NOT NULL,
@@ -79,7 +79,8 @@ class AppDatabase {
         birth_weight REAL,
         weight_30_days REAL,
         weight_60_days REAL,
-        weight_90_days REAL
+        weight_90_days REAL,
+        UNIQUE(name, name_color)
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');

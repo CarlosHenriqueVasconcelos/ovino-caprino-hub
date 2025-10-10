@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../models/financial_account.dart';
 import 'database_service.dart';
+import 'sale_hooks.dart';
 
 class FinancialService {
   static Future<void> _ensureTablesExist() async {
@@ -75,6 +76,7 @@ class FinancialService {
     await _ensureTablesExist();
     final db = await DatabaseService.database;
     await db.insert('financial_accounts', account.toMap());
+    await handleAnimalSaleIfApplicable(account);
     return account;
   }
 
@@ -86,6 +88,7 @@ class FinancialService {
       where: 'id = ?',
       whereArgs: [account.id],
     );
+    await handleAnimalSaleIfApplicable(account);
   }
 
   static Future<void> deleteAccount(String id) async {

@@ -4,6 +4,8 @@ import '../services/animal_service.dart';
 import '../models/animal.dart';
 import '../widgets/animal_card.dart';
 import '../widgets/animal_form.dart';
+import '../services/animal_delete_cascade.dart';
+
 
 class AdvancedSearchDialog extends StatefulWidget {
   const AdvancedSearchDialog({super.key});
@@ -23,7 +25,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
   double? _maxWeight;
   int? _minAge;
   int? _maxAge;
-  
+ 
+  bool _includeSold = false;
   List<Animal> _filteredAnimals = [];
   bool _hasSearched = false;
 
@@ -149,6 +152,15 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                               ),
                               const SizedBox(height: 16),
                               
+                              SwitchListTile(
+                                title: const Text('Incluir vendidos'),
+                                value: _includeSold,
+                                onChanged: (v) {
+                                  setState(() => _includeSold = v);
+                                  // Se você tiver algum método de recalcular, chame aqui (opcional):
+                                  // _performSearch(animalService.animals);
+                                },
+                              ),
                               // Breed
                               DropdownButtonFormField<String>(
                                 value: _selectedBreed,
@@ -372,6 +384,15 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                                   builder: (context) => AnimalFormDialog(animal: animal),
                                                 );
                                               },
+                                               onDeleteCascade: (animal) async {
+                                                await AnimalDeleteCascade.delete(animal.id);
+                                                final svc = Provider.of<AnimalService>(context, listen: false);
+                                                await svc.loadData();                 // recarrega
+                                                setState(() {
+                                                  _performSearch(svc.animals);       // re-filtra a lista
+                                                });
+                                              },
+
                                             );
                                           },
                                         ),
@@ -399,6 +420,11 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         final nameMatch = animal.name.toLowerCase().contains(query);
         final codeMatch = animal.code.toLowerCase().contains(query);
         if (!nameMatch && !codeMatch) return false;
+      }
+
+      // Sold toggle
+      if (!_includeSold && animal.status == 'Vendido') {
+        return false;
       }
       
       // Species filter

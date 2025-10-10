@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/animal.dart';
+import 'animal_history_dialog.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
   final Function(Animal)? onEdit;
 
+  /// Novo: callback opcional para exclusão em cascata
+  final Future<void> Function(Animal)? onDeleteCascade;
+
   const AnimalCard({
-    super.key, 
+    super.key,
     required this.animal,
     this.onEdit,
+    this.onDeleteCascade, // novo param (não altera layout)
   });
 
   Color _getStatusColor(BuildContext context) {
@@ -69,9 +74,8 @@ class AnimalCard extends StatelessWidget {
 
     return Card(
       elevation: hasHealthIssue ? 4 : 2,
-      shadowColor: hasHealthIssue 
-          ? theme.colorScheme.error.withOpacity(0.3)
-          : null,
+      shadowColor:
+          hasHealthIssue ? theme.colorScheme.error.withOpacity(0.3) : null,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -105,9 +109,69 @@ class AnimalCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
+                // 3 pontinhos — mantém o mesmo visual, só adiciona o menu
+                PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
+                  onSelected: (value) async {
+                    if (value == 'delete_all' && onDeleteCascade != null) {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Confirmar exclusão'),
+                          content: Text(
+                            'Apagar TUDO relacionado a "${animal.name}"?\n\n'
+                            'Isso inclui pesos, vacinas, medicações, anotações, financeiro e reprodução.'
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Excluir'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) {
+                        await onDeleteCascade!(animal);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Animal e registros excluídos'),
+                            ),
+                          );
+                        }
+                      }
+                    } else if (value == 'edit' && onEdit != null) {
+                      onEdit!(animal);
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    if (onEdit != null)
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit),
+                            SizedBox(width: 8),
+                            Text('Editar'),
+                          ],
+                        ),
+                      ),
+                    if (onDeleteCascade != null)
+                      const PopupMenuItem(
+                        value: 'delete_all',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_forever),
+                            SizedBox(width: 8),
+                            Text('Excluir (apagar tudo)'),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -137,7 +201,8 @@ class AnimalCard extends StatelessWidget {
                         Text('Gestante'),
                       ],
                     ),
-                    backgroundColor: theme.colorScheme.tertiary.withOpacity(0.1),
+                    backgroundColor:
+                        theme.colorScheme.tertiary.withOpacity(0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.tertiary,
                       fontWeight: FontWeight.w500,
@@ -156,7 +221,8 @@ class AnimalCard extends StatelessWidget {
                         Text(animal.healthIssue!),
                       ],
                     ),
-                    backgroundColor: theme.colorScheme.error.withOpacity(0.1),
+                    backgroundColor:
+                        theme.colorScheme.error.withOpacity(0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.error,
                       fontWeight: FontWeight.w500,
@@ -179,7 +245,8 @@ class AnimalCard extends StatelessWidget {
                       Text(
                         'Raça',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color:
+                              theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       Text(
@@ -198,7 +265,8 @@ class AnimalCard extends StatelessWidget {
                       Text(
                         'Idade',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color:
+                              theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       Text(
@@ -272,13 +340,15 @@ class AnimalCard extends StatelessWidget {
                   Icon(
                     Icons.favorite,
                     size: 14,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    color:
+                        theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Última vacinação: ${DateFormat('dd/MM/yyyy').format(animal.lastVaccination!)}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color:
+                          theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ],
@@ -290,14 +360,20 @@ class AnimalCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AnimalHistoryDialog(animal: animal),
+                      );
+                    },
                     child: const Text('Ver Histórico'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: onEdit != null ? () => onEdit!(animal) : null,
+                    onPressed:
+                        onEdit != null ? () => onEdit!(animal) : null,
                     child: const Text('Editar'),
                   ),
                 ),

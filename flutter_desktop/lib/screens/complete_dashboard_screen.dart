@@ -19,6 +19,7 @@ import '../widgets/medication_management_screen.dart';
 import '../widgets/history_screen.dart';
 import '../services/database_service.dart';
 import 'package:uuid/uuid.dart';
+import '../services/animal_delete_cascade.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -577,6 +578,10 @@ class _HerdSectionState extends State<_HerdSection> {
   final TextEditingController _search = TextEditingController();
   String _query = '';
 
+  bool _includeSold = false;
+  String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido'
+
+
   @override
   void dispose() {
     _search.dispose();
@@ -590,7 +595,23 @@ class _HerdSectionState extends State<_HerdSection> {
     return Consumer<AnimalService>(
       builder: (context, animalService, _) {
         final all = animalService.animals;
-        final filtered = _filter(all, _query);
+        final baseList = (() {
+          if (_statusFilter == 'Vendido') {
+            return all.where((a) => a.status == 'Vendido').toList();
+          } else if (_statusFilter == 'Em tratamento') {
+            return all.where((a) => a.status == 'Em tratamento').toList();
+          } else if (_statusFilter == 'Saudável') {
+            return all.where((a) => a.status == 'Saudável').toList();
+          } else {
+            // Sem status específico: volta a valer o toggle "Incluir vendidos"
+            return _includeSold
+                ? all
+                : all.where((a) => a.status == null || a.status != 'Vendido').toList();
+          }
+        })();
+        final filtered = _filter(baseList, _query);
+
+
 
         return Card(
           child: Padding(
@@ -644,6 +665,44 @@ class _HerdSectionState extends State<_HerdSection> {
                   },
                 ),
                 const SizedBox(height: 24),
+                Row(
+                  children: [
+                    FilterChip(
+                      label: const Text('Incluir vendidos'),
+                      selected: _includeSold,
+                      onSelected: (v) => setState(() => _includeSold = v),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Todos'),
+                      selected: _statusFilter == null,
+                      onSelected: (_) => setState(() => _statusFilter = null),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Saudáveis'),
+                      selected: _statusFilter == 'Saudável',
+                      onSelected: (_) => setState(() => _statusFilter = 'Saudável'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Em tratamento'),
+                      selected: _statusFilter == 'Em tratamento',
+                      onSelected: (_) => setState(() => _statusFilter = 'Em tratamento'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Vendidos'),
+                      selected: _statusFilter == 'Vendido',
+                      onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
 
                 if (all.isEmpty)
                   _emptyState(theme)
@@ -664,6 +723,13 @@ class _HerdSectionState extends State<_HerdSection> {
                         animal: filtered[index],
                         onEdit: (animal) =>
                             _showAnimalForm(context, animal: animal),
+                        onDeleteCascade: (animal) async {
+                          await AnimalDeleteCascade.delete(animal.id);
+                          final svc = context.read<AnimalService>();
+                          await svc.loadData();        // recarrega do banco
+                          if (mounted) setState(() {}); // atualiza a UI
+                        },
+
                       );
                     },
                   ),

@@ -63,7 +63,7 @@ class AnimalRepository {
     final pregnant = _firstInt(await _db.db.rawQuery(
         "SELECT COUNT(*) AS c FROM animals WHERE pregnant=1"));
     final underTreatment = _firstInt(await _db.db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE status='Tratamento'"));
+       "SELECT COUNT(*) AS c FROM animals WHERE status='Em tratamento'"));
 
     final avgRow = await _db.db.rawQuery('SELECT AVG(weight) AS w FROM animals');
     final avg = avgRow.isNotEmpty ? avgRow.first['w'] : null;
