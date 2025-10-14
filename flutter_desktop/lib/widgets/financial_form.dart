@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/financial_service.dart';
+import '../services/animal_service.dart';
 import '../models/financial_account.dart';
+import '../models/animal.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:provider/provider.dart';
 
 class FinancialFormScreen extends StatefulWidget {
   final String type;
@@ -31,6 +34,8 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   String? _selectedCategory;
   String? _selectedPaymentMethod;
   DateTime? _selectedDueDate;
+  String? _selectedAnimalId;
+  List<Animal> _animals = [];
 
   final List<String> _expenseCategories = [
     'Alimentação',
@@ -67,6 +72,14 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   void initState() {
     super.initState();
     _initializeControllers();
+    _loadAnimals();
+  }
+
+  Future<void> _loadAnimals() async {
+    final animalService = context.read<AnimalService>();
+    setState(() {
+      _animals = animalService.animals;
+    });
   }
 
   void _initializeControllers() {
@@ -85,6 +98,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
     _selectedCategory = account?.category;
     _selectedPaymentMethod = account?.paymentMethod;
     _selectedDueDate = account?.dueDate;
+    _selectedAnimalId = account?.animalId;
   }
 
   @override
@@ -125,6 +139,14 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       return;
     }
 
+    // Validar animal se for venda de animais
+    if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais' && _selectedAnimalId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione o animal para a venda')),
+      );
+      return;
+    }
+
     final amount = double.tryParse(_amountController.text.replaceAll(',', '.'));
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,6 +164,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       dueDate: _selectedDueDate!,
       status: widget.account?.status ?? 'Pendente',
       paymentMethod: _selectedPaymentMethod,
+      animalId: _selectedAnimalId,
       supplierCustomer: _supplierCustomerController.text.isEmpty ? null : _supplierCustomerController.text,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
       createdAt: widget.account?.createdAt ?? DateTime.now(),
@@ -207,11 +230,38 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               onChanged: (value) {
                 setState(() {
                   _selectedCategory = value;
+                  if (value != 'Venda de Animais') {
+                    _selectedAnimalId = null;
+                  }
                 });
               },
               validator: (value) => value == null ? 'Selecione uma categoria' : null,
             ),
             const SizedBox(height: 16),
+
+            if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais')
+              DropdownButtonFormField<String>(
+                value: _selectedAnimalId,
+                decoration: const InputDecoration(
+                  labelText: 'Animal *',
+                  border: OutlineInputBorder(),
+                  helperText: 'O status do animal será alterado para "Vendido"',
+                ),
+                items: _animals.map((animal) {
+                  return DropdownMenuItem(
+                    value: animal.id,
+                    child: Text('${animal.code} - ${animal.name}'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedAnimalId = value;
+                  });
+                },
+                validator: (value) => value == null ? 'Selecione o animal' : null,
+              ),
+            if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais')
+              const SizedBox(height: 16),
 
             TextFormField(
               controller: _descriptionController,

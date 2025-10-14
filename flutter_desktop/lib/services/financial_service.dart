@@ -222,7 +222,6 @@ class FinancialService {
         animalId: account.animalId,
         supplierCustomer: account.supplierCustomer,
         notes: account.notes,
-        costCenter: account.costCenter,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
       );
@@ -270,7 +269,6 @@ class FinancialService {
             animalId: recurring.animalId,
             supplierCustomer: recurring.supplierCustomer,
             notes: recurring.notes,
-            costCenter: recurring.costCenter,
             parentId: recurring.id,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
