@@ -7,10 +7,10 @@ class FinancialDashboardScreen extends StatefulWidget {
   const FinancialDashboardScreen({super.key});
 
   @override
-  State<FinancialDashboardScreen> createState() => _FinancialDashboardScreenState();
+  FinancialDashboardScreenState createState() => FinancialDashboardScreenState();
 }
 
-class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
+class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
   Map<String, dynamic> stats = {};
   List<FinancialAccount> upcomingAccounts = [];
   bool isLoading = true;
@@ -21,15 +21,19 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
     _loadData();
   }
 
+  /// Exposto para ser chamado via GlobalKey<FinancialDashboardScreenState>()
+  Future<void> reload() => _loadData();
+
   Future<void> _loadData() async {
     setState(() => isLoading = true);
-    
+
     await FinancialService.generateRecurringAccounts();
     await FinancialService.updateOverdueStatus();
-    
+
     final dashboardStats = await FinancialService.getDashboardStats();
     final upcoming = await FinancialService.getUpcomingAccounts(7);
-    
+
+    if (!mounted) return;
     setState(() {
       stats = dashboardStats;
       upcomingAccounts = upcoming;
@@ -54,6 +58,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
     return RefreshIndicator(
       onRefresh: _loadData,
       child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,16 +69,18 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Saldo do Mês',
-                    stats['balance'] ?? 0.0,
+                    (stats['balance'] as num?)?.toDouble() ?? 0.0,
                     Icons.account_balance_wallet,
-                    (stats['balance'] ?? 0.0) >= 0 ? Colors.green : Colors.red,
+                    ((stats['balance'] as num?)?.toDouble() ?? 0.0) >= 0
+                        ? Colors.green
+                        : Colors.red,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
                     'A Vencer (7 dias)',
-                    stats['totalUpcoming'] ?? 0.0,
+                    (stats['totalUpcoming'] as num?)?.toDouble() ?? 0.0,
                     Icons.schedule,
                     Colors.orange,
                   ),
@@ -86,7 +93,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Vencidas',
-                    stats['totalOverdue'] ?? 0.0,
+                    (stats['totalOverdue'] as num?)?.toDouble() ?? 0.0,
                     Icons.warning,
                     Colors.red,
                   ),
@@ -94,8 +101,9 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStatCard(
+                    // agora corresponde a “a receber pendente”
                     'Total Pendente',
-                    stats['totalPending'] ?? 0.0,
+                    (stats['totalPending'] as num?)?.toDouble() ?? 0.0,
                     Icons.pending,
                     Colors.blue,
                   ),
@@ -110,7 +118,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Receitas do Mês',
-                    stats['totalRevenue'] ?? 0.0,
+                    (stats['totalRevenue'] as num?)?.toDouble() ?? 0.0,
                     Icons.arrow_upward,
                     Colors.green,
                   ),
@@ -119,7 +127,7 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                 Expanded(
                   child: _buildStatCard(
                     'Despesas do Mês',
-                    stats['totalExpense'] ?? 0.0,
+                    (stats['totalExpense'] as num?)?.toDouble() ?? 0.0,
                     Icons.arrow_downward,
                     Colors.red,
                   ),
@@ -132,11 +140,11 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
             Text(
               'Próximas Contas (7 dias)',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
             const SizedBox(height: 12),
-            
+
             if (upcomingAccounts.isEmpty)
               Card(
                 child: Padding(
@@ -145,66 +153,76 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                     child: Text(
                       'Nenhuma conta a vencer nos próximos 7 dias',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey,
-                      ),
+                            color: Colors.grey,
+                          ),
                     ),
                   ),
                 ),
               )
             else
-              ...upcomingAccounts.map((account) => Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: account.type == 'receita' 
-                      ? Colors.green.withOpacity(0.2)
-                      : Colors.red.withOpacity(0.2),
-                    child: Icon(
-                      account.type == 'receita' 
-                        ? Icons.arrow_upward
-                        : Icons.arrow_downward,
-                      color: account.type == 'receita' ? Colors.green : Colors.red,
-                    ),
-                  ),
-                  title: Text(account.description ?? account.category),
-                  subtitle: Text(
-                    '${_formatDate(account.dueDate)} • ${account.category}',
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _formatCurrency(account.amount),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: account.type == 'receita' ? Colors.green : Colors.red,
-                        ),
+              ...upcomingAccounts.map(
+                (account) => Card(
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: account.type == 'receita'
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.red.withOpacity(0.2),
+                      child: Icon(
+                        account.type == 'receita'
+                            ? Icons.arrow_upward
+                            : Icons.arrow_downward,
+                        color: account.type == 'receita'
+                            ? Colors.green
+                            : Colors.red,
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(account.status).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          account.status,
+                    ),
+                    title: Text(account.description ?? account.category),
+                    subtitle: Text(
+                      '${_formatDate(account.dueDate)} • ${account.category}',
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatCurrency(account.amount),
                           style: TextStyle(
-                            fontSize: 11,
-                            color: _getStatusColor(account.status),
+                            fontWeight: FontWeight.bold,
+                            color: account.type == 'receita'
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color:
+                                _getStatusColor(account.status).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            account.status,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _getStatusColor(account.status),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, double value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, double value, IconData icon, Color color) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -230,9 +248,9 @@ class _FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
             Text(
               _formatCurrency(value),
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
             ),
           ],
         ),
