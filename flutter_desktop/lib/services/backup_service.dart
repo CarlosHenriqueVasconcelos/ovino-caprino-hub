@@ -16,7 +16,6 @@ class BackupService {
 
   /// Ordem respeitando FKs (pais antes dos filhos)
   static const List<String> _order = [
-    'cost_centers',
     'animals',
     'animal_weights',
     'breeding_records',
@@ -25,7 +24,6 @@ class BackupService {
     'notes',
     'financial_records',
     'financial_accounts',
-    'budgets',
     'reports',
     'push_tokens',
   ];
@@ -172,8 +170,7 @@ class BackupService {
       // INTEGER 0/1 → bool (campos boolean do Supabase)
       if ((table == 'animals' && k == 'pregnant') ||
           (table == 'notes' && k == 'is_read') ||
-          (table == 'financial_accounts' && k == 'is_recurring') ||
-          (table == 'cost_centers' && k == 'active')) {
+          (table == 'financial_accounts' && k == 'is_recurring')) {
         if (v is int) {
           put(k, v != 0);
           return;

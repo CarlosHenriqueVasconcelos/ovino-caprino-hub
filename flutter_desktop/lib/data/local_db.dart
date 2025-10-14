@@ -1,16 +1,11 @@
 // lib/data/local_db.dart
-// SQLite local espelhado do schema do Supabase (Out/2025)
-// Mapeamentos:
-// - uuid → TEXT
-// - timestamp with time zone → TEXT (ISO8601, default datetime('now'))
-// - date → TEXT (YYYY-MM-DD)
-// - numeric → REAL
-// - boolean → INTEGER (0/1)
+// SQLite local espelhado do Supabase (Out/2025) — versão sem Cost Centers & Budgets
+// Mapas de tipos: uuid→TEXT | timestamptz→TEXT(ISO8601) | date→TEXT(YYYY-MM-DD) | numeric→REAL | boolean→INTEGER(0/1)
 //
 // Observações:
 // - Chaves estrangeiras habilitadas (PRAGMA foreign_keys = ON)
-// - Triggers de updated_at para todas as tabelas que possuem a coluna updated_at no Supabase
-// - Sem migrações: apague o arquivo .db para recriar caso já exista.
+// - Triggers de updated_at (com cláusula WHEN para evitar recursão)
+// - Sem migrações: apague o .db para recriar caso já exista.
 
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -39,7 +34,7 @@ class AppDatabase {
     final db = await databaseFactory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1, // Se mudar o schema, apague o .db para recriar
+        version: 1, // mantenha 1; apague o .db para recriar sempre que mudar o schema
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
       ),
@@ -49,13 +44,14 @@ class AppDatabase {
 
   static Future<String> dbPath() => _resolveDbPath();
 
-  /// Criação do schema 1:1 com o Supabase (tipos mapeados para SQLite)
+  /// Criação do schema 1:1 com o Supabase (tipos mapeados p/ SQLite),
+  /// já **sem** budgets, cost_centers e cost_center_id.
   static Future<void> _createAll(Database db) async {
     // =====================
     // ====== TABLES =======
     // =====================
 
-    // ======== animals ========
+    // -------- animals
     await db.execute('''
       CREATE TABLE IF NOT EXISTS animals (
         id TEXT PRIMARY KEY,
@@ -79,15 +75,14 @@ class AppDatabase {
         birth_weight REAL,
         weight_30_days REAL,
         weight_60_days REAL,
-        weight_90_days REAL,
-        UNIQUE(name, name_color)
+        weight_90_days REAL
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
 
-    // ======== animal_weights ========
+    // -------- animal_weights
     await db.execute('''
       CREATE TABLE IF NOT EXISTS animal_weights (
         id TEXT PRIMARY KEY,
@@ -101,7 +96,7 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
 
-    // ======== breeding_records ========
+    // -------- breeding_records
     await db.execute('''
       CREATE TABLE IF NOT EXISTS breeding_records (
         id TEXT PRIMARY KEY,
@@ -127,39 +122,7 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
 
-    // ======== budgets ========
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS budgets (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL,
-        amount REAL NOT NULL,
-        period TEXT NOT NULL CHECK (period IN ('Mensal','Trimestral','Anual')),
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL,
-        cost_center_id TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (cost_center_id) REFERENCES cost_centers(id)
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_budgets_cost_center ON budgets(cost_center_id);');
-
-    // ======== cost_centers ========
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS cost_centers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        description TEXT,
-        color TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        active INTEGER DEFAULT 1
-      );
-    ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_cost_centers_active ON cost_centers(active);');
-
-    // ======== financial_accounts ========
+    // -------- financial_accounts (SEM cost_center_id)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS financial_accounts (
         id TEXT PRIMARY KEY,
@@ -180,12 +143,10 @@ class AppDatabase {
         is_recurring INTEGER DEFAULT 0,
         recurrence_frequency TEXT CHECK (recurrence_frequency IN ('Diária','Semanal','Mensal','Anual')),
         recurrence_end_date TEXT,
-        cost_center_id TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (parent_id)     REFERENCES financial_accounts(id),
-        FOREIGN KEY (cost_center_id) REFERENCES cost_centers(id),
-        FOREIGN KEY (animal_id)     REFERENCES animals(id)
+        FOREIGN KEY (parent_id) REFERENCES financial_accounts(id),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_due_date ON financial_accounts(due_date);');
@@ -193,11 +154,10 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_type ON financial_accounts(type);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_category ON financial_accounts(category);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_animal_id ON financial_accounts(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_cost_center ON financial_accounts(cost_center_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_parent_id ON financial_accounts(parent_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_is_recurring ON financial_accounts(is_recurring);');
 
-    // ======== financial_records ========
+    // -------- financial_records
     await db.execute('''
       CREATE TABLE IF NOT EXISTS financial_records (
         id TEXT PRIMARY KEY,
@@ -214,7 +174,7 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
 
-    // ======== medications ========
+    // -------- medications
     await db.execute('''
       CREATE TABLE IF NOT EXISTS medications (
         id TEXT PRIMARY KEY,
@@ -235,7 +195,7 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
 
-    // ======== notes ========
+    // -------- notes
     await db.execute('''
       CREATE TABLE IF NOT EXISTS notes (
         id TEXT PRIMARY KEY,
@@ -254,7 +214,7 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
 
-    // ======== reports ========
+    // -------- reports
     await db.execute('''
       CREATE TABLE IF NOT EXISTS reports (
         id TEXT PRIMARY KEY,
@@ -266,18 +226,18 @@ class AppDatabase {
       );
     ''');
 
-    // ======== push_tokens ========
+    // -------- push_tokens
     await db.execute('''
       CREATE TABLE IF NOT EXISTS push_tokens (
         id TEXT PRIMARY KEY,
         token TEXT NOT NULL UNIQUE,
         platform TEXT,
-        device_info TEXT NOT NULL DEFAULT '{}',
+        device_info TEXT DEFAULT '{}',
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
 
-    // ======== vaccinations ========
+    // -------- vaccinations
     await db.execute('''
       CREATE TABLE IF NOT EXISTS vaccinations (
         id TEXT PRIMARY KEY,
@@ -300,27 +260,27 @@ class AppDatabase {
     // ====== TRIGGERS ==========
     // ==========================
     Future<void> _makeUpdatedAtTrigger(String table) async {
+      // Evita recursão: só roda se updated_at não foi alterado pelo UPDATE original.
       await db.execute('''
         CREATE TRIGGER IF NOT EXISTS ${table}_updated_at
         AFTER UPDATE ON $table
         FOR EACH ROW
+        WHEN NEW.updated_at = OLD.updated_at
         BEGIN
           UPDATE $table SET updated_at = datetime('now') WHERE id = OLD.id;
         END;
-      ''' );
+      ''');
     }
 
     for (final tbl in [
       'animals',
       'animal_weights',
       'breeding_records',
-      'budgets',
       'financial_accounts',
       'financial_records',
       'medications',
       'notes',
       'vaccinations',
-      // Não criar para cost_centers, push_tokens, reports (não possuem updated_at no Supabase)
     ]) {
       await _makeUpdatedAtTrigger(tbl);
     }

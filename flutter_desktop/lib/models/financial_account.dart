@@ -14,14 +14,13 @@ class FinancialAccount {
   final String? animalId;
   final String? supplierCustomer;
   final String? notes;
-  final String? costCenter;
   final bool isRecurring;
-  final String? recurrenceFrequency; // 'Mensal', 'Semanal', 'Anual'
+  final String? recurrenceFrequency; // 'Diária','Semanal','Mensal','Anual'
   final DateTime? recurrenceEndDate;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  FinancialAccount({
+  const FinancialAccount({
     required this.id,
     required this.type,
     required this.category,
@@ -37,7 +36,6 @@ class FinancialAccount {
     this.animalId,
     this.supplierCustomer,
     this.notes,
-    this.costCenter,
     this.isRecurring = false,
     this.recurrenceFrequency,
     this.recurrenceEndDate,
@@ -45,15 +43,15 @@ class FinancialAccount {
     required this.updatedAt,
   });
 
-  Map<String, dynamic> toMap() {
+  Map<String, Object?> toMap() {
     return {
       'id': id,
       'type': type,
       'category': category,
       'description': description,
       'amount': amount,
-      'due_date': dueDate.toIso8601String().split('T')[0],
-      'payment_date': paymentDate?.toIso8601String().split('T')[0],
+      'due_date': _date(dueDate),
+      'payment_date': _date(paymentDate),
       'status': status,
       'payment_method': paymentMethod,
       'installments': installments,
@@ -62,38 +60,44 @@ class FinancialAccount {
       'animal_id': animalId,
       'supplier_customer': supplierCustomer,
       'notes': notes,
-      'cost_center': costCenter,
-      'is_recurring': isRecurring ? 1 : 0,
+      'is_recurring': isRecurring ? 1 : 0, // bool -> INTEGER
       'recurrence_frequency': recurrenceFrequency,
-      'recurrence_end_date': recurrenceEndDate?.toIso8601String().split('T')[0],
+      'recurrence_end_date': _date(recurrenceEndDate),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
   factory FinancialAccount.fromMap(Map<String, dynamic> map) {
+    String? _str(dynamic v) => v == null ? null : v as String;
+    double _toDouble(dynamic v) =>
+        v is num ? v.toDouble() : double.parse(v.toString());
+    int? _toInt(dynamic v) =>
+        v == null ? null : (v is num ? v.toInt() : int.parse(v.toString()));
+    bool _toBool(dynamic v) =>
+        (v is int ? v == 1 : (v is bool ? v : v.toString() == '1'));
+
     return FinancialAccount(
-      id: map['id'],
-      type: map['type'],
-      category: map['category'],
-      description: map['description'],
-      amount: map['amount'],
-      dueDate: DateTime.parse(map['due_date']),
-      paymentDate: map['payment_date'] != null ? DateTime.parse(map['payment_date']) : null,
-      status: map['status'],
-      paymentMethod: map['payment_method'],
-      installments: map['installments'],
-      installmentNumber: map['installment_number'],
-      parentId: map['parent_id'],
-      animalId: map['animal_id'],
-      supplierCustomer: map['supplier_customer'],
-      notes: map['notes'],
-      costCenter: map['cost_center'],
-      isRecurring: map['is_recurring'] == 1,
-      recurrenceFrequency: map['recurrence_frequency'],
-      recurrenceEndDate: map['recurrence_end_date'] != null ? DateTime.parse(map['recurrence_end_date']) : null,
-      createdAt: DateTime.parse(map['created_at']),
-      updatedAt: DateTime.parse(map['updated_at']),
+      id: map['id'] as String,
+      type: map['type'] as String,
+      category: map['category'] as String,
+      description: _str(map['description']),
+      amount: _toDouble(map['amount']),
+      dueDate: _parseDate(map['due_date'])!,
+      paymentDate: _parseDate(map['payment_date']),
+      status: map['status'] as String,
+      paymentMethod: _str(map['payment_method']),
+      installments: _toInt(map['installments']),
+      installmentNumber: _toInt(map['installment_number']),
+      parentId: _str(map['parent_id']),
+      animalId: _str(map['animal_id']),
+      supplierCustomer: _str(map['supplier_customer']),
+      notes: _str(map['notes']),
+      isRecurring: _toBool(map['is_recurring'] ?? 0),
+      recurrenceFrequency: _str(map['recurrence_frequency']),
+      recurrenceEndDate: _parseDate(map['recurrence_end_date']),
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
     );
   }
 
@@ -113,7 +117,6 @@ class FinancialAccount {
     String? animalId,
     String? supplierCustomer,
     String? notes,
-    String? costCenter,
     bool? isRecurring,
     String? recurrenceFrequency,
     DateTime? recurrenceEndDate,
@@ -136,7 +139,6 @@ class FinancialAccount {
       animalId: animalId ?? this.animalId,
       supplierCustomer: supplierCustomer ?? this.supplierCustomer,
       notes: notes ?? this.notes,
-      costCenter: costCenter ?? this.costCenter,
       isRecurring: isRecurring ?? this.isRecurring,
       recurrenceFrequency: recurrenceFrequency ?? this.recurrenceFrequency,
       recurrenceEndDate: recurrenceEndDate ?? this.recurrenceEndDate,
@@ -144,92 +146,14 @@ class FinancialAccount {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-}
 
-class CostCenter {
-  final String id;
-  final String name;
-  final String? description;
-  final bool active;
-  final DateTime createdAt;
+  static String? _date(DateTime? d) =>
+      d == null ? null : d.toIso8601String().split('T')[0];
 
-  CostCenter({
-    required this.id,
-    required this.name,
-    this.description,
-    this.active = true,
-    required this.createdAt,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'active': active ? 1 : 0,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-
-  factory CostCenter.fromMap(Map<String, dynamic> map) {
-    return CostCenter(
-      id: map['id'],
-      name: map['name'],
-      description: map['description'],
-      active: map['active'] == 1,
-      createdAt: DateTime.parse(map['created_at']),
-    );
-  }
-}
-
-class Budget {
-  final String id;
-  final String category;
-  final String? costCenter;
-  final double amount;
-  final String period; // 'Mensal', 'Trimestral', 'Anual'
-  final int year;
-  final int? month;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  Budget({
-    required this.id,
-    required this.category,
-    this.costCenter,
-    required this.amount,
-    required this.period,
-    required this.year,
-    this.month,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'category': category,
-      'cost_center': costCenter,
-      'amount': amount,
-      'period': period,
-      'year': year,
-      'month': month,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-    };
-  }
-
-  factory Budget.fromMap(Map<String, dynamic> map) {
-    return Budget(
-      id: map['id'],
-      category: map['category'],
-      costCenter: map['cost_center'],
-      amount: map['amount'],
-      period: map['period'],
-      year: map['year'],
-      month: map['month'],
-      createdAt: DateTime.parse(map['created_at']),
-      updatedAt: DateTime.parse(map['updated_at']),
-    );
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    final s = v is String ? v : v.toString();
+    if (s.length == 10 && s[4] == '-' && s[7] == '-') return DateTime.parse(s);
+    return DateTime.parse(s);
   }
 }
