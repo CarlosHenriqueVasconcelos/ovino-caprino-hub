@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'financial_dashboard_screen.dart';
 import 'financial_accounts_payable.dart';
 import 'financial_accounts_receivable.dart';
-import 'financial_cost_centers.dart';
-import 'financial_budgets.dart';
 import 'financial_recurring.dart';
 import 'financial_cash_flow.dart';
 
@@ -23,7 +21,7 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 7, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -168,8 +166,6 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
             Tab(text: 'A Receber'),
             Tab(text: 'Recorrentes'),
             Tab(text: 'Fluxo de Caixa'),
-            Tab(text: 'Centros de Custo'),
-            Tab(text: 'Orçamentos'),
           ],
         ),
       ),
@@ -181,8 +177,6 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
           FinancialAccountsReceivable(onUpdate: _refreshDashboard),
           const FinancialRecurringScreen(),
           const FinancialCashFlowScreen(),
-          FinancialCostCentersScreen(onUpdate: _refreshDashboard),
-          FinancialBudgetsScreen(onUpdate: _refreshDashboard),
         ],
       ),
     );

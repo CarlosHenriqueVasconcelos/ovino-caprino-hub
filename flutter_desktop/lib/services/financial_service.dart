@@ -25,36 +25,9 @@ class FinancialService {
         animal_id TEXT,
         supplier_customer TEXT,
         notes TEXT,
-        cost_center TEXT,
         is_recurring INTEGER DEFAULT 0,
         recurrence_frequency TEXT,
         recurrence_end_date TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )
-    ''');
-
-    // Create cost_centers table
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS cost_centers (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        active INTEGER DEFAULT 1,
-        created_at TEXT NOT NULL
-      )
-    ''');
-
-    // Create budgets table
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS budgets (
-        id TEXT PRIMARY KEY,
-        category TEXT NOT NULL,
-        cost_center TEXT,
-        amount REAL NOT NULL,
-        period TEXT NOT NULL,
-        year INTEGER NOT NULL,
-        month INTEGER,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -324,80 +297,6 @@ class FinancialService {
     }
   }
 
-  // Cost Centers
-  static Future<List<CostCenter>> getAllCostCenters() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    final List<Map<String, dynamic>> maps = await db.query('cost_centers', where: 'active = ?', whereArgs: [1]);
-    return List.generate(maps.length, (i) => CostCenter.fromMap(maps[i]));
-  }
-
-  static Future<CostCenter> createCostCenter(CostCenter costCenter) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    await db.insert('cost_centers', costCenter.toMap());
-    return costCenter;
-  }
-
-  static Future<void> deleteCostCenter(String id) async {
-    final db = await DatabaseService.database;
-    await db.update('cost_centers', {'active': 0}, where: 'id = ?', whereArgs: [id]);
-  }
-
-  // Budgets
-  static Future<List<Budget>> getAllBudgets() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    final List<Map<String, dynamic>> maps = await db.query('budgets', orderBy: 'year DESC, month DESC');
-    return List.generate(maps.length, (i) => Budget.fromMap(maps[i]));
-  }
-
-  static Future<Budget> createBudget(Budget budget) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    await db.insert('budgets', budget.toMap());
-    return budget;
-  }
-
-  static Future<void> updateBudget(Budget budget) async {
-    final db = await DatabaseService.database;
-    await db.update('budgets', budget.toMap(), where: 'id = ?', whereArgs: [budget.id]);
-  }
-
-  static Future<void> deleteBudget(String id) async {
-    final db = await DatabaseService.database;
-    await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
-  }
-
-  static Future<Map<String, dynamic>> getBudgetAnalysis(String category, int year, int? month) async {
-    final db = await DatabaseService.database;
-    
-    String dateCondition;
-    List<dynamic> dateArgs;
-    
-    if (month != null) {
-      final firstDay = DateTime(year, month, 1);
-      final lastDay = DateTime(year, month + 1, 0);
-      dateCondition = 'date(payment_date) BETWEEN date(?) AND date(?)';
-      dateArgs = [firstDay.toIso8601String().split('T')[0], lastDay.toIso8601String().split('T')[0]];
-    } else {
-      final firstDay = DateTime(year, 1, 1);
-      final lastDay = DateTime(year, 12, 31);
-      dateCondition = 'date(payment_date) BETWEEN date(?) AND date(?)';
-      dateArgs = [firstDay.toIso8601String().split('T')[0], lastDay.toIso8601String().split('T')[0]];
-    }
-
-    final result = await db.rawQuery(
-      'SELECT SUM(amount) as spent FROM financial_accounts WHERE category = ? AND status = ? AND $dateCondition',
-      [category, 'Pago', ...dateArgs],
-    );
-
-    final spent = (result.first['spent'] as num?)?.toDouble() ?? 0.0;
-
-    return {
-      'spent': spent,
-    };
-  }
 
   // Cash Flow Projection
   static Future<List<Map<String, dynamic>>> getCashFlowProjection(int months) async {

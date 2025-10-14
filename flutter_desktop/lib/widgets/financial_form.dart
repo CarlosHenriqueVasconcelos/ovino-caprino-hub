@@ -30,9 +30,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
 
   String? _selectedCategory;
   String? _selectedPaymentMethod;
-  String? _selectedCostCenter;
   DateTime? _selectedDueDate;
-  List<CostCenter> _costCenters = [];
 
   final List<String> _expenseCategories = [
     'Alimentação',
@@ -69,7 +67,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   void initState() {
     super.initState();
     _initializeControllers();
-    _loadCostCenters();
   }
 
   void _initializeControllers() {
@@ -87,15 +84,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
 
     _selectedCategory = account?.category;
     _selectedPaymentMethod = account?.paymentMethod;
-    _selectedCostCenter = account?.costCenter;
     _selectedDueDate = account?.dueDate;
-  }
-
-  Future<void> _loadCostCenters() async {
-    final centers = await FinancialService.getAllCostCenters();
-    setState(() {
-      _costCenters = centers;
-    });
   }
 
   @override
@@ -155,7 +144,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       paymentMethod: _selectedPaymentMethod,
       supplierCustomer: _supplierCustomerController.text.isEmpty ? null : _supplierCustomerController.text,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
-      costCenter: _selectedCostCenter,
       createdAt: widget.account?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -293,24 +281,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            if (_costCenters.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: _selectedCostCenter,
-                decoration: const InputDecoration(
-                  labelText: 'Centro de Custo',
-                  border: OutlineInputBorder(),
-                ),
-                items: _costCenters.map((center) {
-                  return DropdownMenuItem(value: center.id, child: Text(center.name));
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCostCenter = value;
-                  });
-                },
-              ),
-            if (_costCenters.isNotEmpty) const SizedBox(height: 16),
 
             TextFormField(
               controller: _notesController,
