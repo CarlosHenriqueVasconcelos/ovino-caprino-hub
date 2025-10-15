@@ -43,6 +43,50 @@ class SupabaseService {
     await _client.from('vaccinations').insert(vaccination);
   }
 
+  static Future<void> updateVaccination(String id, Map<String, dynamic> updates) async {
+    await _client.from('vaccinations').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteVaccination(String id) async {
+    await _client.from('vaccinations').delete().eq('id', id);
+  }
+
+  // -------------------- Medicamentos --------------------
+  static Future<List<Map<String, dynamic>>> getMedications() async {
+    final response = await _client.from('medications').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createMedication(Map<String, dynamic> medication) async {
+    await _client.from('medications').insert(medication);
+  }
+
+  static Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
+    await _client.from('medications').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteMedication(String id) async {
+    await _client.from('medications').delete().eq('id', id);
+  }
+
+  // -------------------- Pesos dos Animais --------------------
+  static Future<List<Map<String, dynamic>>> getAnimalWeights() async {
+    final response = await _client.from('animal_weights').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createAnimalWeight(Map<String, dynamic> weight) async {
+    await _client.from('animal_weights').insert(weight);
+  }
+
+  static Future<void> updateAnimalWeight(String id, Map<String, dynamic> updates) async {
+    await _client.from('animal_weights').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteAnimalWeight(String id) async {
+    await _client.from('animal_weights').delete().eq('id', id);
+  }
+
   // -------------------- Reprodução --------------------
   static Future<List<Map<String, dynamic>>> getBreedingRecords() async {
     final response = await _client.from('breeding_records').select();
@@ -53,6 +97,14 @@ class SupabaseService {
     await _client.from('breeding_records').insert(record);
   }
 
+  static Future<void> updateBreedingRecord(String id, Map<String, dynamic> updates) async {
+    await _client.from('breeding_records').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteBreedingRecord(String id) async {
+    await _client.from('breeding_records').delete().eq('id', id);
+  }
+
   // -------------------- Anotações --------------------
   static Future<List<Map<String, dynamic>>> getNotes() async {
     final response = await _client.from('notes').select();
@@ -61,6 +113,14 @@ class SupabaseService {
 
   static Future<void> createNote(Map<String, dynamic> note) async {
     await _client.from('notes').insert(note);
+  }
+
+  static Future<void> updateNote(String id, Map<String, dynamic> updates) async {
+    await _client.from('notes').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteNote(String id) async {
+    await _client.from('notes').delete().eq('id', id);
   }
 
   // -------------------- Financeiro --------------------
@@ -74,9 +134,50 @@ class SupabaseService {
     await _client.from('financial_records').insert(record);
   }
 
+  static Future<void> updateFinancialRecord(String id, Map<String, dynamic> updates) async {
+    await _client.from('financial_records').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteFinancialRecord(String id) async {
+    await _client.from('financial_records').delete().eq('id', id);
+  }
+
+  // -------------------- Contas Financeiras --------------------
+  static Future<List<Map<String, dynamic>>> getFinancialAccounts() async {
+    final response = await _client.from('financial_accounts').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createFinancialAccount(Map<String, dynamic> account) async {
+    await _client.from('financial_accounts').insert(account);
+  }
+
+  static Future<void> updateFinancialAccount(String id, Map<String, dynamic> updates) async {
+    await _client.from('financial_accounts').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteFinancialAccount(String id) async {
+    await _client.from('financial_accounts').delete().eq('id', id);
+  }
+
   // -------------------- Relatórios --------------------
+  static Future<List<Map<String, dynamic>>> getReports() async {
+    final response = await _client.from('reports').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
   static Future<void> createReport(Map<String, dynamic> report) async {
     await _client.from('reports').insert(report);
+  }
+
+  // -------------------- Push Tokens --------------------
+  static Future<List<Map<String, dynamic>>> getPushTokens() async {
+    final response = await _client.from('push_tokens').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createPushToken(Map<String, dynamic> token) async {
+    await _client.from('push_tokens').insert(token);
   }
 
   // -------------------- Estatísticas --------------------
