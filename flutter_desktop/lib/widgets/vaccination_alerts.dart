@@ -40,7 +40,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       final adb = await AppDatabase.open();
       final db = adb.db;
 
-      // Vacinas agendadas (status = 'Agendada')
+      // VACINAS — mantém sua regra original (status = 'Agendada')
       final vacs = await db.rawQuery('''
         SELECT v.*, a.name AS animal_name, a.code AS animal_code
         FROM vaccinations v
@@ -50,37 +50,45 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         LIMIT 200
       ''');
 
-      // Medicações com next_date próximo (≤ 30 dias) e status 'Agendado'
-      // Tentamos com filtro de status (bancos já migrados); se falhar (coluna não existe),
-      // fazemos fallback sem o filtro de status.
-      List<Map<String, dynamic>> meds;
-      try {
-        meds = await db.rawQuery('''
-          SELECT m.*, a.name AS animal_name, a.code AS animal_code
-          FROM medications m
-          LEFT JOIN animals a ON a.id = m.animal_id
-          WHERE m.next_date IS NOT NULL
-            AND (m.status IS NULL OR m.status = 'Agendado')
-            AND date(m.next_date) <= date('now', '+30 day')
-          ORDER BY date(m.next_date) ASC
-          LIMIT 200
-        ''');
-      } catch (_) {
-        // Fallback para bancos sem a coluna "status"
-        meds = await db.rawQuery('''
-          SELECT m.*, a.name AS animal_name, a.code AS animal_code
-          FROM medications m
-          LEFT JOIN animals a ON a.id = m.animal_id
-          WHERE m.next_date IS NOT NULL
-            AND date(m.next_date) <= date('now', '+30 day')
-          ORDER BY date(m.next_date) ASC
-          LIMIT 200
-        ''');
+      // MEDICAÇÕES — usa a "data de compromisso" = COALESCE(date, next_date)
+      // Sem exigir coluna status; filtramos vencidos/próximos em Dart.
+      final medsRaw = await db.rawQuery('''
+        SELECT m.*, a.name AS animal_name, a.code AS animal_code
+        FROM medications m
+        LEFT JOIN animals a ON a.id = m.animal_id
+        ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+        LIMIT 500
+      ''');
+
+      // Filtra em Dart: só itens com data válida, até +30 dias,
+      // e que ainda NÃO estejam aplicados (se houver applied_date).
+      final today = DateTime.now();
+      final cut = DateTime(today.year, today.month, today.day).add(const Duration(days: 30));
+
+      DateTime? _parse(dynamic v) {
+        if (v == null) return null;
+        final s = v.toString().trim();
+        if (s.isEmpty) return null;
+        return DateTime.tryParse(s);
       }
+
+      bool _notApplied(Map<String, dynamic> m) {
+        final ad = _parse(m['applied_date']);
+        return ad == null; // se não existe a coluna, m['applied_date'] será null → consideramos não aplicado
+      }
+
+      List<Map<String, dynamic>> _onlyUpcomingMeds = medsRaw.where((m) {
+        final when = _parse(m['date']) ?? _parse(m['next_date']); // 👈 aqui a mudança
+        if (when == null) return false;
+        final day = DateTime(when.year, when.month, when.day);
+        if (day.isAfter(cut)) return false;
+        if (!_notApplied(m)) return false;
+        return true;
+      }).toList();
 
       setState(() {
         _vaccines = vacs;
-        _meds = meds;
+        _meds = _onlyUpcomingMeds;
 
         // Resetar páginas caso listas tenham mudado
         _vacPage = 0;
@@ -223,7 +231,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 (row) => _medTile(context, theme, row),
               ),
             ],
-            
+
             // Mensagem quando não há alertas
             if (_vaccines.isEmpty && _meds.isEmpty)
               Padding(
@@ -403,7 +411,6 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             ),
           ),
           const SizedBox(width: 12),
-          // ✅ Sem botão "Aplicar" aqui — apenas atalho para a aba de vacinas
           OutlinedButton.icon(
             onPressed: widget.onGoToVaccinations,
             icon: const Icon(Icons.open_in_new, size: 16),
@@ -420,16 +427,15 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     final animalCode = (row['animal_code'] ?? '').toString();
     final medName = (row['medication_name'] ?? '').toString();
 
-    final nextStr = (row['next_date'] ?? '').toString();
-    final nextDate = _parseDate(nextStr);
-    final days = _daysFromNow(nextDate);
+    // 👇 usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
+    final when = _parseDate(row['date']) ?? _parseDate(row['next_date']);
+    final days = _daysFromNow(when);
 
-    // Se existir 'status', respeitamos (Agendado, Aplicado, Cancelado)
     final status = (row['status'] ?? 'Agendado').toString();
 
-    final overdue = nextDate != null && days < 0;
+    final overdue = when != null && days < 0;
     final color = overdue ? theme.colorScheme.error : Colors.teal;
-    final labelDate = nextDate != null ? _formatDate(nextDate) : null;
+    final labelDate = when != null ? _formatDate(when) : null;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -500,9 +506,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
   // ---------- Helpers de data ----------
 
-  DateTime? _parseDate(String? s) {
-    if (s == null || s.isEmpty) return null;
+  DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
     try {
+      if (v is DateTime) return v;
+      final s = v.toString().trim();
+      if (s.isEmpty) return null;
       return DateTime.tryParse(s);
     } catch (_) {
       return null;
