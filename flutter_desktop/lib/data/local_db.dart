@@ -98,7 +98,6 @@ class AppDatabase {
 
     // -------- breeding_records
     await db.execute('''
-      
       CREATE TABLE IF NOT EXISTS breeding_records (
         id TEXT PRIMARY KEY,
         female_animal_id TEXT,
@@ -124,6 +123,8 @@ class AppDatabase {
 
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
+
+    // === Trigger: traduz stage -> status na inserção ===
     await db.execute('''
       CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_trg
       AFTER INSERT ON breeding_records
@@ -141,6 +142,7 @@ class AppDatabase {
       END;
     ''');
 
+    // === Trigger: traduz stage -> status no update ===
     await db.execute('''
       CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_upd_trg
       AFTER UPDATE OF stage ON breeding_records
@@ -158,6 +160,48 @@ class AppDatabase {
       END;
     ''');
 
+    // === NOVOS gatilhos: mantêm animals.pregnant/expected_delivery coerentes com o estágio ===
+    await db.execute('''
+      CREATE TRIGGER IF NOT EXISTS breeding_records_pregnancy_ins_trg
+      AFTER INSERT ON breeding_records
+      BEGIN
+        UPDATE animals
+        SET
+          pregnant = CASE NEW.stage
+            WHEN 'gestacao_confirmada' THEN 1
+            WHEN 'parto_realizado'     THEN 0
+            WHEN 'falhou'              THEN 0
+            ELSE pregnant
+          END,
+          expected_delivery = CASE
+            WHEN NEW.stage = 'gestacao_confirmada' THEN COALESCE(NEW.expected_birth, expected_delivery)
+            WHEN NEW.stage IN ('parto_realizado','falhou') THEN NULL
+            ELSE expected_delivery
+          END
+        WHERE id = NEW.female_animal_id;
+      END;
+    ''');
+
+    await db.execute('''
+      CREATE TRIGGER IF NOT EXISTS breeding_records_pregnancy_upd_trg
+      AFTER UPDATE OF stage, expected_birth ON breeding_records
+      BEGIN
+        UPDATE animals
+        SET
+          pregnant = CASE NEW.stage
+            WHEN 'gestacao_confirmada' THEN 1
+            WHEN 'parto_realizado'     THEN 0
+            WHEN 'falhou'              THEN 0
+            ELSE pregnant
+          END,
+          expected_delivery = CASE
+            WHEN NEW.stage = 'gestacao_confirmada' THEN COALESCE(NEW.expected_birth, expected_delivery)
+            WHEN NEW.stage IN ('parto_realizado','falhou') THEN NULL
+            ELSE expected_delivery
+          END
+        WHERE id = NEW.female_animal_id;
+      END;
+    ''');
 
     // -------- financial_accounts (SEM cost_center_id)
     await db.execute('''

@@ -1,3 +1,4 @@
+// lib/widgets/breeding_wizard_dialog.dart
 import 'package:flutter/material.dart';
 import '../models/animal.dart';
 import '../models/breeding_record.dart';
@@ -17,11 +18,11 @@ class BreedingWizardDialog extends StatefulWidget {
 
 class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   final _formKey = GlobalKey<FormState>();
-  
+
   List<Animal> _females = [];
   List<Animal> _males = [];
   bool _isLoading = true;
-  
+
   String? _selectedFemaleId;
   String? _selectedMaleId;
   DateTime _matingStartDate = DateTime.now();
@@ -71,17 +72,16 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     _formKey.currentState!.save();
 
     try {
-      final expectedBirth = _matingStartDate.add(const Duration(days: 210)); // 60 dias + 150 dias (5 meses)
-      
+      // ⚠️ IMPORTANTE:
+      // Não gravar expected_birth aqui. Ele será definido quando/SE a gestação for confirmada.
       await DatabaseService.createBreedingRecord({
         'female_animal_id': _selectedFemaleId,
         'male_animal_id': _selectedMaleId,
-        'breeding_date': _matingStartDate.toIso8601String(),
-        'mating_start_date': _matingStartDate.toIso8601String(),
-        'mating_end_date': _matingEndDate?.toIso8601String(),
-        'expected_birth': expectedBirth.toIso8601String(),
-        'stage': BreedingStage.encabritamento.value,
-        'status': 'Cobertura',
+        'breeding_date': _matingStartDate,
+        'mating_start_date': _matingStartDate,
+        'mating_end_date': _matingEndDate,
+        'stage': BreedingStage.encabritamento.value, // sempre começa em encabritamento
+        'status': 'Cobertura', // o trigger também ajusta isso, mas não faz mal enviar
         'notes': _notes.isNotEmpty ? _notes : null,
       });
 
@@ -141,7 +141,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                       const Divider(height: 32),
-                      
+
                       // Female Selection
                       DropdownButtonFormField<String>(
                         value: _selectedFemaleId,
@@ -160,7 +160,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         validator: (value) => value == null ? 'Selecione uma fêmea' : null,
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Male Selection
                       DropdownButtonFormField<String>(
                         value: _selectedMaleId,
@@ -179,7 +179,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         validator: (value) => value == null ? 'Selecione um macho' : null,
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Mating Start Date
                       ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -208,7 +208,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      
+
                       // Calculated End Date
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -245,7 +245,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
+
                       // Notes
                       TextFormField(
                         decoration: const InputDecoration(
@@ -257,7 +257,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         onSaved: (value) => _notes = value ?? '',
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Action Buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,

@@ -1,3 +1,5 @@
+// lib/services/breeding_service.dart
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'database_service.dart';
 import '../models/breeding_record.dart';
@@ -22,6 +24,41 @@ class BreedingEvent {
 }
 
 class BreedingService {
+  // ========================
+  // Helpers internos (NOVOS)
+  // ========================
+
+  static String _yyyyMmDd(DateTime d) => d.toIso8601String().substring(0, 10);
+
+  static String _uuidV4() {
+    final rnd = Random.secure();
+    final b = List<int>.generate(16, (_) => rnd.nextInt(256));
+    b[6] = (b[6] & 0x0f) | 0x40; // v4
+    b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122
+    String h(int x) => x.toRadixString(16).padLeft(2, '0');
+    return '${h(b[0])}${h(b[1])}${h(b[2])}${h(b[3])}-${h(b[4])}${h(b[5])}-${h(b[6])}${h(b[7])}-${h(b[8])}${h(b[9])}-${h(b[10])}${h(b[11])}${h(b[12])}${h(b[13])}${h(b[14])}${h(b[15])}';
+  }
+
+  /// Normaliza os estágios aceitando variações e acentos → snake_case usado no DB local.
+  static String _canonStage(String? raw) {
+    final t = (raw ?? '').trim().toLowerCase().replaceAll(' ', '_');
+    switch (t) {
+      case 'encabritamento':               return 'encabritamento';
+      case 'separacao':
+      case 'separação':                    return 'separacao';
+      case 'aguardando_ultrassom':
+      case 'aguardando-ultrassom':
+      case 'aguardando_ultra':
+      case 'aguardando ultrassom':         return 'aguardando_ultrassom';
+      case 'gestacao_confirmada':
+      case 'gestação_confirmada':          return 'gestacao_confirmada';
+      case 'parto_realizado':
+      case 'parto realizado':              return 'parto_realizado';
+      case 'falhou':                       return 'falhou';
+      default:                             return 'encabritamento';
+    }
+  }
+
   static DateTime? _toDate(dynamic v) {
     if (v == null) return null;
     if (v is DateTime) return v;
@@ -40,6 +77,161 @@ class BreedingService {
     }
     return DateTime.tryParse(s);
   }
+
+  // ===================================
+  // CRIAÇÃO / ATUALIZAÇÃO (NOVO BLOCO)
+  // ===================================
+
+  /// Cria um registro de reprodução em qualquer estágio.
+  /// Os triggers do SQLite cuidam de:
+  ///  - `status` (derivado de `stage`)
+  ///  - atualizar `animals.pregnant` / `animals.expected_delivery` quando apropriado
+  static Future<void> createRecord({
+    required String femaleId,
+    String? maleId,
+    String stage = 'encabritamento', // padrão botão "Nova cobertura"
+    DateTime? breedingDate,
+    DateTime? expectedBirth,
+    DateTime? matingStartDate,
+    DateTime? matingEndDate,
+    DateTime? separationDate,
+    DateTime? ultrasoundDate,
+    String? ultrasoundResult,
+    String? notes,
+  }) async {
+    final db = await DatabaseService.database;
+    final nowIso = DateTime.now().toIso8601String();
+
+    final data = <String, dynamic>{
+      'id': _uuidV4(),
+      'female_animal_id': femaleId,
+      'male_animal_id': maleId,
+      'breeding_date': _yyyyMmDd(breedingDate ?? DateTime.now()),
+      'expected_birth': expectedBirth != null ? _yyyyMmDd(expectedBirth) : null,
+      'mating_start_date': matingStartDate != null ? _yyyyMmDd(matingStartDate) : null,
+      'mating_end_date': matingEndDate != null ? _yyyyMmDd(matingEndDate) : null,
+      'separation_date': separationDate != null ? _yyyyMmDd(separationDate) : null,
+      'ultrasound_date': ultrasoundDate != null ? _yyyyMmDd(ultrasoundDate) : null,
+      'ultrasound_result': ultrasoundResult,
+      'stage': _canonStage(stage),
+      'notes': notes,
+      'created_at': nowIso,
+      'updated_at': nowIso,
+      // NÃO setamos 'status' manualmente; o trigger traduz a partir do stage
+    };
+
+    await db.insert('breeding_records', data);
+  }
+
+  /// Botão "Nova cobertura" → começa em encabritamento.
+  static Future<void> novaCobertura({
+    required String femaleId,
+    String? maleId,
+    DateTime? breedingDate,
+    DateTime? matingStartDate, // se quiser já marcar início do encabritamento
+    String? notes,
+  }) =>
+      createRecord(
+        femaleId: femaleId,
+        maleId: maleId,
+        stage: 'encabritamento',
+        breedingDate: breedingDate,
+        matingStartDate: matingStartDate ?? DateTime.now(),
+        notes: notes,
+      );
+
+  /// Botão para registrar quando já está na separação.
+  static Future<void> criarEmSeparacao({
+    required String femaleId,
+    String? maleId,
+    DateTime? breedingDate,
+    DateTime? separationDate,
+    String? notes,
+  }) =>
+      createRecord(
+        femaleId: femaleId,
+        maleId: maleId,
+        stage: 'separacao',
+        breedingDate: breedingDate,
+        separationDate: separationDate ?? DateTime.now(),
+        notes: notes,
+      );
+
+  /// Botão para registrar quando já está aguardando ultrassom.
+  static Future<void> criarAguardandoUltrassom({
+    required String femaleId,
+    String? maleId,
+    DateTime? breedingDate,
+    DateTime? separationDate,
+    DateTime? ultrasoundDate,
+    String? notes,
+  }) =>
+      createRecord(
+        femaleId: femaleId,
+        maleId: maleId,
+        stage: 'aguardando_ultrassom',
+        breedingDate: breedingDate,
+        separationDate: separationDate,
+        ultrasoundDate: ultrasoundDate,
+        notes: notes,
+      );
+
+  /// Atualiza um registro existente para "Gestação Confirmada".
+  /// Se você passar `expectedBirth`, também já preenche a data prevista (gatilho atualiza o animal).
+  static Future<void> confirmarGestacao({
+    required String breedingId,
+    DateTime? expectedBirth,
+  }) async {
+    final db = await DatabaseService.database;
+    await db.update(
+      'breeding_records',
+      {
+        'stage': 'gestacao_confirmada',
+        if (expectedBirth != null) 'expected_birth': _yyyyMmDd(expectedBirth),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [breedingId],
+    );
+  }
+
+  /// Atualiza para "Parto Realizado".
+  static Future<void> registrarParto({
+    required String breedingId,
+    DateTime? birthDate,
+  }) async {
+    final db = await DatabaseService.database;
+    await db.update(
+      'breeding_records',
+      {
+        'stage': 'parto_realizado',
+        if (birthDate != null) 'birth_date': _yyyyMmDd(birthDate),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [breedingId],
+    );
+  }
+
+  /// Atualiza para "Falhou".
+  static Future<void> marcarFalha({
+    required String breedingId,
+  }) async {
+    final db = await DatabaseService.database;
+    await db.update(
+      'breeding_records',
+      {
+        'stage': 'falhou',
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [breedingId],
+    );
+  }
+
+  // ======================================
+  // Consultas para Dashboard (SEU CÓDIGO)
+  // ======================================
 
   /// Eventos dos próximos [days] dias (e atrasados).
   static Future<List<BreedingEvent>> getUpcomingEvents(int days) async {
@@ -130,4 +322,5 @@ class BreedingService {
   }
 }
 
+/// Label amigável de estágio (se você usa em algum lugar da UI).
 String _toUiStageLabel(String? raw) => BreedingStage.fromString(raw).uiTabLabel;

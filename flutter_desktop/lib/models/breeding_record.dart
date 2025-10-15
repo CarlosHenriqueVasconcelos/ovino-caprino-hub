@@ -16,12 +16,12 @@ enum BreedingStage {
   // Rótulo para abas/contadores
   String get uiTabLabel {
     switch (this) {
-      case BreedingStage.encabritamento:     return 'Encabritamento';
-      case BreedingStage.separacao:          return 'Separação';
-      case BreedingStage.aguardandoUltrassom:return 'Aguardando Ultrassom';
-      case BreedingStage.gestacaoConfirmada: return 'Gestantes';
-      case BreedingStage.partoRealizado:     return 'Concluídos';
-      case BreedingStage.falhou:             return 'Falhados';
+      case BreedingStage.encabritamento:      return 'Encabritamento';
+      case BreedingStage.separacao:           return 'Separação';
+      case BreedingStage.aguardandoUltrassom: return 'Aguardando Ultrassom';
+      case BreedingStage.gestacaoConfirmada:  return 'Gestantes';
+      case BreedingStage.partoRealizado:      return 'Concluídos';
+      case BreedingStage.falhou:              return 'Falhados';
     }
   }
 
@@ -31,17 +31,19 @@ enum BreedingStage {
   // Status legível (se optar por manter status na tabela)
   String get statusLabel {
     switch (this) {
-      case BreedingStage.encabritamento:     return 'Cobertura';
-      case BreedingStage.separacao:          return 'Separação';
-      case BreedingStage.aguardandoUltrassom:return 'Aguardando Ultrassom';
-      case BreedingStage.gestacaoConfirmada: return 'Gestação Confirmada';
-      case BreedingStage.partoRealizado:     return 'Parto Realizado';
-      case BreedingStage.falhou:             return 'Falhou';
+      case BreedingStage.encabritamento:      return 'Cobertura';
+      case BreedingStage.separacao:           return 'Separação';
+      case BreedingStage.aguardandoUltrassom: return 'Aguardando Ultrassom';
+      case BreedingStage.gestacaoConfirmada:  return 'Gestação Confirmada';
+      case BreedingStage.partoRealizado:      return 'Parto Realizado';
+      case BreedingStage.falhou:              return 'Falhou';
     }
   }
 
+  /// Parser tolerante: aceita variações (maiúsc./minúsc., acentos, hífen, espaços, sinônimos).
+  /// Fallback SEMPRE para encabritamento (nunca para gestante).
   static BreedingStage fromString(String? raw) {
-    if (raw == null || raw.isEmpty) return BreedingStage.encabritamento;
+    if (raw == null || raw.trim().isEmpty) return BreedingStage.encabritamento;
 
     String deaccent(String s) {
       const map = {
@@ -66,25 +68,42 @@ enum BreedingStage {
       return sb.toString();
     }
 
-    final v = deaccent(raw).toLowerCase().trim().replaceAll('_', ' ');
+    final v = deaccent(raw)
+        .toLowerCase()
+        .trim()
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
 
+    // sinônimos comuns
+    if (v == 'cobertura') return BreedingStage.encabritamento;
     if (v == 'encabritamento') return BreedingStage.encabritamento;
-    if (v == 'separacao')      return BreedingStage.separacao;
-    if (v == 'aguardando ultrassom') return BreedingStage.aguardandoUltrassom;
+
+    if (v == 'separacao') return BreedingStage.separacao;
+
+    if (v == 'aguardando ultrassom' || v == 'aguardando ultrasom') {
+      return BreedingStage.aguardandoUltrassom;
+    }
+
     if (v == 'gestacao confirmada' || v == 'gestantes' || v == 'gestante') {
       return BreedingStage.gestacaoConfirmada;
     }
+
     if (v == 'parto realizado' || v == 'concluido' || v == 'concluidos') {
       return BreedingStage.partoRealizado;
     }
+
     if (v == 'falhou' || v == 'falhado' || v == 'falhados') {
       return BreedingStage.falhou;
     }
 
-    // tentativa de correspondência direta com valores do enum
+    // tentativa de correspondência direta com os valores de enum (snake_case)
+    final rawLc = raw.toLowerCase();
     for (final s in BreedingStage.values) {
-      if (s.value == raw) return s;
+      if (rawLc == s.value) return s;
     }
+
+    // fallback seguro
     return BreedingStage.encabritamento;
   }
 }
@@ -135,6 +154,7 @@ class BreedingRecord {
       return null;
     }
 
+    // LEIA SEMPRE O CAMPO 'stage' (não derive de 'status')
     final st = BreedingStage.fromString(map['stage'] as String?);
     final status = (map['status'] as String?) ?? st.statusLabel;
 
@@ -171,8 +191,8 @@ class BreedingRecord {
       'ultrasound_result': ultrasoundResult,
       'expected_birth': expectedBirth?.toIso8601String(),
       'birth_date': birthDate?.toIso8601String(),
-      'stage': stage.value,
-      'status': status,
+      'stage': stage.value,            // sempre snake_case
+      'status': status,                // opcional; trigger no DB também mantém coerência
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -247,14 +267,17 @@ class BreedingRecord {
         // se não há fim definido, permita ação (evita travar)
         if (matingEndDate == null) return true;
         return !now.isBefore(matingEndDate!);
+
       case BreedingStage.aguardandoUltrassom:
       case BreedingStage.separacao:
         // em geral a ação é registrar ultrassom; permita se existe data e já chegou
         if (ultrasoundDate == null) return true;
         return !now.isBefore(ultrasoundDate!);
+
       case BreedingStage.gestacaoConfirmada:
-        // ✅ liberar "Registrar Nascimento" a qualquer momento (pode adiantar)
+        // liberar "Registrar Nascimento" a qualquer momento (pode adiantar)
         return true;
+
       case BreedingStage.partoRealizado:
       case BreedingStage.falhou:
         return false;
