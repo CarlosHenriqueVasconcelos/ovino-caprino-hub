@@ -4,6 +4,7 @@ import '../models/breeding_record.dart';
 import '../services/database_service.dart';
 import 'breeding_wizard_dialog.dart';
 import 'breeding_stage_actions.dart';
+import 'breeding_import_dialog.dart';
 
 class BreedingManagementScreen extends StatefulWidget {
   const BreedingManagementScreen({super.key});
@@ -146,6 +147,19 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                         vertical: 16,
                       ),
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.playlist_add),
+                    tooltip: 'Adicionar registro existente',
+                    onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => const BreedingImportDialog(),
+                      );
+                      if (ok == true) {
+                        _loadData(); // seu método que recarrega os cards
+                      }
+                    },
                   ),
                 ],
               ),

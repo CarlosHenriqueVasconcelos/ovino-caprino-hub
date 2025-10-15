@@ -413,6 +413,12 @@ class _StatsOverview extends StatelessWidget {
           trend: 'Necessita atenção',
           color: Colors.orange,
         ),
+        StatsCard(
+          title: 'Fêmeas Gestantes',
+          value: '${stats.pregnant}',
+          icon: Icons.pregnant_woman,
+          color: Colors.pinkAccent,
+        ),
       ],
     );
   }

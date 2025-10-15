@@ -6,6 +6,11 @@ import 'package:path_provider/path_provider.dart';
 import '../models/animal.dart';
 import '../data/local_db.dart';
 
+// ✅ padronização de stage/status
+import '../models/breeding_record.dart';
+// ✅ garantir ID ao criar registros
+import 'package:uuid/uuid.dart';
+
 class DatabaseService {
   static AppDatabase? _app;
   static Future<ffi.Database> get database async {
@@ -63,7 +68,7 @@ class DatabaseService {
   static Future<void> updateVaccination(String id, Map<String, dynamic> updates) async {
     final db = await database;
     final v = Map<String, dynamic>.from(_withoutNulls(updates));
-    
+
     if (v.containsKey('scheduled_date')) {
       v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
     }
@@ -98,7 +103,7 @@ class DatabaseService {
   static Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
     final db = await database;
     final m = Map<String, dynamic>.from(_withoutNulls(updates));
-    
+
     if (m.containsKey('date')) {
       m['date'] = _toIsoDate(m['date']);
     }
@@ -123,46 +128,89 @@ class DatabaseService {
   static Future<void> createBreedingRecord(Map<String, dynamic> record) async {
     final db = await database;
     final r = Map<String, dynamic>.from(_withoutNulls(record));
-    r['breeding_date'] = _toIsoDate(r['breeding_date']);
+
+    r['breeding_date']     = _toIsoDate(r['breeding_date']);
     r['mating_start_date'] = _toIsoDate(r['mating_start_date']);
-    r['mating_end_date'] = _toIsoDate(r['mating_end_date']);
-    r['separation_date'] = _toIsoDate(r['separation_date']);
-    r['ultrasound_date'] = _toIsoDate(r['ultrasound_date']);
-    r['expected_birth'] = _toIsoDate(r['expected_birth']);
-    r['birth_date'] = _toIsoDate(r['birth_date']);
+    r['mating_end_date']   = _toIsoDate(r['mating_end_date']);
+    r['separation_date']   = _toIsoDate(r['separation_date']);
+    r['ultrasound_date']   = _toIsoDate(r['ultrasound_date']);
+    r['expected_birth']    = _toIsoDate(r['expected_birth']);
+    r['birth_date']        = _toIsoDate(r['birth_date']);
+
+    // 🔐 normaliza stage/status (aceita String ou enum)
+    if (r.containsKey('stage')) {
+      final s = r['stage'];
+      if (s is String) {
+        final st = BreedingStage.fromString(s);
+        r['stage']  = st.value;
+        r['status'] ??= st.statusLabel;
+      } else if (s is BreedingStage) {
+        r['stage']  = s.value;
+        r['status'] ??= s.statusLabel;
+      }
+    }
+
+    // ✅ padrão: previsão de separação = início + 60 dias (se não veio do formulário)
+    if ((r['mating_end_date'] == null || (r['mating_end_date'] as String).isEmpty) && r['breeding_date'] != null) {
+      r['mating_end_date'] = _addDaysYMD(r['breeding_date'] as String, 60);
+    }
+
+    r['id']         ??= const Uuid().v4(); // garante ID quando não vier
     r['created_at'] ??= _nowIso();
-    r['updated_at'] = _nowIso();
+    r['updated_at']  = _nowIso();
+
+    _applyBreedingInference(r);
     await db.insert('breeding_records', r);
+
+    // 🔄 sincroniza tabela animals
+    await _syncAnimalPregnancyFromRecord(r);
   }
 
   static Future<void> updateBreedingRecord(String id, Map<String, dynamic> updates) async {
     final db = await database;
     final r = Map<String, dynamic>.from(_withoutNulls(updates));
-    
-    if (r.containsKey('breeding_date')) {
-      r['breeding_date'] = _toIsoDate(r['breeding_date']);
-    }
-    if (r.containsKey('mating_start_date')) {
-      r['mating_start_date'] = _toIsoDate(r['mating_start_date']);
-    }
-    if (r.containsKey('mating_end_date')) {
-      r['mating_end_date'] = _toIsoDate(r['mating_end_date']);
-    }
-    if (r.containsKey('separation_date')) {
-      r['separation_date'] = _toIsoDate(r['separation_date']);
-    }
-    if (r.containsKey('ultrasound_date')) {
-      r['ultrasound_date'] = _toIsoDate(r['ultrasound_date']);
-    }
-    if (r.containsKey('expected_birth')) {
-      r['expected_birth'] = _toIsoDate(r['expected_birth']);
-    }
-    if (r.containsKey('birth_date')) {
-      r['birth_date'] = _toIsoDate(r['birth_date']);
-    }
+
+    if (r.containsKey('breeding_date'))     r['breeding_date']     = _toIsoDate(r['breeding_date']);
+    if (r.containsKey('mating_start_date')) r['mating_start_date'] = _toIsoDate(r['mating_start_date']);
+    if (r.containsKey('mating_end_date'))   r['mating_end_date']   = _toIsoDate(r['mating_end_date']);
+    if (r.containsKey('separation_date'))   r['separation_date']   = _toIsoDate(r['separation_date']);
+    if (r.containsKey('ultrasound_date'))   r['ultrasound_date']   = _toIsoDate(r['ultrasound_date']);
+    if (r.containsKey('expected_birth'))    r['expected_birth']    = _toIsoDate(r['expected_birth']);
+    if (r.containsKey('birth_date'))        r['birth_date']        = _toIsoDate(r['birth_date']);
+
     r['updated_at'] = _nowIso();
 
-    await db.update('breeding_records', r, where: 'id = ?', whereArgs: [id]);
+    // 🔐 normaliza stage/status (aceita String ou enum)
+    if (r.containsKey('stage')) {
+      final s = r['stage'];
+      if (s is String) {
+        final st = BreedingStage.fromString(s);
+        r['stage']  = st.value;
+        r['status'] ??= st.statusLabel;
+      } else if (s is BreedingStage) {
+        r['stage']  = s.value;
+        r['status'] ??= s.statusLabel;
+      }
+    }
+
+    _applyBreedingInference(r);
+    final rowsAffected = await db.update(
+      'breeding_records',
+      r,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (rowsAffected == 0) {
+      throw Exception('Nenhum registro atualizado: id=$id');
+    }
+
+    // 🔄 sincroniza tabela animals
+    if (r['female_animal_id'] == null) {
+      final current = await db.query('breeding_records', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (current.isNotEmpty) r['female_animal_id'] = current.first['female_animal_id'];
+    }
+    await _syncAnimalPregnancyFromRecord(r);
   }
 
   // ================== ANOTAÇÕES ==================
@@ -185,7 +233,7 @@ class DatabaseService {
   static Future<void> updateNote(String id, Map<String, dynamic> updates) async {
     final db = await database;
     final n = Map<String, dynamic>.from(_withoutNulls(updates));
-    
+
     if (n.containsKey('date')) {
       n['date'] = _toIsoDate(n['date']);
     }
@@ -332,5 +380,160 @@ class DatabaseService {
       }
     }
     return null;
+  }
+
+  /// Adiciona dias a uma data em formato 'YYYY-MM-DD' e devolve no mesmo formato.
+  static String? _addDaysYMD(String? ymd, int days) {
+    if (ymd == null || ymd.isEmpty) return null;
+    final dt = DateTime.tryParse(ymd);
+    if (dt == null) return null;
+    final base = DateTime(dt.year, dt.month, dt.day);
+    final r = base.add(Duration(days: days));
+    return r.toIso8601String().split('T').first;
+  }
+
+  // ranking de estágios (para promover quando necessário)
+  static int _stageRank(BreedingStage s) {
+    switch (s) {
+      case BreedingStage.encabritamento:      return 0;
+      case BreedingStage.separacao:           return 1;
+      case BreedingStage.aguardandoUltrassom: return 1;
+      case BreedingStage.gestacaoConfirmada:  return 2;
+      case BreedingStage.partoRealizado:      return 3;
+      case BreedingStage.falhou:              return 99; // terminal
+    }
+  }
+
+  // Normaliza valores e preenche previsões/estágio a partir das datas fornecidas.
+  static void _applyBreedingInference(Map<String, dynamic> r) {
+    String? iso(dynamic v) => _toIsoDate(v);
+
+    // normaliza datas recebidas
+    if (r.containsKey('breeding_date'))     r['breeding_date']     = iso(r['breeding_date']);
+    if (r.containsKey('mating_start_date')) r['mating_start_date'] = iso(r['mating_start_date']);
+    if (r.containsKey('mating_end_date'))   r['mating_end_date']   = iso(r['mating_end_date']);
+    if (r.containsKey('separation_date'))   r['separation_date']   = iso(r['separation_date']);
+    if (r.containsKey('ultrasound_date'))   r['ultrasound_date']   = iso(r['ultrasound_date']);
+    if (r.containsKey('expected_birth'))    r['expected_birth']    = iso(r['expected_birth']);
+    if (r.containsKey('birth_date'))        r['birth_date']        = iso(r['birth_date']);
+
+    // normaliza resultado do ultrassom
+    final rawRes = (r['ultrasound_result'] as String?)?.toLowerCase();
+    if (rawRes != null) {
+      if (rawRes.contains('confirmada')) {
+        r['ultrasound_result'] = 'Confirmada';
+      } else if (rawRes.contains('nao_confirmada') || rawRes.contains('não confirmada')) {
+        r['ultrasound_result'] = 'Nao_Confirmada';
+      }
+    }
+
+    // 'confirmation_date' → usamos como ultrasound_date quando não vier
+    if (r['confirmation_date'] != null &&
+        (r['ultrasound_date'] == null || (r['ultrasound_date'] as String).isEmpty)) {
+      r['ultrasound_date'] = iso(r['confirmation_date']);
+    }
+    r.remove('confirmation_date');
+
+    final breeding = r['breeding_date'] as String?;
+    final sep      = r['separation_date'] as String?;
+    final usg      = r['ultrasound_date'] as String?;
+    final birth    = r['birth_date'] as String?;
+    final exp      = r['expected_birth'] as String?;
+    final res      = (r['ultrasound_result'] as String?);
+
+    String? addDays(String? ymd, int d) => _addDaysYMD(ymd, d);
+
+    // 1) fim padrão do encabritamento (caso não informado)
+    if ((r['mating_end_date'] == null || (r['mating_end_date'] as String).isEmpty) && breeding != null) {
+      r['mating_end_date'] = addDays(breeding, 60);
+    }
+
+    // 2) se há separação, programe ultrassom = separação + 30 (se não veio)
+    if (sep != null && (usg == null || usg.isEmpty)) {
+      r['ultrasound_date'] = addDays(sep, 30);
+    }
+
+    // 3) se gestação confirmada, expected_birth = ultrasound_date + 150 (se não veio)
+    final isConfirmed = res != null && res.toLowerCase().contains('confirmada');
+    if (isConfirmed && (exp == null || exp.isEmpty)) {
+      final base = r['ultrasound_date'] as String? ?? _today();
+      r['expected_birth'] = addDays(base, 150);
+    }
+
+    // 4) sempre inferir estágio e PROMOVER se necessário
+    BreedingStage inferred;
+    if (birth != null && birth.isNotEmpty) {
+      inferred = BreedingStage.partoRealizado;
+    } else if (res == 'Nao_Confirmada') {
+      inferred = BreedingStage.falhou;
+    } else if (isConfirmed || (r['expected_birth'] as String?)?.isNotEmpty == true) {
+      inferred = BreedingStage.gestacaoConfirmada;
+    } else if ((r['ultrasound_date'] as String?)?.isNotEmpty == true || sep != null) {
+      inferred = BreedingStage.aguardandoUltrassom;
+    } else {
+      inferred = BreedingStage.encabritamento;
+    }
+
+    // estágio vindo do payload (se vier)
+    BreedingStage? provided;
+    final s = r['stage'];
+    if (s is String && s.isNotEmpty) provided = BreedingStage.fromString(s);
+    if (s is BreedingStage) provided = s;
+
+    // regra: terminal sempre respeita dados; senão, promover quando inferido > informado
+    if (provided == null) {
+      r['stage'] = inferred.value;
+    } else if (provided == BreedingStage.falhou || provided == BreedingStage.partoRealizado) {
+      r['stage'] = provided.value; // não mexe
+    } else if (_stageRank(inferred) > _stageRank(provided)) {
+      r['stage'] = inferred.value; // promove
+    } else {
+      r['stage'] = provided.value; // mantém
+    }
+
+    // status coerente
+    r['status'] ??= BreedingStage.fromString(r['stage'] as String?).statusLabel;
+  }
+
+  /// Sincroniza a fêmea do registro com a tabela animals.
+  static Future<void> _syncAnimalPregnancyFromRecord(Map<String, dynamic> r) async {
+    final db = await database;
+
+    final femaleId = (r['female_animal_id'] as String?)?.trim();
+    if (femaleId == null || femaleId.isEmpty) return;
+
+    final stage = BreedingStage.fromString(r['stage'] as String?);
+    final usgRes = (r['ultrasound_result'] as String?)?.toLowerCase();
+    final expectedBirth = r['expected_birth'] as String?;
+
+    if (stage == BreedingStage.gestacaoConfirmada || (usgRes != null && usgRes.contains('confirmada'))) {
+      await db.update('animals', {
+        'pregnant': 1,
+        'expected_delivery': expectedBirth,
+        'status': 'Gestante',
+        'updated_at': _nowIso(),
+      }, where: 'id = ?', whereArgs: [femaleId]);
+    } else if (stage == BreedingStage.falhou || stage == BreedingStage.partoRealizado ||
+               (usgRes != null && usgRes.contains('nao_confirmada'))) {
+      final rows = await db.query('animals', columns: ['status'], where: 'id = ?', whereArgs: [femaleId], limit: 1);
+      final currentStatus = rows.isNotEmpty ? (rows.first['status'] as String? ?? '') : '';
+      await db.update('animals', {
+        'pregnant': 0,
+        'expected_delivery': null,
+        'status': currentStatus.trim().toLowerCase() == 'gestante' ? 'Saudável' : currentStatus,
+        'updated_at': _nowIso(),
+      }, where: 'id = ?', whereArgs: [femaleId]);
+    }
+  }
+
+  /// (Opcional) Reprocessa todos os registros de reprodução e sincroniza as fêmeas.
+  static Future<void> reconcilePregnancyFromBreeding() async {
+    final db = await database;
+    final rows = await db.query('breeding_records');
+    for (final r in rows) {
+      final m = Map<String, dynamic>.from(r);
+      _applyBreedingInference(m);
+      await _syncAnimalPregnancyFromRecord(m);
+    }
   }
 }

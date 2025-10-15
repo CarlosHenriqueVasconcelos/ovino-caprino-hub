@@ -98,29 +98,66 @@ class AppDatabase {
 
     // -------- breeding_records
     await db.execute('''
+      
       CREATE TABLE IF NOT EXISTS breeding_records (
         id TEXT PRIMARY KEY,
         female_animal_id TEXT,
         male_animal_id TEXT,
-        breeding_date TEXT NOT NULL,
-        expected_birth TEXT,
-        status TEXT NOT NULL DEFAULT 'Cobertura',
+        breeding_date TEXT NOT NULL,                 -- ISO8601
+        expected_birth TEXT,                         -- ISO8601
+        status TEXT NOT NULL DEFAULT 'Cobertura',    -- derivado de stage
         notes TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        mating_start_date TEXT,
-        mating_end_date TEXT,
-        separation_date TEXT,
-        ultrasound_date TEXT,
+        mating_start_date TEXT,                      -- ISO8601
+        mating_end_date TEXT,                        -- ISO8601
+        separation_date TEXT,                        -- ISO8601
+        ultrasound_date TEXT,                        -- ISO8601
         ultrasound_result TEXT,
-        birth_date TEXT,
-        stage TEXT DEFAULT 'Encabritamento',
+        birth_date TEXT,                             -- ISO8601
+        stage TEXT NOT NULL DEFAULT 'encabritamento'
+          CHECK (stage IN ('encabritamento','separacao','aguardando_ultrassom','gestacao_confirmada','parto_realizado','falhou')),
         FOREIGN KEY (female_animal_id) REFERENCES animals(id),
         FOREIGN KEY (male_animal_id)   REFERENCES animals(id)
       );
     ''');
+
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
+    await db.execute('''
+      CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_trg
+      AFTER INSERT ON breeding_records
+      BEGIN
+        UPDATE breeding_records
+          SET status = CASE NEW.stage
+            WHEN 'encabritamento'       THEN 'Cobertura'
+            WHEN 'separacao'            THEN 'Separação'
+            WHEN 'aguardando_ultrassom' THEN 'Aguardando Ultrassom'
+            WHEN 'gestacao_confirmada'  THEN 'Gestação Confirmada'
+            WHEN 'parto_realizado'      THEN 'Parto Realizado'
+            WHEN 'falhou'               THEN 'Falhou'
+            ELSE 'Cobertura' END
+        WHERE id = NEW.id;
+      END;
+    ''');
+
+    await db.execute('''
+      CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_upd_trg
+      AFTER UPDATE OF stage ON breeding_records
+      BEGIN
+        UPDATE breeding_records
+          SET status = CASE NEW.stage
+            WHEN 'encabritamento'       THEN 'Cobertura'
+            WHEN 'separacao'            THEN 'Separação'
+            WHEN 'aguardando_ultrassom' THEN 'Aguardando Ultrassom'
+            WHEN 'gestacao_confirmada'  THEN 'Gestação Confirmada'
+            WHEN 'parto_realizado'      THEN 'Parto Realizado'
+            WHEN 'falhou'               THEN 'Falhou'
+            ELSE 'Cobertura' END
+        WHERE id = NEW.id;
+      END;
+    ''');
+
 
     // -------- financial_accounts (SEM cost_center_id)
     await db.execute('''

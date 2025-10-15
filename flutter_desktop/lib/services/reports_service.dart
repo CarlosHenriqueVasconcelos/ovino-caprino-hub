@@ -53,23 +53,73 @@ class ReportsService {
   static DateTime? _toDate(dynamic v) {
     if (v == null) return null;
     if (v is DateTime) return v;
-    if (v is String) return DateTime.tryParse(v);
-    return DateTime.tryParse(v.toString());
+    if (v is num) {
+      try {
+        return DateTime.fromMillisecondsSinceEpoch(v.toInt());
+      } catch (_) {}
+    }
+
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+
+    // dd/MM/yyyy
+    if (s.contains('/')) {
+      final p = s.split('/');
+      if (p.length >= 3) {
+        final d = int.tryParse(p[0]);
+        final m = int.tryParse(p[1]);
+        final y = int.tryParse(p[2]);
+        if (d != null && m != null && y != null) {
+          try {
+            return DateTime(y, m, d);
+          } catch (_) {}
+        }
+      }
+    }
+
+    // ISO
+    try {
+      final dtFull = DateTime.tryParse(s);
+      if (dtFull != null) return dtFull;
+      if (s.length >= 10) {
+        final iso = s.substring(0, 10);
+        if (iso.length == 10 && iso[4] == '-' && iso[7] == '-') {
+          return DateTime.tryParse(iso);
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   static bool _between(DateTime? d, DateTime start, DateTime end) {
     if (d == null) return false;
-    // inclui bordas (>= start && <= end)
     final s = DateTime(start.year, start.month, start.day);
     final e = DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
     return !d.isBefore(s) && !d.isAfter(e);
   }
 
-  // ============ Animais Report ============
+  static String _asLower(dynamic v) =>
+      (v == null ? '' : v.toString()).trim().toLowerCase();
+
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    final s = v.toString().replaceAll('R\$', '').replaceAll(' ', '').replaceAll('.', '').replaceAll(',', '.');
+    return double.tryParse(s) ?? 0.0;
+  }
+
+  static String _firstNonEmpty(Map<String, dynamic> m, List<String> keys) {
+    for (final k in keys) {
+      final v = m[k];
+      if (v != null && v.toString().trim().isNotEmpty) return v.toString();
+    }
+    return '';
+  }
+
+  // ==================== ANIMAIS ====================
   static Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) async {
     var animals = await DatabaseService.getAnimals();
 
-    // Filter by created_at (robusto a String/DateTime)
     animals = animals.where((a) {
       final createdAt = _toDate(a.createdAt);
       return _between(createdAt, filters.startDate, filters.endDate);
@@ -120,13 +170,12 @@ class ReportsService {
     };
   }
 
-  // ============ Pesos Report ============
+  // ==================== PESOS ====================
   static Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) async {
     final db = await DatabaseService.database;
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Query animal_weights within period
     final weights = await db.query(
       'animal_weights',
       where: 'date(date) >= date(?) AND date(date) <= date(?)',
@@ -136,7 +185,6 @@ class ReportsService {
       ],
     );
 
-    // Group by animal
     final byAnimal = <String, List<Map<String, dynamic>>>{};
     for (var w in weights) {
       final animalId = w['animal_id'] as String;
@@ -153,7 +201,6 @@ class ReportsService {
           .map((w) => (w['weight'] as num).toDouble())
           .toList();
 
-      // ordenar por data desc
       weighings.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
 
       final double lastWeight = weighings.isEmpty
@@ -190,13 +237,12 @@ class ReportsService {
     };
   }
 
-  // ============ Vacinações Report ============
+  // ==================== VACINAÇÕES ====================
   static Future<Map<String, dynamic>> getVaccinationsReport(ReportFilters filters) async {
     var vaccinations = await DatabaseService.getVaccinations();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Filter by effective date (applied_date if exists, else scheduled_date)
     vaccinations = vaccinations.where((v) {
       final effectiveDate = v['applied_date'] ?? v['scheduled_date'];
       final d = _toDate(effectiveDate);
@@ -238,13 +284,12 @@ class ReportsService {
     };
   }
 
-  // ============ Medicações Report ============
+  // ==================== MEDICAÇÕES ====================
   static Future<Map<String, dynamic>> getMedicationsReport(ReportFilters filters) async {
     var medications = await DatabaseService.getMedications();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Filter by event date
     medications = medications.where((m) {
       final eventDate = (m['status'] == 'Aplicado' && m['applied_date'] != null)
           ? m['applied_date']
@@ -286,13 +331,12 @@ class ReportsService {
     };
   }
 
-  // ============ Reprodução Report ============
+  // ==================== REPRODUÇÃO ====================
   static Future<Map<String, dynamic>> getBreedingReport(ReportFilters filters) async {
     var breeding = await DatabaseService.getBreedingRecords();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Filter by breeding_date
     breeding = breeding.where((b) {
       final d = _toDate(b['breeding_date']);
       return _between(d, filters.startDate, filters.endDate);
@@ -336,31 +380,133 @@ class ReportsService {
     };
   }
 
-  // ============ Financeiro Report ============
+  // ==================== FINANCEIRO ====================
+  static Future<List<Map<String, dynamic>>> _readFinancialRows() async {
+    final db = await DatabaseService.database;
+    List<Map<String, dynamic>> rows = [];
+
+    Future<void> tryTable(String name) async {
+      if (rows.isNotEmpty) return;
+      try {
+        rows = await db.query(name);
+      } catch (_) {}
+    }
+
+    // Tenta as tabelas mais prováveis
+    await tryTable('financial_accounts');   // mais comum no app
+    await tryTable('finance_accounts');
+    await tryTable('financial');            // planos antigos
+    await tryTable('accounts');
+
+    // Fallback para um helper, se existir
+    if (rows.isEmpty) {
+      try {
+        final any = await DatabaseService.getFinancialRecords();
+        if (any is List) {
+          rows = any.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+        }
+      } catch (_) {}
+    }
+    return rows;
+  }
+
+  /// Compatível com chaves snake/camel e datas dd/MM/yyyy ou ISO.
+  /// Período usa data efetiva: paid_date ?? date ?? due_date ?? created_at.
   static Future<Map<String, dynamic>> getFinancialReport(ReportFilters filters) async {
-    var financial = await DatabaseService.getFinancialRecords();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Filter by date
-    financial = financial.where((f) {
-      final d = _toDate(f['date']);
-      return _between(d, filters.startDate, filters.endDate);
-    }).toList();
+    var raw = await _readFinancialRows();
 
+    // Normaliza
+    List<Map<String, dynamic>> norm = [];
+    for (final f in raw) {
+      final map = Map<String, dynamic>.from(f);
+
+      // tipo
+      var type = _asLower(map['type'] ?? map['tipo']);
+      if (type.isEmpty) {
+        // alguns bancos usam income/expense
+        final t2 = _asLower(map['kind'] ?? map['categoria_tipo']);
+        if (t2 == 'income') type = 'receita';
+        if (t2 == 'expense') type = 'despesa';
+      }
+      if (type == 'income') type = 'receita';
+      if (type == 'expense') type = 'despesa';
+
+      final status = _asLower(map['status']);
+      final category = (map['category'] ?? map['categoria'] ?? '').toString();
+
+      // datas
+      final rawDate = _firstNonEmpty(map, [
+        'paid_date', 'paidDate', 'payment_date',
+        'date', 'data',
+        'due_date', 'dueDate',
+        'created_at', 'createdAt'
+      ]);
+      final eff = _toDate(rawDate);
+      // valor
+      final amount = _toDouble(map['amount'] ?? map['valor']);
+
+      // animal
+      final animalId = map['animal_id'] ?? map['animalId'];
+      Animal? animal;
+      if (animalId != null && animalMap.containsKey(animalId)) {
+        animal = animalMap[animalId];
+      }
+
+      norm.add({
+        'effective_date': eff,
+        'date': rawDate,
+        'type': type,
+        'status': status,
+        'category': category,
+        'amount': amount,
+        'description': (map['description'] ?? map['descricao'] ?? '').toString(),
+        'animal_code': animal?.code ?? '',
+      });
+    }
+
+    // Filtra por período
+    norm = norm.where((m) => _between(m['effective_date'] as DateTime?, filters.startDate, filters.endDate)).toList();
+
+    // Filtros tipo/categoria
     if (filters.financialType != null && filters.financialType != 'Todos') {
-      financial = financial.where((f) => f['type'] == filters.financialType).toList();
+      final ft = _asLower(filters.financialType);
+      norm = norm.where((m) => m['type'] == ft).toList();
     }
     if (filters.financialCategory != null && filters.financialCategory != 'Todos') {
-      financial = financial.where((f) => f['category'] == filters.financialCategory).toList();
+      norm = norm.where((m) => (m['category'] ?? '') == filters.financialCategory).toList();
     }
 
-    final revenue = financial
-        .where((f) => f['type'] == 'receita')
-        .fold<double>(0, (sum, f) => sum + ((f['amount'] as num?)?.toDouble() ?? 0));
-    final expense = financial
-        .where((f) => f['type'] == 'despesa')
-        .fold<double>(0, (sum, f) => sum + ((f['amount'] as num?)?.toDouble() ?? 0));
+    // Somatórios
+    final revenue = norm
+        .where((m) => m['type'] == 'receita')
+        .fold<double>(0.0, (sum, m) => sum + (m['amount'] as double));
+    final expense = norm
+        .where((m) => m['type'] == 'despesa')
+        .fold<double>(0.0, (sum, m) => sum + (m['amount'] as double));
+
+    // Ordena desc por data efetiva
+    norm.sort((a, b) {
+      final da = a['effective_date'] as DateTime?;
+      final db = b['effective_date'] as DateTime?;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+
+    // Dados para a tabela
+    final data = norm.map((m) => {
+      'date': m['date'] ?? '',
+      'type': m['type'],
+      'category': m['category'],
+      'amount': m['amount'],
+      'description': m['description'],
+      'status': (m['status'] as String?)?.isEmpty ?? true ? '' : m['status'],
+      'animal_code': m['animal_code'],
+    }).toList();
 
     return {
       'summary': {
@@ -368,27 +514,16 @@ class ReportsService {
         'expense': expense,
         'balance': revenue - expense,
       },
-      'data': financial.map((f) {
-        final animal = f['animal_id'] != null ? animalMap[f['animal_id']] : null;
-        return {
-          'date': f['date'],
-          'type': f['type'],
-          'category': f['category'],
-          'amount': f['amount'],
-          'description': f['description'] ?? '',
-          'animal_code': animal?.code ?? '',
-        };
-      }).toList(),
+      'data': data,
     };
   }
 
-  // ============ Anotações Report ============
+  // ==================== ANOTAÇÕES ====================
   static Future<Map<String, dynamic>> getNotesReport(ReportFilters filters) async {
     var notes = await DatabaseService.getNotes();
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Filter by date
     notes = notes.where((n) {
       final d = _toDate(n['date']);
       return _between(d, filters.startDate, filters.endDate);

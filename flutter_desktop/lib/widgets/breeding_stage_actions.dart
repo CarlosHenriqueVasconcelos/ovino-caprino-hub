@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../models/breeding_record.dart';
 import '../services/database_service.dart';
+import '../services/animal_service.dart';
 
 class BreedingStageActions extends StatefulWidget {
   final BreedingRecord record;
@@ -23,11 +26,18 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
     setState(() => _isProcessing = true);
 
     try {
+      final now = DateTime.now();
+      final ultrasoundEta = now.add(const Duration(days: 30));
+
       await DatabaseService.updateBreedingRecord(widget.record.id, {
-        'separation_date': DateTime.now().toIso8601String(),
+        'separation_date': now.toIso8601String(),
+        'ultrasound_date': ultrasoundEta.toIso8601String(), // previsão automática
         'stage': BreedingStage.aguardandoUltrassom.value,
         'status': 'Aguardando Ultrassom',
       });
+
+      // atualiza painel
+      await context.read<AnimalService>().loadData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,23 +91,42 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
     try {
       final isConfirmed = result == 'Confirmada';
-      await DatabaseService.updateBreedingRecord(widget.record.id, {
-        'ultrasound_date': DateTime.now().toIso8601String(),
+      final baseUltrasound = widget.record.ultrasoundDate ?? DateTime.now();
+      final birthEta = baseUltrasound.add(const Duration(days: 150)); // ~5 meses
+
+      final update = <String, dynamic>{
+        'ultrasound_date':
+            widget.record.ultrasoundDate?.toIso8601String() ?? baseUltrasound.toIso8601String(),
         'ultrasound_result': result,
         'stage': isConfirmed
             ? BreedingStage.gestacaoConfirmada.value
             : BreedingStage.falhou.value,
-        'status': isConfirmed ? 'Gestante' : 'Falhou',
-      });
+        'status': isConfirmed ? 'Gestação Confirmada' : 'Falhou',
+        if (isConfirmed) 'expected_birth': birthEta.toIso8601String(),
+        if (!isConfirmed) 'expected_birth': null,
+      };
+
+      await DatabaseService.updateBreedingRecord(widget.record.id, update);
+
+      // Sincroniza o ANIMAL imediatamente (extra, além do service)
+      final femaleId = widget.record.femaleAnimalId;
+      if (femaleId != null && femaleId.isNotEmpty) {
+        await DatabaseService.updateAnimal(femaleId, {
+          'pregnant': isConfirmed ? 1 : 0,
+          'expected_delivery': isConfirmed ? birthEta.toIso8601String() : null,
+          'status': isConfirmed ? 'Gestante' : 'Saudável',
+        });
+      }
+
+      // atualiza painel
+      await context.read<AnimalService>().loadData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              isConfirmed
-                  ? 'Gestação confirmada!'
-                  : 'Gestação não confirmada.',
-            ),
+            content: Text(isConfirmed
+                ? 'Gestação confirmada!'
+                : 'Gestação não confirmada.'),
           ),
         );
         widget.onUpdate?.call();
@@ -143,6 +172,19 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         'status': 'Parto Realizado',
       });
 
+      // limpa marcação de gestante no animal
+      final femaleId = widget.record.femaleAnimalId;
+      if (femaleId != null && femaleId.isNotEmpty) {
+        await DatabaseService.updateAnimal(femaleId, {
+          'pregnant': 0,
+          'expected_delivery': null,
+          'status': 'Saudável',
+        });
+      }
+
+      // atualiza painel
+      await context.read<AnimalService>().loadData();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nascimento registrado com sucesso!')),
@@ -185,6 +227,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         );
 
       case BreedingStage.aguardandoUltrassom:
+      case BreedingStage.separacao:
         return ElevatedButton.icon(
           onPressed: _registerUltrasound,
           icon: const Icon(Icons.medical_services),
