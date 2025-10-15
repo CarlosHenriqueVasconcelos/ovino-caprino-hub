@@ -20,6 +20,7 @@ import '../widgets/history_screen.dart';
 import '../services/database_service.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_delete_cascade.dart';
+import '../widgets/repro_alerts_card.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -340,6 +341,10 @@ class _DashboardTabContent extends StatelessWidget {
 
               // Alertas (vacinações/medicações) — seu widget original
               VaccinationAlerts(onGoToVaccinations: () => onGoToTab(3)),
+              const SizedBox(height: 16),
+
+              // NOVO: Alertas de Reprodução (separações, ultrassons, partos)
+              const ReproAlertsCard(daysAhead: 30),
               const SizedBox(height: 32),
 
               // Estatísticas (mesmo layout com StatsCard)
@@ -587,7 +592,6 @@ class _HerdSectionState extends State<_HerdSection> {
   bool _includeSold = false;
   String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido'
 
-
   @override
   void dispose() {
     _search.dispose();
@@ -616,8 +620,6 @@ class _HerdSectionState extends State<_HerdSection> {
           }
         })();
         final filtered = _filter(baseList, _query);
-
-
 
         return Card(
           child: Padding(
@@ -709,7 +711,6 @@ class _HerdSectionState extends State<_HerdSection> {
                 ),
                 const SizedBox(height: 12),
 
-
                 if (all.isEmpty)
                   _emptyState(theme)
                 else
@@ -735,7 +736,6 @@ class _HerdSectionState extends State<_HerdSection> {
                           await svc.loadData();        // recarrega do banco
                           if (mounted) setState(() {}); // atualiza a UI
                         },
-
                       );
                     },
                   ),

@@ -21,48 +21,7 @@ class BackupService {
   })  : _appDb = db,
         _client = Supabase.instance.client;
 
-  // ======= Compat: wrappers estáticos (opcionais) =======
-  static Future<void> pushAllToSupabase(
-    SupabaseClient client, {
-    AppDatabase? db,
-    Progress? onProgress,
-    bool mirrorDeletes = true,
-    int chunk = 500,
-  }) async {
-    final appDb = db ?? await AppDatabase.open();
-    try {
-      final svc = BackupService(db: appDb);
-      await svc._backupMirrorRemote(
-        onProgress: onProgress,
-        mirrorDeletes: mirrorDeletes,
-        chunk: chunk,
-      );
-    } finally {
-      if (db == null) await appDb.db.close();
-    }
-  }
-
-  static Future<void> pullAllFromSupabase(
-    SupabaseClient client, {
-    AppDatabase? db,
-    Progress? onProgress,
-    bool wipeLocalFirst = true,
-    int pageSize = 1000,
-  }) async {
-    final appDb = db ?? await AppDatabase.open();
-    try {
-      final svc = BackupService(db: appDb);
-      await svc._restoreFromRemote(
-        onProgress: onProgress,
-        wipeLocalFirst: wipeLocalFirst,
-        pageSize: pageSize,
-      );
-    } finally {
-      if (db == null) await appDb.db.close();
-    }
-  }
-
-  // ======= Ordem (pais → filhos) / (filhos → pais) =======
+  // ---------- Ordem de carga (pais → filhos) ----------
   static const List<String> _pushOrder = [
     'animals',
     'financial_accounts',
@@ -76,6 +35,7 @@ class BackupService {
     'push_tokens',
   ];
 
+  // ---------- Ordem para exclusões/limpeza (filhos → pais) ----------
   static const List<String> _deleteChildFirst = [
     'animal_weights',
     'breeding_records',
@@ -89,7 +49,8 @@ class BackupService {
     'animals',
   ];
 
-  // ======= Mapa de FKs (para corrigir IDs inválidos) =======
+  // ---------- Mapa de FKs que apontam para cada tabela (p/ corrigir IDs inválidos) ----------
+  // parentTable -> [ (childTable, childColumn) ... ]
   static final Map<String, List<_FkRef>> _fkMap = {
     'animals': [
       _FkRef('animal_weights', 'animal_id'),
@@ -101,12 +62,13 @@ class BackupService {
       _FkRef('vaccinations', 'animal_id'),
       _FkRef('notes', 'animal_id'),
     ],
+    // self-ref em financial_accounts
     'financial_accounts': [
-      _FkRef('financial_accounts', 'parent_id'), // self-ref
+      _FkRef('financial_accounts', 'parent_id'),
     ],
   };
 
-  // ======= Colunas válidas por tabela =======
+  // ---------- Colunas válidas por tabela (garantia de shape) ----------
   static final Map<String, Set<String>> _cols = {
     'animals': {
       'id','code','name','species','breed','gender','birth_date','weight','status','location',
@@ -141,16 +103,12 @@ class BackupService {
     },
   };
 
-  // ======= Streams p/ UI =======
-  Stream<String> backupAll({bool mirrorDeletes = true, int chunk = 500}) {
+  // ---------- API p/ UI ----------
+  Stream<String> backupAll() {
     final c = StreamController<String>();
     () async {
       try {
-        await _backupMirrorRemote(
-          onProgress: c.add,
-          mirrorDeletes: mirrorDeletes,
-          chunk: chunk,
-        );
+        await _backupMirrorRemote(onProgress: c.add);
         c.add('Concluído (upload).');
       } catch (e) {
         c.add('Erro no upload: $e');
@@ -161,15 +119,11 @@ class BackupService {
     return c.stream;
   }
 
-  Stream<String> restoreAll({bool wipeLocalFirst = true, int pageSize = 1000}) {
+  Stream<String> restoreAll() {
     final c = StreamController<String>();
     () async {
       try {
-        await _restoreFromRemote(
-          onProgress: c.add,
-          wipeLocalFirst: wipeLocalFirst,
-          pageSize: pageSize,
-        );
+        await _restoreFromRemote(onProgress: c.add);
         c.add('Concluído (download).');
       } catch (e) {
         c.add('Erro no download: $e');
@@ -180,28 +134,26 @@ class BackupService {
     return c.stream;
   }
 
-  // ======= Upload: local → Supabase (com espelho de exclusões) =======
-  Future<void> _backupMirrorRemote({
-    Progress? onProgress,
-    bool mirrorDeletes = true,
-    int chunk = 500,
-  }) async {
+  // ---------- Implementação ----------
+  Future<void> _backupMirrorRemote({Progress? onProgress, int chunk = 500}) async {
     final db = _appDb.db;
     final supa = _client;
 
-    // 0) Sanitiza IDs inválidos (pais→filhos)
+    // 0) Sanitiza IDs inválidos em TODAS as tabelas (pais→filhos e também filhos)
     onProgress?.call('Verificando/ajustando IDs inválidos…');
     for (final t in _pushOrder) {
       await _fixInvalidIdsCascade(t);
     }
 
-    // 1) Upsert de tudo
+    // 1) Upsert de tudo no Supabase
     for (final table in _pushOrder) {
       onProgress?.call('Preparando $table…');
       final rows = await db.query(table);
       if (rows.isEmpty) continue;
 
       final payload = rows.map((r) => _toRemote(table, r)).toList();
+
+      // garantia extra: nenhum id vazio
       for (final r in payload) {
         if (_missingId(r['id'])) r['id'] = _uuidV4();
       }
@@ -213,53 +165,44 @@ class BackupService {
       }
     }
 
-    // 2) Espelha exclusões (opcional)
-    if (mirrorDeletes) {
-      for (final table in _deleteChildFirst) {
-        onProgress?.call('Sincronizando exclusões em $table…');
+    // 2) Espelha exclusões: remove do Supabase o que não existe localmente
+    for (final table in _deleteChildFirst) {
+      onProgress?.call('Sincronizando exclusões em $table…');
 
-        final localIds = (await db.query(table, columns: ['id']))
-            .map((m) => (m['id'] ?? '').toString())
-            .where((s) => s.isNotEmpty)
-            .toSet();
+      final localIds = (await db.query(table, columns: ['id']))
+          .map((m) => (m['id'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet();
 
-        final remoteIds = (await supa.from(table).select('id'))
-            .map<String>((e) => (e['id'] ?? '').toString())
-            .where((s) => s.isNotEmpty)
-            .toSet();
+      final remoteIds = (await supa.from(table).select('id'))
+          .map<String>((e) => (e['id'] ?? '').toString())
+          .where((s) => s.isNotEmpty)
+          .toSet();
 
-        final toDelete = remoteIds.difference(localIds).toList();
-        if (toDelete.isEmpty) continue;
+      final toDelete = remoteIds.difference(localIds).toList();
+      if (toDelete.isEmpty) continue;
 
-        const batch = 300;
-        for (var i = 0; i < toDelete.length; i += batch) {
-          final part = toDelete.sublist(i, (i + batch).clamp(0, toDelete.length));
-          final orExpr = part.map((id) => 'id.eq.$id').join(',');
-          await supa.from(table).delete().or(orExpr);
-        }
+      const batch = 300;
+      for (var i = 0; i < toDelete.length; i += batch) {
+        final part = toDelete.sublist(i, (i + batch).clamp(0, toDelete.length));
+        final orExpr = part.map((id) => 'id.eq.$id').join(',');
+        await supa.from(table).delete().or(orExpr);
       }
     }
 
     onProgress?.call('Upload finalizado.');
   }
 
-  // ======= Download: Supabase → local =======
-  Future<void> _restoreFromRemote({
-    Progress? onProgress,
-    bool wipeLocalFirst = true,
-    int pageSize = 1000,
-  }) async {
+  Future<void> _restoreFromRemote({Progress? onProgress, int pageSize = 1000}) async {
     final db = _appDb.db;
     final supa = _client;
 
-    if (wipeLocalFirst) {
-      onProgress?.call('Limpando base local…');
-      await db.transaction((txn) async {
-        for (final t in _deleteChildFirst) {
-          await txn.delete(t);
-        }
-      });
-    }
+    onProgress?.call('Limpando base local…');
+    await db.transaction((txn) async {
+      for (final t in _deleteChildFirst) {
+        await txn.delete(t);
+      }
+    });
 
     Future<List<Map<String, dynamic>>> fetchAll(String table) async {
       final out = <Map<String, dynamic>>[];
@@ -293,13 +236,16 @@ class BackupService {
     onProgress?.call('Download finalizado.');
   }
 
-  // ======= Correção de IDs inválidos e FKs =======
+  // ---------- Correção de IDs inválidos com atualização de FKs ----------
   Future<void> _fixInvalidIdsCascade(String table) async {
     final db = _appDb.db;
+
+    // regex de UUID (v4/geral) – 8-4-4-4-12 hex
     final uuidRe = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
+    // Lê rowid + id para saber quais precisam arrumar
     final rows = await db.rawQuery('SELECT rowid AS __rid, id FROM $table');
-    final fixes = <_IdFix>[];
+    final fixes = <_IdFix>[]; // velho -> novo
 
     for (final r in rows) {
       final old = (r['id'] ?? '').toString();
@@ -312,12 +258,16 @@ class BackupService {
         ));
       }
     }
+
     if (fixes.isEmpty) return;
 
     await db.transaction((txn) async {
+      // desativa FK para poder atualizar filhos/pai sem violar integridade temporariamente
       await txn.execute('PRAGMA foreign_keys = OFF');
 
+      // atualiza primeiro os FILHOS que referenciam este pai
       final refs = _fkMap[table] ?? const <_FkRef>[];
+
       for (final fix in fixes) {
         for (final ref in refs) {
           await txn.update(
@@ -327,6 +277,8 @@ class BackupService {
             whereArgs: fix.oldId == null ? null : [fix.oldId],
           );
         }
+
+        // agora atualiza o próprio registro (pelo rowid quando oldId é null)
         if (fix.oldId == null) {
           await txn.update(table, {'id': fix.newId}, where: 'rowid = ?', whereArgs: [fix.rowId]);
         } else {
@@ -334,42 +286,74 @@ class BackupService {
         }
       }
 
+      // reativa verificação de chaves
       await txn.execute('PRAGMA foreign_keys = ON');
     });
   }
 
-  // ======= Converters =======
+  // ---------- Converters ----------
   static Map<String, dynamic> _toRemote(String table, Map<String, dynamic> row) {
     final r = Map<String, dynamic>.from(row);
-
-    // 0/1 -> bool
     if (table == 'animals') r['pregnant'] = _toBool(row['pregnant']);
     if (table == 'notes')   r['is_read']  = _toBool(row['is_read']);
-    if (table == 'financial_accounts') {
-      final v = row['is_recurring'];
-      r['is_recurring'] = (v == 1 || v == true);
-    }
-
-    // json string -> json
     if (table == 'reports')     r['parameters']  = _jsonIn(row['parameters']);
     if (table == 'push_tokens') r['device_info'] = _jsonIn(row['device_info']);
-
     return _only(r, _cols[table] ?? {});
   }
 
   static Map<String, dynamic> _toLocal(String table, Map<String, dynamic> row) {
     final r = Map<String, dynamic>.from(row);
-
-    // bool -> INTEGER 0/1 (SQLite)
     if (table == 'animals') r['pregnant'] = (row['pregnant'] == true) ? 1 : 0;
     if (table == 'notes')   r['is_read']  = (row['is_read']  == true) ? 1 : 0;
-    if (table == 'financial_accounts') {
-      r['is_recurring'] = (row['is_recurring'] == true) ? 1 : 0;
-    }
-
-    // json -> string
     if (table == 'reports')     r['parameters']  = _jsonOut(row['parameters']);
     if (table == 'push_tokens') r['device_info'] = _jsonOut(row['device_info']);
+
+    // 🔧 NORMALIZAÇÃO CRUCIAL PARA REPRODUÇÃO:
+    if (table == 'breeding_records') {
+      String deaccent(String s) {
+        const map = {
+          'á':'a','à':'a','ã':'a','â':'a','ä':'a',
+          'é':'e','ê':'e','è':'e','ë':'e',
+          'í':'i','ì':'i','ï':'i',
+          'ó':'o','ô':'o','õ':'o','ò':'o','ö':'o',
+          'ú':'u','ù':'u','ü':'u',
+          'ç':'c',
+          'Á':'A','À':'A','Ã':'A','Â':'A','Ä':'A',
+          'É':'E','Ê':'E','È':'E','Ë':'E',
+          'Í':'I','Ì':'I','Ï':'I',
+          'Ó':'O','Ô':'O','Õ':'O','Ò':'O','Ö':'O',
+          'Ú':'U','Ù':'U','Ü':'U',
+          'Ç':'C',
+        };
+        final sb = StringBuffer();
+        for (final r in s.runes) {
+          final ch = String.fromCharCode(r);
+          sb.write(map[ch] ?? ch);
+        }
+        return sb.toString();
+      }
+
+      String canonStage(String v) {
+        final t = deaccent(v).toLowerCase().trim().replaceAll(' ', '_');
+        switch (t) {
+          case 'encabritamento': return 'encabritamento';
+          case 'separacao': return 'separacao';
+          case 'aguardando_ultrassom': return 'aguardando_ultrassom';
+          case 'gestacao_confirmada':
+          case 'gestantes':
+          case 'gestante': return 'gestacao_confirmada';
+          case 'parto_realizado':
+          case 'concluido':
+          case 'concluidos': return 'parto_realizado';
+          case 'falhou':
+          case 'falhado':
+          case 'falhados': return 'falhou';
+          default: return 'encabritamento';
+        }
+      }
+
+      r['stage'] = canonStage((row['stage'] ?? '').toString());
+    }
 
     return _only(r, _cols[table] ?? {});
   }
@@ -402,13 +386,14 @@ class BackupService {
   static String _uuidV4() {
     final rnd = Random.secure();
     final b = List<int>.generate(16, (_) => rnd.nextInt(256));
-    b[6] = (b[6] & 0x0f) | 0x40;
-    b[8] = (b[8] & 0x3f) | 0x80;
+    b[6] = (b[6] & 0x0f) | 0x40; // v4
+    b[8] = (b[8] & 0x3f) | 0x80; // RFC4122
     String h(int x) => x.toRadixString(16).padLeft(2, '0');
     return '${h(b[0])}${h(b[1])}${h(b[2])}${h(b[3])}-'
            '${h(b[4])}${h(b[5])}-'
            '${h(b[6])}${h(b[7])}-'
            '${h(b[8])}${h(b[9])}-'
+           // 🔧 correção aqui: h(b[12]) (antes estava h[b[12]])
            '${h(b[10])}${h(b[11])}${h(b[12])}${h(b[13])}${h(b[14])}${h(b[15])}';
   }
 
@@ -419,7 +404,7 @@ class BackupService {
   }
 }
 
-// ===== Auxiliares =====
+// ===== Tipos auxiliares =====
 class _FkRef {
   final String childTable;
   final String childColumn;
@@ -427,8 +412,8 @@ class _FkRef {
 }
 
 class _IdFix {
-  final int rowId;
-  final String? oldId;
-  final String newId;
+  final int rowId;        // rowid da linha a ser atualizada
+  final String? oldId;    // pode ser null/''/inválido
+  final String newId;     // uuid v4 gerado
   _IdFix({required this.rowId, required this.oldId, required this.newId});
 }
