@@ -1,7 +1,10 @@
+// lib/widgets/system_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../services/animal_service.dart';
 import '../services/backup_service.dart';
+import '../data/local_db.dart'; // AppDatabase
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -370,7 +373,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Atualizar a UI recarregando os dados
+              // Atualiza UI recarregando dados
               context.read<AnimalService>().loadData();
             },
             child: const Text('Fechar'),
@@ -493,12 +496,38 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     );
   }
 
-  void _clearAllData() {
+  Future<void> _clearAllData() async {
+    final appDb = context.read<AppDatabase>();
+    final db = appDb.db;
+
+    // Ordem segura de deleção (FKs primeiro)
+    const wipeOrder = <String>[
+      'animal_weights',
+      'breeding_records',
+      'vaccinations',
+      'medications',
+      'notes',
+      'financial_records',
+      'financial_accounts',
+      'reports',
+      'push_tokens',
+      'animals',
+    ];
+
+    await db.transaction((txn) async {
+      for (final t in wipeOrder) {
+        await txn.delete(t);
+      }
+    });
+
+    if (!mounted) return;
+    // Atualiza a UI (recarrega animais, KPIs, etc.)
+    await context.read<AnimalService>().loadData();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Todos os dados foram removidos.'),
+        content: const Text('Todos os dados locais foram removidos.'),
         backgroundColor: Theme.of(context).colorScheme.error,
-        action: SnackBarAction(label: 'Reiniciar App', onPressed: () {}),
       ),
     );
   }
