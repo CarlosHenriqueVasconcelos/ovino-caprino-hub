@@ -1,3 +1,4 @@
+// lib/widgets/reports_hub_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -35,7 +36,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   String _categoryFilter = 'Todos';
   String _vaccineTypeFilter = 'Todos';
   String _medicationStatusFilter = 'Todos';
+
+  /// 🔧 IMPORTANTE: agora os values de estágio usam o MESMO formato do DB
+  /// (encabritamento, separacao, aguardando_ultrassom, gestacao_confirmada, parto_realizado, falhou)
   String _breedingStageFilter = 'Todos';
+
   String _financialTypeFilter = 'Todos';
   String _financialCategoryFilter = 'Todos';
   String _notesPriorityFilter = 'Todos';
@@ -163,7 +168,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         category: _categoryFilter,
         vaccineType: _vaccineTypeFilter,
         medicationStatus: _medicationStatusFilter,
-        breedingStage: _breedingStageFilter,
+        breedingStage: _breedingStageFilter, // <- agora bate com o DB
         financialType: _financialTypeFilter,
         financialCategory: _financialCategoryFilter,
         notesPriority: _notesPriorityFilter,
@@ -750,26 +755,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 contentPadding:
                     EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
+              // ⚠️ values = códigos do DB; texto = label humano
               items: const [
                 DropdownMenuItem(
                     value: 'Todos', child: Text('Todos', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Encabritamento',
+                    value: 'encabritamento',
                     child: Text('Encabritamento', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Separacao',
+                    value: 'separacao',
                     child: Text('Separação', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Aguardando_Ultrassom',
+                    value: 'aguardando_ultrassom',
                     child: Text('Aguardando Ultrassom', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Gestacao_Confirmada',
+                    value: 'gestacao_confirmada',
                     child: Text('Gestação Confirmada', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Parto_Realizado',
+                    value: 'parto_realizado',
                     child: Text('Parto Realizado', overflow: TextOverflow.ellipsis)),
                 DropdownMenuItem(
-                    value: 'Falhou', child: Text('Falhou', overflow: TextOverflow.ellipsis)),
+                    value: 'falhou', child: Text('Falhou', overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (v) {
                 setState(() => _breedingStageFilter = v!);

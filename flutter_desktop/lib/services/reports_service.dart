@@ -44,7 +44,6 @@ class ReportFilters {
 
 class ReportSummary {
   final Map<String, dynamic> data;
-
   ReportSummary(this.data);
 }
 
@@ -104,7 +103,12 @@ class ReportsService {
   static double _toDouble(dynamic v) {
     if (v == null) return 0.0;
     if (v is num) return v.toDouble();
-    final s = v.toString().replaceAll('R\$', '').replaceAll(' ', '').replaceAll('.', '').replaceAll(',', '.');
+    final s = v
+        .toString()
+        .replaceAll('R\$', '')
+        .replaceAll(' ', '')
+        .replaceAll('.', '')
+        .replaceAll(',', '.');
     return double.tryParse(s) ?? 0.0;
   }
 
@@ -114,6 +118,23 @@ class ReportsService {
       if (v != null && v.toString().trim().isNotEmpty) return v.toString();
     }
     return '';
+  }
+
+  // remove acentos, espaços e normaliza para snake-case minúsculo
+  static String _slug(String s) {
+    final lower = s.toLowerCase();
+    final noAccents = lower
+        .replaceAll('ã', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ç', 'c');
+    return noAccents.replaceAll(' ', '_');
   }
 
   // ==================== ANIMAIS ====================
@@ -152,42 +173,66 @@ class ReportsService {
         'femeas': femeas,
       },
       'data': animals.map((a) => {
-        'code': a.code,
-        'name': a.name,
-        'species': a.species,
-        'breed': a.breed,
-        'gender': a.gender,
-        'birth_date': a.birthDate is DateTime
-            ? (a.birthDate as DateTime).toIso8601String().split('T')[0]
-            : a.birthDate,
-        'weight': a.weight,
-        'status': a.status,
-        'location': a.location,
-        'category': a.category ?? '',
-        'pregnant': a.pregnant,
-        'expected_delivery': a.expectedDelivery ?? '',
-      }).toList(),
+            'code': a.code,
+            'name': a.name,
+            'species': a.species,
+            'breed': a.breed,
+            'gender': a.gender,
+            'birth_date': a.birthDate is DateTime
+                ? (a.birthDate as DateTime).toIso8601String().split('T')[0]
+                : a.birthDate,
+            'weight': a.weight,
+            'status': a.status,
+            'location': a.location,
+            'category': a.category ?? '',
+            'pregnant': a.pregnant,
+            'expected_delivery': a.expectedDelivery ?? '',
+          }).toList(),
     };
+  }
+
+  // ---------- Pesos: leitor robusto ----------
+  static Future<List<Map<String, dynamic>>> _readWeightRows(
+      DateTime start, DateTime end) async {
+    final db = await DatabaseService.database;
+    final s = start.toIso8601String().split('T')[0];
+    final e = end.toIso8601String().split('T')[0];
+
+    Future<List<Map<String, dynamic>>> tryQuery(
+        String table, String dcol, String wcol) async {
+      try {
+        return await db.rawQuery('''
+          SELECT id, animal_id, $dcol AS date, $wcol AS weight
+          FROM $table
+          WHERE date($dcol) >= date(?) AND date($dcol) <= date(?)
+          ORDER BY date($dcol) ASC
+        ''', [s, e]);
+      } catch (_) {
+        return [];
+      }
+    }
+
+    // ordem de tentativas (tabelas/colunas legadas comuns)
+    var rows = await tryQuery('animal_weights', 'date', 'weight');
+    if (rows.isEmpty) rows = await tryQuery('weights', 'date', 'weight');
+    if (rows.isEmpty) rows = await tryQuery('weights', 'weigh_date', 'weight');
+    if (rows.isEmpty) rows = await tryQuery('animal_weight', 'date', 'weight');
+    if (rows.isEmpty) rows = await tryQuery('animal_weight', 'recorded_at', 'weight');
+
+    return rows;
   }
 
   // ==================== PESOS ====================
   static Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) async {
-    final db = await DatabaseService.database;
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    final weights = await db.query(
-      'animal_weights',
-      where: 'date(date) >= date(?) AND date(date) <= date(?)',
-      whereArgs: [
-        filters.startDate.toIso8601String().split('T')[0],
-        filters.endDate.toIso8601String().split('T')[0],
-      ],
-    );
+    final weights = await _readWeightRows(filters.startDate, filters.endDate);
 
     final byAnimal = <String, List<Map<String, dynamic>>>{};
     for (var w in weights) {
-      final animalId = w['animal_id'] as String;
+      final animalId = (w['animal_id'] ?? '').toString();
+      if (animalId.isEmpty) continue;
       byAnimal.putIfAbsent(animalId, () => []);
       byAnimal[animalId]!.add(w);
     }
@@ -197,24 +242,28 @@ class ReportsService {
       final weighings = entry.value;
       final animal = animalMap[animalId];
 
-      final weightValues = weighings
-          .map((w) => (w['weight'] as num).toDouble())
-          .toList();
+      final weightValues =
+          weighings.map((w) => (w['weight'] as num).toDouble()).toList();
 
       weighings.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
 
-      final double lastWeight = weighings.isEmpty
-          ? 0
-          : (weighings[0]['weight'] as num).toDouble();
+      final double lastWeight =
+          weighings.isEmpty ? 0 : (weighings[0]['weight'] as num).toDouble();
 
       return {
         'animal_id': animalId,
         'animal_code': animal?.code ?? 'N/A',
         'animal_name': animal?.name ?? 'N/A',
         'count': weightValues.length,
-        'min': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a < b ? a : b),
-        'max': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a > b ? a : b),
-        'avg': weightValues.isEmpty ? 0 : weightValues.reduce((a, b) => a + b) / weightValues.length,
+        'min': weightValues.isEmpty
+            ? 0
+            : weightValues.reduce((a, b) => a < b ? a : b),
+        'max': weightValues.isEmpty
+            ? 0
+            : weightValues.reduce((a, b) => a > b ? a : b),
+        'avg': weightValues.isEmpty
+            ? 0
+            : weightValues.reduce((a, b) => a + b) / weightValues.length,
         'last_weight': lastWeight,
         'last_date': weighings.isEmpty ? '' : weighings[0]['date'],
       };
@@ -343,12 +392,13 @@ class ReportsService {
     }).toList();
 
     if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
-      breeding = breeding.where((b) => b['stage'] == filters.breedingStage).toList();
+      final expected = _slug(filters.breedingStage!); // ex: "Gestacao_Confirmada" -> "gestacao_confirmada"
+      breeding = breeding.where((b) => _slug((b['stage'] ?? '').toString()) == expected).toList();
     }
 
     final byStage = <String, int>{};
     for (var b in breeding) {
-      final stage = b['stage'] ?? 'Não definido';
+      final stage = (b['stage'] ?? 'nao_definido').toString();
       byStage[stage] = (byStage[stage] ?? 0) + 1;
     }
 
@@ -393,17 +443,20 @@ class ReportsService {
     }
 
     // Tenta as tabelas mais prováveis
-    await tryTable('financial_accounts');   // mais comum no app
+    await tryTable('financial_accounts');   // app atual
     await tryTable('finance_accounts');
     await tryTable('financial');            // planos antigos
     await tryTable('accounts');
 
-    // Fallback para um helper, se existir
+    // Fallback para helper
     if (rows.isEmpty) {
       try {
         final any = await DatabaseService.getFinancialRecords();
         if (any is List) {
-          rows = any.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map)).toList();
+          rows = any
+              .map<Map<String, dynamic>>(
+                  (e) => Map<String, dynamic>.from(e as Map))
+              .toList();
         }
       } catch (_) {}
     }
@@ -426,7 +479,6 @@ class ReportsService {
       // tipo
       var type = _asLower(map['type'] ?? map['tipo']);
       if (type.isEmpty) {
-        // alguns bancos usam income/expense
         final t2 = _asLower(map['kind'] ?? map['categoria_tipo']);
         if (t2 == 'income') type = 'receita';
         if (t2 == 'expense') type = 'despesa';
@@ -468,7 +520,9 @@ class ReportsService {
     }
 
     // Filtra por período
-    norm = norm.where((m) => _between(m['effective_date'] as DateTime?, filters.startDate, filters.endDate)).toList();
+    norm = norm
+        .where((m) => _between(m['effective_date'] as DateTime?, filters.startDate, filters.endDate))
+        .toList();
 
     // Filtros tipo/categoria
     if (filters.financialType != null && filters.financialType != 'Todos') {
@@ -499,14 +553,14 @@ class ReportsService {
 
     // Dados para a tabela
     final data = norm.map((m) => {
-      'date': m['date'] ?? '',
-      'type': m['type'],
-      'category': m['category'],
-      'amount': m['amount'],
-      'description': m['description'],
-      'status': (m['status'] as String?)?.isEmpty ?? true ? '' : m['status'],
-      'animal_code': m['animal_code'],
-    }).toList();
+          'date': m['date'] ?? '',
+          'type': m['type'],
+          'category': m['category'],
+          'amount': m['amount'],
+          'description': m['description'],
+          'status': (m['status'] as String?)?.isEmpty ?? true ? '' : m['status'],
+          'animal_code': m['animal_code'],
+        }).toList();
 
     return {
       'summary': {
@@ -530,7 +584,8 @@ class ReportsService {
     }).toList();
 
     if (filters.notesIsRead != null) {
-      notes = notes.where((n) => (n['is_read'] == 1) == filters.notesIsRead!).toList();
+      notes =
+          notes.where((n) => (n['is_read'] == 1) == filters.notesIsRead!).toList();
     }
     if (filters.notesPriority != null && filters.notesPriority != 'Todos') {
       notes = notes.where((n) => n['priority'] == filters.notesPriority).toList();
@@ -552,7 +607,8 @@ class ReportsService {
         'low': low,
       },
       'data': notes.map((n) {
-        final animal = n['animal_id'] != null ? animalMap[n['animal_id']] : null;
+        final animal =
+            n['animal_id'] != null ? animalMap[n['animal_id']] : null;
         return {
           'date': n['date'],
           'title': n['title'],
