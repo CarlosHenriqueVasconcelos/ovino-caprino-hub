@@ -196,89 +196,11 @@ export type Database = {
           },
         ]
       }
-      budgets: {
-        Row: {
-          amount: number
-          category: string
-          cost_center_id: string | null
-          created_at: string
-          end_date: string
-          id: string
-          name: string
-          notes: string | null
-          period: string
-          start_date: string
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          category: string
-          cost_center_id?: string | null
-          created_at?: string
-          end_date: string
-          id?: string
-          name: string
-          notes?: string | null
-          period: string
-          start_date: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          category?: string
-          cost_center_id?: string | null
-          created_at?: string
-          end_date?: string
-          id?: string
-          name?: string
-          notes?: string | null
-          period?: string
-          start_date?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "budgets_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      cost_centers: {
-        Row: {
-          active: boolean | null
-          color: string | null
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          active?: boolean | null
-          color?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          active?: boolean | null
-          color?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
       financial_accounts: {
         Row: {
           amount: number
           animal_id: string | null
           category: string
-          cost_center_id: string | null
           created_at: string
           description: string | null
           due_date: string
@@ -301,7 +223,6 @@ export type Database = {
           amount: number
           animal_id?: string | null
           category: string
-          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           due_date: string
@@ -324,7 +245,6 @@ export type Database = {
           amount?: number
           animal_id?: string | null
           category?: string
-          cost_center_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string
@@ -349,13 +269,6 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "financial_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_financial_accounts_cost_center"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
         ]

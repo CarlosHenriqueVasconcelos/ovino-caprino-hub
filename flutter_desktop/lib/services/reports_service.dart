@@ -201,13 +201,16 @@ class ReportsService {
     Future<List<Map<String, dynamic>>> tryQuery(
         String table, String dcol, String wcol) async {
       try {
-        return await db.rawQuery('''
+        final rows = await db.rawQuery('''
           SELECT id, animal_id, $dcol AS date, $wcol AS weight
           FROM $table
-          WHERE date($dcol) >= date(?) AND date($dcol) <= date(?)
-          ORDER BY date($dcol) ASC
+          WHERE $dcol >= ? AND $dcol <= ?
+          ORDER BY $dcol ASC
         ''', [s, e]);
-      } catch (_) {
+        print('✅ Encontrados ${rows.length} registros de peso em $table');
+        return rows;
+      } catch (e) {
+        print('⚠️ Erro ao buscar pesos em $table: $e');
         return [];
       }
     }
@@ -386,14 +389,26 @@ class ReportsService {
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
+    print('📊 Total de registros de reprodução encontrados: ${breeding.length}');
+
     breeding = breeding.where((b) {
       final d = _toDate(b['breeding_date']);
-      return _between(d, filters.startDate, filters.endDate);
+      final inRange = _between(d, filters.startDate, filters.endDate);
+      if (!inRange) {
+        print('⏭️ Registro fora do período: ${b['breeding_date']}');
+      }
+      return inRange;
     }).toList();
 
+    print('📊 Registros após filtro de data: ${breeding.length}');
+
     if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
-      final expected = _slug(filters.breedingStage!); // ex: "Gestacao_Confirmada" -> "gestacao_confirmada"
-      breeding = breeding.where((b) => _slug((b['stage'] ?? '').toString()) == expected).toList();
+      final expected = _slug(filters.breedingStage!);
+      breeding = breeding.where((b) {
+        final stage = _slug((b['stage'] ?? '').toString());
+        return stage == expected;
+      }).toList();
+      print('📊 Registros após filtro de estágio: ${breeding.length}');
     }
 
     final byStage = <String, int>{};

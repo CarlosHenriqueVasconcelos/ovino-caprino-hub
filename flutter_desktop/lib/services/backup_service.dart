@@ -22,8 +22,8 @@ class BackupService {
     'medications',
     'vaccinations',
     'notes',
-    'financial_records',
     'financial_accounts',
+    'financial_records',
     'reports',
     'push_tokens',
   ];
