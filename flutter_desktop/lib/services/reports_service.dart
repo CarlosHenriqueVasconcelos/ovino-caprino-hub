@@ -230,14 +230,42 @@ class ReportsService {
     final animals = await DatabaseService.getAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
+    // Busca histórico de pesagens na tabela animal_weights
     final weights = await _readWeightRows(filters.startDate, filters.endDate);
 
     final byAnimal = <String, List<Map<String, dynamic>>>{};
+    
+    // Adiciona pesagens do histórico
     for (var w in weights) {
       final animalId = (w['animal_id'] ?? '').toString();
       if (animalId.isEmpty) continue;
       byAnimal.putIfAbsent(animalId, () => []);
       byAnimal[animalId]!.add(w);
+    }
+
+    print('📊 Histórico de pesagens encontrado: ${weights.length}');
+    print('📊 Animais com histórico: ${byAnimal.length}');
+
+    // Se não houver histórico, usa os pesos atuais da tabela animals
+    if (weights.isEmpty) {
+      print('⚠️ Nenhum histórico de pesagens encontrado, usando pesos atuais dos animais');
+      
+      for (var animal in animals) {
+        final createdAt = _toDate(animal.createdAt);
+        if (!_between(createdAt, filters.startDate, filters.endDate)) continue;
+        
+        if (animal.weight > 0) {
+          byAnimal.putIfAbsent(animal.id, () => []);
+          byAnimal[animal.id]!.add({
+            'animal_id': animal.id,
+            'date': animal.createdAt is DateTime 
+                ? (animal.createdAt as DateTime).toIso8601String().split('T')[0]
+                : animal.createdAt.toString().split('T')[0],
+            'weight': animal.weight,
+          });
+        }
+      }
+      print('📊 Animais adicionados com peso atual: ${byAnimal.length}');
     }
 
     final animalStats = byAnimal.entries.map((entry) {
@@ -277,9 +305,11 @@ class ReportsService {
         .where((w) => w > 0)
         .toList();
 
+    print('📊 Total de animais no relatório final: ${animalStats.length}');
+
     return {
       'summary': {
-        'total_weighings': weights.length,
+        'total_weighings': weights.isEmpty ? byAnimal.length : weights.length,
         'animals_weighed': byAnimal.length,
         'avg_last_weight': allLastWeights.isEmpty
             ? 0
