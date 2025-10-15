@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../models/financial_account.dart';
 import 'database_service.dart';
+import 'sale_hooks.dart'; // <-- integra o hook de venda
 
 class FinancialService {
   // Garante que a tabela/índices existem
@@ -33,13 +34,22 @@ class FinancialService {
     ''');
 
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_fin_due_date ON financial_accounts(due_date)');
+      'CREATE INDEX IF NOT EXISTS idx_fin_due_date ON financial_accounts(due_date)',
+    );
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_fin_status ON financial_accounts(status)');
+      'CREATE INDEX IF NOT EXISTS idx_fin_status ON financial_accounts(status)',
+    );
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_fin_type ON financial_accounts(type)');
+      'CREATE INDEX IF NOT EXISTS idx_fin_type ON financial_accounts(type)',
+    );
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_fin_parent ON financial_accounts(parent_id)');
+      'CREATE INDEX IF NOT EXISTS idx_fin_parent ON financial_accounts(parent_id)',
+    );
+
+    // Evita duplicar a mesma filha por (parent_id, due_date)
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS ux_fin_parent_due ON financial_accounts(parent_id, due_date)',
+    );
   }
 
   // ========== CRUD ==========
@@ -52,6 +62,9 @@ class FinancialService {
       account.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+
+    // Se for "Venda de Animais", atualiza o status do animal
+    await handleAnimalSaleIfApplicable(account);
   }
 
   static Future<void> updateAccount(FinancialAccount account) async {
@@ -64,6 +77,9 @@ class FinancialService {
       where: 'id = ?',
       whereArgs: [account.id],
     );
+
+    // Reexecuta o hook (ex.: quando muda paymentDate/status)
+    await handleAnimalSaleIfApplicable(account);
   }
 
   static Future<void> deleteAccount(String id) async {
@@ -74,6 +90,7 @@ class FinancialService {
       where: 'id = ?',
       whereArgs: [id],
     );
+    // Obs.: não fazemos "desvenda" automática do animal ao excluir o título.
   }
 
   static Future<FinancialAccount> getById(String id) async {
@@ -120,6 +137,9 @@ class FinancialService {
       where: 'id = ?',
       whereArgs: [id],
     );
+
+    // Se for venda de animal, garante exit_date com paymentDate
+    await handleAnimalSaleIfApplicable(updated);
   }
 
   // ========== STATUS VENCIDO ==========
@@ -136,7 +156,7 @@ class FinancialService {
       [today],
     );
 
-    // (opcional) voltar de Vencido para Pendente caso data tenha sido alterada para futuro
+    // Voltar de Vencido para Pendente caso data tenha sido alterada para futuro
     await db.rawUpdate(
       "UPDATE financial_accounts SET status = 'Pendente' "
       "WHERE status = 'Vencido' AND date(due_date) >= date(?)",
@@ -145,7 +165,6 @@ class FinancialService {
   }
 
   // ========== DASHBOARD ==========
-  // Agora STATIC para combinar com chamadas do widget
   static Future<Map<String, dynamic>> getDashboardStats() async {
     await updateOverdueStatus();
     final db = await DatabaseService.database;
@@ -352,9 +371,28 @@ class FinancialService {
     }
   }
 
+  // Lista apenas as "mães" recorrentes (útil para a tela)
+  static Future<List<FinancialAccount>> getRecurringMothers() async {
+    await _ensureTablesExist();
+    final db = await DatabaseService.database;
+    final res = await db.query(
+      'financial_accounts',
+      where: 'is_recurring = 1 AND parent_id IS NULL',
+      orderBy: 'date(due_date) ASC',
+    );
+    return res.map(FinancialAccount.fromMap).toList();
+  }
+
+  // Exclui a recorrência inteira: primeiro as filhas, depois a mãe
+  static Future<void> deleteRecurringCascade(String motherId) async {
+    await _ensureTablesExist();
+    final db = await DatabaseService.database;
+    await db.delete('financial_accounts', where: 'parent_id = ?', whereArgs: [motherId]);
+    await db.delete('financial_accounts', where: 'id = ?', whereArgs: [motherId]);
+  }
+
   // ========== PROJEÇÃO FLUXO DE CAIXA ==========
-  static Future<List<Map<String, dynamic>>> getCashFlowProjection(
-      int months) async {
+  static Future<List<Map<String, dynamic>>> getCashFlowProjection(int months) async {
     await _ensureTablesExist();
     final db = await DatabaseService.database;
     final today = DateTime.now();
@@ -373,8 +411,7 @@ class FinancialService {
           nextMonth.toIso8601String().split('T')[0]
         ],
       );
-      final revenue =
-          (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
+      final revenue = (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
       final expenseResult = await db.rawQuery(
         'SELECT SUM(amount) as total FROM financial_accounts '
@@ -385,8 +422,7 @@ class FinancialService {
           nextMonth.toIso8601String().split('T')[0]
         ],
       );
-      final expense =
-          (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
+      final expense = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
       projection.add({
         'month': month,
@@ -397,5 +433,5 @@ class FinancialService {
     }
 
     return projection;
-    }
+  }
 }

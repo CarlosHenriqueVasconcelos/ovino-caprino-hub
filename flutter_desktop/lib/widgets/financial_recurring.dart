@@ -24,66 +24,108 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
   Future<void> _loadRecurringAccounts() async {
     setState(() => _isLoading = true);
     try {
-      final allAccounts = await FinancialService.getAllAccounts();
+      // Garante status e próxima ocorrência
+      await FinancialService.generateRecurringAccounts();
+      await FinancialService.updateOverdueStatus();
+
+      // Carrega SOMENTE as "mães" recorrentes (is_recurring = 1 e parent_id = null)
+      final mothers = await FinancialService.getRecurringMothers();
+
+      if (!mounted) return;
       setState(() {
-        _recurringAccounts = allAccounts
-            .where((a) => a.isRecurring && a.parentId == null)
-            .toList();
+        _recurringAccounts = mothers;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar despesas recorrentes: $e')),
-        );
+    }
+  }
+
+  Future<void> _addRecurring() async {
+    // Marca o tempo antes de abrir o form (para achar o que foi criado agora)
+    final startedAt = DateTime.now();
+
+    // Abre o formulário padrão (mantém o design)
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const FinancialFormScreen(
+          // Nesta tela você está cadastrando RECORRENTES de despesa.
+          // Se quiser que seja receita, troque para 'receita'.
+          type: 'despesa',
+        ),
+      ),
+    );
+
+    // Ao voltar, se a conta criada não veio marcada como recorrente,
+    // promovemos a última criada para MÃE recorrente (is_recurring=1).
+    final all = await FinancialService.getAllAccounts();
+
+    FinancialAccount? candidate;
+    for (final a in all) {
+      // só candidatas que ainda NÃO são recorrentes e não são filhas
+      final isMotherCandidate = (a.parentId == null) && (a.isRecurring != true);
+      if (!isMotherCandidate) continue;
+
+      // prioridade: quem tem createdAt mais recente pós startedAt
+      final created = a.createdAt ?? a.updatedAt ?? a.dueDate;
+      final afterStart = created.isAfter(startedAt.subtract(const Duration(seconds: 1)));
+
+      if (candidate == null) {
+        if (afterStart) candidate = a;
+      } else {
+        final candCreated = (candidate!.createdAt ?? candidate!.updatedAt ?? candidate!.dueDate);
+        if (created.isAfter(candCreated)) {
+          candidate = a;
+        }
       }
     }
+
+    if (candidate != null) {
+      final mother = candidate!.copyWith(
+        isRecurring: true,
+        // Se o form não gravou frequência, definimos um padrão seguro
+        recurrenceFrequency: candidate!.recurrenceFrequency ?? 'Mensal',
+        parentId: null,
+        updatedAt: DateTime.now(),
+      );
+      await FinancialService.updateAccount(mother);
+      // Gera a próxima filha (idempotente)
+      await FinancialService.generateRecurringAccounts();
+    }
+
+    await _loadRecurringAccounts();
   }
 
   Future<void> _deleteRecurring(FinancialAccount account) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: const Text(
-          'Deseja realmente excluir esta despesa recorrente?\nIsso não afetará as contas já geradas.',
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir recorrente'),
+        content: Text(
+          'Tem certeza que deseja excluir a recorrência '
+          '"${account.description ?? account.category}"?\n\n'
+          'Todas as ocorrências geradas (filhas) também serão removidas.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
         ],
       ),
     );
 
-    if (confirm == true) {
-      try {
-        await FinancialService.deleteAccount(account.id);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Despesa recorrente excluída')),
-          );
-        }
-        _loadRecurringAccounts();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao excluir: $e')),
-          );
-        }
-      }
-    }
+    if (confirm != true) return;
+
+    await FinancialService.deleteRecurringCascade(account.id);
+    await _loadRecurringAccounts();
   }
 
-  String _formatDate(DateTime date) {
-    return DateFormat('dd/MM/yyyy').format(date);
-  }
+  String _money(num v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _date(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+
+  Color _typeColor(String type) => type == 'receita' ? Colors.green : Colors.red;
+  IconData _typeIcon(String type) => type == 'receita' ? Icons.arrow_upward : Icons.arrow_downward;
 
   @override
   Widget build(BuildContext context) {
@@ -91,105 +133,93 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_recurringAccounts.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.loop, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Nenhuma despesa recorrente cadastrada',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FinancialFormScreen(type: 'despesa'),
-                  ),
-                );
-                _loadRecurringAccounts();
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Adicionar Despesa Recorrente'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+    return RefreshIndicator(
+      onRefresh: _loadRecurringAccounts,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
             children: [
+              Text(
+                'Recorrentes',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
               ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FinancialFormScreen(type: 'despesa'),
-                    ),
-                  );
-                  _loadRecurringAccounts();
-                },
+                onPressed: _addRecurring,
                 icon: const Icon(Icons.add),
-                label: const Text('Nova Recorrente'),
+                label: const Text('Nova recorrente'),
               ),
             ],
           ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SingleChildScrollView(
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Categoria')),
-                  DataColumn(label: Text('Descrição')),
-                  DataColumn(label: Text('Valor')),
-                  DataColumn(label: Text('Frequência')),
-                  DataColumn(label: Text('Início')),
-                  DataColumn(label: Text('Fim')),
-                  DataColumn(label: Text('Ações')),
-                ],
-                rows: _recurringAccounts.map((account) {
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(account.category)),
-                      DataCell(Text(account.description ?? '')),
-                      DataCell(Text(
-                        'R\$ ${account.amount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      )),
-                      DataCell(Text(account.recurrenceFrequency ?? 'N/A')),
-                      DataCell(Text(_formatDate(account.dueDate))),
-                      DataCell(Text(
-                        account.recurrenceEndDate != null
-                            ? _formatDate(account.recurrenceEndDate!)
-                            : 'Indefinido',
-                      )),
-                      DataCell(
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteRecurring(account),
-                        ),
+          const SizedBox(height: 12),
+
+          if (_recurringAccounts.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(Icons.loop, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Nenhuma despesa recorrente cadastrada',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _addRecurring,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Cadastrar'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ..._recurringAccounts.map((account) {
+              final color = _typeColor(account.type);
+              final icon = _typeIcon(account.type);
+
+              return Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: color.withOpacity(0.15),
+                    child: Icon(icon, color: color),
+                  ),
+                  title: Text(account.description ?? account.category),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Frequência: ${account.recurrenceFrequency ?? '-'}'),
+                      Text('Base: ${_date(account.dueDate)}'),
+                      if (account.recurrenceEndDate != null)
+                        Text('Até: ${_date(account.recurrenceEndDate!)}'),
+                    ],
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _money(account.amount),
+                        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      IconButton(
+                        tooltip: 'Excluir recorrência',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deleteRecurring(account),
                       ),
                     ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ),
-      ],
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
     );
   }
 }

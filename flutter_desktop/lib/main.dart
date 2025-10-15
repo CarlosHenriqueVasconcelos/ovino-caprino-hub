@@ -4,10 +4,10 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart' as sqflite;           // <— para logs
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/animal_service.dart';
@@ -16,6 +16,8 @@ import 'services/backup_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+    Intl.defaultLocale = 'pt_BR';
+  await initializeDateFormatting('pt_BR', null);
 
   // ============ Ganchos globais de erro ============
   FlutterError.onError = (FlutterErrorDetails details) {

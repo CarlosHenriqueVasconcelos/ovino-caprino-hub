@@ -12,16 +12,37 @@ class FinancialCompleteScreen extends StatefulWidget {
   State<FinancialCompleteScreen> createState() => _FinancialCompleteScreenState();
 }
 
-class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with SingleTickerProviderStateMixin {
-  static const String _correctPassword = '3'; // Senha fixa
-  late TabController _tabController;
-  final GlobalKey<_FinancialCompleteScreenState> _dashboardKey = GlobalKey();
-  bool _isUnlocked = false;
+class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  // PIN do módulo Financeiro (defina aqui)
+  static const String _kFinancePin = 'Spetovino2025';
+  bool _unlocked = false;
+  bool _checkingLock = true;
+
+  final GlobalKey<FinancialDashboardScreenState> _dashboardKey =
+      GlobalKey<FinancialDashboardScreenState>();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+
+    // Recarrega ao chegar na aba 0 por swipe
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _tabController.index == 0) {
+        _refreshDashboard();
+      }
+    });
+
+    // Pede senha e, se liberar, força o reload do Dashboard
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkFinanceLock();
+      if (mounted && _unlocked) {
+        _refreshDashboard();
+      }
+    });
   }
 
   @override
@@ -31,135 +52,139 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen> with 
   }
 
   void _refreshDashboard() {
-    setState(() {});
+    _dashboardKey.currentState?.reload();
   }
 
-  Widget _buildPasswordScreen(ThemeData theme) {
-    final passwordController = TextEditingController();
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Controle Financeiro'),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              theme.colorScheme.primary.withOpacity(0.05),
-              Colors.transparent,
-            ],
-          ),
-        ),
-        child: Center(
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              padding: const EdgeInsets.all(32),
-              child: Column(
+  Future<void> _checkFinanceLock() async {
+    if (_kFinancePin.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _unlocked = true;
+        _checkingLock = false;
+      });
+      return;
+    }
+
+    final ok = await _askForPin(_kFinancePin);
+    if (!mounted) return;
+    setState(() {
+      _unlocked = ok == true;
+      _checkingLock = false;
+    });
+    // NÃO dar pop() se cancelar — deixamos a tela com painel de bloqueio
+  }
+
+  Future<bool?> _askForPin(String expected) async {
+    String input = '';
+    String? error;
+
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Área Financeira'),
+              content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.lock,
-                    size: 64,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Área Protegida',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Digite a senha para acessar o controle financeiro',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  const Text('Digite a senha para acessar.'),
+                  const SizedBox(height: 12),
                   TextField(
-                    controller: passwordController,
+                    autofocus: true,
                     obscureText: true,
-                    maxLength: 1,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineLarge,
                     decoration: InputDecoration(
                       labelText: 'Senha',
-                      hintText: 'Digite a senha',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      counterText: '',
+                      border: const OutlineInputBorder(),
+                      errorText: error,
                     ),
-                    keyboardType: TextInputType.number,
-                    onSubmitted: (value) => _checkPassword(value, theme),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _checkPassword(passwordController.text, theme),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Desbloquear'),
-                    ),
+                    onChanged: (v) => input = v,
+                    onSubmitted: (_) {
+                      if (input == expected) {
+                        Navigator.pop(ctx, true);
+                      } else {
+                        setState(() => error = 'Senha incorreta. Tente novamente.');
+                      }
+                    },
                   ),
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false), // apenas fecha o diálogo
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (input == expected) {
+                      Navigator.pop(ctx, true);
+                    } else {
+                      setState(() => error = 'Senha incorreta. Tente novamente.');
+                    }
+                  },
+                  child: const Text('Entrar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-  void _checkPassword(String password, ThemeData theme) {
-    if (password.isEmpty) {
-      _showError('Digite a senha');
-      return;
+  Future<void> _promptUnlock() async {
+    final ok = await _askForPin(_kFinancePin);
+    if (!mounted) return;
+    if (ok == true) {
+      setState(() => _unlocked = true);
+      _refreshDashboard();
     }
-    
-    // Verificar se a senha está correta
-    if (password != _correctPassword) {
-      _showError('Senha incorreta!');
-      return;
-    }
-    
-    // Senha correta - desbloquear
-    setState(() {
-      _isUnlocked = true;
-    });
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    if (_checkingLock) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    if (!_isUnlocked) {
-      return _buildPasswordScreen(theme);
+    // Se não desbloqueou (cancelou/errou), mostra PAINEL DE BLOQUEIO (sem tela preta)
+    if (!_unlocked) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Financeiro'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock, size: 72),
+              const SizedBox(height: 12),
+              const Text('Área financeira bloqueada'),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                onPressed: _promptUnlock,
+                icon: const Icon(Icons.lock_open),
+                label: const Text('Desbloquear'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Controle Financeiro'),
+        title: const Text('Financeiro'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          onTap: (index) {
+            if (index == 0) _refreshDashboard(); // tocar no Dashboard recarrega
+          },
           tabs: const [
             Tab(text: 'Dashboard'),
             Tab(text: 'A Pagar'),

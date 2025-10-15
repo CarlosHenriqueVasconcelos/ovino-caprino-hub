@@ -12,14 +12,22 @@ class ReportsHubScreen extends StatefulWidget {
   State<ReportsHubScreen> createState() => _ReportsHubScreenState();
 }
 
-class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerProviderStateMixin {
+class _ReportsHubScreenState extends State<ReportsHubScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
+  // ----------------- PIN SOMENTE NA ABA FINANCEIRO -----------------
+  static const String _kReportsFinancePin = 'Spetovino2025'; // <- defina a senha aqui
+  late final int _financeTabIndex;
+  bool _financialUnlocked = false;
+  int _lastTabIndex = 0;
+  // -----------------------------------------------------------------
+
   // Period filters
   String _periodPreset = 'last30';
   DateTime _customStart = DateTime.now().subtract(const Duration(days: 30));
   DateTime _customEnd = DateTime.now();
-  
+
   // Contextual filters
   String _speciesFilter = 'Todos';
   String _genderFilter = 'Todos';
@@ -32,21 +40,18 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   String _financialCategoryFilter = 'Todos';
   String _notesPriorityFilter = 'Todos';
   String _notesIsReadFilter = 'Todos';
-  
+
   // Report data
   Map<String, dynamic>? _reportData;
   bool _isLoading = false;
-  
+
   // Sorting & Pagination
   String _sortKey = '';
   bool _sortAsc = true;
   int _currentPage = 0;
   static const int _pageSize = 25;
-  
-  // Financial reports password protection
-  bool _financialUnlocked = false;
 
-  final List<String> _reportTypes = [
+  final List<String> _reportTypes = const [
     'Animais',
     'Pesos',
     'Vacinações',
@@ -60,20 +65,38 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: _reportTypes.length, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        // Check if trying to access financial reports
-        if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
-          _showFinancialPasswordDialog();
-          return;
+    _financeTabIndex = _reportTypes.indexOf('Financeiro');
+    _lastTabIndex = _tabController.index;
+
+    // Bloqueia swipe para Financeiro se não desbloqueado
+    _tabController.addListener(() async {
+      if (_tabController.indexIsChanging) return; // evita durante animação
+      final idx = _tabController.index;
+
+      if (idx == _financeTabIndex && !_financialUnlocked) {
+        // volta para a aba anterior e pede senha
+        _tabController.index = _lastTabIndex;
+        final ok = await _showFinancePinDialog();
+        if (ok == true) {
+          setState(() => _financialUnlocked = true);
+          _tabController.index = _financeTabIndex;
+          setState(() {
+            _currentPage = 0;
+            _sortKey = '';
+          });
+          await _loadReport();
         }
-        setState(() {
-          _currentPage = 0;
-          _sortKey = '';
-        });
-        _loadReport();
+        return;
       }
+
+      _lastTabIndex = idx;
+      setState(() {
+        _currentPage = 0;
+        _sortKey = '';
+      });
+      await _loadReport();
     });
+
     _loadReport();
   }
 
@@ -87,7 +110,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     if (_periodPreset == 'custom') {
       return DateRange(startDate: _customStart, endDate: _customEnd);
     }
-    
+
     final now = DateTime.now();
     switch (_periodPreset) {
       case 'last7':
@@ -116,7 +139,10 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
           endDate: DateTime(now.year, 12, 31, 23, 59, 59),
         );
       default:
-        return DateRange(startDate: now.subtract(const Duration(days: 30)), endDate: now);
+        return DateRange(
+          startDate: now.subtract(const Duration(days: 30)),
+          endDate: now,
+        );
     }
   }
 
@@ -141,7 +167,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
         financialType: _financialTypeFilter,
         financialCategory: _financialCategoryFilter,
         notesPriority: _notesPriorityFilter,
-        notesIsRead: _notesIsReadFilter == 'Lidas' ? true : _notesIsReadFilter == 'Não lidas' ? false : null,
+        notesIsRead: _notesIsReadFilter == 'Lidas'
+            ? true
+            : _notesIsReadFilter == 'Não lidas'
+                ? false
+                : null,
       );
 
       Map<String, dynamic> data;
@@ -187,78 +217,76 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     }
   }
 
-  Future<void> _showFinancialPasswordDialog() async {
-    const String correctPassword = '3'; // Senha fixa
-    final TextEditingController passwordController = TextEditingController();
-    
-    await showDialog(
+  Future<bool?> _showFinancePinDialog() async {
+    String input = '';
+    String? error;
+
+    return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black87,
-      builder: (context) => AlertDialog(
-        title: const Text('Acesso Protegido'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Digite a senha para acessar os relatórios financeiros:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              keyboardType: TextInputType.number,
-              maxLength: 1,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Senha',
-                border: OutlineInputBorder(),
+      barrierColor: Colors.black54,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            return AlertDialog(
+              title: const Text('Acesso Protegido'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Digite a senha para acessar os relatórios financeiros:'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    autofocus: true,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: 'Senha',
+                      border: const OutlineInputBorder(),
+                      errorText: error,
+                    ),
+                    onChanged: (v) => input = v,
+                    onSubmitted: (_) {
+                      if (input == _kReportsFinancePin) {
+                        Navigator.pop(ctx, true);
+                      } else {
+                        setState(() => error = 'Senha incorreta. Tente novamente.');
+                      }
+                    },
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Go back to previous tab
-              final currentIndex = _tabController.index;
-              if (currentIndex > 0) {
-                _tabController.animateTo(currentIndex - 1);
-              }
-              Navigator.of(context).pop();
-            },
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final password = passwordController.text;
-              
-              // Verificar senha correta
-              if (password == correctPassword) {
-                setState(() {
-                  _financialUnlocked = true;
-                });
-                Navigator.of(context).pop();
-                _loadReport();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Senha incorreta!')),
-                );
-              }
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (input == _kReportsFinancePin) {
+                      Navigator.pop(ctx, true);
+                    } else {
+                      setState(() => error = 'Senha incorreta. Tente novamente.');
+                    }
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
   Future<void> _exportCSV() async {
-    // Check if trying to export financial reports
+    // Bloqueia export na aba Financeiro sem PIN
     if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Acesso aos relatórios financeiros bloqueado')),
       );
       return;
     }
-    
+
     if (_reportData == null || _reportData!['data'] == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nenhum dado para exportar')),
@@ -276,24 +304,28 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
       }
 
       final headers = (data.first as Map<String, dynamic>).keys.join(',');
-      final rows = data.map((row) {
-        final r = row as Map<String, dynamic>;
-        return r.values.map((v) {
-          final str = v.toString();
-          return str.contains(',') ? '"$str"' : str;
-        }).join(',');
-      }).join('\n');
-      
+      final rows = data
+          .map((row) {
+            final r = row as Map<String, dynamic>;
+            return r.values
+                .map((v) {
+                  final str = v.toString();
+                  return str.contains(',') ? '"$str"' : str;
+                })
+                .join(',');
+          })
+          .join('\n');
+
       final csv = '$headers\n$rows';
-      
+
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final reportType = _reportTypes[_tabController.index].toLowerCase();
       final filename = '${reportType}_$timestamp.csv';
-      
+
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/$filename');
       await file.writeAsString(csv);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('CSV exportado: ${file.path}')),
@@ -309,19 +341,20 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   }
 
   Future<void> _saveReport() async {
-    // Check if trying to save financial reports
+    // Bloqueia salvar na aba Financeiro sem PIN
     if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Acesso aos relatórios financeiros bloqueado')),
       );
       return;
     }
-    
+
     try {
       final period = _getPeriodRange();
       final reportType = _reportTypes[_tabController.index];
-      final title = '$reportType – ${DateFormat('dd/MM/yyyy').format(period.startDate)} a ${DateFormat('dd/MM/yyyy').format(period.endDate)}';
-      
+      final title =
+          '$reportType – ${DateFormat('dd/MM/yyyy').format(period.startDate)} a ${DateFormat('dd/MM/yyyy').format(period.endDate)}';
+
       final parameters = {
         'report_type': reportType,
         'period_preset': _periodPreset,
@@ -368,27 +401,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
 
   List<dynamic> _getSortedData() {
     if (_reportData == null || _reportData!['data'] == null) return [];
-    
+
     List<dynamic> data = List.from(_reportData!['data']);
-    
+
     if (_sortKey.isNotEmpty) {
       data.sort((a, b) {
         final aVal = (a as Map<String, dynamic>)[_sortKey];
         final bVal = (b as Map<String, dynamic>)[_sortKey];
-        
+
         if (aVal == null) return _sortAsc ? 1 : -1;
         if (bVal == null) return _sortAsc ? -1 : 1;
-        
+
         if (aVal is num && bVal is num) {
           return _sortAsc ? aVal.compareTo(bVal) : bVal.compareTo(aVal);
         }
-        
+
         final aStr = aVal.toString();
         final bStr = bVal.toString();
         return _sortAsc ? aStr.compareTo(bStr) : bStr.compareTo(aStr);
       });
     }
-    
+
     return data;
   }
 
@@ -413,7 +446,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hub de Relatórios e Análises'),
@@ -436,19 +469,39 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
           TabBar(
             controller: _tabController,
             isScrollable: true,
+            onTap: (index) async {
+              if (index == _financeTabIndex && !_financialUnlocked) {
+                // cancela a troca, pede PIN e só navega se acertar
+                _tabController.index = _lastTabIndex;
+                final ok = await _showFinancePinDialog();
+                if (ok == true) {
+                  setState(() => _financialUnlocked = true);
+                  _tabController.index = _financeTabIndex;
+                  setState(() {
+                    _currentPage = 0;
+                    _sortKey = '';
+                  });
+                  await _loadReport();
+                }
+              } else {
+                _lastTabIndex = index;
+              }
+            },
             tabs: _reportTypes.map((type) => Tab(text: type)).toList(),
           ),
-          
+
           // Filters
           _buildFiltersSection(theme),
-          
+
           // Content
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
                     controller: _tabController,
-                    children: _reportTypes.map((_) => _buildReportContent(theme)).toList(),
+                    children: _reportTypes
+                        .map((_) => _buildReportContent(theme))
+                        .toList(),
                   ),
           ),
         ],
@@ -465,7 +518,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
         children: [
           Text('Filtros', style: theme.textTheme.titleMedium),
           const SizedBox(height: 12),
-          
+
           // Period filters
           Row(
             children: [
@@ -475,12 +528,15 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                   decoration: const InputDecoration(
                     labelText: 'Período',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'last7', child: Text('Últimos 7 dias')),
-                    DropdownMenuItem(value: 'last30', child: Text('Últimos 30 dias')),
-                    DropdownMenuItem(value: 'last90', child: Text('Últimos 90 dias')),
+                    DropdownMenuItem(
+                        value: 'last30', child: Text('Últimos 30 dias')),
+                    DropdownMenuItem(
+                        value: 'last90', child: Text('Últimos 90 dias')),
                     DropdownMenuItem(value: 'currentMonth', child: Text('Mês atual')),
                     DropdownMenuItem(value: 'currentYear', child: Text('Ano atual')),
                     DropdownMenuItem(value: 'custom', child: Text('Customizado')),
@@ -514,7 +570,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                       decoration: const InputDecoration(
                         labelText: 'Data Inicial',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       child: Text(DateFormat('dd/MM/yyyy').format(_customStart)),
                     ),
@@ -539,7 +596,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                       decoration: const InputDecoration(
                         labelText: 'Data Final',
                         border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       child: Text(DateFormat('dd/MM/yyyy').format(_customEnd)),
                     ),
@@ -548,9 +606,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               ],
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Contextual filters
           _buildContextualFilters(theme),
         ],
@@ -560,7 +618,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
 
   Widget _buildContextualFilters(ThemeData theme) {
     final currentReport = _reportTypes[_tabController.index];
-    
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -573,7 +631,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Espécie',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -593,7 +652,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Gênero',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -613,12 +673,14 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                 DropdownMenuItem(value: 'Saudável', child: Text('Saudável')),
-                DropdownMenuItem(value: 'Em tratamento', child: Text('Em tratamento')),
+                DropdownMenuItem(
+                    value: 'Em tratamento', child: Text('Em tratamento')),
                 DropdownMenuItem(value: 'Reprodutor', child: Text('Reprodutor')),
               ],
               onChanged: (v) {
@@ -628,7 +690,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             ),
           ),
         ],
-        
         if (currentReport == 'Vacinações') ...[
           SizedBox(
             width: 200,
@@ -637,7 +698,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -652,7 +714,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             ),
           ),
         ],
-        
         if (currentReport == 'Medicações') ...[
           SizedBox(
             width: 200,
@@ -661,7 +722,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -676,7 +738,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             ),
           ),
         ],
-        
         if (currentReport == 'Reprodução') ...[
           SizedBox(
             width: 220,
@@ -686,16 +747,29 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Estágio',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Encabritamento', child: Text('Encabritamento', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Separacao', child: Text('Separação', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Aguardando_Ultrassom', child: Text('Aguardando Ultrassom', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Gestacao_Confirmada', child: Text('Gestação Confirmada', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Parto_Realizado', child: Text('Parto Realizado', overflow: TextOverflow.ellipsis)),
-                DropdownMenuItem(value: 'Falhou', child: Text('Falhou', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Todos', child: Text('Todos', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Encabritamento',
+                    child: Text('Encabritamento', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Separacao',
+                    child: Text('Separação', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Aguardando_Ultrassom',
+                    child: Text('Aguardando Ultrassom', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Gestacao_Confirmada',
+                    child: Text('Gestação Confirmada', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Parto_Realizado',
+                    child: Text('Parto Realizado', overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                    value: 'Falhou', child: Text('Falhou', overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (v) {
                 setState(() => _breedingStageFilter = v!);
@@ -704,7 +778,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             ),
           ),
         ],
-        
         if (currentReport == 'Financeiro') ...[
           SizedBox(
             width: 200,
@@ -713,7 +786,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Tipo',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -727,7 +801,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             ),
           ),
         ],
-        
         if (currentReport == 'Anotações') ...[
           SizedBox(
             width: 200,
@@ -736,7 +809,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Leitura',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -756,7 +830,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
               decoration: const InputDecoration(
                 labelText: 'Prioridade',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
                 DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -776,23 +851,22 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   }
 
   Widget _buildReportContent(ThemeData theme) {
-    // Check if financial reports are locked
-    if (_reportTypes[_tabController.index] == 'Financeiro' && !_financialUnlocked) {
+    // Fallback visual (não deve aparecer, mas mantido por segurança)
+    if (_reportTypes[_tabController.index] == 'Financeiro' &&
+        !_financialUnlocked) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.lock, size: 64, color: theme.colorScheme.primary),
             const SizedBox(height: 16),
-            Text(
-              'Relatórios Financeiros Bloqueados',
-              style: theme.textTheme.titleLarge,
-            ),
+            Text('Relatórios Financeiros Bloqueados',
+                style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text('Clique na aba novamente para inserir a senha'),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _showFinancialPasswordDialog,
+              onPressed: _showFinancePinDialog,
               icon: const Icon(Icons.lock_open),
               label: const Text('Desbloquear'),
             ),
@@ -800,22 +874,16 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
         ),
       );
     }
-    
+
     if (_reportData == null) {
       return const Center(child: Text('Nenhum dado disponível'));
     }
 
     return Column(
       children: [
-        // KPIs
         _buildKPIs(theme),
-        
         const Divider(),
-        
-        // Table
         Expanded(child: _buildTable(theme)),
-        
-        // Pagination
         _buildPagination(theme),
       ],
     );
@@ -827,7 +895,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
     }
 
     final summary = _reportData!['summary'] as Map<String, dynamic>;
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Wrap(
@@ -836,9 +904,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
         children: summary.entries.map((entry) {
           final value = entry.value;
           String displayValue;
-          
+
           if (value is double) {
-            if (entry.key.contains('revenue') || entry.key.contains('expense') || entry.key.contains('balance')) {
+            if (entry.key.contains('revenue') ||
+                entry.key.contains('expense') ||
+                entry.key.contains('balance')) {
               displayValue = 'R\$ ${value.toStringAsFixed(2)}';
             } else {
               displayValue = value.toStringAsFixed(2);
@@ -846,7 +916,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
           } else {
             displayValue = value.toString();
           }
-          
+
           return Card(
             child: Container(
               width: 150,
@@ -861,7 +931,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                   const SizedBox(height: 8),
                   Text(
                     displayValue,
-                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -875,35 +946,39 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
 
   Widget _buildTable(ThemeData theme) {
     final paginatedData = _getPaginatedData();
-    
+
     if (paginatedData.isEmpty) {
-      return const Center(child: Text('Nenhum dado encontrado para o período selecionado'));
+      return const Center(
+          child: Text('Nenhum dado encontrado para o período selecionado'));
     }
 
     final columns = (paginatedData.first as Map<String, dynamic>).keys.toList();
-    
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          sortColumnIndex: _sortKey.isEmpty ? null : columns.indexOf(_sortKey),
+          sortColumnIndex:
+              _sortKey.isEmpty ? null : columns.indexOf(_sortKey),
           sortAscending: _sortAsc,
-          columns: columns.map((col) {
-            return DataColumn(
-              label: Text(col.replaceAll('_', ' ').toUpperCase()),
-              onSort: (_, __) => _handleSort(col),
-            );
-          }).toList(),
+          columns: columns
+              .map((col) => DataColumn(
+                    label: Text(col.replaceAll('_', ' ').toUpperCase()),
+                    onSort: (_, __) => _handleSort(col),
+                  ))
+              .toList(),
           rows: paginatedData.map((row) {
             final r = row as Map<String, dynamic>;
             return DataRow(
               cells: columns.map((col) {
                 final value = r[col];
                 String display;
-                
+
                 if (value is bool) {
                   display = value ? 'Sim' : 'Não';
-                } else if (col.contains('date') && value != null && value.toString().isNotEmpty) {
+                } else if (col.contains('date') &&
+                    value != null &&
+                    value.toString().isNotEmpty) {
                   try {
                     final date = DateTime.parse(value.toString());
                     display = DateFormat('dd/MM/yyyy').format(date);
@@ -915,7 +990,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
                 } else {
                   display = value?.toString() ?? '';
                 }
-                
+
                 return DataCell(Text(display));
               }).toList(),
             );
@@ -928,9 +1003,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
   Widget _buildPagination(ThemeData theme) {
     final totalItems = _getSortedData().length;
     final totalPages = (totalItems / _pageSize).ceil();
-    
+
     if (totalPages <= 1) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -944,9 +1019,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen> with SingleTickerPr
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left),
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
+                onPressed:
+                    _currentPage > 0 ? () => setState(() => _currentPage--) : null,
               ),
               Text('Página ${_currentPage + 1} de $totalPages'),
               IconButton(
