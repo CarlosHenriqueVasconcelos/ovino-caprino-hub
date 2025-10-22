@@ -24,6 +24,8 @@ class BackupService {
   // ---------- Ordem de carga (pais → filhos) ----------
   static const List<String> _pushOrder = [
     'animals',
+    'sold_animals',
+    'deceased_animals',
     'financial_accounts',
     'financial_records',
     'notes',
@@ -46,6 +48,8 @@ class BackupService {
     'financial_accounts',
     'reports',
     'push_tokens',
+    'sold_animals',
+    'deceased_animals',
     'animals',
   ];
 
@@ -97,6 +101,16 @@ class BackupService {
     },
     'push_tokens': {'id','token','platform','device_info','created_at'},
     'reports': {'id','title','report_type','parameters','generated_at','generated_by'},
+    'sold_animals': {
+      'id','original_animal_id','code','name','species','breed','gender','birth_date','weight','location',
+      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days',
+      'sale_date','sale_price','buyer','sale_notes','created_at','updated_at',
+    },
+    'deceased_animals': {
+      'id','original_animal_id','code','name','species','breed','gender','birth_date','weight','location',
+      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days',
+      'death_date','cause_of_death','death_notes','created_at','updated_at',
+    },
     'vaccinations': {
       'id','animal_id','vaccine_name','vaccine_type','scheduled_date','applied_date','veterinarian',
       'notes','status','created_at','updated_at',

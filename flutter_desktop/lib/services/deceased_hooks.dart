@@ -1,26 +1,14 @@
-// lib/services/sale_hooks.dart
-// Move automaticamente o animal para a tabela sold_animals ao lançar
-// uma Receita com categoria "Venda de Animais" vinculada a um animal.
+// lib/services/deceased_hooks.dart
+// Atualiza automaticamente o animal para "Óbito" e move para deceased_animals
+// quando o status do animal for alterado para "Óbito"
 
 import 'dart:async';
 import 'package:sqflite_common/sqlite_api.dart';
 
-import '../models/financial_account.dart';
 import 'database_service.dart';
 
-DateTime? _tryParseDate(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v;
-  if (v is String) return DateTime.tryParse(v);
-  return null;
-}
-
-Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
-  if (account.type != 'receita') return;
-  if (account.category != 'Venda de Animais') return;
-
-  final animalId = account.animalId;
-  if (animalId == null || animalId.isEmpty) return;
+Future<void> handleAnimalDeathIfApplicable(String animalId, String newStatus) async {
+  if (newStatus != 'Óbito') return;
 
   final db = await DatabaseService.database;
 
@@ -30,13 +18,10 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
 
   final animalData = animals.first;
   final nowIso = DateTime.now().toIso8601String();
+  final dateOnly = nowIso.split('T').first;
 
-  // exit_date: preferir paymentDate; se nulo, usar dueDate
-  final saleDate = _tryParseDate(account.paymentDate) ?? _tryParseDate(account.dueDate);
-  final saleDateIso = saleDate?.toIso8601String().split('T').first ?? nowIso.split('T').first;
-
-  // Insere na tabela de vendidos
-  await db.insert('sold_animals', {
+  // Insere na tabela de falecidos
+  await db.insert('deceased_animals', {
     'id': animalData['id'],
     'original_animal_id': animalData['id'],
     'code': animalData['code'],
@@ -53,10 +38,9 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
     'weight_30_days': animalData['weight_30_days'],
     'weight_60_days': animalData['weight_60_days'],
     'weight_90_days': animalData['weight_90_days'],
-    'sale_date': saleDateIso,
-    'sale_price': account.amount,
-    'buyer': account.supplierCustomer,
-    'sale_notes': account.notes ?? account.description,
+    'death_date': dateOnly,
+    'cause_of_death': animalData['health_issue'],
+    'death_notes': 'Animal registrado como óbito',
     'created_at': nowIso,
     'updated_at': nowIso,
   });

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../data/local_db.dart';      // AppDatabase
 import '../models/animal.dart';      // Animal e AnimalStats
 import '../models/alert_item.dart';  // AlertItem
+import 'deceased_hooks.dart';        // handleAnimalDeathIfApplicable
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
@@ -127,6 +128,18 @@ class AnimalService extends ChangeNotifier {
       throw Exception('Já existe um animal com este Nome + Cor.');
     }
 
+    // Verifica se o status foi alterado para "Óbito"
+    final newStatus = map['status'] as String?;
+    if (newStatus == 'Óbito') {
+      // Move o animal para deceased_animals e remove da tabela principal
+      await handleAnimalDeathIfApplicable(map['id'] as String, newStatus);
+      // Remove da lista local
+      _animals.removeWhere((x) => x.id == map['id']);
+      await _refreshStatsSafe();
+      await refreshAlerts();
+      notifyListeners();
+      return;
+    }
 
     await _appDb!.db.update(
       'animals',

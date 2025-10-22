@@ -160,3 +160,52 @@ export interface AnimalStats {
   avgWeight: number;
   revenue: number;
 }
+
+export interface SoldAnimal {
+  id: string;
+  original_animal_id: string;
+  code: string;
+  name: string;
+  species: 'Ovino' | 'Caprino';
+  breed: string;
+  gender: 'Macho' | 'Fêmea';
+  birth_date: string;
+  weight: number;
+  location: string;
+  name_color?: string;
+  category?: string;
+  birth_weight?: number;
+  weight_30_days?: number;
+  weight_60_days?: number;
+  weight_90_days?: number;
+  sale_date: string;
+  sale_price?: number;
+  buyer?: string;
+  sale_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeceasedAnimal {
+  id: string;
+  original_animal_id: string;
+  code: string;
+  name: string;
+  species: 'Ovino' | 'Caprino';
+  breed: string;
+  gender: 'Macho' | 'Fêmea';
+  birth_date: string;
+  weight: number;
+  location: string;
+  name_color?: string;
+  category?: string;
+  birth_weight?: number;
+  weight_30_days?: number;
+  weight_60_days?: number;
+  weight_90_days?: number;
+  death_date: string;
+  cause_of_death?: string;
+  death_notes?: string;
+  created_at: string;
+  updated_at: string;
+}

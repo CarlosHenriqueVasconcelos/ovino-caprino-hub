@@ -196,6 +196,78 @@ export type Database = {
           },
         ]
       }
+      deceased_animals: {
+        Row: {
+          birth_date: string
+          birth_weight: number | null
+          breed: string
+          category: string | null
+          cause_of_death: string | null
+          code: string
+          created_at: string
+          death_date: string
+          death_notes: string | null
+          gender: string
+          id: string
+          location: string
+          name: string
+          name_color: string | null
+          original_animal_id: string
+          species: string
+          updated_at: string
+          weight: number
+          weight_30_days: number | null
+          weight_60_days: number | null
+          weight_90_days: number | null
+        }
+        Insert: {
+          birth_date: string
+          birth_weight?: number | null
+          breed: string
+          category?: string | null
+          cause_of_death?: string | null
+          code: string
+          created_at?: string
+          death_date: string
+          death_notes?: string | null
+          gender: string
+          id?: string
+          location: string
+          name: string
+          name_color?: string | null
+          original_animal_id: string
+          species: string
+          updated_at?: string
+          weight: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
+        }
+        Update: {
+          birth_date?: string
+          birth_weight?: number | null
+          breed?: string
+          category?: string | null
+          cause_of_death?: string | null
+          code?: string
+          created_at?: string
+          death_date?: string
+          death_notes?: string | null
+          gender?: string
+          id?: string
+          location?: string
+          name?: string
+          name_color?: string | null
+          original_animal_id?: string
+          species?: string
+          updated_at?: string
+          weight?: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
+        }
+        Relationships: []
+      }
       financial_accounts: {
         Row: {
           amount: number
@@ -468,6 +540,81 @@ export type Database = {
           parameters?: Json
           report_type?: string
           title?: string
+        }
+        Relationships: []
+      }
+      sold_animals: {
+        Row: {
+          birth_date: string
+          birth_weight: number | null
+          breed: string
+          buyer: string | null
+          category: string | null
+          code: string
+          created_at: string
+          gender: string
+          id: string
+          location: string
+          name: string
+          name_color: string | null
+          original_animal_id: string
+          sale_date: string
+          sale_notes: string | null
+          sale_price: number | null
+          species: string
+          updated_at: string
+          weight: number
+          weight_30_days: number | null
+          weight_60_days: number | null
+          weight_90_days: number | null
+        }
+        Insert: {
+          birth_date: string
+          birth_weight?: number | null
+          breed: string
+          buyer?: string | null
+          category?: string | null
+          code: string
+          created_at?: string
+          gender: string
+          id?: string
+          location: string
+          name: string
+          name_color?: string | null
+          original_animal_id: string
+          sale_date: string
+          sale_notes?: string | null
+          sale_price?: number | null
+          species: string
+          updated_at?: string
+          weight: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
+        }
+        Update: {
+          birth_date?: string
+          birth_weight?: number | null
+          breed?: string
+          buyer?: string | null
+          category?: string | null
+          code?: string
+          created_at?: string
+          gender?: string
+          id?: string
+          location?: string
+          name?: string
+          name_color?: string | null
+          original_animal_id?: string
+          sale_date?: string
+          sale_notes?: string | null
+          sale_price?: number | null
+          species?: string
+          updated_at?: string
+          weight?: number
+          weight_30_days?: number | null
+          weight_60_days?: number | null
+          weight_90_days?: number | null
         }
         Relationships: []
       }

@@ -337,6 +337,65 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
 
+    // -------- sold_animals (animais vendidos)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sold_animals (
+        id TEXT PRIMARY KEY,
+        original_animal_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL,
+        breed TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        birth_date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        location TEXT NOT NULL,
+        name_color TEXT,
+        category TEXT,
+        birth_weight REAL,
+        weight_30_days REAL,
+        weight_60_days REAL,
+        weight_90_days REAL,
+        sale_date TEXT NOT NULL,
+        sale_price REAL,
+        buyer TEXT,
+        sale_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name, name_color);');
+
+    // -------- deceased_animals (animais falecidos)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS deceased_animals (
+        id TEXT PRIMARY KEY,
+        original_animal_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL,
+        breed TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        birth_date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        location TEXT NOT NULL,
+        name_color TEXT,
+        category TEXT,
+        birth_weight REAL,
+        weight_30_days REAL,
+        weight_60_days REAL,
+        weight_90_days REAL,
+        death_date TEXT NOT NULL,
+        cause_of_death TEXT,
+        death_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name, name_color);');
+
     // ==========================
     // ====== TRIGGERS ==========
     // ==========================
@@ -362,6 +421,8 @@ class AppDatabase {
       'medications',
       'notes',
       'vaccinations',
+      'sold_animals',
+      'deceased_animals',
     ]) {
       await _makeUpdatedAtTrigger(tbl);
     }

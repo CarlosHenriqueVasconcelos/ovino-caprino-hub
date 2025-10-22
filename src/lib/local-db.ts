@@ -1,7 +1,7 @@
 // Local offline-first database using localStorage, aligned with src/lib/types.ts
 // Source of truth is local; cloud is backup via manual sync
 
-import type { Animal, Vaccination, Medication, Note, BreedingRecord, FinancialRecord, Report, AnimalStats } from "./types";
+import type { Animal, Vaccination, Medication, Note, BreedingRecord, FinancialRecord, Report, AnimalStats, SoldAnimal, DeceasedAnimal } from "./types";
 
 const KEYS = {
   animals: 'bego_offline_animals',
@@ -12,6 +12,8 @@ const KEYS = {
   financial: 'bego_offline_financial',
   reports: 'bego_offline_reports',
   weights: 'bego_offline_weights',
+  soldAnimals: 'bego_offline_sold_animals',
+  deceasedAnimals: 'bego_offline_deceased_animals',
   lastSync: 'bego_last_sync',
   dbVersion: 'bego_db_version'
 } as const;
@@ -263,8 +265,74 @@ export const localSync = {
   setLastSync() { localStorage.setItem(KEYS.lastSync, new Date().toISOString()); }
 };
 
+// Sold Animals (Animais Vendidos)
+export const localSoldAnimals = {
+  all(): SoldAnimal[] {
+    return loadArray<SoldAnimal>(KEYS.soldAnimals).sort((a, b) => 
+      new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()
+    );
+  },
+  get(id: string): SoldAnimal | undefined {
+    return this.all().find(a => a.id === id);
+  },
+  create(input: Omit<SoldAnimal, 'id' | 'created_at' | 'updated_at'>): SoldAnimal {
+    const now = new Date().toISOString();
+    const record: SoldAnimal = { id: genId('sold'), created_at: now, updated_at: now, ...input };
+    const all = loadArray<SoldAnimal>(KEYS.soldAnimals);
+    all.push(record);
+    saveArray(KEYS.soldAnimals, all);
+    return record;
+  },
+  update(id: string, updates: Partial<SoldAnimal>): SoldAnimal {
+    const all = loadArray<SoldAnimal>(KEYS.soldAnimals);
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) throw new Error('Animal vendido não encontrado');
+    const updated: SoldAnimal = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    all[idx] = updated;
+    saveArray(KEYS.soldAnimals, all);
+    return updated;
+  },
+  delete(id: string) {
+    const all = loadArray<SoldAnimal>(KEYS.soldAnimals);
+    saveArray(KEYS.soldAnimals, all.filter(a => a.id !== id));
+  }
+};
+
+// Deceased Animals (Animais Falecidos)
+export const localDeceasedAnimals = {
+  all(): DeceasedAnimal[] {
+    return loadArray<DeceasedAnimal>(KEYS.deceasedAnimals).sort((a, b) => 
+      new Date(b.death_date).getTime() - new Date(a.death_date).getTime()
+    );
+  },
+  get(id: string): DeceasedAnimal | undefined {
+    return this.all().find(a => a.id === id);
+  },
+  create(input: Omit<DeceasedAnimal, 'id' | 'created_at' | 'updated_at'>): DeceasedAnimal {
+    const now = new Date().toISOString();
+    const record: DeceasedAnimal = { id: genId('deceased'), created_at: now, updated_at: now, ...input };
+    const all = loadArray<DeceasedAnimal>(KEYS.deceasedAnimals);
+    all.push(record);
+    saveArray(KEYS.deceasedAnimals, all);
+    return record;
+  },
+  update(id: string, updates: Partial<DeceasedAnimal>): DeceasedAnimal {
+    const all = loadArray<DeceasedAnimal>(KEYS.deceasedAnimals);
+    const idx = all.findIndex(a => a.id === id);
+    if (idx === -1) throw new Error('Animal falecido não encontrado');
+    const updated: DeceasedAnimal = { ...all[idx], ...updates, updated_at: new Date().toISOString() };
+    all[idx] = updated;
+    saveArray(KEYS.deceasedAnimals, all);
+    return updated;
+  },
+  delete(id: string) {
+    const all = loadArray<DeceasedAnimal>(KEYS.deceasedAnimals);
+    saveArray(KEYS.deceasedAnimals, all.filter(a => a.id !== id));
+  }
+};
+
 // Database migrations
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 function getCurrentVersion(): number {
   const raw = localStorage.getItem(KEYS.dbVersion);
@@ -288,6 +356,17 @@ function migrateV1toV2() {
   console.log(`✅ Migração v1→v2: ${migrated.length} medicamentos atualizados`);
 }
 
+function migrateV2toV3() {
+  // Initialize sold_animals and deceased_animals if they don't exist
+  if (!localStorage.getItem(KEYS.soldAnimals)) {
+    saveArray(KEYS.soldAnimals, []);
+  }
+  if (!localStorage.getItem(KEYS.deceasedAnimals)) {
+    saveArray(KEYS.deceasedAnimals, []);
+  }
+  console.log('✅ Migração v2→v3: Tabelas de vendidos e falecidos criadas');
+}
+
 export function runMigrations() {
   const currentVersion = getCurrentVersion();
   
@@ -305,6 +384,11 @@ export function runMigrations() {
   if (currentVersion < 2) {
     migrateV1toV2();
     setVersion(2);
+  }
+
+  if (currentVersion < 3) {
+    migrateV2toV3();
+    setVersion(3);
   }
 
   console.log('✅ Migrações concluídas com sucesso!');

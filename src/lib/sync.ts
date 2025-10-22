@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { localAnimals, localVaccinations, localNotes, localBreeding, localFinancial, localReports, localSync } from "./local-db";
+import { localAnimals, localVaccinations, localNotes, localBreeding, localFinancial, localReports, localSync, localSoldAnimals, localDeceasedAnimals } from "./local-db";
 
 async function upsertArray<T extends { id: string }>(table: string, rows: T[]) {
   for (const row of rows) {
@@ -9,7 +9,7 @@ async function upsertArray<T extends { id: string }>(table: string, rows: T[]) {
 }
 
 export async function syncToCloud(onProgress?: (p: number, note?: string) => void) {
-  const steps = 6;
+  const steps = 8;
   let done = 0;
   const step = async (fn: () => Promise<void>, note: string) => {
     await fn();
@@ -22,6 +22,8 @@ export async function syncToCloud(onProgress?: (p: number, note?: string) => voi
   await step(() => upsertArray('breeding_records', localBreeding.all()), 'Reprodução');
   await step(() => upsertArray('financial_records', localFinancial.all()), 'Financeiro');
   await step(() => upsertArray('reports', localReports.all()), 'Relatórios');
+  await step(() => upsertArray('sold_animals', localSoldAnimals.all()), 'Vendidos');
+  await step(() => upsertArray('deceased_animals', localDeceasedAnimals.all()), 'Falecidos');
 
   localSync.setLastSync();
 }

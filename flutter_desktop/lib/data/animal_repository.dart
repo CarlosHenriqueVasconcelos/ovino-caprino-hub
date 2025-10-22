@@ -80,4 +80,88 @@ class AnimalRepository {
       revenue: 0.0,
     );
   }
+
+  /// Move animal para a tabela de vendidos e remove da tabela principal
+  Future<void> markAsSold({
+    required String animalId,
+    required DateTime saleDate,
+    double? salePrice,
+    String? buyer,
+    String? notes,
+  }) async {
+    final animal = await _db.db.query('animals', where: 'id = ?', whereArgs: [animalId]);
+    if (animal.isEmpty) throw Exception('Animal não encontrado');
+
+    final animalData = animal.first;
+    await _db.db.insert('sold_animals', {
+      'id': animalData['id'],
+      'original_animal_id': animalData['id'],
+      'code': animalData['code'],
+      'name': animalData['name'],
+      'species': animalData['species'],
+      'breed': animalData['breed'],
+      'gender': animalData['gender'],
+      'birth_date': animalData['birth_date'],
+      'weight': animalData['weight'],
+      'location': animalData['location'],
+      'name_color': animalData['name_color'],
+      'category': animalData['category'],
+      'birth_weight': animalData['birth_weight'],
+      'weight_30_days': animalData['weight_30_days'],
+      'weight_60_days': animalData['weight_60_days'],
+      'weight_90_days': animalData['weight_90_days'],
+      'sale_date': saleDate.toIso8601String().split('T').first,
+      'sale_price': salePrice,
+      'buyer': buyer,
+      'sale_notes': notes,
+    });
+
+    await _db.db.delete('animals', where: 'id = ?', whereArgs: [animalId]);
+  }
+
+  /// Move animal para a tabela de falecidos e remove da tabela principal
+  Future<void> markAsDeceased({
+    required String animalId,
+    required DateTime deathDate,
+    String? causeOfDeath,
+    String? notes,
+  }) async {
+    final animal = await _db.db.query('animals', where: 'id = ?', whereArgs: [animalId]);
+    if (animal.isEmpty) throw Exception('Animal não encontrado');
+
+    final animalData = animal.first;
+    await _db.db.insert('deceased_animals', {
+      'id': animalData['id'],
+      'original_animal_id': animalData['id'],
+      'code': animalData['code'],
+      'name': animalData['name'],
+      'species': animalData['species'],
+      'breed': animalData['breed'],
+      'gender': animalData['gender'],
+      'birth_date': animalData['birth_date'],
+      'weight': animalData['weight'],
+      'location': animalData['location'],
+      'name_color': animalData['name_color'],
+      'category': animalData['category'],
+      'birth_weight': animalData['birth_weight'],
+      'weight_30_days': animalData['weight_30_days'],
+      'weight_60_days': animalData['weight_60_days'],
+      'weight_90_days': animalData['weight_90_days'],
+      'death_date': deathDate.toIso8601String().split('T').first,
+      'cause_of_death': causeOfDeath,
+      'death_notes': notes,
+    });
+
+    await _db.db.delete('animals', where: 'id = ?', whereArgs: [animalId]);
+  }
+
+  /// Busca animais vendidos
+  Future<List<Map<String, dynamic>>> getSoldAnimals() async {
+    return await _db.db.query('sold_animals', orderBy: 'sale_date DESC');
+  }
+
+  /// Busca animais falecidos
+  Future<List<Map<String, dynamic>>> getDeceasedAnimals() async {
+    return await _db.db.query('deceased_animals', orderBy: 'death_date DESC');
+  }
 }

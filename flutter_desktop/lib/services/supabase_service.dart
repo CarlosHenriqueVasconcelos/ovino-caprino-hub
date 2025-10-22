@@ -209,4 +209,40 @@ class SupabaseService {
     if (rows.isEmpty) return;
     await _client.from(table).upsert(rows);
   }
+
+  // -------------------- Animais Vendidos --------------------
+  static Future<List<Map<String, dynamic>>> getSoldAnimals() async {
+    final response = await _client.from('sold_animals').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createSoldAnimal(Map<String, dynamic> animal) async {
+    await _client.from('sold_animals').insert(animal);
+  }
+
+  static Future<void> updateSoldAnimal(String id, Map<String, dynamic> updates) async {
+    await _client.from('sold_animals').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteSoldAnimal(String id) async {
+    await _client.from('sold_animals').delete().eq('id', id);
+  }
+
+  // -------------------- Animais Falecidos --------------------
+  static Future<List<Map<String, dynamic>>> getDeceasedAnimals() async {
+    final response = await _client.from('deceased_animals').select();
+    return response.map((e) => e as Map<String, dynamic>).toList();
+  }
+
+  static Future<void> createDeceasedAnimal(Map<String, dynamic> animal) async {
+    await _client.from('deceased_animals').insert(animal);
+  }
+
+  static Future<void> updateDeceasedAnimal(String id, Map<String, dynamic> updates) async {
+    await _client.from('deceased_animals').update(updates).eq('id', id);
+  }
+
+  static Future<void> deleteDeceasedAnimal(String id) async {
+    await _client.from('deceased_animals').delete().eq('id', id);
+  }
 }
