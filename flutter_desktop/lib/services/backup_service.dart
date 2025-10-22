@@ -294,75 +294,111 @@ class BackupService {
   // ---------- Converters ----------
   static Map<String, dynamic> _toRemote(String table, Map<String, dynamic> row) {
     final r = Map<String, dynamic>.from(row);
-    if (table == 'animals') r['pregnant'] = _toBool(row['pregnant']);
-    if (table == 'notes')   r['is_read']  = _toBool(row['is_read']);
+
+    // bools locais (0/1, bool, string) → bool (Supabase)
+    if (table == 'animals')             r['pregnant']          = _toBool(row['pregnant']);
+    if (table == 'notes')               r['is_read']           = _toBool(row['is_read']);
+    if (table == 'financial_accounts')  r['is_recurring']      = _toBool(row['is_recurring']);
+    if (table == 'breeding_records')    r['ultrasound_result'] = _toBool(row['ultrasound_result']);
+
+    // JSON de string → Map
     if (table == 'reports')     r['parameters']  = _jsonIn(row['parameters']);
     if (table == 'push_tokens') r['device_info'] = _jsonIn(row['device_info']);
+
     return _only(r, _cols[table] ?? {});
   }
 
   static Map<String, dynamic> _toLocal(String table, Map<String, dynamic> row) {
     final r = Map<String, dynamic>.from(row);
-    if (table == 'animals') r['pregnant'] = (row['pregnant'] == true) ? 1 : 0;
-    if (table == 'notes')   r['is_read']  = (row['is_read']  == true) ? 1 : 0;
+
+    // JSON de Map → string
     if (table == 'reports')     r['parameters']  = _jsonOut(row['parameters']);
     if (table == 'push_tokens') r['device_info'] = _jsonOut(row['device_info']);
 
-    // 🔧 NORMALIZAÇÃO CRUCIAL PARA REPRODUÇÃO:
+    // bools do Supabase → INTEGER(0/1) no SQLite
+    if (table == 'animals')             r['pregnant']          = _toInt01(row['pregnant']);
+    if (table == 'notes')               r['is_read']           = _toInt01(row['is_read']);
+    if (table == 'financial_accounts')  r['is_recurring']      = _toInt01(row['is_recurring']);
+
     if (table == 'breeding_records') {
-      String deaccent(String s) {
-        const map = {
-          'á':'a','à':'a','ã':'a','â':'a','ä':'a',
-          'é':'e','ê':'e','è':'e','ë':'e',
-          'í':'i','ì':'i','ï':'i',
-          'ó':'o','ô':'o','õ':'o','ò':'o','ö':'o',
-          'ú':'u','ù':'u','ü':'u',
-          'ç':'c',
-          'Á':'A','À':'A','Ã':'A','Â':'A','Ä':'A',
-          'É':'E','Ê':'E','È':'E','Ë':'E',
-          'Í':'I','Ì':'I','Ï':'I',
-          'Ó':'O','Ô':'O','Õ':'O','Ò':'O','Ö':'O',
-          'Ú':'U','Ù':'U','Ü':'U',
-          'Ç':'C',
-        };
-        final sb = StringBuffer();
-        for (final r in s.runes) {
-          final ch = String.fromCharCode(r);
-          sb.write(map[ch] ?? ch);
-        }
-        return sb.toString();
+      // se vier como bool/num/“0”/“1”, normalize para 0/1; se vier string descritiva, mantém
+      final ur = row['ultrasound_result'];
+      final urStr = (ur ?? '').toString().toLowerCase();
+      final isBoolish = ur is bool || ur is num || urStr == '0' || urStr == '1' || urStr == 'true' || urStr == 'false';
+      if (isBoolish) {
+        r['ultrasound_result'] = _toInt01(ur);
       }
-
-      String canonStage(String v) {
-        final t = deaccent(v).toLowerCase().trim().replaceAll(' ', '_');
-        switch (t) {
-          case 'encabritamento': return 'encabritamento';
-          case 'separacao': return 'separacao';
-          case 'aguardando_ultrassom': return 'aguardando_ultrassom';
-          case 'gestacao_confirmada':
-          case 'gestantes':
-          case 'gestante': return 'gestacao_confirmada';
-          case 'parto_realizado':
-          case 'concluido':
-          case 'concluidos': return 'parto_realizado';
-          case 'falhou':
-          case 'falhado':
-          case 'falhados': return 'falhou';
-          default: return 'encabritamento';
-        }
-      }
-
-      r['stage'] = canonStage((row['stage'] ?? '').toString());
+      // normalização de estágio (sempre retorna algo)
+      r['stage'] = _canonStage(row['stage']);
     }
+
+    // fallback: qualquer bool perdido vira 0/1
+    r.updateAll((k, v) => v is bool ? (v ? 1 : 0) : v);
 
     return _only(r, _cols[table] ?? {});
   }
 
+  // ---- Helpers de conversão/normalização (fora de _toLocal para evitar avisos do analyzer) ----
   static bool _toBool(dynamic v) {
     if (v is bool) return v;
     if (v is num) return v != 0;
     final s = (v ?? '').toString().trim().toLowerCase();
     return s == 'true' || s == '1' || s == 't' || s == 'y' || s == 'yes';
+  }
+
+  static int _toInt01(dynamic v) {
+    if (v is bool) return v ? 1 : 0;
+    if (v is num) return v != 0 ? 1 : 0;
+    final s = (v ?? '').toString().trim().toLowerCase();
+    return (s == 'true' || s == '1' || s == 't' || s == 'y' || s == 'yes') ? 1 : 0;
+  }
+
+  static String _deaccent(String s) {
+    const map = {
+      'á':'a','à':'a','ã':'a','â':'a','ä':'a',
+      'é':'e','ê':'e','è':'e','ë':'e',
+      'í':'i','ì':'i','ï':'i',
+      'ó':'o','ô':'o','õ':'o','ò':'o','ö':'o',
+      'ú':'u','ù':'u','ü':'u',
+      'ç':'c',
+      'Á':'A','À':'A','Ã':'A','Â':'A','Ä':'A',
+      'É':'E','Ê':'E','È':'E','Ë':'E',
+      'Í':'I','Ì':'I','Ï':'I',
+      'Ó':'O','Ô':'O','Õ':'O','Ò':'O','Ö':'O',
+      'Ú':'U','Ù':'U','Ü':'U',
+      'Ç':'C',
+    };
+    final sb = StringBuffer();
+    for (final r in s.runes) {
+      final ch = String.fromCharCode(r);
+      sb.write(map[ch] ?? ch);
+    }
+    return sb.toString();
+  }
+
+  static String _canonStage(dynamic value) {
+    final t = _deaccent((value ?? '').toString())
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'\s+'), '_');
+
+    const map = {
+      'encabritamento'       : 'encabritamento',
+      'separacao'            : 'separacao',
+      'aguardando_ultrassom' : 'aguardando_ultrassom',
+      'gestacao_confirmada'  : 'gestacao_confirmada',
+      'gestantes'            : 'gestacao_confirmada',
+      'gestante'             : 'gestacao_confirmada',
+      'parto_realizado'      : 'parto_realizado',
+      'concluido'            : 'parto_realizado',
+      'concluidos'           : 'parto_realizado',
+      'falhou'               : 'falhou',
+      'falhado'              : 'falhou',
+      'falhados'             : 'falhou',
+    };
+
+    // fallback garante retorno sempre
+    return map[t] ?? 'encabritamento';
   }
 
   static dynamic _jsonIn(dynamic v) {
