@@ -132,7 +132,7 @@ class AnimalService extends ChangeNotifier {
     final newStatus = map['status'] as String?;
     if (newStatus == 'Óbito') {
       // Move o animal para deceased_animals e remove da tabela principal
-      await handleAnimalDeathIfApplicable(map['id'] as String, newStatus);
+      await handleAnimalDeathIfApplicable(map['id'] as String, newStatus!);
       // Remove da lista local
       _animals.removeWhere((x) => x.id == map['id']);
       await _refreshStatsSafe();
