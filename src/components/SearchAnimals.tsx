@@ -21,6 +21,7 @@ interface SearchFilters {
   gender: string;
   location: string;
   pregnant: string;
+  category: string;
 }
 
 export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimalsProps) {
@@ -37,7 +38,8 @@ export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimal
     status: "",
     gender: "",
     location: "",
-    pregnant: ""
+    pregnant: "",
+    category: ""
   });
 
   useEffect(() => {
@@ -89,6 +91,9 @@ export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimal
     if (filters.gender) {
       filtered = filtered.filter(animal => animal.gender === filters.gender);
     }
+    if (filters.category) {
+      filtered = filtered.filter(animal => animal.category === filters.category);
+    }
     if (filters.location) {
       filtered = filtered.filter(animal => 
         animal.location.toLowerCase().includes(filters.location.toLowerCase())
@@ -109,7 +114,8 @@ export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimal
       status: "",
       gender: "",
       location: "",
-      pregnant: ""
+      pregnant: "",
+      category: ""
     });
   };
 
@@ -146,7 +152,8 @@ export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimal
   // Obter valores únicos para os filtros
   const uniqueValues = {
     statuses: [...new Set(animals.map(a => a.status))],
-    locations: [...new Set(animals.map(a => a.location))]
+    locations: [...new Set(animals.map(a => a.location))],
+    categories: [...new Set(animals.map(a => a.category || 'Não especificado'))]
   };
 
   return (
@@ -199,6 +206,19 @@ export function SearchAnimals({ open, onOpenChange, onEditAnimal }: SearchAnimal
                 <SelectItem value="">Todos</SelectItem>
                 <SelectItem value="Macho">♂️ Macho</SelectItem>
                 <SelectItem value="Fêmea">♀️ Fêmea</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filters.category} onValueChange={(value) => 
+              setFilters({...filters, category: value})}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas</SelectItem>
+                {uniqueValues.categories.map(category => (
+                  <SelectItem key={category} value={category}>{category}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
 

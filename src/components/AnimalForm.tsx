@@ -34,7 +34,9 @@ export function AnimalForm({ animal, onSuccess, onCancel }: AnimalFormProps) {
     last_vaccination: animal?.last_vaccination ? animal.last_vaccination.split('T')[0] : '',
     pregnant: animal?.pregnant || false,
     expected_delivery: animal?.expected_delivery ? animal.expected_delivery.split('T')[0] : '',
-    health_issue: animal?.health_issue || ''
+    health_issue: animal?.health_issue || '',
+    category: animal?.category || 'Não especificado',
+    name_color: animal?.name_color || 'blue'
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +121,55 @@ export function AnimalForm({ animal, onSuccess, onCancel }: AnimalFormProps) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Categoria *</Label>
+              <Select 
+                value={formData.category} 
+                onValueChange={(value) => {
+                  const newGender = value.toLowerCase().includes('fêmea') || value.toLowerCase().includes('femea')
+                    ? 'Fêmea'
+                    : value.toLowerCase().includes('macho')
+                    ? 'Macho'
+                    : formData.gender;
+                  setFormData({...formData, category: value, gender: newGender});
+                }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Macho Reprodutor">Macho Reprodutor</SelectItem>
+                  <SelectItem value="Macho Borrego">Macho Borrego</SelectItem>
+                  <SelectItem value="Fêmea Borrega">Fêmea Borrega</SelectItem>
+                  <SelectItem value="Fêmea Vazia">Fêmea Vazia</SelectItem>
+                  <SelectItem value="Macho Vazio">Macho Vazio</SelectItem>
+                  <SelectItem value="Fêmea Reprodutora">Fêmea Reprodutora</SelectItem>
+                  <SelectItem value="Não especificado">Não especificado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cor da Identificação *</Label>
+              <Select value={formData.name_color} onValueChange={(value) => 
+                setFormData({...formData, name_color: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blue">🔵 Azul</SelectItem>
+                  <SelectItem value="red">🔴 Vermelho</SelectItem>
+                  <SelectItem value="green">🟢 Verde</SelectItem>
+                  <SelectItem value="yellow">🟡 Amarelo</SelectItem>
+                  <SelectItem value="orange">🟠 Laranja</SelectItem>
+                  <SelectItem value="purple">🟣 Roxo</SelectItem>
+                  <SelectItem value="pink">🟣 Rosa</SelectItem>
+                  <SelectItem value="brown">🟤 Marrom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Sexo *</Label>
@@ -161,13 +212,19 @@ export function AnimalForm({ animal, onSuccess, onCancel }: AnimalFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Input
-                id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
-                placeholder="Ex: Saudável"
-              />
+              <Label>Status *</Label>
+              <Select value={formData.status} onValueChange={(value) => 
+                setFormData({...formData, status: value})}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Saudável">✅ Saudável</SelectItem>
+                  <SelectItem value="Em tratamento">🏥 Em Tratamento</SelectItem>
+                  <SelectItem value="Gestante">🤰 Gestante</SelectItem>
+                  <SelectItem value="Óbito">💀 Óbito</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">

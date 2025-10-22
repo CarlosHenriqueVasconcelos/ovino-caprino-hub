@@ -190,6 +190,13 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   onChanged: (value) {
                     setState(() {
                       _category = value!;
+                      // Inferir automaticamente o gênero baseado na categoria
+                      if (_category.toLowerCase().contains('fêmea') || 
+                          _category.toLowerCase().contains('femea')) {
+                        _gender = 'Fêmea';
+                      } else if (_category.toLowerCase().contains('macho')) {
+                        _gender = 'Macho';
+                      }
                     });
                   },
                 ),
