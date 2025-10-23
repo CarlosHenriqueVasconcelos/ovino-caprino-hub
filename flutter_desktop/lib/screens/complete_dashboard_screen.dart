@@ -24,6 +24,7 @@ import '../services/database_service.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_delete_cascade.dart';
 import '../widgets/repro_alerts_card.dart';
+import '../widgets/feeding_screen.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -68,6 +69,11 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       title: 'Anotações',
       icon: Icons.note_alt,
       label: 'Anotações',
+    ),
+    TabData(
+      title: 'Alimentação',
+      icon: Icons.agriculture,
+      label: 'Alimentação',
     ),
     TabData(
       title: 'Relatórios',
@@ -144,6 +150,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   const WeightTrackingScreen(),
                   const MedicationManagementScreen(),
                   const NotesManagementScreen(),
+                  const FeedingScreen(),
                   const ReportsHubScreen(),
                   const FinancialCompleteScreen(),
                   const SystemSettingsScreen(),

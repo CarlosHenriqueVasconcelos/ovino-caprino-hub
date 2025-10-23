@@ -318,6 +318,35 @@ class AppDatabase {
       );
     ''');
 
+    // -------- feeding_pens (Baias)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS feeding_pens (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        number TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+
+    // -------- feeding_schedules (Tratos)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS feeding_schedules (
+        id TEXT PRIMARY KEY,
+        pen_id TEXT NOT NULL,
+        feed_type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        times_per_day INTEGER NOT NULL DEFAULT 1,
+        feeding_times TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pen_id) REFERENCES feeding_pens(id) ON DELETE CASCADE
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_feeding_schedules_pen ON feeding_schedules(pen_id);');
+
     // -------- vaccinations
     await db.execute('''
       CREATE TABLE IF NOT EXISTS vaccinations (
@@ -423,6 +452,8 @@ class AppDatabase {
       'vaccinations',
       'sold_animals',
       'deceased_animals',
+      'feeding_pens',
+      'feeding_schedules',
     ]) {
       await _makeUpdatedAtTrigger(tbl);
     }
