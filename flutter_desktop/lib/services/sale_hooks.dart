@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/financial_account.dart';
 import 'database_service.dart';
+import 'data_refresh_bus.dart';
 
 const _uuid = Uuid();
 
@@ -83,4 +84,5 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
     // 4) Por fim, remove o animal principal
     await txn.delete('animals', where: 'id = ?', whereArgs: [animalId]);
   });
+  DataRefreshBus.emit('sold');
 }

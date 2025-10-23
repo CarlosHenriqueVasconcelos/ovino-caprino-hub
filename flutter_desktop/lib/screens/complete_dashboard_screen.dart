@@ -591,10 +591,25 @@ class _HerdSectionState extends State<_HerdSection> {
   String _query = '';
 
   bool _includeSold = false;
-  String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido'
+  String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido' | 'Óbito'
+
+  StreamSubscription? _busSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Recarrega automaticamente quando hooks mexerem no banco
+    _busSub = DataRefreshBus.stream.listen((_) {
+      if (!mounted) return;
+      // Atualiza lista viva e refaz FutureBuilders de vendidos/óbitos
+      context.read<AnimalService>().loadData();
+      setState(() {});
+    });
+  }
 
   @override
   void dispose() {
+    _busSub?.cancel();
     _search.dispose();
     super.dispose();
   }

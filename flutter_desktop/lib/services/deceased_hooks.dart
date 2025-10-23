@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:sqflite_common/sqlite_api.dart';
 
 import 'database_service.dart';
+import 'data_refresh_bus.dart';
 
 Future<void> handleAnimalDeathIfApplicable(String animalId, String newStatus) async {
   if (newStatus != 'Óbito') return;
@@ -47,4 +48,5 @@ Future<void> handleAnimalDeathIfApplicable(String animalId, String newStatus) as
 
   // Remove da tabela principal
   await db.delete('animals', where: 'id = ?', whereArgs: [animalId]);
+  DataRefreshBus.emit('deceased');
 }
