@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/animal_card.dart';
+import '../models/animal.dart';
 import '../widgets/animal_form.dart';
 import '../widgets/breeding_management_screen.dart';
 import '../widgets/weight_tracking_screen.dart';
@@ -612,6 +613,9 @@ class _HerdSectionState extends State<_HerdSection> {
             return all.where((a) => a.status == 'Em tratamento').toList();
           } else if (_statusFilter == 'Saudável') {
             return all.where((a) => a.status == 'Saudável').toList();
+          } else if (_statusFilter == 'Óbito') {
+            // Lista especial renderizada abaixo via FutureBuilder
+            return <dynamic>[];
           } else {
             // Sem status específico: volta a valer o toggle "Incluir vendidos"
             return _includeSold
@@ -702,11 +706,16 @@ class _HerdSectionState extends State<_HerdSection> {
                       selected: _statusFilter == 'Em tratamento',
                       onSelected: (_) => setState(() => _statusFilter = 'Em tratamento'),
                     ),
-                    ChoiceChip(
-                      label: const Text('Vendidos'),
-                      selected: _statusFilter == 'Vendido',
-                      onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
-                    ),
+                     ChoiceChip(
+                       label: const Text('Vendidos'),
+                       selected: _statusFilter == 'Vendido',
+                       onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
+                     ),
+                     ChoiceChip(
+                       label: const Text('Óbito'),
+                       selected: _statusFilter == 'Óbito',
+                       onSelected: (_) => setState(() => _statusFilter = 'Óbito'),
+                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -714,31 +723,79 @@ class _HerdSectionState extends State<_HerdSection> {
                 if (all.isEmpty)
                   _emptyState(theme)
                 else
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 0.8,
+                  // Quando filtro = Óbito, carrega da tabela deceased_animals
+                  if (_statusFilter == 'Óbito')
+                    FutureBuilder<List<Animal>>(
+                      future: (() async {
+                        final db = await DatabaseService.database;
+                        final rows = await db.query(
+                          'deceased_animals',
+                          orderBy: 'date(death_date) DESC',
+                        );
+                        return rows.map((m) {
+                          final map = Map<String, dynamic>.from(m);
+                          map['status'] = 'Óbito';
+                          map['last_vaccination'] = null;
+                          map['expected_delivery'] = null;
+                          map['created_at'] = map['created_at'] ?? DateTime.now().toIso8601String();
+                          map['updated_at'] = map['updated_at'] ?? DateTime.now().toIso8601String();
+                          return Animal.fromMap(map);
+                        }).toList();
+                      })(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final list = snapshot.data!;
+                        if (list.isEmpty) {
+                          return _emptyState(theme);
+                        }
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                          itemCount: list.length,
+                          itemBuilder: (context, index) {
+                            return AnimalCard(
+                              animal: list[index],
+                              onEdit: null,
+                              onDeleteCascade: null,
+                            );
+                          },
+                        );
+                      },
+                    )
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 0.8,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        return AnimalCard(
+                          animal: filtered[index],
+                          onEdit: (animal) =>
+                              _showAnimalForm(context, animal: animal),
+                          onDeleteCascade: (animal) async {
+                            await AnimalDeleteCascade.delete(animal.id);
+                            final svc = context.read<AnimalService>();
+                            await svc.loadData();        // recarrega do banco
+                            if (mounted) setState(() {}); // atualiza a UI
+                          },
+                        );
+                      },
                     ),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      return AnimalCard(
-                        animal: filtered[index],
-                        onEdit: (animal) =>
-                            _showAnimalForm(context, animal: animal),
-                        onDeleteCascade: (animal) async {
-                          await AnimalDeleteCascade.delete(animal.id);
-                          final svc = context.read<AnimalService>();
-                          await svc.loadData();        // recarrega do banco
-                          if (mounted) setState(() {}); // atualiza a UI
-                        },
-                      );
-                    },
-                  ),
               ],
             ),
           ),

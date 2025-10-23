@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/animal.dart';
 import 'animal_history_dialog.dart';
 import '../data/animal_repository.dart';
+import '../services/animal_service.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
@@ -158,7 +161,7 @@ class AnimalCard extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) async {
-                    if (value == 'deceased' && repository != null) {
+                    if (value == 'deceased') {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -185,12 +188,18 @@ class AnimalCard extends StatelessWidget {
                       );
                       if (ok == true) {
                         try {
-                          await repository!.markAsDeceased(
-                            animalId: animal.id,
-                            deathDate: DateTime.now(),
-                            causeOfDeath: animal.healthIssue,
-                            notes: 'Registrado manualmente pelo usuário',
-                          );
+                          if (repository != null) {
+                            await repository!.markAsDeceased(
+                              animalId: animal.id,
+                              deathDate: DateTime.now(),
+                              causeOfDeath: animal.healthIssue,
+                              notes: 'Registrado manualmente pelo usuário',
+                            );
+                          } else {
+                            // Fallback: usa o AnimalService para mudar status → hook move p/ óbito
+                            final svc = context.read<AnimalService>();
+                            await svc.updateAnimal(animal.copyWith(status: 'Óbito'));
+                          }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -258,7 +267,7 @@ class AnimalCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                    if (repository != null)
+                    if (animal.status != 'Óbito')
                       const PopupMenuItem(
                         value: 'deceased',
                         child: Row(
