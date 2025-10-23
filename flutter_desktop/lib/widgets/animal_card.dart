@@ -66,53 +66,45 @@ class AnimalCard extends StatelessWidget {
     return colorMap[colorName.toLowerCase()] ?? Colors.black;
   }
 
-  // 🔹 Novo helper: chip de sexo (Macho / Fêmea / N/I) inferido pela category
-Widget _sexChip(BuildContext context) {
-  String cat = (animal.category ?? '').toLowerCase();
+  // Chip de sexo usando o campo gender
+  Widget _sexChip(BuildContext context) {
+    String gender = (animal.gender ?? '').toLowerCase();
 
-  // Normaliza casos comuns (com e sem acento)
-  bool has(String term) => cat.contains(term);
-  bool isFemale =
-      has('fêmea') || has('femea') || has('reprodutora') || has('borrega');
-  bool isMale =
-      has('macho') || has('reprodutor') || has('borrego');
+    late String label;
+    late IconData icon;
+    late Color color;
 
-  late String label;
-  late IconData icon;
-  late Color color;
+    if (gender.contains('fêmea') || gender.contains('femea') || gender == 'f') {
+      label = 'Fêmea';
+      icon = Icons.female;
+      color = Colors.pinkAccent;
+    } else if (gender.contains('macho') || gender == 'm') {
+      label = 'Macho';
+      icon = Icons.male;
+      color = Colors.blueAccent;
+    } else {
+      label = 'Sexo N/I';
+      icon = Icons.help_outline;
+      color = Colors.grey;
+    }
 
-  if (isFemale && !isMale) {
-    label = 'Fêmea';
-    icon = Icons.female;
-    color = Colors.pinkAccent;
-  } else if (isMale && !isFemale) {
-    label = 'Macho';
-    icon = Icons.male;
-    color = Colors.blueAccent;
-  } else {
-    // Ambíguo ou não informado
-    label = 'Sexo N/I';
-    icon = Icons.help_outline;
-    color = Colors.grey;
+    return Chip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(label),
+        ],
+      ),
+      backgroundColor: color.withOpacity(0.1),
+      labelStyle: TextStyle(
+        color: color,
+        fontWeight: FontWeight.w500,
+      ),
+      side: BorderSide(color: color.withOpacity(0.2)),
+    );
   }
-
-  return Chip(
-    label: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16),
-        const SizedBox(width: 4),
-        Text(label),
-      ],
-    ),
-    backgroundColor: color.withOpacity(0.1),
-    labelStyle: TextStyle(
-      color: color,
-      fontWeight: FontWeight.w500,
-    ),
-    side: BorderSide(color: color.withOpacity(0.2)),
-  );
-}
 
   @override
   Widget build(BuildContext context) {
