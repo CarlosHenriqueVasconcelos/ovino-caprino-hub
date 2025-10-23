@@ -1,10 +1,10 @@
 // lib/screens/complete_dashboard_screen.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async' show StreamSubscription;
+import '../services/data_refresh_bus.dart';
 
 import '../services/animal_service.dart';
-import '../services/data_refresh_bus.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/animal_card.dart';
 import '../models/animal.dart';
@@ -595,7 +595,7 @@ class _HerdSectionState extends State<_HerdSection> {
   bool _includeSold = false;
   String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido' | 'Óbito'
 
-  StreamSubscription? _busSub;
+  StreamSubscription<String>? _busSub;
 
   @override
   void initState() {
@@ -723,16 +723,16 @@ class _HerdSectionState extends State<_HerdSection> {
                       selected: _statusFilter == 'Em tratamento',
                       onSelected: (_) => setState(() => _statusFilter = 'Em tratamento'),
                     ),
-                     ChoiceChip(
-                       label: const Text('Vendidos'),
-                       selected: _statusFilter == 'Vendido',
-                       onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
-                     ),
-                     ChoiceChip(
-                       label: const Text('Óbito'),
-                       selected: _statusFilter == 'Óbito',
-                       onSelected: (_) => setState(() => _statusFilter = 'Óbito'),
-                     ),
+                    ChoiceChip(
+                      label: const Text('Vendidos'),
+                      selected: _statusFilter == 'Vendido',
+                      onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Óbito'),
+                      selected: _statusFilter == 'Óbito',
+                      onSelected: (_) => setState(() => _statusFilter = 'Óbito'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -754,6 +754,55 @@ class _HerdSectionState extends State<_HerdSection> {
                           map['status'] = 'Óbito';
                           map['last_vaccination'] = null;
                           map['expected_delivery'] = null;
+                          map['created_at'] = map['created_at'] ?? DateTime.now().toIso8601String();
+                          map['updated_at'] = map['updated_at'] ?? DateTime.now().toIso8601String();
+                          return Animal.fromMap(map);
+                        }).toList();
+                      })(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        final list = snapshot.data!;
+                        if (list.isEmpty) {
+                          return _emptyState(theme);
+                        }
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                          itemCount: list.length,
+                          itemBuilder: (context, index) {
+                            return AnimalCard(
+                              animal: list[index],
+                              onEdit: null,
+                              onDeleteCascade: null,
+                            );
+                          },
+                        );
+                      },
+                    )
+                  // Quando filtro = Vendido, carrega da tabela sold_animals
+                  else if (_statusFilter == 'Vendido')
+                    FutureBuilder<List<Animal>>(
+                      future: (() async {
+                        final db = await DatabaseService.database;
+                        final rows = await db.query(
+                          'sold_animals',
+                          orderBy: 'date(sale_date) DESC',
+                        );
+                        return rows.map((m) {
+                          final map = Map<String, dynamic>.from(m);
+                          // Adaptar para o shape do modelo Animal exibível
+                          map['status'] = 'Vendido';
+                          map['last_vaccination'] = null;
+                          map['expected_delivery'] = null;
+                          map['health_issue'] = null;
                           map['created_at'] = map['created_at'] ?? DateTime.now().toIso8601String();
                           map['updated_at'] = map['updated_at'] ?? DateTime.now().toIso8601String();
                           return Animal.fromMap(map);

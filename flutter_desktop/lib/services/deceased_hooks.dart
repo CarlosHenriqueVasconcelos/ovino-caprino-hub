@@ -3,7 +3,7 @@
 // quando o status do animal for alterado para "Óbito"
 
 import 'dart:async';
-import 'package:sqflite_common/sqlite_api.dart';
+
 
 import 'database_service.dart';
 import 'data_refresh_bus.dart';
