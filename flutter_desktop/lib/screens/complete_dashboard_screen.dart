@@ -1,8 +1,10 @@
 // lib/screens/complete_dashboard_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/animal_service.dart';
+import '../services/data_refresh_bus.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/animal_card.dart';
 import '../models/animal.dart';
