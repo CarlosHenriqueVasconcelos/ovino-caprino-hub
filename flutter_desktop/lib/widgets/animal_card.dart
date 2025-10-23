@@ -2,19 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/animal.dart';
 import 'animal_history_dialog.dart';
+import '../data/animal_repository.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
   final Function(Animal)? onEdit;
+  final AnimalRepository? repository;
 
   /// Novo: callback opcional para exclusão em cascata
   final Future<void> Function(Animal)? onDeleteCascade;
+  final VoidCallback? onAnimalChanged;
 
   const AnimalCard({
     super.key,
     required this.animal,
     this.onEdit,
-    this.onDeleteCascade, // novo param (não altera layout)
+    this.repository,
+    this.onDeleteCascade,
+    this.onAnimalChanged,
   });
 
   Color _getStatusColor(BuildContext context) {
@@ -153,7 +158,60 @@ class AnimalCard extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) async {
-                    if (value == 'delete_all' && onDeleteCascade != null) {
+                    if (value == 'deceased' && repository != null) {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Registrar Óbito'),
+                          content: Text(
+                            'Marcar "${animal.name}" como falecido?\n\n'
+                            'O animal será movido para a lista de óbitos.'
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancelar'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Registrar Óbito'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) {
+                        try {
+                          await repository!.markAsDeceased(
+                            animalId: animal.id,
+                            deathDate: DateTime.now(),
+                            causeOfDeath: animal.healthIssue,
+                            notes: 'Registrado manualmente pelo usuário',
+                          );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Animal registrado como óbito'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            onAnimalChanged?.call();
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Erro: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    } else if (value == 'delete_all' && onDeleteCascade != null) {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -197,6 +255,17 @@ class AnimalCard extends StatelessWidget {
                             Icon(Icons.edit),
                             SizedBox(width: 8),
                             Text('Editar'),
+                          ],
+                        ),
+                      ),
+                    if (repository != null)
+                      const PopupMenuItem(
+                        value: 'deceased',
+                        child: Row(
+                          children: [
+                            Icon(Icons.heart_broken, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('Registrar Óbito'),
                           ],
                         ),
                       ),

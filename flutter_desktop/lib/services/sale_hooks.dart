@@ -4,9 +4,12 @@
 
 import 'dart:async';
 import 'package:sqflite_common/sqlite_api.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/financial_account.dart';
 import 'database_service.dart';
+
+const _uuid = Uuid();
 
 DateTime? _tryParseDate(dynamic v) {
   if (v == null) return null;
@@ -35,9 +38,9 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
   final saleDate = _tryParseDate(account.paymentDate) ?? _tryParseDate(account.dueDate);
   final saleDateIso = saleDate?.toIso8601String().split('T').first ?? nowIso.split('T').first;
 
-  // Insere na tabela de vendidos
+  // Insere na tabela de vendidos (com novo ID único)
   await db.insert('sold_animals', {
-    'id': animalData['id'],
+    'id': _uuid.v4(),
     'original_animal_id': animalData['id'],
     'code': animalData['code'],
     'name': animalData['name'],
