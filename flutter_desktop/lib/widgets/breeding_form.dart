@@ -27,11 +27,15 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
     final animalService = Provider.of<AnimalService>(context);
     
     final femaleAnimals = animalService.animals
-        .where((animal) => animal.gender == 'Fêmea')
+        .where((animal) => 
+            animal.gender == 'Fêmea' && 
+            animal.category != 'Fêmea Borrega')
         .toList();
     
     final maleAnimals = animalService.animals
-        .where((animal) => animal.gender == 'Macho')
+        .where((animal) => 
+            animal.gender == 'Macho' && 
+            animal.category != 'Macho Borrego')
         .toList();
 
     return AlertDialog(
@@ -44,56 +48,137 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Female Selection
-                DropdownButtonFormField<String>(
-                  value: _femaleAnimalId,
-                  decoration: const InputDecoration(
-                    labelText: 'Fêmea *',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: femaleAnimals.map((animal) {
-                    return DropdownMenuItem(
-                      value: animal.id,
-                      child: Text('${animal.name} (${animal.code})'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
+                // Female Selection with Search
+                Autocomplete<String>(
+                  initialValue: _femaleAnimalId != null 
+                      ? TextEditingValue(text: femaleAnimals
+                          .firstWhere((a) => a.id == _femaleAnimalId, 
+                              orElse: () => femaleAnimals.first)
+                          .code)
+                      : null,
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return femaleAnimals.map((a) => a.code);
+                    }
+                    return femaleAnimals
+                        .where((animal) =>
+                            animal.code.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                            animal.name.toLowerCase().contains(textEditingValue.text.toLowerCase()))
+                        .map((a) => a.code);
+                  },
+                  onSelected: (String code) {
+                    final animal = femaleAnimals.firstWhere((a) => a.code == code);
                     setState(() {
-                      _femaleAnimalId = value;
+                      _femaleAnimalId = animal.id;
                     });
                   },
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) {
-                      return 'Selecione uma fêmea';
-                    }
-                    return null;
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Fêmea * (digite o código ou nome)',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.search),
+                      ),
+                      validator: (value) {
+                        if (_femaleAnimalId == null) {
+                          return 'Selecione uma fêmea';
+                        }
+                        return null;
+                      },
+                      onEditingComplete: onEditingComplete,
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final code = options.elementAt(index);
+                              final animal = femaleAnimals.firstWhere((a) => a.code == code);
+                              return ListTile(
+                                title: Text('${animal.code} - ${animal.name}'),
+                                subtitle: Text('${animal.breed} | ${animal.category}'),
+                                onTap: () => onSelected(code),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 16),
                 
-                // Male Selection (Optional)
-                DropdownButtonFormField<String>(
-                  value: _maleAnimalId,
-                  decoration: const InputDecoration(
-                    labelText: 'Macho (Opcional)',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Text('Não especificado'),
-                    ),
-                    ...maleAnimals.map((animal) {
-                      return DropdownMenuItem(
-                        value: animal.id,
-                        child: Text('${animal.name} (${animal.code})'),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
+                // Male Selection (Optional) with Search
+                Autocomplete<String>(
+                  initialValue: _maleAnimalId != null 
+                      ? TextEditingValue(text: maleAnimals
+                          .firstWhere((a) => a.id == _maleAnimalId, 
+                              orElse: () => maleAnimals.first)
+                          .code)
+                      : null,
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return maleAnimals.map((a) => a.code);
+                    }
+                    return maleAnimals
+                        .where((animal) =>
+                            animal.code.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                            animal.name.toLowerCase().contains(textEditingValue.text.toLowerCase()))
+                        .map((a) => a.code);
+                  },
+                  onSelected: (String code) {
+                    final animal = maleAnimals.firstWhere((a) => a.code == code);
                     setState(() {
-                      _maleAnimalId = value;
+                      _maleAnimalId = animal.id;
                     });
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                    return TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Macho (opcional - digite o código ou nome)',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.search),
+                        hintText: 'Deixe vazio para "Não especificado"',
+                      ),
+                      onEditingComplete: onEditingComplete,
+                    );
+                  },
+                  optionsViewBuilder: (context, onSelected, options) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final code = options.elementAt(index);
+                              final animal = maleAnimals.firstWhere((a) => a.code == code);
+                              return ListTile(
+                                title: Text('${animal.code} - ${animal.name}'),
+                                subtitle: Text('${animal.breed} | ${animal.category}'),
+                                onTap: () => onSelected(code),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
                   },
                 ),
                 const SizedBox(height: 16),

@@ -346,7 +346,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           labelText: 'Status',
                           border: OutlineInputBorder(),
                         ),
-                        items: ['Saudável', 'Em tratamento', 'Reprodutor', 'Vendido']
+                        items: ['Saudável', 'Em tratamento', 'Reprodutor', 'Vendido', 'Gestante']
                             .map((status) {
                           return DropdownMenuItem(
                             value: status,
