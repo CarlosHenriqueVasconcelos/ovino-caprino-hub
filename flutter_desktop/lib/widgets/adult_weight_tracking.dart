@@ -306,11 +306,19 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     }
 
                     final weights = snapshot.data!;
-                    return Column(
-                      children: List.generate(
-                        24,
-                        (index) => _buildMonthField(theme, index + 1, weights),
-                      ),
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List.generate(5, (colIndex) {
+                        return Expanded(
+                          child: Column(
+                            children: List.generate(5, (rowIndex) {
+                              final monthIndex = colIndex * 5 + rowIndex;
+                              if (monthIndex >= 24) return const SizedBox.shrink();
+                              return _buildMonthField(theme, monthIndex + 1, weights);
+                            }),
+                          ),
+                        );
+                      }),
                     );
                   },
                 ),
