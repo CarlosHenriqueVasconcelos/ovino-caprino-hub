@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../models/animal.dart';
+import '../data/local_db.dart';
+import '../data/animal_repository.dart';
 
 class LambWeightTracking extends StatefulWidget {
   const LambWeightTracking({super.key});
@@ -492,7 +494,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Future<double?> _getWeight120Days(String animalId) async {
-    final db = await AppDatabase.open();
+    final db = await LocalDatabase.instance.database;
     final repo = AnimalRepository(db);
     final weights = await repo.getWeightRecord(animalId, '120d');
     return weights.isNotEmpty ? weights.first['weight'] as double : null;
