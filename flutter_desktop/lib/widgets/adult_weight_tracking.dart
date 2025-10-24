@@ -306,7 +306,12 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     }
 
                     final weights = snapshot.data!;
-                    return _buildMonthsGrid(theme, weights);
+                    return Column(
+                      children: List.generate(
+                        24,
+                        (index) => _buildMonthField(theme, index + 1, weights),
+                      ),
+                    );
                   },
                 ),
               ],
