@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/breeding_record.dart';
 import '../services/database_service.dart';
 import '../services/animal_service.dart';
+import 'animal_form.dart';
 
 class BreedingStageActions extends StatefulWidget {
   final BreedingRecord record;
@@ -190,6 +191,15 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
           const SnackBar(content: Text('Nascimento registrado com sucesso!')),
         );
         widget.onUpdate?.call();
+        
+        // Abre automaticamente o formulário de novo animal
+        showDialog(
+          context: context,
+          builder: (context) => const AnimalFormDialog(),
+        ).then((_) {
+          // Recarrega dados após fechar o formulário
+          widget.onUpdate?.call();
+        });
       }
     } catch (e) {
       if (mounted) {
