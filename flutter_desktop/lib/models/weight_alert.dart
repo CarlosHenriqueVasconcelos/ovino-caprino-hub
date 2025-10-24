@@ -45,6 +45,8 @@ class WeightAlert {
         return 'Pesagem 60 dias';
       case '90d':
         return 'Pesagem 90 dias';
+      case '120d':
+        return 'Pesagem 120 dias';
       case 'monthly':
         return 'Pesagem mensal';
       default:

@@ -66,7 +66,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Acompanhe o desenvolvimento dos borregos desde o nascimento até 90 dias. '
+                      'Acompanhe o desenvolvimento dos borregos desde o nascimento até 120 dias. '
                       'Monitore o ganho de peso e identifique animais com crescimento inadequado.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -135,6 +135,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                     _buildMetricRow(theme, '60 dias', '15-20 kg', 'Desenvolvimento normal'),
                     const Divider(),
                     _buildMetricRow(theme, '90 dias', '20-40 kg', 'Crescimento ideal'),
+                    const Divider(),
+                    _buildMetricRow(theme, '120 dias', '25-50 kg', 'Próximo à idade adulta'),
                   ],
                 ),
               ),
@@ -390,6 +392,13 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 _buildWeightField(theme, '60 dias', lamb.weight60Days, Colors.orange),
                 const SizedBox(height: 12),
                 _buildWeightField(theme, '90 dias', lamb.weight90Days, Colors.purple),
+                const SizedBox(height: 12),
+                FutureBuilder<double?>(
+                  future: _getWeight120Days(lamb.id),
+                  builder: (context, snapshot) {
+                    return _buildWeightField(theme, '120 dias', snapshot.data, Colors.teal);
+                  },
+                ),
               ],
             ),
           ),
@@ -423,6 +432,24 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               ],
             ),
           ),
+          
+          // Promote to Adult Button
+          if (ageInDays >= 120)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _promoteToAdult(lamb),
+                  icon: const Icon(Icons.upgrade),
+                  label: const Text('Promover para Adulto'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    backgroundColor: theme.colorScheme.secondary,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -464,6 +491,13 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     );
   }
 
+  Future<double?> _getWeight120Days(String animalId) async {
+    final db = await AppDatabase.open();
+    final repo = AnimalRepository(db);
+    final weights = await repo.getWeightRecord(animalId, '120d');
+    return weights.isNotEmpty ? weights.first['weight'] as double : null;
+  }
+
   Map<String, dynamic> _calculateWeightStatus(Animal lamb, int ageInDays) {
     double? relevantWeight;
     double minExpected = 0;
@@ -481,10 +515,16 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       relevantWeight = lamb.weight60Days;
       minExpected = 15.0;
       maxExpected = 20.0;
-    } else {
+    } else if (ageInDays < 120) {
       relevantWeight = lamb.weight90Days;
       minExpected = 20.0;
       maxExpected = 40.0;
+    } else {
+      // Buscar peso de 120 dias (será feito assincronamente)
+      minExpected = 25.0;
+      maxExpected = 50.0;
+      // Usa o peso de 90 dias como fallback
+      relevantWeight = lamb.weight90Days;
     }
 
     if (relevantWeight == null) {
@@ -513,6 +553,74 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         'icon': Icons.check_circle,
         'message': 'Desenvolvimento adequado',
       };
+    }
+  }
+
+  void _promoteToAdult(Animal lamb) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Promover para Adulto'),
+        content: Text(
+          'Tem certeza que deseja promover ${lamb.name} para adulto?\n\n'
+          'A categoria será alterada para "${lamb.gender == 'Macho' ? 'Macho Reprodutor' : 'Fêmea Reprodutora'}".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Promover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final newCategory = lamb.gender == 'Macho' 
+        ? 'Macho Reprodutor' 
+        : 'Fêmea Reprodutora';
+
+    final updatedAnimal = Animal(
+      id: lamb.id,
+      code: lamb.code,
+      name: lamb.name,
+      nameColor: lamb.nameColor,
+      category: newCategory,
+      species: lamb.species,
+      breed: lamb.breed,
+      gender: lamb.gender,
+      birthDate: lamb.birthDate,
+      weight: lamb.weight,
+      status: lamb.status,
+      location: lamb.location,
+      lastVaccination: lamb.lastVaccination,
+      pregnant: lamb.pregnant,
+      expectedDelivery: lamb.expectedDelivery,
+      healthIssue: lamb.healthIssue,
+      birthWeight: lamb.birthWeight,
+      weight30Days: lamb.weight30Days,
+      weight60Days: lamb.weight60Days,
+      weight90Days: lamb.weight90Days,
+      createdAt: lamb.createdAt,
+      updatedAt: DateTime.now(),
+    );
+
+    if (mounted) {
+      await Provider.of<AnimalService>(context, listen: false)
+          .updateAnimal(updatedAnimal);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${lamb.name} promovido para $newCategory!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
@@ -578,6 +686,11 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               _buildWeightInput('Peso aos 60 dias (kg)', weight60Controller),
               const SizedBox(height: 16),
               _buildWeightInput('Peso aos 90 dias (kg)', weight90Controller),
+              const SizedBox(height: 16),
+              const Text(
+                'Para registrar peso de 120 dias, use o controle de peso geral.',
+                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              ),
             ],
           ),
         ),

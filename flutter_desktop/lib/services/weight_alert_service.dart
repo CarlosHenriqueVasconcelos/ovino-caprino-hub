@@ -8,7 +8,7 @@ class WeightAlertService {
 
   WeightAlertService(this.db);
 
-  /// Cria alertas de pesagem para borregos (30, 60, 90 dias após nascimento)
+  /// Cria alertas de pesagem para borregos (30, 60, 90, 120 dias após nascimento)
   Future<void> createLambWeightAlerts(Animal animal) async {
     if (!animal.category.toLowerCase().contains('borrego')) return;
 
@@ -18,7 +18,7 @@ class WeightAlertService {
     // Remove alertas antigos do animal
     await db.db.delete('weight_alerts', where: 'animal_id = ?', whereArgs: [animalId]);
 
-    // Cria alertas para 30, 60 e 90 dias
+    // Cria alertas para 30, 60, 90 e 120 dias
     final alerts = [
       WeightAlert(
         id: 'wa_${animalId}_30d',
@@ -41,6 +41,14 @@ class WeightAlertService {
         animalId: animalId,
         alertType: '90d',
         dueDate: birthDate.add(const Duration(days: 90)),
+        completed: false,
+        createdAt: DateTime.now(),
+      ),
+      WeightAlert(
+        id: 'wa_${animalId}_120d',
+        animalId: animalId,
+        alertType: '120d',
+        dueDate: birthDate.add(const Duration(days: 120)),
         completed: false,
         createdAt: DateTime.now(),
       ),

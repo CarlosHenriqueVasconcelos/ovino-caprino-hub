@@ -25,6 +25,7 @@ import 'package:uuid/uuid.dart';
 import '../services/animal_delete_cascade.dart';
 import '../widgets/repro_alerts_card.dart';
 import '../widgets/feeding_screen.dart';
+import '../widgets/weight_alerts_card.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -355,6 +356,10 @@ class _DashboardTabContent extends StatelessWidget {
 
               // NOVO: Alertas de Reprodução (separações, ultrassons, partos)
               const ReproAlertsCard(daysAhead: 30),
+              const SizedBox(height: 16),
+
+              // NOVO: Alertas de Pesagem
+              const WeightAlertsCard(),
               const SizedBox(height: 32),
 
               // Estatísticas (mesmo layout com StatsCard)

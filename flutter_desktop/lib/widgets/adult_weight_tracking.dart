@@ -68,7 +68,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Acompanhe o desenvolvimento dos animais adultos com controle de 5 meses. '
+                      'Acompanhe o desenvolvimento dos animais adultos com controle de 24 meses (2 anos). '
                       'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -292,7 +292,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Controle de 5 Meses',
+                  'Controle de 24 Meses (2 Anos)',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -306,12 +306,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     }
 
                     final weights = snapshot.data!;
-                    return Column(
-                      children: [
-                        for (int i = 1; i <= 5; i++)
-                          _buildMonthField(theme, i, weights),
-                      ],
-                    );
+                    return _buildMonthsGrid(theme, weights);
                   },
                 ),
               ],
@@ -334,6 +329,71 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMonthsGrid(ThemeData theme, List<Map<String, dynamic>> weights) {
+    // Grid de 5 colunas x 5 linhas = 25 células (usaremos 24 meses)
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 2.0,
+      ),
+      itemCount: 24,
+      itemBuilder: (context, index) {
+        final month = index + 1;
+        final monthWeight = weights.where((w) {
+          final milestone = w['milestone']?.toString();
+          return milestone == 'monthly_$month';
+        }).toList();
+
+        final weight = monthWeight.isNotEmpty
+            ? (monthWeight.first['weight'] as num).toDouble()
+            : null;
+
+        return Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: weight != null
+                ? theme.colorScheme.primary.withOpacity(0.1)
+                : theme.colorScheme.surfaceVariant.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: weight != null
+                  ? theme.colorScheme.primary.withOpacity(0.3)
+                  : theme.colorScheme.outline.withOpacity(0.2),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'M$month',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                weight != null ? '${weight.toStringAsFixed(1)}kg' : '-',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: weight != null ? FontWeight.bold : FontWeight.normal,
+                  color: weight != null
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurface.withOpacity(0.4),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -413,7 +473,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   labelText: 'Selecione o mês',
                   border: OutlineInputBorder(),
                 ),
-                items: [1, 2, 3, 4, 5].map((month) {
+                items: List.generate(24, (i) => i + 1).map((month) {
                   return DropdownMenuItem(
                     value: month,
                     child: Text('Mês $month'),

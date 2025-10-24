@@ -89,7 +89,18 @@ class AnimalRepository {
       where: "animal_id = ? AND (milestone LIKE 'monthly_%' OR milestone IS NULL)",
       whereArgs: [animalId],
       orderBy: 'date DESC',
-      limit: 5,
+      limit: 24, // Mudado de 5 para 24 meses
+    );
+  }
+
+  /// Busca peso específico por milestone (ex: '120d')
+  Future<List<Map<String, dynamic>>> getWeightRecord(String animalId, String milestone) async {
+    return await _db.db.query(
+      'animal_weights',
+      where: 'animal_id = ? AND milestone = ?',
+      whereArgs: [animalId, milestone],
+      orderBy: 'date DESC',
+      limit: 1,
     );
   }
 
