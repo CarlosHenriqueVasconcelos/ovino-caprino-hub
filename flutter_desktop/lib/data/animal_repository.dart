@@ -24,12 +24,37 @@ class AnimalRepository {
     await _db.db.delete('animals', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> addWeight(String animalId, DateTime date, double weight) async {
+  Future<void> addWeight(String animalId, DateTime date, double weight, {String? milestone}) async {
+    final id = 'wt_${DateTime.now().microsecondsSinceEpoch}';
     await _db.db.insert('animal_weights', {
+      'id': id,
       'animal_id': animalId,
-      'date': date.toIso8601String(),
+      'date': date.toIso8601String().split('T').first,
       'weight': weight,
+      'milestone': milestone,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     });
+
+    // Sincroniza com os campos cache em animals
+    final Map<String, dynamic> updateData = {'weight': weight};
+    
+    if (milestone == 'birth') {
+      updateData['birth_weight'] = weight;
+    } else if (milestone == '30d') {
+      updateData['weight_30_days'] = weight;
+    } else if (milestone == '60d') {
+      updateData['weight_60_days'] = weight;
+    } else if (milestone == '90d') {
+      updateData['weight_90_days'] = weight;
+    }
+
+    await _db.db.update(
+      'animals',
+      updateData,
+      where: 'id = ?',
+      whereArgs: [animalId],
+    );
   }
 
   Future<double?> latestWeight(String animalId) async {
@@ -45,6 +70,27 @@ class AnimalRepository {
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
+  }
+
+  /// Busca histórico de pesos de um animal
+  Future<List<Map<String, dynamic>>> getWeightHistory(String animalId) async {
+    return await _db.db.query(
+      'animal_weights',
+      where: 'animal_id = ?',
+      whereArgs: [animalId],
+      orderBy: 'date DESC',
+    );
+  }
+
+  /// Busca pesos mensais (para adultos)
+  Future<List<Map<String, dynamic>>> getMonthlyWeights(String animalId) async {
+    return await _db.db.query(
+      'animal_weights',
+      where: "animal_id = ? AND (milestone LIKE 'monthly_%' OR milestone IS NULL)",
+      whereArgs: [animalId],
+      orderBy: 'date DESC',
+      limit: 5,
+    );
   }
 
   int _firstInt(List<Map<String, Object?>> result) {

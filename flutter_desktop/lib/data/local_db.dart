@@ -89,6 +89,7 @@ class AppDatabase {
         animal_id TEXT NOT NULL,
         date TEXT NOT NULL,
         weight REAL NOT NULL,
+        milestone TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (animal_id) REFERENCES animals(id)
@@ -425,6 +426,22 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name, name_color);');
 
+    // -------- weight_alerts (alertas de pesagem)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS weight_alerts (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        alert_type TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        completed INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date);');
+
     // ==========================
     // ====== TRIGGERS ==========
     // ==========================
@@ -454,6 +471,7 @@ class AppDatabase {
       'deceased_animals',
       'feeding_pens',
       'feeding_schedules',
+      'weight_alerts',
     ]) {
       await _makeUpdatedAtTrigger(tbl);
     }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AlertType { vaccination, medication }
+enum AlertType { vaccination, medication, weighing }
 
 class AlertItem {
   final String id;
@@ -22,6 +22,26 @@ class AlertItem {
   });
 
   bool get isOverdue => dueDate.isBefore(DateTime.now());
-  IconData get icon => type == AlertType.vaccination ? Icons.vaccines : Icons.medication;
-  String get kindLabel => type == AlertType.vaccination ? 'Vacina' : 'Medicação';
+  
+  IconData get icon {
+    switch (type) {
+      case AlertType.vaccination:
+        return Icons.vaccines;
+      case AlertType.medication:
+        return Icons.medication;
+      case AlertType.weighing:
+        return Icons.monitor_weight;
+    }
+  }
+  
+  String get kindLabel {
+    switch (type) {
+      case AlertType.vaccination:
+        return 'Vacina';
+      case AlertType.medication:
+        return 'Medicação';
+      case AlertType.weighing:
+        return 'Pesagem';
+    }
+  }
 }

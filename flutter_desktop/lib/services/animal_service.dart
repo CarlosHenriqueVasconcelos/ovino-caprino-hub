@@ -7,6 +7,7 @@ import '../data/local_db.dart';      // AppDatabase
 import '../models/animal.dart';      // Animal e AnimalStats
 import '../models/alert_item.dart';  // AlertItem
 import 'deceased_hooks.dart';        // handleAnimalDeathIfApplicable
+import 'weight_alert_service.dart';  // WeightAlertService
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
@@ -14,18 +15,19 @@ class AnimalService extends ChangeNotifier {
   AnimalStats? _stats;
   bool _loading = false;
 
-  // Painel de alertas (vacinas + medicações)
+  // Painel de alertas (vacinas + medicações + pesagens)
   final List<AlertItem> _alerts = [];
 
   // DB
   AppDatabase? _appDb;
+  WeightAlertService? _weightAlertService;
 
   // ----------------- Getters públicos -----------------
   UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
   AnimalStats? get stats => _stats;
   bool get isLoading => _loading;
 
-  /// Alertas agregados (Vacinas + Medicações)
+  /// Alertas agregados (Vacinas + Medicações + Pesagens)
   UnmodifiableListView<AlertItem> get alerts => UnmodifiableListView(_alerts);
 
   // ----------------- Construtor -----------------
@@ -38,6 +40,7 @@ class AnimalService extends ChangeNotifier {
   // ----------------- Acesso ao DB -----------------
   Future<void> _ensureDb() async {
     _appDb ??= await AppDatabase.open();
+    _weightAlertService ??= WeightAlertService(_appDb!);
   }
 
   // ----------------- Ciclo de vida / carga -----------------
@@ -60,7 +63,7 @@ class AnimalService extends ChangeNotifier {
       // Estatísticas
       await _refreshStatsSafe();
 
-      // Atualiza o painel de alertas (Vacinas + Medicações)
+      // Atualiza o painel de alertas (Vacinas + Medicações + Pesagens)
       await refreshAlerts();
     } catch (e) {
       debugPrint('Error loading data: $e');
@@ -104,6 +107,11 @@ class AnimalService extends ChangeNotifier {
 
     final saved = Animal.fromMap(map);
     _animals.add(saved);
+
+    // Cria alertas de pesagem se for borrego
+    if (saved.category.toLowerCase().contains('borrego')) {
+      await _weightAlertService?.createLambWeightAlerts(saved);
+    }
 
     await _refreshStatsSafe();
     await refreshAlerts();
@@ -175,7 +183,7 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ----------------- Alertas (Vacinas + Medicações) -----------------
+  // ----------------- Alertas (Vacinas + Medicações + Pesagens) -----------------
   /// Recalcula o painel de alertas olhando até [horizonDays] dias à frente.
   /// Inclui itens vencidos (overdue) e os que estão dentro do horizonte.
   Future<void> refreshAlerts({int horizonDays = 14}) async {
@@ -220,7 +228,7 @@ class AnimalService extends ChangeNotifier {
         debugPrint('Erro carregando vacinações: $e');
       }
 
-      // MEDICAÇÕES (usa next_date como “próxima dose”)
+      // MEDICAÇÕES (usa next_date como "próxima dose")
       try {
         final meds = await _appDb!.db.query('medications');
         for (final row in meds) {
@@ -251,6 +259,55 @@ class AnimalService extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint('Erro carregando medicações: $e');
+      }
+
+      // PESAGENS (weight_alerts)
+      try {
+        final weighings = await _appDb!.db.query(
+          'weight_alerts',
+          where: 'completed = 0',
+        );
+        for (final row in weighings) {
+          final dateStr = row['due_date']?.toString();
+          if (dateStr == null || dateStr.isEmpty) continue;
+
+          final due = DateTime.tryParse(dateStr);
+          if (due == null) continue;
+          if (due.isAfter(horizon)) continue;
+
+          final animalId = (row['animal_id'] ?? '').toString();
+          final animal = animalsById[animalId];
+          if (animal == null) continue;
+
+          final alertType = (row['alert_type'] ?? '').toString();
+          String title = 'Pesagem';
+          switch (alertType) {
+            case '30d':
+              title = 'Pesagem 30 dias';
+              break;
+            case '60d':
+              title = 'Pesagem 60 dias';
+              break;
+            case '90d':
+              title = 'Pesagem 90 dias';
+              break;
+            case 'monthly':
+              title = 'Pesagem mensal';
+              break;
+          }
+
+          next.add(AlertItem(
+            id: row['id'].toString(),
+            animalId: animalId,
+            animalName: animal.name,
+            animalCode: animal.code,
+            type: AlertType.weighing,
+            title: title,
+            dueDate: due,
+          ));
+        }
+      } catch (e) {
+        debugPrint('Erro carregando alertas de pesagem: $e');
       }
 
       // Ordena por data e publica

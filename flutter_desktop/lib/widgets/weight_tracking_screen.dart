@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../models/animal.dart';
 import 'lamb_weight_tracking.dart';
+import 'adult_weight_tracking.dart';
 
 class WeightTrackingScreen extends StatefulWidget {
   const WeightTrackingScreen({super.key});
@@ -27,7 +28,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -54,9 +55,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             indicatorColor: theme.colorScheme.primary,
             tabs: const [
               Tab(icon: Icon(Icons.monitor_weight), text: 'Geral'),
-              Tab(
-                  icon: Icon(Icons.baby_changing_station),
-                  text: 'Controle Borregos'),
+              Tab(icon: Icon(Icons.baby_changing_station), text: 'Borregos'),
+              Tab(icon: Icon(Icons.scale), text: 'Adultos'),
             ],
           ),
         ),
@@ -68,6 +68,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             children: [
               _buildGeneralWeightTracking(theme),
               const LambWeightTracking(),
+              const AdultWeightTracking(),
             ],
           ),
         ),

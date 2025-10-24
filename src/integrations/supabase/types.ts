@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          milestone: string | null
           updated_at: string
           weight: number
         }
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           date: string
           id?: string
+          milestone?: string | null
           updated_at?: string
           weight: number
         }
@@ -36,6 +38,7 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          milestone?: string | null
           updated_at?: string
           weight?: number
         }
@@ -738,6 +741,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weight_alerts: {
+        Row: {
+          alert_type: string
+          animal_id: string
+          completed: boolean | null
+          created_at: string
+          due_date: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          animal_id: string
+          completed?: boolean | null
+          created_at?: string
+          due_date: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          animal_id?: string
+          completed?: boolean | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
