@@ -12,6 +12,17 @@ class AnimalRepository {
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
 
+  Future<Animal?> getAnimalById(String id) async {
+    final maps = await _db.db.query('animals', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (maps.isEmpty) return null;
+    return Animal.fromMap(maps.first);
+  }
+
+  Future<List<Animal>> getOffspring(String motherId) async {
+    final maps = await _db.db.query('animals', where: 'mother_id = ?', whereArgs: [motherId]);
+    return maps.map((m) => Animal.fromMap(m)).toList();
+  }
+
   Future<void> upsert(Animal a) async {
     await _db.db.insert(
       'animals',

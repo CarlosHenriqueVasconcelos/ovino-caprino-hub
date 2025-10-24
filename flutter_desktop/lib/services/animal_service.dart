@@ -73,6 +73,13 @@ class AnimalService extends ChangeNotifier {
     }
   }
 
+  // ----------------- Métodos auxiliares -----------------
+  Future<List<Animal>> getAllAnimals() async {
+    await _ensureDb();
+    final rows = await _appDb!.db.query('animals', orderBy: 'name COLLATE NOCASE');
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
   // ----------------- CRUD: Animal -----------------
   Future<void> addAnimal(Animal a) async {
     await _ensureDb();

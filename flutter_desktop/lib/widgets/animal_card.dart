@@ -314,6 +314,21 @@ class AnimalCard extends StatelessWidget {
                 // 🔹 Novo: chip de sexo (inferido pela category)
                 _sexChip(context),
 
+                // 🔹 Chip de categoria
+                if (animal.category != null && animal.category!.isNotEmpty)
+                  Chip(
+                    label: Text(animal.category!),
+                    backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                    labelStyle: TextStyle(
+                      color: theme.colorScheme.secondary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(
+                      color: theme.colorScheme.secondary.withOpacity(0.2),
+                    ),
+                  ),
+
                 if (animal.pregnant)
                   Chip(
                     label: const Row(
@@ -425,6 +440,121 @@ class AnimalCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+
+            // Ano e Lote
+            if (animal.year != null || animal.lote != null)
+              Row(
+                children: [
+                  if (animal.year != null) ...[
+                    const Icon(Icons.calendar_today, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Ano: ${animal.year}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                  if (animal.year != null && animal.lote != null)
+                    const SizedBox(width: 16),
+                  if (animal.lote != null) ...[
+                    const Icon(Icons.label, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Lote: ${animal.lote}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ],
+              ),
+            if (animal.year != null || animal.lote != null)
+              const SizedBox(height: 12),
+
+            // Informação sobre mãe (se for borrego)
+            if (animal.motherId != null)
+              FutureBuilder<Animal?>(
+                future: repository?.getAnimalById(animal.motherId!),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    final mother = snapshot.data!;
+                    return Container(
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.family_restroom,
+                            size: 16,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Mãe: ${mother.name} (${mother.code})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+
+            // Lista de crias (se for mãe)
+            FutureBuilder<List<Animal>>(
+              future: repository?.getOffspring(animal.id),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
+                  final offspring = snapshot.data!;
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.child_care,
+                              size: 16,
+                              color: theme.colorScheme.tertiary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Crias (${offspring.length}):',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        ...offspring.map((child) => Padding(
+                          padding: const EdgeInsets.only(left: 24, top: 2),
+                          child: Text(
+                            '• ${child.name} (${child.category ?? "Sem categoria"})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.tertiary,
+                            ),
+                          ),
+                        )),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
 
             // Expected Delivery
             if (animal.pregnant && animal.expectedDelivery != null)

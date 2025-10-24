@@ -32,6 +32,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   bool _pregnant = false;
   DateTime? _expectedDelivery;
   DateTime? _lastVaccination;
+  String? _motherId;
+  List<Animal> _availableMothers = [];
 
   final List<String> _categories = [
     'Macho Reprodutor',
@@ -60,6 +62,18 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     if (widget.animal != null) {
       _loadAnimalData();
     }
+    _loadAvailableMothers();
+  }
+
+  void _loadAvailableMothers() async {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    final animals = await animalService.getAllAnimals();
+    setState(() {
+      _availableMothers = animals.where((a) => 
+        a.gender == 'Fêmea' && 
+        !['Fêmea Borrega', 'Macho Borrego'].contains(a.category)
+      ).toList();
+    });
   }
 
   void _loadAnimalData() {
@@ -80,6 +94,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _pregnant = animal.pregnant;
     _expectedDelivery = animal.expectedDelivery;
     _lastVaccination = animal.lastVaccination;
+    _motherId = animal.motherId;
   }
 
   @override
@@ -197,6 +212,45 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                
+                // Seleção de mãe (se for borrego)
+                if (_category == 'Fêmea Borrega' || _category == 'Macho Borrego')
+                  Column(
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: _motherId,
+                        decoration: const InputDecoration(
+                          labelText: 'Mãe',
+                          border: OutlineInputBorder(),
+                          hintText: 'Selecione a mãe',
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Nenhuma'),
+                          ),
+                          ..._availableMothers.map((mother) {
+                            return DropdownMenuItem(
+                              value: mother.id,
+                              child: Text('${mother.name} (${mother.code})'),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _motherId = value;
+                            // Auto-preencher nome e cor da mãe
+                            if (value != null) {
+                              final mother = _availableMothers.firstWhere((m) => m.id == value);
+                              _nameController.text = mother.name;
+                              _nameColor = mother.nameColor;
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 
                 // Categoria
                 DropdownButtonFormField<String>(
@@ -472,6 +526,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       pregnant: _pregnant,
       expectedDelivery: _expectedDelivery,
       lastVaccination: _lastVaccination,
+      year: int.tryParse(_yearController.text),
+      lote: _loteController.text.isEmpty ? null : _loteController.text,
+      motherId: _motherId,
       createdAt: widget.animal?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
