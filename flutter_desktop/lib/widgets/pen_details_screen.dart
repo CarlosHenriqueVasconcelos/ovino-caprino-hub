@@ -25,8 +25,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
 
   Future<void> _loadSchedules() async {
     setState(() => _loading = true);
-    final db = await AppDatabase().database;
-    final List<Map<String, dynamic>> maps = await db.query(
+    final appDb = await AppDatabase.open();
+    final List<Map<String, dynamic>> maps = await appDb.db.query(
       'feeding_schedules',
       where: 'pen_id = ?',
       whereArgs: [widget.pen.id],
@@ -75,8 +75,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
     );
 
     if (confirmed == true) {
-      final db = await AppDatabase().database;
-      await db.delete(
+      final appDb = await AppDatabase.open();
+      await appDb.db.delete(
         'feeding_schedules',
         where: 'id = ?',
         whereArgs: [schedule.id],

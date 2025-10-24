@@ -23,8 +23,8 @@ class _FeedingScreenState extends State<FeedingScreen> {
 
   Future<void> _loadPens() async {
     setState(() => _loading = true);
-    final db = await AppDatabase().database;
-    final List<Map<String, dynamic>> maps = await db.query(
+    final appDb = await AppDatabase.open();
+    final List<Map<String, dynamic>> maps = await appDb.db.query(
       'feeding_pens',
       orderBy: 'created_at ASC',
     );
@@ -88,9 +88,9 @@ class _FeedingScreenState extends State<FeedingScreen> {
                 return;
               }
 
-              final db = await AppDatabase().database;
+              final appDb = await AppDatabase.open();
               final now = DateTime.now().toIso8601String();
-              await db.insert('feeding_pens', {
+              await appDb.db.insert('feeding_pens', {
                 'id': const Uuid().v4(),
                 'name': nameController.text.trim(),
                 'number': numberController.text.trim().isEmpty ? null : numberController.text.trim(),

@@ -98,7 +98,7 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
       return;
     }
 
-    final db = await AppDatabase().database;
+    final appDb = await AppDatabase.open();
     final now = DateTime.now().toIso8601String();
 
     final data = {
@@ -115,10 +115,10 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
       // Criar novo
       data['id'] = const Uuid().v4();
       data['created_at'] = now;
-      await db.insert('feeding_schedules', data);
+      await appDb.db.insert('feeding_schedules', data);
     } else {
       // Atualizar existente
-      await db.update(
+      await appDb.db.update(
         'feeding_schedules',
         data,
         where: 'id = ?',
