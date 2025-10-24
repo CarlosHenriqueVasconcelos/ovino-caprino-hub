@@ -46,6 +46,7 @@ Future<void> handleAnimalDeathIfApplicable(String animalId, String newStatus) as
         'weight_30_days': animalData['weight_30_days'],
         'weight_60_days': animalData['weight_60_days'],
         'weight_90_days': animalData['weight_90_days'],
+        'weight_120_days': animalData['weight_120_days'],
         'death_date': dateOnly,
         'cause_of_death': animalData['health_issue'],
         'death_notes': 'Animal registrado como óbito',

@@ -67,6 +67,7 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
         'weight_30_days': animalData['weight_30_days'],
         'weight_60_days': animalData['weight_60_days'],
         'weight_90_days': animalData['weight_90_days'],
+        'weight_120_days': animalData['weight_120_days'],
         'sale_date': saleDateIso,
         'sale_price': account.amount,
         'buyer': account.supplierCustomer,

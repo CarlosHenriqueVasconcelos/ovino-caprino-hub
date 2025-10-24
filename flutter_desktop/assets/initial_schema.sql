@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS animals (
   weight_30_days REAL,
   weight_60_days REAL,
   weight_90_days REAL,
+  weight_120_days REAL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

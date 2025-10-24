@@ -75,7 +75,8 @@ class AppDatabase {
         birth_weight REAL,
         weight_30_days REAL,
         weight_60_days REAL,
-        weight_90_days REAL
+        weight_90_days REAL,
+        weight_120_days REAL
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
@@ -386,6 +387,7 @@ class AppDatabase {
         weight_30_days REAL,
         weight_60_days REAL,
         weight_90_days REAL,
+        weight_120_days REAL,
         sale_date TEXT NOT NULL,
         sale_price REAL,
         buyer TEXT,
@@ -416,6 +418,7 @@ class AppDatabase {
         weight_30_days REAL,
         weight_60_days REAL,
         weight_90_days REAL,
+        weight_120_days REAL,
         death_date TEXT NOT NULL,
         cause_of_death TEXT,
         death_notes TEXT,

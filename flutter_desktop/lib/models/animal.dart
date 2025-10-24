@@ -25,6 +25,7 @@ class Animal {
   final double? weight30Days;
   final double? weight60Days;
   final double? weight90Days;
+  final double? weight120Days;
 
   Animal({
     required this.id,
@@ -49,6 +50,7 @@ class Animal {
     this.weight30Days,
     this.weight60Days,
     this.weight90Days,
+    this.weight120Days,
   });
 
   factory Animal.fromMap(Map<String, dynamic> map) {
@@ -105,6 +107,13 @@ class Animal {
               map['weight_90d'],
         );
 
+    double? _read120d() => _toDouble(
+          map['weight120Days'] ??
+              map['weight_120_days'] ??
+              map['weight120'] ??
+              map['weight_120d'],
+        );
+
     return Animal(
       id: map['id']?.toString() ?? '',
       code: map['code'] ?? '',
@@ -130,6 +139,7 @@ class Animal {
       weight30Days: _read30d(),
       weight60Days: _read60d(),
       weight90Days: _read90d(),
+      weight120Days: _read120d(),
     );
   }
 
@@ -172,6 +182,7 @@ class Animal {
     put('weight_30_days', weight30Days);
     put('weight_60_days', weight60Days);
     put('weight_90_days', weight90Days);
+    put('weight_120_days', weight120Days);
 
     return map;
   }
@@ -271,6 +282,7 @@ extension AnimalCopy on Animal {
     double? weight30Days,
     double? weight60Days,
     double? weight90Days,
+    double? weight120Days,
   }) {
     return Animal(
       id: id ?? this.id,
@@ -295,6 +307,7 @@ extension AnimalCopy on Animal {
       weight30Days: weight30Days ?? this.weight30Days,
       weight60Days: weight60Days ?? this.weight60Days,
       weight90Days: weight90Days ?? this.weight90Days,
+      weight120Days: weight120Days ?? this.weight120Days,
     );
   }
 }

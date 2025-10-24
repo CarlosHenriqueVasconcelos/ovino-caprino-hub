@@ -47,6 +47,8 @@ class AnimalRepository {
       updateData['weight_60_days'] = weight;
     } else if (milestone == '90d') {
       updateData['weight_90_days'] = weight;
+    } else if (milestone == '120d') {
+      updateData['weight_120_days'] = weight;
     }
 
     await _db.db.update(
@@ -167,6 +169,7 @@ class AnimalRepository {
       'weight_30_days': animalData['weight_30_days'],
       'weight_60_days': animalData['weight_60_days'],
       'weight_90_days': animalData['weight_90_days'],
+      'weight_120_days': animalData['weight_120_days'],
       'sale_date': saleDate.toIso8601String().split('T').first,
       'sale_price': salePrice,
       'buyer': buyer,
@@ -204,6 +207,7 @@ class AnimalRepository {
       'weight_30_days': animalData['weight_30_days'],
       'weight_60_days': animalData['weight_60_days'],
       'weight_90_days': animalData['weight_90_days'],
+      'weight_120_days': animalData['weight_120_days'],
       'death_date': deathDate.toIso8601String().split('T').first,
       'cause_of_death': causeOfDeath,
       'death_notes': notes,

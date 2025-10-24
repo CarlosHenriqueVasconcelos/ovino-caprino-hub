@@ -77,7 +77,7 @@ class BackupService {
     'animals': {
       'id','code','name','species','breed','gender','birth_date','weight','status','location',
       'last_vaccination','pregnant','expected_delivery','health_issue','created_at','updated_at',
-      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days',
+      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days','weight_120_days',
     },
     'animal_weights': {'id','animal_id','date','weight','created_at','updated_at'},
     'breeding_records': {
@@ -103,12 +103,12 @@ class BackupService {
     'reports': {'id','title','report_type','parameters','generated_at','generated_by'},
     'sold_animals': {
       'id','original_animal_id','code','name','species','breed','gender','birth_date','weight','location',
-      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days',
+      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days','weight_120_days',
       'sale_date','sale_price','buyer','sale_notes','created_at','updated_at',
     },
     'deceased_animals': {
       'id','original_animal_id','code','name','species','breed','gender','birth_date','weight','location',
-      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days',
+      'name_color','category','birth_weight','weight_30_days','weight_60_days','weight_90_days','weight_120_days',
       'death_date','cause_of_death','death_notes','created_at','updated_at',
     },
     'vaccinations': {

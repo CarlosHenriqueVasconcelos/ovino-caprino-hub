@@ -494,8 +494,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Future<double?> _getWeight120Days(String animalId) async {
-    final db = await LocalDatabase.instance.database;
-    final repo = AnimalRepository(db);
+    final db = await AppDatabase.open();
+    final repo = AnimalRepository(db.db);
     final weights = await repo.getWeightRecord(animalId, '120d');
     return weights.isNotEmpty ? weights.first['weight'] as double : null;
   }

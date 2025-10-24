@@ -222,6 +222,7 @@ export type Database = {
           species: string
           updated_at: string
           weight: number
+          weight_120_days: number | null
           weight_30_days: number | null
           weight_60_days: number | null
           weight_90_days: number | null
@@ -245,6 +246,7 @@ export type Database = {
           species: string
           updated_at?: string
           weight: number
+          weight_120_days?: number | null
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
@@ -268,6 +270,7 @@ export type Database = {
           species?: string
           updated_at?: string
           weight?: number
+          weight_120_days?: number | null
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
@@ -641,6 +644,7 @@ export type Database = {
           species: string
           updated_at: string
           weight: number
+          weight_120_days: number | null
           weight_30_days: number | null
           weight_60_days: number | null
           weight_90_days: number | null
@@ -665,6 +669,7 @@ export type Database = {
           species: string
           updated_at?: string
           weight: number
+          weight_120_days?: number | null
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
@@ -689,6 +694,7 @@ export type Database = {
           species?: string
           updated_at?: string
           weight?: number
+          weight_120_days?: number | null
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
