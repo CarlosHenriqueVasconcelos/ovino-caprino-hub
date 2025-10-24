@@ -20,6 +20,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   final _breedController = TextEditingController();
   final _weightController = TextEditingController();
   final _locationController = TextEditingController();
+  final _yearController = TextEditingController();
+  final _loteController = TextEditingController();
   
   String _species = 'Ovino';
   String _gender = 'Fêmea';
@@ -67,6 +69,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _breedController.text = animal.breed;
     _weightController.text = animal.weight.toString();
     _locationController.text = animal.location;
+    _yearController.text = animal.year?.toString() ?? animal.birthDate.year.toString();
+    _loteController.text = animal.lote ?? '';
     _species = animal.species;
     _gender = animal.gender;
     _status = animal.status;
@@ -168,6 +172,26 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           }
                           return null;
                         },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Ano e Lote
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _yearController,
+                        decoration: const InputDecoration(labelText: 'Ano *'),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _loteController,
+                        decoration: const InputDecoration(labelText: 'Lote', hintText: 'Ex: LT01'),
                       ),
                     ),
                   ],
@@ -491,6 +515,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _breedController.dispose();
     _weightController.dispose();
     _locationController.dispose();
+    _yearController.dispose();
+    _loteController.dispose();
     super.dispose();
   }
 }

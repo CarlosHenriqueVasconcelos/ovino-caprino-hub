@@ -66,6 +66,8 @@ export type Database = {
           id: string
           last_vaccination: string | null
           location: string
+          lote: string | null
+          mother_id: string | null
           name: string
           name_color: string | null
           pregnant: boolean | null
@@ -77,6 +79,7 @@ export type Database = {
           weight_30_days: number | null
           weight_60_days: number | null
           weight_90_days: number | null
+          year: number | null
         }
         Insert: {
           birth_date: string
@@ -91,6 +94,8 @@ export type Database = {
           id?: string
           last_vaccination?: string | null
           location: string
+          lote?: string | null
+          mother_id?: string | null
           name: string
           name_color?: string | null
           pregnant?: boolean | null
@@ -102,6 +107,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Update: {
           birth_date?: string
@@ -116,6 +122,8 @@ export type Database = {
           id?: string
           last_vaccination?: string | null
           location?: string
+          lote?: string | null
+          mother_id?: string | null
           name?: string
           name_color?: string | null
           pregnant?: boolean | null
@@ -127,6 +135,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Relationships: []
       }
@@ -216,6 +225,8 @@ export type Database = {
           gender: string
           id: string
           location: string
+          lote: string | null
+          mother_id: string | null
           name: string
           name_color: string | null
           original_animal_id: string
@@ -226,6 +237,7 @@ export type Database = {
           weight_30_days: number | null
           weight_60_days: number | null
           weight_90_days: number | null
+          year: number | null
         }
         Insert: {
           birth_date: string
@@ -240,6 +252,8 @@ export type Database = {
           gender: string
           id?: string
           location: string
+          lote?: string | null
+          mother_id?: string | null
           name: string
           name_color?: string | null
           original_animal_id: string
@@ -250,6 +264,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Update: {
           birth_date?: string
@@ -264,6 +279,8 @@ export type Database = {
           gender?: string
           id?: string
           location?: string
+          lote?: string | null
+          mother_id?: string | null
           name?: string
           name_color?: string | null
           original_animal_id?: string
@@ -274,6 +291,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Relationships: []
       }
@@ -635,6 +653,8 @@ export type Database = {
           gender: string
           id: string
           location: string
+          lote: string | null
+          mother_id: string | null
           name: string
           name_color: string | null
           original_animal_id: string
@@ -648,6 +668,7 @@ export type Database = {
           weight_30_days: number | null
           weight_60_days: number | null
           weight_90_days: number | null
+          year: number | null
         }
         Insert: {
           birth_date: string
@@ -660,6 +681,8 @@ export type Database = {
           gender: string
           id?: string
           location: string
+          lote?: string | null
+          mother_id?: string | null
           name: string
           name_color?: string | null
           original_animal_id: string
@@ -673,6 +696,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Update: {
           birth_date?: string
@@ -685,6 +709,8 @@ export type Database = {
           gender?: string
           id?: string
           location?: string
+          lote?: string | null
+          mother_id?: string | null
           name?: string
           name_color?: string | null
           original_animal_id?: string
@@ -698,6 +724,7 @@ export type Database = {
           weight_30_days?: number | null
           weight_60_days?: number | null
           weight_90_days?: number | null
+          year?: number | null
         }
         Relationships: []
       }

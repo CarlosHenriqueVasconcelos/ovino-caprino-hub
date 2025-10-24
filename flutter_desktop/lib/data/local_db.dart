@@ -76,12 +76,16 @@ class AppDatabase {
         weight_30_days REAL,
         weight_60_days REAL,
         weight_90_days REAL,
-        weight_120_days REAL
+        weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);');
 
     // -------- animal_weights
     await db.execute('''
@@ -388,6 +392,9 @@ class AppDatabase {
         weight_60_days REAL,
         weight_90_days REAL,
         weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT,
         sale_date TEXT NOT NULL,
         sale_price REAL,
         buyer TEXT,
@@ -419,6 +426,9 @@ class AppDatabase {
         weight_60_days REAL,
         weight_90_days REAL,
         weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT,
         death_date TEXT NOT NULL,
         cause_of_death TEXT,
         death_notes TEXT,

@@ -27,6 +27,11 @@ class Animal {
   final double? weight90Days;
   final double? weight120Days;
 
+  // Novos campos
+  final int? year;
+  final String? lote;
+  final String? motherId;
+
   Animal({
     required this.id,
     required this.code,
@@ -51,6 +56,9 @@ class Animal {
     this.weight60Days,
     this.weight90Days,
     this.weight120Days,
+    this.year,
+    this.lote,
+    this.motherId,
   });
 
   factory Animal.fromMap(Map<String, dynamic> map) {
@@ -140,6 +148,9 @@ class Animal {
       weight60Days: _read60d(),
       weight90Days: _read90d(),
       weight120Days: _read120d(),
+      year: map['year'] is int ? map['year'] : (map['year'] != null ? int.tryParse(map['year'].toString()) : null),
+      lote: map['lote']?.toString(),
+      motherId: map['mother_id']?.toString() ?? map['motherId']?.toString(),
     );
   }
 
@@ -183,6 +194,9 @@ class Animal {
     put('weight_60_days', weight60Days);
     put('weight_90_days', weight90Days);
     put('weight_120_days', weight120Days);
+    put('year', year);
+    put('lote', lote);
+    put('mother_id', motherId);
 
     return map;
   }
@@ -283,6 +297,9 @@ extension AnimalCopy on Animal {
     double? weight60Days,
     double? weight90Days,
     double? weight120Days,
+    int? year,
+    String? lote,
+    String? motherId,
   }) {
     return Animal(
       id: id ?? this.id,
@@ -308,6 +325,9 @@ extension AnimalCopy on Animal {
       weight60Days: weight60Days ?? this.weight60Days,
       weight90Days: weight90Days ?? this.weight90Days,
       weight120Days: weight120Days ?? this.weight120Days,
+      year: year ?? this.year,
+      lote: lote ?? this.lote,
+      motherId: motherId ?? this.motherId,
     );
   }
 }

@@ -4,7 +4,7 @@
 -- Tabela de animais
 CREATE TABLE IF NOT EXISTS animals (
   id TEXT PRIMARY KEY,
-  code TEXT NOT NULL UNIQUE,
+  code TEXT NOT NULL,
   name TEXT NOT NULL,
   name_color TEXT,
   category TEXT,
@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS animals (
   weight_60_days REAL,
   weight_90_days REAL,
   weight_120_days REAL,
+  year INTEGER,
+  lote TEXT,
+  mother_id TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -127,6 +130,7 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);
 CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);
 CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);
+CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);
 CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);
 CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);

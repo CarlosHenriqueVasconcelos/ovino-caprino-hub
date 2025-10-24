@@ -88,20 +88,13 @@ class AnimalService extends ChangeNotifier {
     map['created_at'] ??= nowIso;
     map['updated_at'] = nowIso;
 
-    // Regra: (name, name_color) deve ser único (case-insensitive)
-    final nameLc = (map['name'] ?? '').toString().toLowerCase();
-    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
-    final dup = await _appDb!.db.query(
-      'animals',
-      columns: ['id'],
-      where: 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ?',
-      whereArgs: [nameLc, colorLc],
-      limit: 1,
-    );
-    if (dup.isNotEmpty) {
-      throw Exception('Já existe um animal com este Nome + Cor.');
+    // Preencher year com o ano da data de nascimento se não foi especificado
+    if (map['year'] == null && a.birthDate != null) {
+      map['year'] = a.birthDate.year;
     }
 
+    // Nova regra de validação de unicidade
+    await _validateUniqueness(map, isUpdate: false);
 
     await _appDb!.db.insert('animals', map);
 
@@ -118,23 +111,66 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Helper para verificar se é categoria de borrego
+  bool _isLambCategory(String? category) {
+    if (category == null) return false;
+    final catLower = category.toLowerCase();
+    return catLower.contains('borrego') || catLower.contains('borrega');
+  }
+
+  // Valida a unicidade de name + name_color segundo as novas regras
+  Future<void> _validateUniqueness(Map<String, dynamic> map, {required bool isUpdate}) async {
+    final nameLc = (map['name'] ?? '').toString().toLowerCase();
+    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
+    final currentId = map['id']?.toString() ?? '';
+    final category = map['category']?.toString() ?? '';
+
+    // Busca todos os animais com mesmo name + color (excluindo o próprio se for update)
+    final whereClause = isUpdate
+        ? 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ? AND id <> ?'
+        : 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ?';
+    
+    final whereArgs = isUpdate ? [nameLc, colorLc, currentId] : [nameLc, colorLc];
+
+    final existing = await _appDb!.db.query(
+      'animals',
+      columns: ['id', 'category'],
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+
+    final isLamb = _isLambCategory(category);
+
+    if (isLamb) {
+      // Conta quantos borregos já existem com esse name + color
+      final lambCount = existing.where((e) => _isLambCategory(e['category']?.toString())).length;
+      
+      if (lambCount >= 2) {
+        throw Exception('Já existem 2 borregos com este Nome + Cor. Limite atingido.');
+      }
+
+      // Verifica se existe uma mãe (adulto) com esse name + color
+      final hasAdult = existing.any((e) => !_isLambCategory(e['category']?.toString()));
+      if (!hasAdult) {
+        // Aviso: não há mãe com esse nome/cor, mas permite o registro
+        print('⚠️ Aviso: Registrando borrego sem mãe correspondente (Nome: ${map['name']}, Cor: ${map['name_color']})');
+      }
+    } else {
+      // É categoria adulta - verifica se já existe um adulto com esse name + color
+      final hasAdult = existing.any((e) => !_isLambCategory(e['category']?.toString()));
+      if (hasAdult) {
+        throw Exception('Já existe um animal adulto com este Nome + Cor.');
+      }
+    }
+  }
+
   Future<void> updateAnimal(Animal a) async {
     await _ensureDb();
     final map = a.toMap();
     map['updated_at'] = DateTime.now().toIso8601String();
-        // Regra: (name, name_color) único; ignorar o próprio id
-    final nameLc = (map['name'] ?? '').toString().toLowerCase();
-    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
-    final dup = await _appDb!.db.query(
-      'animals',
-      columns: ['id'],
-      where: 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ? AND id <> ?',
-      whereArgs: [nameLc, colorLc, map['id']],
-      limit: 1,
-    );
-    if (dup.isNotEmpty) {
-      throw Exception('Já existe um animal com este Nome + Cor.');
-    }
+    
+    // Nova validação de unicidade
+    await _validateUniqueness(map, isUpdate: true);
 
     // Verifica se o status foi alterado para "Óbito"
     final newStatus = map['status'] as String?;
