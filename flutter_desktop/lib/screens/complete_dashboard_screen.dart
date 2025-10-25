@@ -790,11 +790,12 @@ class _HerdSectionState extends State<_HerdSection> {
                           ),
                           itemCount: list.length,
                           itemBuilder: (context, index) {
-                            return AnimalCard(
-                              animal: list[index],
-                              onEdit: null,
-                              onDeleteCascade: null,
-                            );
+                          return AnimalCard(
+                            animal: list[index],
+                            repository: context.read<AnimalRepository>(),
+                            onEdit: null,
+                            onDeleteCascade: null,
+                          );
                           },
                         );
                       },
@@ -839,11 +840,12 @@ class _HerdSectionState extends State<_HerdSection> {
                           ),
                           itemCount: list.length,
                           itemBuilder: (context, index) {
-                            return AnimalCard(
-                              animal: list[index],
-                              onEdit: null,
-                              onDeleteCascade: null,
-                            );
+                          return AnimalCard(
+                            animal: list[index],
+                            repository: context.read<AnimalRepository>(),
+                            onEdit: null,
+                            onDeleteCascade: null,
+                          );
                           },
                         );
                       },
@@ -863,6 +865,7 @@ class _HerdSectionState extends State<_HerdSection> {
                       itemBuilder: (context, index) {
                         return AnimalCard(
                           animal: filtered[index],
+                          repository: context.read<AnimalRepository>(),
                           onEdit: (animal) =>
                               _showAnimalForm(context, animal: animal),
                           onDeleteCascade: (animal) async {

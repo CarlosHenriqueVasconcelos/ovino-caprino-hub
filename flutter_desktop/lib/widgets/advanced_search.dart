@@ -378,6 +378,7 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                           itemBuilder: (context, index) {
                                             return AnimalCard(
                                               animal: _filteredAnimals[index],
+                                              repository: context.read<AnimalRepository>(),
                                               onEdit: (animal) {
                                                 showDialog(
                                                   context: context,
