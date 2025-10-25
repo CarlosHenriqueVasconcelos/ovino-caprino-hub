@@ -12,6 +12,7 @@ import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/animal_service.dart';
 import 'data/local_db.dart';
+import 'data/animal_repository.dart';
 import 'services/backup_service.dart';
 
 Future<void> main() async {
@@ -50,13 +51,18 @@ Future<void> main() async {
 
     // Abrir banco local e injetar serviços
     final appDb = await AppDatabase.open();
+    final animalRepository = AnimalRepository(appDb);
     final backupService = BackupService(
       db: appDb,
       supabaseUrl: supabaseUrl,
       supabaseAnonKey: supabaseAnonKey,
     );
 
-    runApp(FazendaSaoPetronioApp(db: appDb, backup: backupService));
+    runApp(FazendaSaoPetronioApp(
+      db: appDb,
+      repository: animalRepository,
+      backup: backupService,
+    ));
   }, (error, stack) {
     debugPrint('=== Uncaught error ===');
     debugPrint('$error');
@@ -66,14 +72,21 @@ Future<void> main() async {
 
 class FazendaSaoPetronioApp extends StatelessWidget {
   final AppDatabase db;
+  final AnimalRepository repository;
   final BackupService backup;
-  const FazendaSaoPetronioApp({super.key, required this.db, required this.backup});
+  const FazendaSaoPetronioApp({
+    super.key,
+    required this.db,
+    required this.repository,
+    required this.backup,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         Provider<AppDatabase>.value(value: db),
+        Provider<AnimalRepository>.value(value: repository),
         Provider<BackupService>.value(value: backup),
         ChangeNotifierProvider(create: (_) => AnimalService()),
       ],
