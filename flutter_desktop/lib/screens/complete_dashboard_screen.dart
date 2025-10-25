@@ -5,6 +5,7 @@ import 'dart:async' show StreamSubscription;
 import '../services/data_refresh_bus.dart';
 
 import '../services/animal_service.dart';
+import '../data/animal_repository.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/animal_card.dart';
 import '../models/animal.dart';

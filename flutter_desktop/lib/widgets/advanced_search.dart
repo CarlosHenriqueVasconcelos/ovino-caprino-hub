@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
+import '../data/animal_repository.dart';
 import '../models/animal.dart';
 import '../widgets/animal_card.dart';
 import '../widgets/animal_form.dart';
