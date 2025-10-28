@@ -41,9 +41,16 @@ class PharmacyService {
     try {
       final db = await DatabaseService.database;
       final map = stock.toMap();
+
+      // 1) Insere no SQLite local
       await db.insert('pharmacy_stock', map);
-      
-      // Registrar movimentação de entrada inicial
+
+      // 2) Sincroniza com Supabase primeiro para garantir a FK das movimentações
+      if (SupabaseService.isConfigured) {
+        await SupabaseService.supabase.from('pharmacy_stock').insert(map);
+      }
+
+      // 3) Só então registra a movimentação inicial (evita erro de FK no Supabase)
       if (stock.totalQuantity > 0) {
         await recordMovement(
           PharmacyStockMovement(
@@ -55,11 +62,6 @@ class PharmacyService {
             createdAt: DateTime.now(),
           ),
         );
-      }
-
-      // Sincronizar com Supabase se disponível
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('pharmacy_stock').insert(map);
       }
     } catch (e) {
       print('Erro ao criar medicamento: $e');
@@ -170,8 +172,9 @@ class PharmacyService {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
 
-      if (isAmpoule && stock.quantityPerUnit != null) {
-        // Lógica para ampolas
+      if ((isAmpoule || stock.medicationType.toLowerCase() == 'ampola' || stock.medicationType.toLowerCase() == 'frasco')
+          && stock.quantityPerUnit != null) {
+        // Lógica para recipientes (Ampola/Frasco)
         await _handleAmpouleUsage(stock, quantity, medicationId);
       } else {
         // Lógica normal
@@ -203,12 +206,13 @@ class PharmacyService {
     }
   }
 
-  // Lógica de uso de ampolas parciais
+  // Lógica de uso de ampolas/frascos parciais
   static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String medicationId) async {
-    final ampuleSize = stock.quantityPerUnit!;
+    final container = stock.medicationType.toLowerCase() == 'frasco' ? 'Frasco' : 'Ampola';
+    final unitSize = stock.quantityPerUnit!; // ml por recipiente
     
-    // Se usar exatamente a ampola toda
-    if (quantityUsed == ampuleSize) {
+    // Se usar exatamente o conteúdo do recipiente
+    if (quantityUsed == unitSize) {
       final newQuantity = stock.totalQuantity - 1;
       if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
@@ -225,15 +229,16 @@ class PharmacyService {
           medicationId: medicationId,
           movementType: 'saida',
           quantity: 1,
-          reason: 'Aplicação de medicamento (ampola completa)',
+          reason: 'Aplicação de medicamento ($container completo)',
           createdAt: DateTime.now(),
         ),
       );
     } else {
-      // Uso parcial de ampola
-      final remaining = ampuleSize - quantityUsed;
+      // Uso parcial do recipiente (ml)
+      final remaining = unitSize - quantityUsed;
+      if (remaining < 0) throw Exception('Quantidade usada maior que a capacidade do $container');
       
-      // Deduzir 1 ampola completa do estoque principal
+      // Deduzir 1 recipiente completo do estoque principal
       final newQuantity = stock.totalQuantity - 1;
       if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
@@ -243,7 +248,7 @@ class PharmacyService {
       );
       await updateMedication(stock.id, updated);
 
-      // Registrar saída da ampola completa
+      // Registrar saída do recipiente completo
       await recordMovement(
         PharmacyStockMovement(
           id: _uuid.v4(),
@@ -251,32 +256,32 @@ class PharmacyService {
           medicationId: medicationId,
           movementType: 'saida',
           quantity: 1,
-          reason: 'Aplicação de medicamento (${quantityUsed}ml usados de ${ampuleSize}ml)',
+          reason: 'Aplicação de medicamento (${quantityUsed}ml usados de ${unitSize}ml)',
           createdAt: DateTime.now(),
         ),
       );
 
-      // Se sobrou líquido, criar nova entrada de ampola aberta
+      // Se sobrou líquido, criar nova entrada de recipiente aberto
       if (remaining > 0) {
-        final openedAmpoule = PharmacyStock(
+        final opened = PharmacyStock(
           id: _uuid.v4(),
-          medicationName: '${stock.medicationName} (Ampola Aberta)',
+          medicationName: '${stock.medicationName} ($container Aberto)',
           medicationType: stock.medicationType,
           unitOfMeasure: stock.unitOfMeasure,
-          quantityPerUnit: ampuleSize,
-          totalQuantity: remaining,
+          quantityPerUnit: unitSize,
+          totalQuantity: remaining, // ml restantes no recipiente
           minStockAlert: null,
           expirationDate: stock.expirationDate,
           manufacturer: stock.manufacturer,
           batchNumber: stock.batchNumber,
           purchasePrice: null,
           isOpened: true,
-          notes: 'Ampola aberta em ${DateTime.now().toIso8601String().split('T')[0]} - Restante de ${stock.batchNumber ?? 'lote não especificado'}',
+          notes: '$container aberto em ${DateTime.now().toIso8601String().split('T')[0]} - Restante de ${stock.batchNumber ?? 'lote não especificado'}',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
 
-        await createMedication(openedAmpoule);
+        await createMedication(opened);
       }
     }
   }

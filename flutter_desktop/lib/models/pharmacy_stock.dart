@@ -92,7 +92,7 @@ class PharmacyStock {
       'medication_type': medicationType,
       'unit_of_measure': unitOfMeasure,
       'total_quantity': totalQuantity,
-      'is_opened': isOpened ? 1 : 0,
+      'is_opened': isOpened,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

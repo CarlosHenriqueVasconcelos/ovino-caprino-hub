@@ -20,10 +20,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
   late TextEditingController _quantityPerUnitController;
   late TextEditingController _totalQuantityController;
   late TextEditingController _minStockController;
-  late TextEditingController _manufacturerController;
   late TextEditingController _batchController;
-  late TextEditingController _priceController;
-  late TextEditingController _notesController;
 
   String _selectedType = 'Ampola';
   String _selectedUnit = 'ml';
@@ -55,12 +52,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     _minStockController = TextEditingController(
       text: widget.stock?.minStockAlert?.toString() ?? '',
     );
-    _manufacturerController = TextEditingController(text: widget.stock?.manufacturer ?? '');
     _batchController = TextEditingController(text: widget.stock?.batchNumber ?? '');
-    _priceController = TextEditingController(
-      text: widget.stock?.purchasePrice?.toString() ?? '',
-    );
-    _notesController = TextEditingController(text: widget.stock?.notes ?? '');
 
     if (widget.stock != null) {
       _selectedType = widget.stock!.medicationType;
@@ -75,10 +67,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     _quantityPerUnitController.dispose();
     _totalQuantityController.dispose();
     _minStockController.dispose();
-    _manufacturerController.dispose();
     _batchController.dispose();
-    _priceController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
