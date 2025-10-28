@@ -90,12 +90,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
             ? null
             : double.tryParse(_minStockController.text.replaceAll(',', '.')),
         expirationDate: _expirationDate,
-        manufacturer: _manufacturerController.text.isEmpty ? null : _manufacturerController.text.trim(),
         batchNumber: _batchController.text.isEmpty ? null : _batchController.text.trim(),
-        purchasePrice: _priceController.text.isEmpty
-            ? null
-            : double.tryParse(_priceController.text.replaceAll(',', '.')),
-        notes: _notesController.text.isEmpty ? null : _notesController.text.trim(),
         createdAt: widget.stock?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -205,14 +200,14 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 ),
                 const SizedBox(height: 16),
 
-                if (_selectedType == 'Ampola') ...[
+                if (_selectedType == 'Ampola' || _selectedType == 'Frasco') ...[
                   TextFormField(
                     controller: _quantityPerUnitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Quantidade por Ampola',
+                    decoration: InputDecoration(
+                      labelText: 'Quantidade por ${_selectedType == 'Frasco' ? 'Frasco' : 'Ampola'}',
                       hintText: 'Ex: 10 ml',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.water_drop),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.water_drop),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -286,52 +281,12 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 const SizedBox(height: 16),
 
                 TextFormField(
-                  controller: _manufacturerController,
+                  controller: _batchController,
                   decoration: const InputDecoration(
-                    labelText: 'Fabricante',
+                    labelText: 'Lote',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.business),
+                    prefixIcon: Icon(Icons.qr_code),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _batchController,
-                        decoration: const InputDecoration(
-                          labelText: 'Lote',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.qr_code),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _priceController,
-                        decoration: const InputDecoration(
-                          labelText: 'Preço de Compra',
-                          prefixText: 'R\$ ',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.attach_money),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Observações',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.notes),
-                  ),
-                  maxLines: 3,
                 ),
                 const SizedBox(height: 24),
 
