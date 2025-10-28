@@ -20,7 +20,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
   late TextEditingController _quantityPerUnitController;
   late TextEditingController _totalQuantityController;
   late TextEditingController _minStockController;
-  late TextEditingController _batchController;
 
   String _selectedType = 'Ampola';
   String _selectedUnit = 'ml';
@@ -52,7 +51,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     _minStockController = TextEditingController(
       text: widget.stock?.minStockAlert?.toString() ?? '',
     );
-    _batchController = TextEditingController(text: widget.stock?.batchNumber ?? '');
 
     if (widget.stock != null) {
       _selectedType = widget.stock!.medicationType;
@@ -67,7 +65,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     _quantityPerUnitController.dispose();
     _totalQuantityController.dispose();
     _minStockController.dispose();
-    _batchController.dispose();
     super.dispose();
   }
 
@@ -90,7 +87,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
             ? null
             : double.tryParse(_minStockController.text.replaceAll(',', '.')),
         expirationDate: _expirationDate,
-        batchNumber: _batchController.text.isEmpty ? null : _batchController.text.trim(),
         createdAt: widget.stock?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -276,16 +272,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                           ? 'Selecione a data'
                           : '${_expirationDate!.day.toString().padLeft(2, '0')}/${_expirationDate!.month.toString().padLeft(2, '0')}/${_expirationDate!.year}',
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                TextFormField(
-                  controller: _batchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Lote',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.qr_code),
                   ),
                 ),
                 const SizedBox(height: 24),

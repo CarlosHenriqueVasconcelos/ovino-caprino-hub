@@ -272,11 +272,7 @@ class AppDatabase {
         total_quantity REAL NOT NULL DEFAULT 0,
         min_stock_alert REAL,
         expiration_date TEXT,
-        manufacturer TEXT,
-        batch_number TEXT,
-        purchase_price REAL,
         is_opened INTEGER DEFAULT 0,
-        notes TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );

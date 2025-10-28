@@ -7,9 +7,6 @@ class PharmacyStock {
   final double totalQuantity;
   final double? minStockAlert;
   final DateTime? expirationDate;
-  final String? manufacturer;
-  final String? batchNumber;
-  final double? purchasePrice;
   final bool isOpened;
   final String? notes;
   final DateTime createdAt;
@@ -24,9 +21,6 @@ class PharmacyStock {
     required this.totalQuantity,
     this.minStockAlert,
     this.expirationDate,
-    this.manufacturer,
-    this.batchNumber,
-    this.purchasePrice,
     this.isOpened = false,
     this.notes,
     required this.createdAt,
@@ -72,9 +66,6 @@ class PharmacyStock {
       totalQuantity: _toDouble(map['total_quantity'] ?? map['totalQuantity']) ?? 0.0,
       minStockAlert: _toDouble(map['min_stock_alert'] ?? map['minStockAlert']),
       expirationDate: _toDateOrNull(map['expiration_date'] ?? map['expirationDate']),
-      manufacturer: map['manufacturer']?.toString(),
-      batchNumber: map['batch_number'] ?? map['batchNumber'],
-      purchasePrice: _toDouble(map['purchase_price'] ?? map['purchasePrice']),
       isOpened: _toBool(map['is_opened'] ?? map['isOpened'] ?? false),
       notes: map['notes']?.toString(),
       createdAt: _toDate(map['created_at'] ?? map['createdAt']),
@@ -92,7 +83,7 @@ class PharmacyStock {
       'medication_type': medicationType,
       'unit_of_measure': unitOfMeasure,
       'total_quantity': totalQuantity,
-      'is_opened': isOpened,
+      'is_opened': isOpened ? 1 : 0,  // SQLite precisa de int, não bool
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -106,9 +97,6 @@ class PharmacyStock {
     put('quantity_per_unit', quantityPerUnit);
     put('min_stock_alert', minStockAlert);
     put('expiration_date', _dateOnlyOrNull(expirationDate));
-    put('manufacturer', manufacturer);
-    put('batch_number', batchNumber);
-    put('purchase_price', purchasePrice);
     put('notes', notes);
 
     return map;
@@ -123,9 +111,6 @@ class PharmacyStock {
     double? totalQuantity,
     double? minStockAlert,
     DateTime? expirationDate,
-    String? manufacturer,
-    String? batchNumber,
-    double? purchasePrice,
     bool? isOpened,
     String? notes,
     DateTime? createdAt,
@@ -140,9 +125,6 @@ class PharmacyStock {
       totalQuantity: totalQuantity ?? this.totalQuantity,
       minStockAlert: minStockAlert ?? this.minStockAlert,
       expirationDate: expirationDate ?? this.expirationDate,
-      manufacturer: manufacturer ?? this.manufacturer,
-      batchNumber: batchNumber ?? this.batchNumber,
-      purchasePrice: purchasePrice ?? this.purchasePrice,
       isOpened: isOpened ?? this.isOpened,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,

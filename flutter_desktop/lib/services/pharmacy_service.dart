@@ -272,11 +272,8 @@ class PharmacyService {
           totalQuantity: remaining, // ml restantes no recipiente
           minStockAlert: null,
           expirationDate: stock.expirationDate,
-          manufacturer: stock.manufacturer,
-          batchNumber: stock.batchNumber,
-          purchasePrice: null,
           isOpened: true,
-          notes: '$container aberto em ${DateTime.now().toIso8601String().split('T')[0]} - Restante de ${stock.batchNumber ?? 'lote não especificado'}',
+          notes: '$container aberto em ${DateTime.now().toIso8601String().split('T')[0]}',
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
