@@ -261,6 +261,47 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
 
+    // -------- pharmacy_stock
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pharmacy_stock (
+        id TEXT PRIMARY KEY,
+        medication_name TEXT NOT NULL,
+        medication_type TEXT NOT NULL,
+        unit_of_measure TEXT NOT NULL,
+        quantity_per_unit REAL,
+        total_quantity REAL NOT NULL DEFAULT 0,
+        min_stock_alert REAL,
+        expiration_date TEXT,
+        manufacturer TEXT,
+        batch_number TEXT,
+        purchase_price REAL,
+        is_opened INTEGER DEFAULT 0,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration ON pharmacy_stock(expiration_date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type ON pharmacy_stock(medication_type);');
+
+    // -------- pharmacy_stock_movements
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pharmacy_stock_movements (
+        id TEXT PRIMARY KEY,
+        pharmacy_stock_id TEXT NOT NULL,
+        medication_id TEXT,
+        movement_type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        reason TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id) ON DELETE CASCADE,
+        FOREIGN KEY (medication_id) REFERENCES medications(id)
+      );
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_movements_medication_id ON pharmacy_stock_movements(medication_id);');
+
     // -------- medications
     await db.execute('''
       CREATE TABLE IF NOT EXISTS medications (
@@ -276,11 +317,15 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         status TEXT NOT NULL DEFAULT 'Agendado',
         applied_date TEXT,
-        FOREIGN KEY (animal_id) REFERENCES animals(id)
+        pharmacy_stock_id TEXT,
+        quantity_used REAL,
+        FOREIGN KEY (animal_id) REFERENCES animals(id),
+        FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id)
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_pharmacy_stock ON medications(pharmacy_stock_id);');
 
     // -------- notes
     await db.execute('''

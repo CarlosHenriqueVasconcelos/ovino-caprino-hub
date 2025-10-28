@@ -498,6 +498,8 @@ export type Database = {
           medication_name: string
           next_date: string | null
           notes: string | null
+          pharmacy_stock_id: string | null
+          quantity_used: number | null
           status: string
           updated_at: string
           veterinarian: string | null
@@ -512,6 +514,8 @@ export type Database = {
           medication_name: string
           next_date?: string | null
           notes?: string | null
+          pharmacy_stock_id?: string | null
+          quantity_used?: number | null
           status?: string
           updated_at?: string
           veterinarian?: string | null
@@ -526,6 +530,8 @@ export type Database = {
           medication_name?: string
           next_date?: string | null
           notes?: string | null
+          pharmacy_stock_id?: string | null
+          quantity_used?: number | null
           status?: string
           updated_at?: string
           veterinarian?: string | null
@@ -536,6 +542,13 @@ export type Database = {
             columns: ["animal_id"]
             isOneToOne: false
             referencedRelation: "animals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medications_pharmacy_stock_id_fkey"
+            columns: ["pharmacy_stock_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacy_stock"
             referencedColumns: ["id"]
           },
         ]
@@ -586,6 +599,105 @@ export type Database = {
             columns: ["animal_id"]
             isOneToOne: false
             referencedRelation: "animals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pharmacy_stock: {
+        Row: {
+          batch_number: string | null
+          created_at: string
+          expiration_date: string | null
+          id: string
+          is_opened: boolean | null
+          manufacturer: string | null
+          medication_name: string
+          medication_type: string
+          min_stock_alert: number | null
+          notes: string | null
+          purchase_price: number | null
+          quantity_per_unit: number | null
+          total_quantity: number
+          unit_of_measure: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          is_opened?: boolean | null
+          manufacturer?: string | null
+          medication_name: string
+          medication_type: string
+          min_stock_alert?: number | null
+          notes?: string | null
+          purchase_price?: number | null
+          quantity_per_unit?: number | null
+          total_quantity?: number
+          unit_of_measure: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string | null
+          created_at?: string
+          expiration_date?: string | null
+          id?: string
+          is_opened?: boolean | null
+          manufacturer?: string | null
+          medication_name?: string
+          medication_type?: string
+          min_stock_alert?: number | null
+          notes?: string | null
+          purchase_price?: number | null
+          quantity_per_unit?: number | null
+          total_quantity?: number
+          unit_of_measure?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pharmacy_stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          medication_id: string | null
+          movement_type: string
+          pharmacy_stock_id: string
+          quantity: number
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          medication_id?: string | null
+          movement_type: string
+          pharmacy_stock_id: string
+          quantity: number
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          medication_id?: string | null
+          movement_type?: string
+          pharmacy_stock_id?: string
+          quantity?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacy_stock_movements_medication_id_fkey"
+            columns: ["medication_id"]
+            isOneToOne: false
+            referencedRelation: "medications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pharmacy_stock_movements_pharmacy_stock_id_fkey"
+            columns: ["pharmacy_stock_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacy_stock"
             referencedColumns: ["id"]
           },
         ]

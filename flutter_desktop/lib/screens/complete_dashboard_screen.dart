@@ -27,6 +27,7 @@ import '../services/animal_delete_cascade.dart';
 import '../widgets/repro_alerts_card.dart';
 import '../widgets/feeding_screen.dart';
 import '../widgets/weight_alerts_card.dart';
+import '../widgets/pharmacy_management_screen.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -66,6 +67,11 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       title: 'Vacinações e Medicamentos',
       icon: Icons.medication,
       label: 'Vacinas',
+    ),
+    TabData(
+      title: 'Farmácia',
+      icon: Icons.local_pharmacy,
+      label: 'Farmácia',
     ),
     TabData(
       title: 'Anotações',
@@ -151,6 +157,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   const BreedingManagementScreen(),
                   const WeightTrackingScreen(),
                   const MedicationManagementScreen(),
+                  const PharmacyManagementScreen(),
                   const NotesManagementScreen(),
                   const FeedingScreen(),
                   const ReportsHubScreen(),
