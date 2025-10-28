@@ -658,7 +658,7 @@ class _HerdSectionState extends State<_HerdSection> {
         
         // Aplicar filtros de cor e categoria
         var filtered = baseList.where((a) {
-          if (_colorFilter != null && a.color != _colorFilter) return false;
+          if (_colorFilter != null && a.nameColor != _colorFilter) return false;
           if (_categoryFilter != null && a.category != _categoryFilter) return false;
           return true;
         }).toList();
@@ -668,7 +668,7 @@ class _HerdSectionState extends State<_HerdSection> {
         
         // Ordenar por cor e depois por número
         filtered.sort((a, b) {
-          final colorCompare = a.color.compareTo(b.color);
+          final colorCompare = a.nameColor.compareTo(b.nameColor);
           if (colorCompare != 0) return colorCompare;
           
           // Extrair números do código para ordenação numérica
@@ -678,7 +678,7 @@ class _HerdSectionState extends State<_HerdSection> {
         });
         
         // Obter listas únicas de cores e categorias
-        final availableColors = all.map((a) => a.color).toSet().toList()..sort();
+        final availableColors = all.map((a) => a.nameColor).toSet().toList()..sort();
         final availableCategories = all.map((a) => a.category).toSet().toList()..sort();
 
         return Card(

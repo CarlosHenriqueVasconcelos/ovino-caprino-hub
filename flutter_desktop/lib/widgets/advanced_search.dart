@@ -46,7 +46,7 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         ..sort();
     
     final colors = animalService.animals
-        .map((animal) => animal.color)
+        .map((animal) => animal.nameColor)
         .toSet()
         .toList()
         ..sort();
@@ -499,7 +499,7 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
       }
       
       // Color filter
-      if (_selectedColor != null && animal.color != _selectedColor) {
+      if (_selectedColor != null && animal.nameColor != _selectedColor) {
         return false;
       }
       
@@ -540,7 +540,7 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
     
     // Ordenar por cor e depois por número
     _filteredAnimals.sort((a, b) {
-      final colorCompare = a.color.compareTo(b.color);
+      final colorCompare = a.nameColor.compareTo(b.nameColor);
       if (colorCompare != 0) return colorCompare;
       
       // Extrair números do código/nome para ordenação numérica
