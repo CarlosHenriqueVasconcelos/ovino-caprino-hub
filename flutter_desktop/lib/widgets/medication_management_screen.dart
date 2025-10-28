@@ -915,7 +915,7 @@ class _AddMedicationDialog extends StatefulWidget {
   State<_AddMedicationDialog> createState() => _AddMedicationDialogState();
 }
 
-class _AddMedicationDialogState extends State<_AddMedicationDialogState> {
+class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _veterinarianController = TextEditingController();
