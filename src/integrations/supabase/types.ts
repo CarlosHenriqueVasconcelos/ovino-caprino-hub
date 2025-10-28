@@ -605,51 +605,42 @@ export type Database = {
       }
       pharmacy_stock: {
         Row: {
-          batch_number: string | null
           created_at: string
           expiration_date: string | null
           id: string
           is_opened: boolean | null
-          manufacturer: string | null
           medication_name: string
           medication_type: string
           min_stock_alert: number | null
           notes: string | null
-          purchase_price: number | null
           quantity_per_unit: number | null
           total_quantity: number
           unit_of_measure: string
           updated_at: string
         }
         Insert: {
-          batch_number?: string | null
           created_at?: string
           expiration_date?: string | null
           id?: string
           is_opened?: boolean | null
-          manufacturer?: string | null
           medication_name: string
           medication_type: string
           min_stock_alert?: number | null
           notes?: string | null
-          purchase_price?: number | null
           quantity_per_unit?: number | null
           total_quantity?: number
           unit_of_measure: string
           updated_at?: string
         }
         Update: {
-          batch_number?: string | null
           created_at?: string
           expiration_date?: string | null
           id?: string
           is_opened?: boolean | null
-          manufacturer?: string | null
           medication_name?: string
           medication_type?: string
           min_stock_alert?: number | null
           notes?: string | null
-          purchase_price?: number | null
           quantity_per_unit?: number | null
           total_quantity?: number
           unit_of_measure?: string
