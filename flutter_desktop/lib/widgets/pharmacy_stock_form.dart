@@ -28,7 +28,6 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
 
   final List<String> _types = [
     'Ampola',
-    'Comprimido',
     'Frasco',
     'Spray',
     'Pomada',
@@ -36,7 +35,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     'Outro'
   ];
 
-  final List<String> _units = ['ml', 'mg', 'g', 'comprimido', 'unidade'];
+  final List<String> _units = ['ml', 'mg', 'g', 'unidade'];
 
   @override
   void initState() {
@@ -200,8 +199,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   TextFormField(
                     controller: _quantityPerUnitController,
                     decoration: InputDecoration(
-                      labelText: 'Quantidade por ${_selectedType == 'Frasco' ? 'Frasco' : 'Ampola'}',
-                      hintText: 'Ex: 10 ml',
+                      labelText: 'ML por ${_selectedType == 'Frasco' ? 'Frasco' : 'Ampola'}',
+                      hintText: 'Quantos ml tem em cada unidade',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.water_drop),
                     ),
@@ -215,10 +214,15 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                     Expanded(
                       child: TextFormField(
                         controller: _totalQuantityController,
-                        decoration: const InputDecoration(
-                          labelText: 'Quantidade Total *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.inventory),
+                        decoration: InputDecoration(
+                          labelText: _selectedType == 'Ampola' || _selectedType == 'Frasco' 
+                              ? 'Quantidade de ${_selectedType == 'Frasco' ? 'Frascos' : 'Ampolas'} *'
+                              : 'Quantidade Total *',
+                          hintText: _selectedType == 'Ampola' || _selectedType == 'Frasco'
+                              ? 'Número de unidades'
+                              : null,
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.inventory),
                         ),
                         keyboardType: TextInputType.number,
                         validator: (value) {

@@ -48,10 +48,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         return _stock.where((s) => s.isExpiringSoon && !s.isExpired).toList();
       case 'Vencidos':
         return _stock.where((s) => s.isExpired).toList();
-      case 'Ampolas':
-        return _stock.where((s) => s.medicationType == 'Ampola' && !s.isExpired).toList();
-      case 'Comprimidos':
-        return _stock.where((s) => s.medicationType == 'Comprimido' && !s.isExpired).toList();
       default:
         return _stock.where((s) => !s.isExpired).toList();
     }
@@ -65,10 +61,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         return _stock.where((s) => s.isExpiringSoon && !s.isExpired).length;
       case 'Vencidos':
         return _stock.where((s) => s.isExpired).length;
-      case 'Ampolas':
-        return _stock.where((s) => s.medicationType == 'Ampola' && !s.isExpired).length;
-      case 'Comprimidos':
-        return _stock.where((s) => s.medicationType == 'Comprimido' && !s.isExpired).length;
       default:
         return _stock.where((s) => !s.isExpired).length;
     }
@@ -124,20 +116,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                     color: Colors.red,
                     onTap: () => setState(() => _filter = 'Vencidos'),
                   ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    label: 'Ampolas (${_countByFilter('Ampolas')})',
-                    isSelected: _filter == 'Ampolas',
-                    color: Colors.purple,
-                    onTap: () => setState(() => _filter = 'Ampolas'),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    label: 'Comprimidos (${_countByFilter('Comprimidos')})',
-                    isSelected: _filter == 'Comprimidos',
-                    color: Colors.teal,
-                    onTap: () => setState(() => _filter = 'Comprimidos'),
-                  ),
                 ],
               ),
             ),
@@ -168,8 +146,14 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                           ],
                         ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 1.1,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
                         itemCount: filteredStock.length,
                         itemBuilder: (context, index) {
                           final stock = filteredStock[index];
@@ -233,136 +217,102 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: statusColor, width: 4)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.local_pharmacy, color: statusColor, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            stock.medicationName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(statusIcon, size: 14, color: statusColor),
-                              const SizedBox(width: 4),
-                              Text(
-                                stock.statusText,
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (stock.isOpened)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'ABERTA',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const Divider(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Tipo',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                        Text(
-                          stock.medicationType,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quantidade',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
-                        Text(
-                          '${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: stock.isLowStock ? Colors.orange : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (stock.expirationDate != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Validade',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          ),
-                          Text(
-                            '${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: stock.isExpiringSoon || stock.isExpired ? Colors.red : Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                statusColor.withOpacity(0.05),
+                Colors.white,
               ],
             ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.local_pharmacy, color: statusColor, size: 28),
+                  ),
+                  Icon(statusIcon, size: 20, color: statusColor),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                stock.medicationName,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              if (stock.quantityPerUnit != null) ...[
+                Row(
+                  children: [
+                    Icon(Icons.water_drop, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${stock.quantityPerUnit!.toStringAsFixed(1)} ml/un',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+              ],
+              Row(
+                children: [
+                  Icon(Icons.inventory_2, size: 14, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${stock.totalQuantity.toStringAsFixed(0)} ${stock.medicationType.toLowerCase()}${stock.totalQuantity > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: stock.isLowStock ? Colors.orange : Colors.black87,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (stock.isOpened) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'ABERTA',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
