@@ -607,6 +607,8 @@ class _HerdSectionState extends State<_HerdSection> {
 
   bool _includeSold = false;
   String? _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido' | 'Óbito'
+  String? _colorFilter;
+  String? _categoryFilter;
 
   StreamSubscription<String>? _busSub;
 
@@ -653,7 +655,31 @@ class _HerdSectionState extends State<_HerdSection> {
                 : all.where((a) => a.status == null || a.status != 'Vendido').toList();
           }
         })();
-        final filtered = _filter(baseList, _query);
+        
+        // Aplicar filtros de cor e categoria
+        var filtered = baseList.where((a) {
+          if (_colorFilter != null && a.color != _colorFilter) return false;
+          if (_categoryFilter != null && a.category != _categoryFilter) return false;
+          return true;
+        }).toList();
+        
+        // Aplicar busca por texto
+        filtered = _filter(filtered, _query);
+        
+        // Ordenar por cor e depois por número
+        filtered.sort((a, b) {
+          final colorCompare = a.color.compareTo(b.color);
+          if (colorCompare != 0) return colorCompare;
+          
+          // Extrair números do código para ordenação numérica
+          final numA = int.tryParse(a.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final numB = int.tryParse(b.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          return numA.compareTo(numB);
+        });
+        
+        // Obter listas únicas de cores e categorias
+        final availableColors = all.map((a) => a.color).toSet().toList()..sort();
+        final availableCategories = all.map((a) => a.category).toSet().toList()..sort();
 
         return Card(
           child: Padding(
@@ -746,6 +772,46 @@ class _HerdSectionState extends State<_HerdSection> {
                       selected: _statusFilter == 'Óbito',
                       onSelected: (_) => setState(() => _statusFilter = 'Óbito'),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Filtro de Cor
+                Text('Filtrar por Cor:', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Todas'),
+                      selected: _colorFilter == null,
+                      onSelected: (_) => setState(() => _colorFilter = null),
+                    ),
+                    ...availableColors.map((color) => ChoiceChip(
+                      label: Text(color),
+                      selected: _colorFilter == color,
+                      onSelected: (_) => setState(() => _colorFilter = color),
+                    )),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Filtro de Categoria
+                Text('Filtrar por Categoria:', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Todas'),
+                      selected: _categoryFilter == null,
+                      onSelected: (_) => setState(() => _categoryFilter = null),
+                    ),
+                    ...availableCategories.map((category) => ChoiceChip(
+                      label: Text(category),
+                      selected: _categoryFilter == category,
+                      onSelected: (_) => setState(() => _categoryFilter = category),
+                    )),
                   ],
                 ),
                 const SizedBox(height: 12),

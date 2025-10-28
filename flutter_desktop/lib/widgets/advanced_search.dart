@@ -21,6 +21,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
   String? _selectedGender;
   String? _selectedStatus;
   String? _selectedBreed;
+  String? _selectedColor;
+  String? _selectedCategory;
   bool? _pregnant;
   double? _minWeight;
   double? _maxWeight;
@@ -39,6 +41,18 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
     // Get unique values for dropdowns
     final breeds = animalService.animals
         .map((animal) => animal.breed)
+        .toSet()
+        .toList()
+        ..sort();
+    
+    final colors = animalService.animals
+        .map((animal) => animal.color)
+        .toSet()
+        .toList()
+        ..sort();
+    
+    final categories = animalService.animals
+        .map((animal) => animal.category)
         .toSet()
         .toList()
         ..sort();
@@ -158,10 +172,45 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                 value: _includeSold,
                                 onChanged: (v) {
                                   setState(() => _includeSold = v);
-                                  // Se você tiver algum método de recalcular, chame aqui (opcional):
-                                  // _performSearch(animalService.animals);
                                 },
                               ),
+                              
+                              // Color
+                              DropdownButtonFormField<String>(
+                                value: _selectedColor,
+                                decoration: const InputDecoration(
+                                  labelText: 'Cor',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: [
+                                  const DropdownMenuItem(value: null, child: Text('Todas')),
+                                  ...colors.map((color) => DropdownMenuItem(
+                                    value: color,
+                                    child: Text(color),
+                                  )),
+                                ],
+                                onChanged: (value) => setState(() => _selectedColor = value),
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Category
+                              DropdownButtonFormField<String>(
+                                value: _selectedCategory,
+                                decoration: const InputDecoration(
+                                  labelText: 'Categoria',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: [
+                                  const DropdownMenuItem(value: null, child: Text('Todas')),
+                                  ...categories.map((category) => DropdownMenuItem(
+                                    value: category,
+                                    child: Text(category),
+                                  )),
+                                ],
+                                onChanged: (value) => setState(() => _selectedCategory = value),
+                              ),
+                              const SizedBox(height: 16),
+                              
                               // Breed
                               DropdownButtonFormField<String>(
                                 value: _selectedBreed,
@@ -449,6 +498,16 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         return false;
       }
       
+      // Color filter
+      if (_selectedColor != null && animal.color != _selectedColor) {
+        return false;
+      }
+      
+      // Category filter
+      if (_selectedCategory != null && animal.category != _selectedCategory) {
+        return false;
+      }
+      
       // Pregnancy filter
       if (_pregnant != null && animal.pregnant != _pregnant) {
         return false;
@@ -479,6 +538,17 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
       return true;
     }).toList();
     
+    // Ordenar por cor e depois por número
+    _filteredAnimals.sort((a, b) {
+      final colorCompare = a.color.compareTo(b.color);
+      if (colorCompare != 0) return colorCompare;
+      
+      // Extrair números do código/nome para ordenação numérica
+      final numA = int.tryParse(a.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      final numB = int.tryParse(b.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+      return numA.compareTo(numB);
+    });
+    
     setState(() {
       _hasSearched = true;
     });
@@ -491,6 +561,8 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
       _selectedGender = null;
       _selectedStatus = null;
       _selectedBreed = null;
+      _selectedColor = null;
+      _selectedCategory = null;
       _pregnant = null;
       _minWeight = null;
       _maxWeight = null;
