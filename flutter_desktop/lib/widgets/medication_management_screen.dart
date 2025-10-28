@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
+import '../services/pharmacy_service.dart';
+import '../models/pharmacy_stock.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
@@ -738,10 +740,39 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
           'applied_date': today,
         });
       } else {
-        await DatabaseService.updateMedication(id, {
-          'status': 'Aplicado',
-          'applied_date': today,
-        });
+        // MEDICAMENTO - DEDUZIR DO ESTOQUE DA FARMÁCIA
+        final db = await DatabaseService.database;
+        final medicationRows = await db.query(
+          'medications',
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        
+        if (medicationRows.isNotEmpty) {
+          final medication = medicationRows.first;
+          final pharmacyStockId = medication['pharmacy_stock_id'] as String?;
+          final quantityUsed = medication['quantity_used'] as double?;
+
+          // Atualizar status
+          await DatabaseService.updateMedication(id, {
+            'status': 'Aplicado',
+            'applied_date': today,
+          });
+
+          // DEDUZIR DO ESTOQUE
+          if (pharmacyStockId != null && quantityUsed != null && quantityUsed > 0) {
+            final stock = await PharmacyService.getStockById(pharmacyStockId);
+            if (stock != null) {
+              final isAmpoule = stock.medicationType == 'Ampola' && stock.quantityPerUnit != null;
+              await PharmacyService.deductFromStock(
+                pharmacyStockId,
+                quantityUsed,
+                id,
+                isAmpoule: isAmpoule,
+              );
+            }
+          }
+        }
       }
       
       await _loadData();
@@ -749,7 +780,7 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isVaccination ? 'Vacinação aplicada com sucesso!' : 'Medicamento aplicado com sucesso!'),
+            content: Text(isVaccination ? 'Vacinação aplicada com sucesso!' : 'Medicamento aplicado e estoque atualizado!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -884,7 +915,7 @@ class _AddMedicationDialog extends StatefulWidget {
   State<_AddMedicationDialog> createState() => _AddMedicationDialogState();
 }
 
-class _AddMedicationDialogState extends State<_AddMedicationDialog> {
+class _AddMedicationDialogState extends State<_AddMedicationDialogState> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _veterinarianController = TextEditingController();
@@ -895,6 +926,30 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   String _vaccineType = 'Obrigatória';
   DateTime _scheduledDate = DateTime.now();
   String? _selectedAnimalId;
+  
+  // INTEGRAÇÃO COM FARMÁCIA
+  List<PharmacyStock> _pharmacyStock = [];
+  PharmacyStock? _selectedMedication;
+  bool _isLoadingStock = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPharmacyStock();
+  }
+
+  Future<void> _loadPharmacyStock() async {
+    setState(() => _isLoadingStock = true);
+    try {
+      final stock = await PharmacyService.getPharmacyStock();
+      setState(() {
+        _pharmacyStock = stock.where((s) => !s.isExpired && s.totalQuantity > 0).toList();
+        _isLoadingStock = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingStock = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -949,18 +1004,102 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Nome
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: _type == 'Vacinação' ? 'Nome da Vacina *' : 'Nome do Medicamento *',
-                    border: const OutlineInputBorder(),
+                // Nome (Vacinação) ou Dropdown de Medicamentos da Farmácia
+                if (_type == 'Vacinação')
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da Vacina *',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Campo obrigatório';
+                      return null;
+                    },
+                  )
+                else ...[
+                  // DROPDOWN DE MEDICAMENTOS DA FARMÁCIA
+                  DropdownButtonFormField<PharmacyStock>(
+                    value: _selectedMedication,
+                    decoration: const InputDecoration(
+                      labelText: 'Medicamento da Farmácia *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.local_pharmacy),
+                    ),
+                    hint: _isLoadingStock 
+                        ? const Text('Carregando...') 
+                        : Text('Selecione (${_pharmacyStock.length} disponíveis)'),
+                    items: _pharmacyStock.map((stock) {
+                      return DropdownMenuItem(
+                        value: stock,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                stock.medicationName,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: stock.isLowStock ? Colors.orange : Colors.green,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedMedication = value;
+                        _nameController.text = value?.medicationName ?? '';
+                        // Pré-preencher dosagem com unidade de medida
+                        if (value != null) {
+                          _dosageController.text = value.unitOfMeasure;
+                        }
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) return 'Selecione um medicamento';
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Campo obrigatório';
-                    return null;
-                  },
-                ),
+                  if (_selectedMedication != null && _selectedMedication!.isLowStock)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning, color: Colors.orange, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Estoque baixo! Apenas ${_selectedMedication!.totalQuantity.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure} disponível(is)',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 16),
                 
                 // Tipo de vacina ou dosagem
@@ -1055,6 +1194,37 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   void _save() async {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
+    // VALIDAÇÃO DE ESTOQUE para medicamentos
+    if (_type == 'Medicamento') {
+      if (_selectedMedication == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selecione um medicamento da farmácia'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Extrair quantidade da dosagem
+      final dosageText = _dosageController.text.trim();
+      final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
+      if (quantityMatch != null) {
+        final quantityUsed = double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
+        if (quantityUsed > _selectedMedication!.totalQuantity) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Estoque insuficiente! Disponível: ${_selectedMedication!.totalQuantity.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
     try {
       final now = DateTime.now().toIso8601String();
       
@@ -1073,7 +1243,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
         };
         await DatabaseService.createVaccination(vaccination);
       } else {
-        // Medicamento
+        // Medicamento - INCLUIR REFERÊNCIA DA FARMÁCIA
+        final dosageText = _dosageController.text.trim();
+        final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
+        final quantityUsed = quantityMatch != null 
+            ? double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) 
+            : null;
+
         final medication = {
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
@@ -1084,6 +1260,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
           'notes': _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendado',
+          'pharmacy_stock_id': _selectedMedication?.id,
+          'quantity_used': quantityUsed,
           'created_at': now,
         };
         await DatabaseService.createMedication(medication);

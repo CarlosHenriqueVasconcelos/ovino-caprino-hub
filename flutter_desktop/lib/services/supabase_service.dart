@@ -3,6 +3,10 @@ import '../models/animal.dart';
 
 class SupabaseService {
   static final _client = Supabase.instance.client;
+  
+  // Propriedades para compatibilidade
+  static SupabaseClient get supabase => _client;
+  static bool get isConfigured => true; // Sempre configurado neste projeto
 
   // -------------------- Animais --------------------
   static Future<List<Animal>> getAnimals() async {
