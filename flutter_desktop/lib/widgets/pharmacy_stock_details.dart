@@ -254,12 +254,6 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                           '${widget.stock.expirationDate!.day.toString().padLeft(2, '0')}/${widget.stock.expirationDate!.month.toString().padLeft(2, '0')}/${widget.stock.expirationDate!.year}',
                           valueColor: widget.stock.isExpiringSoon || widget.stock.isExpired ? Colors.red : null,
                         ),
-                      if (widget.stock.manufacturer != null)
-                        _buildInfoRow('Fabricante:', widget.stock.manufacturer!),
-                      if (widget.stock.batchNumber != null)
-                        _buildInfoRow('Lote:', widget.stock.batchNumber!),
-                      if (widget.stock.purchasePrice != null)
-                        _buildInfoRow('Preço de Compra:', 'R\$ ${widget.stock.purchasePrice!.toStringAsFixed(2)}'),
                       if (widget.stock.notes != null && widget.stock.notes!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
