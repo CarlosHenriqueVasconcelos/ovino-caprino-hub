@@ -1034,7 +1034,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                         value: stock,
                         child: Row(
                           children: [
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 stock.medicationName,
                                 overflow: TextOverflow.ellipsis,
