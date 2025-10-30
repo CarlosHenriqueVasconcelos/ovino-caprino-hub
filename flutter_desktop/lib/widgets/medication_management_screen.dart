@@ -1032,31 +1032,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     items: _pharmacyStock.map((stock) {
                       return DropdownMenuItem(
                         value: stock,
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                stock.medicationName,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: stock.isLowStock ? Colors.orange : Colors.green,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})',
+                          overflow: TextOverflow.ellipsis,
                         ),
                       );
                     }).toList(),
