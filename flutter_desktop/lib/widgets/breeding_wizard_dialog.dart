@@ -90,8 +90,25 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   }
 
   String _getAnimalDisplayText(Animal animal) {
-    final color = animal.nameColor ?? 'Sem cor';
-    return '$color - ${animal.code} - ${animal.name}';
+    final colorKey = animal.nameColor ?? 'Sem cor';
+    final colorName = _translateColor(colorKey);
+    return '$colorName - ${animal.code} - ${animal.name}';
+  }
+
+  String _translateColor(String colorKey) {
+    const colorTranslations = {
+      'blue': 'Azul',
+      'red': 'Vermelho',
+      'green': 'Verde',
+      'yellow': 'Amarelo',
+      'orange': 'Laranja',
+      'purple': 'Roxo',
+      'pink': 'Rosa',
+      'grey': 'Cinza',
+      'white': 'Branca',
+      'black': 'Preto',
+    };
+    return colorTranslations[colorKey] ?? colorKey;
   }
 
   void _calculateMatingEndDate() {

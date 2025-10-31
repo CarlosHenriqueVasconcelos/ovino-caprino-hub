@@ -85,7 +85,22 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     'orange': Colors.orange,
     'purple': Colors.purple,
     'pink': Colors.pink,
-    'brown': Colors.brown,
+    'grey': Colors.grey,
+    'white': Colors.white,
+    'black': Colors.black,
+  };
+
+  final Map<String, String> _colorNames = {
+    'blue': 'Azul',
+    'red': 'Vermelho',
+    'green': 'Verde',
+    'yellow': 'Amarelo',
+    'orange': 'Laranja',
+    'purple': 'Roxo',
+    'pink': 'Rosa',
+    'grey': 'Cinza',
+    'white': 'Branca',
+    'black': 'Preto',
   };
 
   @override
@@ -217,12 +232,15 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                                   decoration: BoxDecoration(
                                     color: entry.value,
                                     borderRadius: BorderRadius.circular(4),
+                                    border: entry.key == 'white' 
+                                        ? Border.all(color: Colors.grey, width: 1)
+                                        : null,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                    entry.key,
+                                    _colorNames[entry.key] ?? entry.key,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),

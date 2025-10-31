@@ -650,6 +650,12 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       case 'preto':
       case 'black':
         return Colors.black87;
+      case 'cinza':
+      case 'grey':
+        return Colors.grey;
+      case 'branca':
+      case 'white':
+        return Colors.white70;
       default:
         return Colors.grey;
     }
