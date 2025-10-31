@@ -18,9 +18,13 @@ class BreedingWizardDialog extends StatefulWidget {
 
 class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _femaleSearchController = TextEditingController();
+  final _maleSearchController = TextEditingController();
 
   List<Animal> _females = [];
   List<Animal> _males = [];
+  List<Animal> _filteredFemales = [];
+  List<Animal> _filteredMales = [];
   bool _isLoading = true;
 
   String? _selectedFemaleId;
@@ -39,9 +43,24 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   Future<void> _loadAnimals() async {
     try {
       final animals = await DatabaseService.getAnimals();
+      
+      // Filtrar: fêmeas e machos, excluindo categoria "Borrego"
+      final females = animals
+          .where((a) => a.gender == 'Fêmea' && a.category != 'Borrego')
+          .toList();
+      final males = animals
+          .where((a) => a.gender == 'Macho' && a.category != 'Borrego')
+          .toList();
+      
+      // Ordenar por cor e depois por número
+      _sortAnimalsList(females);
+      _sortAnimalsList(males);
+      
       setState(() {
-        _females = animals.where((a) => a.gender == 'Fêmea').toList();
-        _males = animals.where((a) => a.gender == 'Macho').toList();
+        _females = females;
+        _males = males;
+        _filteredFemales = females;
+        _filteredMales = males;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,6 +71,61 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
         );
       }
     }
+  }
+
+  void _sortAnimalsList(List<Animal> animals) {
+    animals.sort((a, b) {
+      // Primeiro ordenar por cor
+      final colorA = a.nameColor ?? '';
+      final colorB = b.nameColor ?? '';
+      final colorCompare = colorA.compareTo(colorB);
+      
+      if (colorCompare != 0) return colorCompare;
+      
+      // Depois ordenar por código numérico
+      final numA = _extractNumber(a.code);
+      final numB = _extractNumber(b.code);
+      return numA.compareTo(numB);
+    });
+  }
+
+  int _extractNumber(String code) {
+    // Extrair número do código (ex: "123" de "OV123" ou "123")
+    final match = RegExp(r'\d+').firstMatch(code);
+    return match != null ? int.parse(match.group(0)!) : 0;
+  }
+
+  void _filterFemales(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredFemales = _females;
+      } else {
+        _filteredFemales = _females.where((animal) {
+          return animal.code.toLowerCase().contains(query.toLowerCase()) ||
+                 animal.name.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  void _filterMales(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredMales = _males;
+      } else {
+        _filteredMales = _males.where((animal) {
+          return animal.code.toLowerCase().contains(query.toLowerCase()) ||
+                 animal.name.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _femaleSearchController.dispose();
+    _maleSearchController.dispose();
+    super.dispose();
   }
 
   void _calculateMatingEndDate() {
@@ -142,18 +216,34 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const Divider(height: 32),
 
-                      // Female Selection
+                      // Female Selection with Search
+                      TextField(
+                        controller: _femaleSearchController,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar Fêmea',
+                          hintText: 'Digite o número ou nome',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: _filterFemales,
+                      ),
+                      const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedFemaleId,
+                        value: _filteredFemales.any((a) => a.id == _selectedFemaleId) 
+                            ? _selectedFemaleId 
+                            : null,
                         decoration: const InputDecoration(
                           labelText: 'Fêmea *',
                           prefixIcon: Icon(Icons.female),
                           border: OutlineInputBorder(),
                         ),
-                        items: _females.map((animal) {
+                        isExpanded: true,
+                        menuMaxHeight: 300,
+                        items: _filteredFemales.map((animal) {
+                          final color = animal.nameColor ?? 'Sem cor';
                           return DropdownMenuItem(
                             value: animal.id,
-                            child: Text('${animal.code} - ${animal.name}'),
+                            child: Text('$color - ${animal.code} - ${animal.name}'),
                           );
                         }).toList(),
                         onChanged: (value) => setState(() => _selectedFemaleId = value),
@@ -161,18 +251,34 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Male Selection
+                      // Male Selection with Search
+                      TextField(
+                        controller: _maleSearchController,
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar Macho',
+                          hintText: 'Digite o número ou nome',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: _filterMales,
+                      ),
+                      const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedMaleId,
+                        value: _filteredMales.any((a) => a.id == _selectedMaleId) 
+                            ? _selectedMaleId 
+                            : null,
                         decoration: const InputDecoration(
                           labelText: 'Macho *',
                           prefixIcon: Icon(Icons.male),
                           border: OutlineInputBorder(),
                         ),
-                        items: _males.map((animal) {
+                        isExpanded: true,
+                        menuMaxHeight: 300,
+                        items: _filteredMales.map((animal) {
+                          final color = animal.nameColor ?? 'Sem cor';
                           return DropdownMenuItem(
                             value: animal.id,
-                            child: Text('${animal.code} - ${animal.name}'),
+                            child: Text('$color - ${animal.code} - ${animal.name}'),
                           );
                         }).toList(),
                         onChanged: (value) => setState(() => _selectedMaleId = value),
