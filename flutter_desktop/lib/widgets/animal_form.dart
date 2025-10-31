@@ -76,6 +76,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     super.initState();
     if (widget.animal != null) {
       _loadAnimalData();
+    } else {
+      // Definir raça padrão para novos animais
+      _breedController.text = 'Dorper';
     }
     _loadAvailableMothers();
   }
@@ -222,13 +225,25 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                         controller: _yearController,
                         decoration: const InputDecoration(labelText: 'Ano *'),
                         keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: TextFormField(
                         controller: _loteController,
-                        decoration: const InputDecoration(labelText: 'Lote', hintText: 'Ex: LT01'),
+                        decoration: const InputDecoration(labelText: 'Lote *', hintText: 'Ex: LT01'),
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Campo obrigatório';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ],
@@ -377,7 +392,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       child: DropdownButtonFormField<String>(
                         value: _breeds.contains(_breedController.text) 
                             ? _breedController.text 
-                            : 'Outra',
+                            : 'Dorper',
                         decoration: const InputDecoration(
                           labelText: 'Raça *',
                           border: OutlineInputBorder(),
@@ -477,15 +492,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       child: TextFormField(
                         controller: _locationController,
                         decoration: const InputDecoration(
-                          labelText: 'Localização *',
+                          labelText: 'Localização',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Campo obrigatório';
-                          }
-                          return null;
-                        },
                       ),
                     ),
                     const SizedBox(width: 16),

@@ -981,10 +981,11 @@ class _HerdSectionState extends State<_HerdSection> {
       final code = animal.code.toLowerCase();
       final category = (animal.category).toLowerCase();
       final breed = animal.breed.toLowerCase();
-      return name.contains(q) ||
-          code.contains(q) ||
-          category.contains(q) ||
-          breed.contains(q);
+      // Busca exata - retorna apenas se algum campo for exatamente igual ao termo buscado
+      return name == q ||
+          code == q ||
+          category == q ||
+          breed == q;
     }).toList();
   }
 
