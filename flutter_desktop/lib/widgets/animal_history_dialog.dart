@@ -21,6 +21,9 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
   List<Map<String, Object?>> _medications = [];
   List<Map<String, Object?>> _notes = [];
   List<Map<String, Object?>> _weights = [];
+  List<Map<String, Object?>> _offspring = [];
+  Animal? _mother;
+  Animal? _father;
 
   String _fmtDate(dynamic iso) {
     if (iso == null) return '-';
@@ -66,6 +69,31 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
       WHERE animal_id = ?
       ORDER BY date DESC
     ''', [id]);
+
+    // Buscar filhotes (todos, incluindo vendidos e falecidos)
+    _offspring = await db.rawQuery('''
+      SELECT id, name, code, category, 'ativo' as status FROM animals WHERE mother_id = ? OR father_id = ?
+      UNION ALL
+      SELECT id, name, code, category, 'vendido' as status FROM sold_animals WHERE mother_id = ? OR father_id = ?
+      UNION ALL
+      SELECT id, name, code, category, 'falecido' as status FROM deceased_animals WHERE mother_id = ? OR father_id = ?
+      ORDER BY name
+    ''', [id, id, id, id, id, id]);
+
+    // Buscar informações dos pais
+    if (widget.animal.motherId != null) {
+      final motherRows = await db.query('animals', where: 'id = ?', whereArgs: [widget.animal.motherId]);
+      if (motherRows.isNotEmpty) {
+        _mother = Animal.fromMap(motherRows.first);
+      }
+    }
+
+    if (widget.animal.fatherId != null) {
+      final fatherRows = await db.query('animals', where: 'id = ?', whereArgs: [widget.animal.fatherId]);
+      if (fatherRows.isNotEmpty) {
+        _father = Animal.fromMap(fatherRows.first);
+      }
+    }
 
     setState(() => _loading = false);
   }
@@ -122,6 +150,65 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
             ),
           ),
         ),
+        // Pais (mãe e pai)
+        if (_mother != null || _father != null) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Parentesco', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  if (_mother != null)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.female),
+                      title: Text('Mãe: ${_mother!.name}'),
+                      subtitle: Text('Código: ${_mother!.code}'),
+                    ),
+                  if (_father != null)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.male),
+                      title: Text('Pai: ${_father!.name}'),
+                      subtitle: Text('Código: ${_father!.code}'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        // Filhotes (todos, com status)
+        if (_offspring.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Filhotes (${_offspring.length})', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  ..._offspring.map((child) {
+                    final status = child['status']?.toString() ?? 'ativo';
+                    Color statusColor = Colors.green;
+                    if (status == 'vendido') statusColor = Colors.blue;
+                    if (status == 'falecido') statusColor = Colors.red;
+                    
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(Icons.child_care, color: statusColor),
+                      title: Text('${child['name']} (${child['code']})'),
+                      subtitle: Text('${child['category']} • Status: $status'),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ],
         // Pesos (resumo) — opcional
         if (_weights.isNotEmpty) ...[
           const SizedBox(height: 8),

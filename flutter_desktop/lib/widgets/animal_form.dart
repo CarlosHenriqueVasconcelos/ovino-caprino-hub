@@ -33,7 +33,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   DateTime? _expectedDelivery;
   DateTime? _lastVaccination;
   String? _motherId;
+  String? _fatherId;
   List<Animal> _availableMothers = [];
+  List<Animal> _availableFathers = [];
 
   final List<String> _categories = [
     'Reprodutor',
@@ -87,6 +89,11 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
         a.category != 'Borrego' &&
         a.category != 'Venda'
       ).toList();
+      _availableFathers = animals.where((a) => 
+        a.gender == 'Macho' && 
+        a.category != 'Borrego' &&
+        a.category != 'Venda'
+      ).toList();
     });
   }
 
@@ -109,6 +116,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _expectedDelivery = animal.expectedDelivery;
     _lastVaccination = animal.lastVaccination;
     _motherId = animal.motherId;
+    _fatherId = animal.fatherId;
   }
 
   @override
@@ -227,7 +235,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Seleção de mãe (se for borrego)
+                // Seleção de mãe e pai (se for borrego)
                 if (_category == 'Borrego')
                   Column(
                     children: [
@@ -259,6 +267,32 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                               _nameController.text = mother.name;
                               _nameColor = mother.nameColor;
                             }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _fatherId,
+                        decoration: const InputDecoration(
+                          labelText: 'Pai',
+                          border: OutlineInputBorder(),
+                          hintText: 'Selecione o pai',
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('Nenhum'),
+                          ),
+                          ..._availableFathers.map((father) {
+                            return DropdownMenuItem(
+                              value: father.id,
+                              child: Text('${father.name} (${father.code})'),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _fatherId = value;
                           });
                         },
                       ),
@@ -567,6 +601,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       year: int.tryParse(_yearController.text),
       lote: _loteController.text.isEmpty ? null : _loteController.text,
       motherId: _motherId,
+      fatherId: _fatherId,
       createdAt: widget.animal?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );

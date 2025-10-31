@@ -468,13 +468,22 @@ class AnimalCard extends StatelessWidget {
             if (animal.year != null || animal.lote != null)
               const SizedBox(height: 12),
 
-            // Informação sobre mãe (se for borrego)
-            if (animal.motherId != null)
-              FutureBuilder<Animal?>(
-                future: repository?.getAnimalById(animal.motherId!),
+            // Informação sobre pais (mãe e pai)
+            if (animal.motherId != null || animal.fatherId != null)
+              FutureBuilder<List<Animal?>>(
+                future: Future.wait([
+                  animal.motherId != null ? repository!.getAnimalById(animal.motherId!) : Future.value(null),
+                  animal.fatherId != null ? repository!.getAnimalById(animal.fatherId!) : Future.value(null),
+                ]),
                 builder: (context, snapshot) {
-                  if (snapshot.hasData && snapshot.data != null) {
-                    final mother = snapshot.data!;
+                  if (snapshot.hasData) {
+                    final mother = snapshot.data![0];
+                    final father = snapshot.data![1];
+                    
+                    if (mother == null && father == null) {
+                      return const SizedBox.shrink();
+                    }
+                    
                     return Container(
                       padding: const EdgeInsets.all(8),
                       margin: const EdgeInsets.only(bottom: 12),
@@ -482,21 +491,38 @@ class AnimalCard extends StatelessWidget {
                         color: theme.colorScheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.family_restroom,
-                            size: 16,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Mãe: ${mother.name} (${mother.code})',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w500,
+                          if (mother != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.female, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Mãe: ${mother.name} (${mother.code})',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                          if (mother != null && father != null) const SizedBox(height: 4),
+                          if (father != null)
+                            Row(
+                              children: [
+                                const Icon(Icons.male, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Pai: ${father.name} (${father.code})',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     );
@@ -505,12 +531,15 @@ class AnimalCard extends StatelessWidget {
                 },
               ),
 
-            // Lista de crias (se for mãe)
+            // Lista de crias (limitar a 4 no card, com indicador se houver mais)
             FutureBuilder<List<Animal>>(
               future: repository?.getOffspring(animal.id),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-                  final offspring = snapshot.data!;
+                  final allOffspring = snapshot.data!;
+                  final displayOffspring = allOffspring.take(4).toList();
+                  final hasMore = allOffspring.length > 4;
+                  
                   return Container(
                     padding: const EdgeInsets.all(8),
                     margin: const EdgeInsets.only(bottom: 12),
@@ -530,7 +559,7 @@ class AnimalCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Crias (${offspring.length}):',
+                              'Crias (${allOffspring.length}):',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.tertiary,
                                 fontWeight: FontWeight.w600,
@@ -539,7 +568,7 @@ class AnimalCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        ...offspring.map((child) => Padding(
+                        ...displayOffspring.map((child) => Padding(
                           padding: const EdgeInsets.only(left: 24, top: 2),
                           child: Text(
                             '• ${child.name} (${child.category ?? "Sem categoria"})',
@@ -548,6 +577,17 @@ class AnimalCard extends StatelessWidget {
                             ),
                           ),
                         )),
+                        if (hasMore)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 24, top: 4),
+                            child: Text(
+                              'e mais ${allOffspring.length - 4} filhote(s)...',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   );

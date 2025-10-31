@@ -31,6 +31,7 @@ class Animal {
   final int? year;
   final String? lote;
   final String? motherId;
+  final String? fatherId;
 
   Animal({
     required this.id,
@@ -59,6 +60,7 @@ class Animal {
     this.year,
     this.lote,
     this.motherId,
+    this.fatherId,
   });
 
   factory Animal.fromMap(Map<String, dynamic> map) {
@@ -151,6 +153,7 @@ class Animal {
       year: map['year'] is int ? map['year'] : (map['year'] != null ? int.tryParse(map['year'].toString()) : null),
       lote: map['lote']?.toString(),
       motherId: map['mother_id']?.toString() ?? map['motherId']?.toString(),
+      fatherId: map['father_id']?.toString() ?? map['fatherId']?.toString(),
     );
   }
 
@@ -197,6 +200,7 @@ class Animal {
     put('year', year);
     put('lote', lote);
     put('mother_id', motherId);
+    put('father_id', fatherId);
 
     return map;
   }
@@ -300,6 +304,7 @@ extension AnimalCopy on Animal {
     int? year,
     String? lote,
     String? motherId,
+    String? fatherId,
   }) {
     return Animal(
       id: id ?? this.id,
@@ -328,6 +333,7 @@ extension AnimalCopy on Animal {
       year: year ?? this.year,
       lote: lote ?? this.lote,
       motherId: motherId ?? this.motherId,
+      fatherId: fatherId ?? this.fatherId,
     );
   }
 }

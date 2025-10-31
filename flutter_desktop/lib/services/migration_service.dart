@@ -25,6 +25,13 @@ class MigrationService {
       print('✓ Migração v1 aplicada: Categorias de animais atualizadas');
     }
 
+    // Migração v5: Adicionar campo father_id
+    if (currentVersion < 5) {
+      await _runMigrationV5(db);
+      await db.insert('schema_migrations', {'version': 5});
+      print('✓ Migração v5 aplicada: Campo father_id adicionado');
+    }
+
     print('✓ Todas as migrações foram aplicadas com sucesso');
   }
 
@@ -63,6 +70,16 @@ class MigrationService {
       await txn.rawUpdate(
         "UPDATE deceased_animals SET category = 'Adulto' WHERE category IN ('Fêmea Vazia', 'Macho Vazio')"
       );
+    });
+  }
+
+  /// Migração v5: Adicionar campo father_id
+  static Future<void> _runMigrationV5(Database db) async {
+    await db.transaction((txn) async {
+      // Adicionar coluna father_id nas tabelas principais
+      await txn.execute('ALTER TABLE animals ADD COLUMN father_id TEXT');
+      await txn.execute('ALTER TABLE sold_animals ADD COLUMN father_id TEXT');
+      await txn.execute('ALTER TABLE deceased_animals ADD COLUMN father_id TEXT');
     });
   }
 }

@@ -125,41 +125,67 @@ class AnimalService extends ChangeNotifier {
     return catLower.contains('borrego') || catLower.contains('borrega');
   }
 
+  // Normaliza números removendo zeros à esquerda
+  String _normalizeNumber(String name) {
+    // Tenta converter para número e volta para string, removendo zeros à esquerda
+    final numMatch = RegExp(r'^\d+$').hasMatch(name);
+    if (numMatch) {
+      final num = int.tryParse(name);
+      if (num != null) return num.toString();
+    }
+    return name;
+  }
+
   // Valida a unicidade de name + name_color segundo as novas regras
   Future<void> _validateUniqueness(Map<String, dynamic> map, {required bool isUpdate}) async {
     final nameLc = (map['name'] ?? '').toString().toLowerCase();
+    final normalizedName = _normalizeNumber(nameLc);
     final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
     final currentId = map['id']?.toString() ?? '';
     final category = map['category']?.toString() ?? '';
+    final lote = map['lote']?.toString() ?? '';
 
-    // Busca todos os animais com mesmo name + color (excluindo o próprio se for update)
-    final whereClause = isUpdate
-        ? 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ? AND id <> ?'
-        : 'LOWER(name) = ? AND LOWER(IFNULL(name_color, "")) = ?';
-    
-    final whereArgs = isUpdate ? [nameLc, colorLc, currentId] : [nameLc, colorLc];
+    // Busca todos os animais (excluindo o próprio se for update)
+    final List<Map<String, dynamic>> allAnimals;
+    if (isUpdate) {
+      allAnimals = await _appDb!.db.query(
+        'animals',
+        columns: ['id', 'name', 'name_color', 'category', 'lote'],
+        where: 'id <> ?',
+        whereArgs: [currentId],
+      );
+    } else {
+      allAnimals = await _appDb!.db.query(
+        'animals',
+        columns: ['id', 'name', 'name_color', 'category', 'lote'],
+      );
+    }
 
-    final existing = await _appDb!.db.query(
-      'animals',
-      columns: ['id', 'category'],
-      where: whereClause,
-      whereArgs: whereArgs,
-    );
+    // Filtrar animais que têm mesmo nome+cor (normalizados)
+    final existing = allAnimals.where((animal) {
+      final animalName = (animal['name'] ?? '').toString().toLowerCase();
+      final animalNormalized = _normalizeNumber(animalName);
+      final animalColor = (animal['name_color'] ?? '').toString().toLowerCase();
+      return animalNormalized == normalizedName && animalColor == colorLc;
+    }).toList();
 
     final isLamb = _isLambCategory(category);
 
     if (isLamb) {
-      // Conta quantos borregos já existem com esse name + color
-      final lambCount = existing.where((e) => _isLambCategory(e['category']?.toString())).length;
+      // Para borregos: permite até 2 com mesmo nome+cor no mesmo lote
+      final sameNameColorLote = existing.where((e) {
+        final isLambCat = _isLambCategory(e['category']?.toString());
+        final sameLote = (e['lote']?.toString() ?? '') == lote;
+        return isLambCat && sameLote;
+      }).length;
       
-      if (lambCount >= 2) {
-        throw Exception('Já existem 2 borregos com este Nome + Cor. Limite atingido.');
+      if (sameNameColorLote >= 2) {
+        throw Exception('Já existem 2 borregos com este Nome + Cor no Lote "$lote".\n\nVocê pode:\n• Usar um lote diferente para registrar mais filhotes\n• Alterar o nome ou cor');
       }
 
       // Verifica se existe uma mãe (adulto) com esse name + color
       final hasAdult = existing.any((e) => !_isLambCategory(e['category']?.toString()));
       if (!hasAdult) {
-        // Aviso: não há mãe com esse nome/cor, mas permite o registro
         print('⚠️ Aviso: Registrando borrego sem mãe correspondente (Nome: ${map['name']}, Cor: ${map['name_color']})');
       }
     } else {

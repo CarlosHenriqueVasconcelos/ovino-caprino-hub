@@ -18,8 +18,12 @@ class AnimalRepository {
     return Animal.fromMap(maps.first);
   }
 
-  Future<List<Animal>> getOffspring(String motherId) async {
-    final maps = await _db.db.query('animals', where: 'mother_id = ?', whereArgs: [motherId]);
+  Future<List<Animal>> getOffspring(String parentId) async {
+    final maps = await _db.db.query(
+      'animals', 
+      where: 'mother_id = ? OR father_id = ?', 
+      whereArgs: [parentId, parentId]
+    );
     return maps.map((m) => Animal.fromMap(m)).toList();
   }
 
@@ -184,6 +188,7 @@ class AnimalRepository {
       'year': animalData['year'],
       'lote': animalData['lote'],
       'mother_id': animalData['mother_id'],
+      'father_id': animalData['father_id'],
       'sale_date': saleDate.toIso8601String().split('T').first,
       'sale_price': salePrice,
       'buyer': buyer,
@@ -225,6 +230,7 @@ class AnimalRepository {
       'year': animalData['year'],
       'lote': animalData['lote'],
       'mother_id': animalData['mother_id'],
+      'father_id': animalData['father_id'],
       'death_date': deathDate.toIso8601String().split('T').first,
       'cause_of_death': causeOfDeath,
       'death_notes': notes,
