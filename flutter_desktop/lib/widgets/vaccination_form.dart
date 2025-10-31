@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
+import '../models/animal.dart';
 import '../utils/animal_display_utils.dart';
 
 class VaccinationFormDialog extends StatefulWidget {
@@ -32,6 +33,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
     _selectedAnimalId = widget.animalId;
   }
 
+  String _getAnimalDisplayText(Animal animal) {
+    return AnimalDisplayUtils.getDisplayText(animal);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -51,30 +56,70 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Animal Selection
+                // Animal Selection with Search
                 if (widget.animalId == null)
-                  DropdownButtonFormField<String>(
-                    value: _selectedAnimalId,
-                    decoration: const InputDecoration(
-                      labelText: 'Animal *',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: sortedAnimals.map((animal) {
-                      return DropdownMenuItem(
-                        value: animal.id,
-                        child: AnimalDisplayUtils.buildDropdownItem(animal),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedAnimalId = value;
+                  Autocomplete<Animal>(
+                    displayStringForOption: _getAnimalDisplayText,
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return sortedAnimals;
+                      }
+                      return sortedAnimals.where((animal) {
+                        final searchText = textEditingValue.text.toLowerCase();
+                        return animal.code.toLowerCase().contains(searchText) ||
+                               animal.name.toLowerCase().contains(searchText);
                       });
                     },
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'Selecione um animal';
-                      }
-                      return null;
+                    onSelected: (Animal animal) {
+                      setState(() => _selectedAnimalId = animal.id);
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Animal *',
+                          hintText: 'Digite o número ou nome para buscar',
+                          prefixIcon: const Icon(Icons.pets),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _selectedAnimalId != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() => _selectedAnimalId = null);
+                                    controller.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                        validator: (value) => _selectedAnimalId == null ? 'Selecione um animal' : null,
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            width: 468,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final Animal animal = options.elementAt(index);
+                                return InkWell(
+                                  onTap: () => onSelected(animal),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                 

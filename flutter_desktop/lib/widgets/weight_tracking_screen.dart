@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../models/animal.dart';
+import '../utils/animal_display_utils.dart';
 import 'lamb_weight_tracking.dart';
 import 'adult_weight_tracking.dart';
 
@@ -479,9 +480,9 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${animal.name} (${animal.code})',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                    AnimalDisplayUtils.buildColoredNameText(
+                      animal, 
+                      baseStyle: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
