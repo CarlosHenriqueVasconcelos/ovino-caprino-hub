@@ -5,6 +5,7 @@ import '../services/animal_service.dart';
 import '../services/database_service.dart';
 import '../services/pharmacy_service.dart';
 import '../models/pharmacy_stock.dart';
+import '../models/animal.dart';
 import '../utils/animal_display_utils.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
