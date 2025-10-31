@@ -410,7 +410,19 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
 
   Widget _buildAnimalWeightList(ThemeData theme, List<Animal> animals) {
     // NUNCA ordene a lista recebida diretamente — crie uma cópia
-    final sorted = [...animals]..sort((a, b) => a.weight.compareTo(b.weight));
+    final sorted = [...animals];
+    // Importar o utilitário no topo do arquivo
+    // Ordenar por cor e depois por código numérico
+    sorted.sort((a, b) {
+      final colorA = a.nameColor ?? '';
+      final colorB = b.nameColor ?? '';
+      final colorCompare = colorA.compareTo(colorB);
+      if (colorCompare != 0) return colorCompare;
+      
+      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
+      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
+      return numA.compareTo(numB);
+    });
 
     return ListView.separated(
       shrinkWrap: true,

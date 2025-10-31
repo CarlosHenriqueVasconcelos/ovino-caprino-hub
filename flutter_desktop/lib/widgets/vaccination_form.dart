@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
+import '../utils/animal_display_utils.dart';
 
 class VaccinationFormDialog extends StatefulWidget {
   final String? animalId;
@@ -36,6 +37,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
     final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
     
+    // Ordenar animais
+    final sortedAnimals = [...animalService.animals];
+    AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
+    
     return AlertDialog(
       title: const Text('Nova Vacinação'),
       content: SizedBox(
@@ -54,10 +59,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                       labelText: 'Animal *',
                       border: OutlineInputBorder(),
                     ),
-                    items: animalService.animals.map((animal) {
+                    items: sortedAnimals.map((animal) {
                       return DropdownMenuItem(
                         value: animal.id,
-                        child: Text('${animal.name} (${animal.code})'),
+                        child: AnimalDisplayUtils.buildDropdownItem(animal),
                       );
                     }).toList(),
                     onChanged: (value) {

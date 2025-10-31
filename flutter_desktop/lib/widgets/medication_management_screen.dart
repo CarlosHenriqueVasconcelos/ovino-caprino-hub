@@ -5,6 +5,7 @@ import '../services/animal_service.dart';
 import '../services/database_service.dart';
 import '../services/pharmacy_service.dart';
 import '../models/pharmacy_stock.dart';
+import '../utils/animal_display_utils.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
@@ -954,6 +955,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   @override
   Widget build(BuildContext context) {
     final animalService = Provider.of<AnimalService>(context);
+    final sortedAnimals = [...animalService.animals];
+    AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
     
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
@@ -988,10 +991,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     labelText: 'Animal *',
                     border: OutlineInputBorder(),
                   ),
-                  items: animalService.animals.map((animal) {
+                  items: sortedAnimals.map((animal) {
                     return DropdownMenuItem(
                       value: animal.id,
-                      child: Text('${animal.name} (${animal.code})'),
+                      child: AnimalDisplayUtils.buildDropdownItem(animal),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -1551,5 +1554,73 @@ class _DetailsDialog extends StatelessWidget {
     } catch (e) {
       return date.toString();
     }
+  }
+
+  Widget _buildAnimalChip(Map<String, dynamic> animalData) {
+    final colorKey = animalData['name_color'] ?? '';
+    final colorName = _getColorName(colorKey);
+    final colorValue = _getColorValue(colorKey);
+    final name = animalData['name'] ?? 'Sem nome';
+    final code = animalData['code'] ?? '';
+    
+    return Chip(
+      avatar: Container(
+        width: 16,
+        height: 16,
+        decoration: BoxDecoration(
+          color: colorValue,
+          shape: BoxShape.circle,
+          border: colorKey == 'white' 
+              ? Border.all(color: Colors.grey, width: 1)
+              : null,
+        ),
+      ),
+      label: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 12, color: Colors.black),
+          children: [
+            TextSpan(text: '$colorName - '),
+            TextSpan(
+              text: name,
+              style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
+            ),
+            TextSpan(text: ' ($code)'),
+          ],
+        ),
+      ),
+      backgroundColor: Colors.blue.shade50,
+    );
+  }
+
+  String _getColorName(String colorKey) {
+    const colorNames = {
+      'blue': 'Azul',
+      'red': 'Vermelho',
+      'green': 'Verde',
+      'yellow': 'Amarelo',
+      'orange': 'Laranja',
+      'purple': 'Roxo',
+      'pink': 'Rosa',
+      'grey': 'Cinza',
+      'white': 'Branca',
+      'black': 'Preto',
+    };
+    return colorNames[colorKey] ?? 'Sem cor';
+  }
+
+  Color _getColorValue(String colorKey) {
+    const colorValues = {
+      'blue': Colors.blue,
+      'red': Colors.red,
+      'green': Colors.green,
+      'yellow': Colors.yellow,
+      'orange': Colors.orange,
+      'purple': Colors.purple,
+      'pink': Colors.pink,
+      'grey': Colors.grey,
+      'white': Colors.white,
+      'black': Colors.black,
+    };
+    return colorValues[colorKey] ?? Colors.grey;
   }
 }

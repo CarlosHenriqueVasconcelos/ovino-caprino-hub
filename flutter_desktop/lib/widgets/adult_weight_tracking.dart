@@ -175,6 +175,18 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       }).toList();
     }
 
+    // Ordenar por cor e depois por código numérico
+    adults.sort((a, b) {
+      final colorA = a.nameColor ?? '';
+      final colorB = b.nameColor ?? '';
+      final colorCompare = colorA.compareTo(colorB);
+      if (colorCompare != 0) return colorCompare;
+      
+      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
+      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
+      return numA.compareTo(numB);
+    });
+
     return adults;
   }
 
@@ -256,12 +268,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${adult.name} (${adult.code})',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    _buildAnimalNameText(adult, theme),
                     Text(
                       '${adult.breed} • ${adult.gender} • ${adult.category}',
                       style: theme.textTheme.bodyMedium,
@@ -552,9 +559,61 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Erro ao salvar: $e')),
-                    );
-                  }
-                }
+    );
+  }
+
+  Widget _buildAnimalNameText(Animal animal, ThemeData theme) {
+    final colorKey = animal.nameColor ?? '';
+    final colorName = _getColorName(colorKey);
+    final colorValue = _getColorValue(colorKey);
+    
+    return RichText(
+      text: TextSpan(
+        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        children: [
+          TextSpan(text: '$colorName - ', style: const TextStyle(color: Colors.black)),
+          TextSpan(
+            text: animal.name,
+            style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
+          ),
+          TextSpan(text: ' (${animal.code})', style: const TextStyle(color: Colors.black)),
+        ],
+      ),
+    );
+  }
+
+  String _getColorName(String colorKey) {
+    const colorNames = {
+      'blue': 'Azul',
+      'red': 'Vermelho',
+      'green': 'Verde',
+      'yellow': 'Amarelo',
+      'orange': 'Laranja',
+      'purple': 'Roxo',
+      'pink': 'Rosa',
+      'grey': 'Cinza',
+      'white': 'Branca',
+      'black': 'Preto',
+    };
+    return colorNames[colorKey] ?? 'Sem cor';
+  }
+
+  Color _getColorValue(String colorKey) {
+    const colorValues = {
+      'blue': Colors.blue,
+      'red': Colors.red,
+      'green': Colors.green,
+      'yellow': Colors.yellow,
+      'orange': Colors.orange,
+      'purple': Colors.purple,
+      'pink': Colors.pink,
+      'grey': Colors.grey,
+      'white': Colors.white,
+      'black': Colors.black,
+    };
+    return colorValues[colorKey] ?? Colors.grey;
+  }
+}
               },
               child: const Text('Salvar'),
             ),

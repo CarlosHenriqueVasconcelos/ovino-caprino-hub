@@ -252,6 +252,18 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       }).toList();
     }
 
+    // Ordenar por cor e depois por código numérico
+    lambs.sort((a, b) {
+      final colorA = a.nameColor ?? '';
+      final colorB = b.nameColor ?? '';
+      final colorCompare = colorA.compareTo(colorB);
+      if (colorCompare != 0) return colorCompare;
+      
+      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
+      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
+      return numA.compareTo(numB);
+    });
+
     return lambs;
   }
 
@@ -339,24 +351,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          lamb.name,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _getColorFromName(lamb.nameColor),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '(${lamb.code})',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildAnimalNameText(lamb, theme),
                     Text(
                       '${lamb.breed} • ${lamb.gender} • ${lamb.category}',
                       style: theme.textTheme.bodyMedium,
@@ -659,6 +654,42 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildAnimalNameText(Animal lamb, ThemeData theme) {
+    final colorKey = lamb.nameColor ?? '';
+    final colorName = _getColorNameTranslated(colorKey);
+    final colorValue = _getColorFromName(colorKey);
+    
+    return RichText(
+      text: TextSpan(
+        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        children: [
+          TextSpan(text: '$colorName - ', style: const TextStyle(color: Colors.black)),
+          TextSpan(
+            text: lamb.name,
+            style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
+          ),
+          TextSpan(text: ' (${lamb.code})', style: const TextStyle(color: Colors.black)),
+        ],
+      ),
+    );
+  }
+
+  String _getColorNameTranslated(String colorKey) {
+    const colorNames = {
+      'blue': 'Azul',
+      'red': 'Vermelho',
+      'green': 'Verde',
+      'yellow': 'Amarelo',
+      'orange': 'Laranja',
+      'purple': 'Roxo',
+      'pink': 'Rosa',
+      'grey': 'Cinza',
+      'white': 'Branca',
+      'black': 'Preto',
+    };
+    return colorNames[colorKey] ?? 'Sem cor';
   }
 
   void _showWeightEditDialog(Animal lamb) async {

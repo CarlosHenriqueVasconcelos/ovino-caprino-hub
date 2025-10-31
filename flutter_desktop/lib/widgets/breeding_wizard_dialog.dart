@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/animal.dart';
 import '../models/breeding_record.dart';
 import '../services/database_service.dart';
+import '../utils/animal_display_utils.dart';
 
 class BreedingWizardDialog extends StatefulWidget {
   final Function? onComplete;
@@ -49,8 +50,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
           .toList();
       
       // Ordenar por cor e depois por número
-      _sortAnimalsList(females);
-      _sortAnimalsList(males);
+      AnimalDisplayUtils.sortAnimalsList(females);
+      AnimalDisplayUtils.sortAnimalsList(males);
       
       setState(() {
         _females = females;
@@ -67,48 +68,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     }
   }
 
-  void _sortAnimalsList(List<Animal> animals) {
-    animals.sort((a, b) {
-      // Primeiro ordenar por cor
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
-      final colorCompare = colorA.compareTo(colorB);
-      
-      if (colorCompare != 0) return colorCompare;
-      
-      // Depois ordenar por código numérico
-      final numA = _extractNumber(a.code);
-      final numB = _extractNumber(b.code);
-      return numA.compareTo(numB);
-    });
-  }
-
-  int _extractNumber(String code) {
-    // Extrair número do código (ex: "123" de "OV123" ou "123")
-    final match = RegExp(r'\d+').firstMatch(code);
-    return match != null ? int.parse(match.group(0)!) : 0;
-  }
-
   String _getAnimalDisplayText(Animal animal) {
-    final colorKey = animal.nameColor ?? 'Sem cor';
-    final colorName = _translateColor(colorKey);
-    return '$colorName - ${animal.code} - ${animal.name}';
-  }
-
-  String _translateColor(String colorKey) {
-    const colorTranslations = {
-      'blue': 'Azul',
-      'red': 'Vermelho',
-      'green': 'Verde',
-      'yellow': 'Amarelo',
-      'orange': 'Laranja',
-      'purple': 'Roxo',
-      'pink': 'Rosa',
-      'grey': 'Cinza',
-      'white': 'Branca',
-      'black': 'Preto',
-    };
-    return colorTranslations[colorKey] ?? colorKey;
+    return AnimalDisplayUtils.getDisplayText(animal);
   }
 
   void _calculateMatingEndDate() {
@@ -253,7 +214,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     final animal = options.elementAt(index);
                                     return ListTile(
                                       leading: const Icon(Icons.female, size: 20),
-                                      title: Text(_getAnimalDisplayText(animal)),
+                                      title: AnimalDisplayUtils.buildColoredNameText(animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },
@@ -319,7 +280,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     final animal = options.elementAt(index);
                                     return ListTile(
                                       leading: const Icon(Icons.male, size: 20),
-                                      title: Text(_getAnimalDisplayText(animal)),
+                                      title: AnimalDisplayUtils.buildColoredNameText(animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },
