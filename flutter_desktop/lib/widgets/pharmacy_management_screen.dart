@@ -713,10 +713,11 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
               try {
                 // Enviar apenas o número de unidades, não multiplicar por ML
+                // medication_id deve ser null quando não está associado a uma aplicação
                 await PharmacyService.deductFromStock(
                   stock.id,
                   units.toDouble(),
-                  stock.id,
+                  null, // Passar null como medicationId pois não é uma aplicação em animal
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
