@@ -42,7 +42,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
       // VACINAS — mantém sua regra original (status = 'Agendada')
       final vacs = await db.rawQuery('''
-        SELECT v.*, a.name AS animal_name, a.code AS animal_code
+        SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
         FROM vaccinations v
         LEFT JOIN animals a ON a.id = v.animal_id
         WHERE v.status = 'Agendada'
@@ -53,7 +53,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       // MEDICAÇÕES — usa a "data de compromisso" = COALESCE(date, next_date)
       // Sem exigir coluna status; filtramos vencidos/próximos em Dart.
       final medsRaw = await db.rawQuery('''
-        SELECT m.*, a.name AS animal_name, a.code AS animal_code
+        SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
         FROM medications m
         LEFT JOIN animals a ON a.id = m.animal_id
         ORDER BY date(COALESCE(m.date, m.next_date)) ASC
@@ -364,6 +364,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       BuildContext context, ThemeData theme, Map<String, dynamic> row) {
     final animalName = (row['animal_name'] ?? '').toString();
     final animalCode = (row['animal_code'] ?? '').toString();
+    final animalColor = (row['animal_color'] ?? '').toString();
     final vaccineName = (row['vaccine_name'] ?? '').toString();
 
     final scheduledStr = (row['scheduled_date'] ?? '').toString();
@@ -390,7 +391,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$animalCode - $animalName',
+                Text('$animalColor - $animalName($animalCode)',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 Text(
@@ -425,6 +426,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       BuildContext context, ThemeData theme, Map<String, dynamic> row) {
     final animalName = (row['animal_name'] ?? '').toString();
     final animalCode = (row['animal_code'] ?? '').toString();
+    final animalColor = (row['animal_color'] ?? '').toString();
     final medName = (row['medication_name'] ?? '').toString();
 
     // 👇 usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
@@ -453,7 +455,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$animalCode - $animalName',
+                Text('$animalColor - $animalName($animalCode)',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.bold)),
                 Text(

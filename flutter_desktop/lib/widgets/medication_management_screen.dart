@@ -430,17 +430,37 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     child: Icon(Icons.vaccines, color: statusColor, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+              Expanded(
+                child: FutureBuilder<Animal?>(
+                  future: _getAnimalById(vaccination['animal_id']),
+                  builder: (context, snapshot) {
+                    final animal = snapshot.data;
+                    final animalDisplay = animal != null
+                        ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
+                        : 'Animal não encontrado';
+                    
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          vaccination['vaccine_name'] ?? 'Sem nome',
+                          animalDisplay,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ],
+                    );
+                  },
+                ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -579,17 +599,37 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     child: Icon(Icons.medication, color: statusColor, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
+              Expanded(
+                child: FutureBuilder<Animal?>(
+                  future: _getAnimalById(medication['animal_id']),
+                  builder: (context, snapshot) {
+                    final animal = snapshot.data;
+                    final animalDisplay = animal != null
+                        ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
+                        : 'Animal não encontrado';
+                    
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          medication['medication_name'] ?? 'Sem nome',
+                          animalDisplay,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Medicação: ${medication['medication_name'] ?? 'Sem nome'}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ],
+                    );
+                  },
+                ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -690,6 +730,16 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
         ),
       ),
     );
+  }
+
+  Future<Animal?> _getAnimalById(String? animalId) async {
+    if (animalId == null) return null;
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    try {
+      return animalService.animals.firstWhere((a) => a.id == animalId);
+    } catch (e) {
+      return null;
+    }
   }
 
   String _formatDate(dynamic date) {
@@ -1085,9 +1135,15 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       final isLiquid = (stock.medicationType.toLowerCase() == 'ampola' || 
                                        stock.medicationType.toLowerCase() == 'frasco') && 
                                        stock.quantityPerUnit != null;
-                      final displayText = isLiquid
-                          ? '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(0)} un = ${(stock.totalQuantity * stock.quantityPerUnit!).toStringAsFixed(0)}ml)'
-                          : '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})';
+                      
+                      String displayText;
+                      if (isLiquid) {
+                        // Soma quantidade total (frascos completos) + frasco aberto em ml
+                        final totalMl = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                        displayText = '${stock.medicationName} (${totalMl.toStringAsFixed(0)}ml total)';
+                      } else {
+                        displayText = '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})';
+                      }
                       
                       return DropdownMenuItem(
                         value: stock,
@@ -1101,10 +1157,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       setState(() {
                         _selectedMedication = value;
                         _nameController.text = value?.medicationName ?? '';
-                        // Pré-preencher dosagem com unidade de medida
-                        if (value != null) {
-                          _dosageController.text = value.unitOfMeasure;
-                        }
+                        // Não pré-preencher dosagem
                       });
                     },
                     validator: (value) {
@@ -1262,13 +1315,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       if (quantityMatch != null) {
         final quantityUsed = double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
         
-        // Calcular estoque disponível
+        // Calcular estoque disponível (inclui frasco aberto)
         final isLiquid = (_selectedMedication!.medicationType.toLowerCase() == 'ampola' || 
                          _selectedMedication!.medicationType.toLowerCase() == 'frasco') && 
                          _selectedMedication!.quantityPerUnit != null;
         
         final availableStock = isLiquid 
-            ? _selectedMedication!.totalQuantity * _selectedMedication!.quantityPerUnit!
+            ? (_selectedMedication!.totalQuantity * _selectedMedication!.quantityPerUnit!) + _selectedMedication!.openedQuantity
             : _selectedMedication!.totalQuantity;
         
         if (quantityUsed > availableStock) {
