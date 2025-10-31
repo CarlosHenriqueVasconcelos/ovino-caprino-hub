@@ -8,6 +8,7 @@ class PharmacyStock {
   final double? minStockAlert;
   final DateTime? expirationDate;
   final bool isOpened;
+  final double openedQuantity; // ml restantes no frasco/ampola aberto
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -22,6 +23,7 @@ class PharmacyStock {
     this.minStockAlert,
     this.expirationDate,
     this.isOpened = false,
+    this.openedQuantity = 0.0,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -67,6 +69,7 @@ class PharmacyStock {
       minStockAlert: _toDouble(map['min_stock_alert'] ?? map['minStockAlert']),
       expirationDate: _toDateOrNull(map['expiration_date'] ?? map['expirationDate']),
       isOpened: _toBool(map['is_opened'] ?? map['isOpened'] ?? false),
+      openedQuantity: _toDouble(map['opened_quantity'] ?? map['openedQuantity']) ?? 0.0,
       notes: map['notes']?.toString(),
       createdAt: _toDate(map['created_at'] ?? map['createdAt']),
       updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
@@ -84,6 +87,7 @@ class PharmacyStock {
       'unit_of_measure': unitOfMeasure,
       'total_quantity': totalQuantity,
       'is_opened': isOpened ? 1 : 0,  // SQLite precisa de int, não bool
+      'opened_quantity': openedQuantity,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -112,6 +116,7 @@ class PharmacyStock {
     double? minStockAlert,
     DateTime? expirationDate,
     bool? isOpened,
+    double? openedQuantity,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -126,6 +131,7 @@ class PharmacyStock {
       minStockAlert: minStockAlert ?? this.minStockAlert,
       expirationDate: expirationDate ?? this.expirationDate,
       isOpened: isOpened ?? this.isOpened,
+      openedQuantity: openedQuantity ?? this.openedQuantity,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

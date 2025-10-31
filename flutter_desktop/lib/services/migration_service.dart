@@ -32,6 +32,13 @@ class MigrationService {
       print('✓ Migração v5 aplicada: Campo father_id adicionado');
     }
 
+    // Migração v7: Adicionar campo opened_quantity na tabela pharmacy_stock
+    if (currentVersion < 7) {
+      await _runMigrationV7(db);
+      await db.insert('schema_migrations', {'version': 7});
+      print('✓ Migração v7 aplicada: Campo opened_quantity adicionado');
+    }
+
     print('✓ Todas as migrações foram aplicadas com sucesso');
   }
 
@@ -90,6 +97,17 @@ class MigrationService {
       }
       try {
         await txn.execute('ALTER TABLE deceased_animals ADD COLUMN father_id TEXT');
+      } catch (e) {
+        // Coluna já existe
+      }
+    });
+  }
+
+  /// Migração v7: Adicionar campo opened_quantity
+  static Future<void> _runMigrationV7(Database db) async {
+    await db.transaction((txn) async {
+      try {
+        await txn.execute('ALTER TABLE pharmacy_stock ADD COLUMN opened_quantity REAL DEFAULT 0');
       } catch (e) {
         // Coluna já existe
       }

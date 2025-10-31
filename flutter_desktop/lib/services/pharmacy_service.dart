@@ -232,10 +232,68 @@ class PharmacyService {
   // Lógica de uso de ampolas/frascos parciais
   static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String medicationId) async {
     final container = stock.medicationType.toLowerCase() == 'frasco' ? 'Frasco' : 'Ampola';
-    final unitSize = stock.quantityPerUnit!; // ml por recipiente
+    final unitSize = stock.quantityPerUnit!;
     
-    // Se usar exatamente o conteúdo do recipiente
+    // Primeiro verifica se há frasco aberto
+    if (stock.openedQuantity > 0) {
+      if (quantityUsed <= stock.openedQuantity) {
+        // Usa apenas do frasco aberto
+        final newOpenedQty = stock.openedQuantity - quantityUsed;
+        final updated = stock.copyWith(
+          openedQuantity: newOpenedQty,
+          isOpened: newOpenedQty > 0,
+          updatedAt: DateTime.now(),
+        );
+        await updateMedication(stock.id, updated);
+        
+        await recordMovement(
+          PharmacyStockMovement(
+            id: _uuid.v4(),
+            pharmacyStockId: stock.id,
+            medicationId: medicationId,
+            movementType: 'saida',
+            quantity: quantityUsed,
+            reason: 'Aplicação de medicamento (${quantityUsed}ml do $container aberto)',
+            createdAt: DateTime.now(),
+          ),
+        );
+        return;
+      } else {
+        // Usa todo o frasco aberto e precisa de mais
+        final remaining = quantityUsed - stock.openedQuantity;
+        final frascosFechados = (remaining / unitSize).ceil();
+        
+        if (stock.totalQuantity < frascosFechados) {
+          throw Exception('Quantidade insuficiente em estoque');
+        }
+        
+        final newOpenedQty = (frascosFechados * unitSize) - remaining;
+        final updated = stock.copyWith(
+          totalQuantity: stock.totalQuantity - frascosFechados,
+          openedQuantity: newOpenedQty,
+          isOpened: newOpenedQty > 0,
+          updatedAt: DateTime.now(),
+        );
+        await updateMedication(stock.id, updated);
+        
+        await recordMovement(
+          PharmacyStockMovement(
+            id: _uuid.v4(),
+            pharmacyStockId: stock.id,
+            medicationId: medicationId,
+            movementType: 'saida',
+            quantity: quantityUsed,
+            reason: 'Aplicação de medicamento (${stock.openedQuantity}ml do aberto + ${remaining}ml de $frascosFechados novo${frascosFechados > 1 ? 's' : ''})',
+            createdAt: DateTime.now(),
+          ),
+        );
+        return;
+      }
+    }
+    
+    // Não há frasco aberto
     if (quantityUsed == unitSize) {
+      // Usa um frasco completo
       final newQuantity = stock.totalQuantity - 1;
       if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
@@ -257,52 +315,31 @@ class PharmacyService {
         ),
       );
     } else {
-      // Uso parcial do recipiente (ml)
+      // Uso parcial - abre um novo frasco
       final remaining = unitSize - quantityUsed;
       if (remaining < 0) throw Exception('Quantidade usada maior que a capacidade do $container');
       
-      // Deduzir 1 recipiente completo do estoque principal
-      final newQuantity = stock.totalQuantity - 1;
-      if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
+      if (stock.totalQuantity < 1) throw Exception('Quantidade insuficiente em estoque');
 
       final updated = stock.copyWith(
-        totalQuantity: newQuantity,
+        totalQuantity: stock.totalQuantity - 1,
+        openedQuantity: remaining,
+        isOpened: true,
         updatedAt: DateTime.now(),
       );
       await updateMedication(stock.id, updated);
 
-      // Registrar saída do recipiente completo
       await recordMovement(
         PharmacyStockMovement(
           id: _uuid.v4(),
           pharmacyStockId: stock.id,
           medicationId: medicationId,
           movementType: 'saida',
-          quantity: 1,
-          reason: 'Aplicação de medicamento (${quantityUsed}ml usados de ${unitSize}ml)',
+          quantity: quantityUsed,
+          reason: 'Aplicação de medicamento (${quantityUsed}ml usados, ${remaining}ml restantes no $container aberto)',
           createdAt: DateTime.now(),
         ),
       );
-
-      // Se sobrou líquido, criar nova entrada de recipiente aberto
-      if (remaining > 0) {
-        final opened = PharmacyStock(
-          id: _uuid.v4(),
-          medicationName: '${stock.medicationName} ($container Aberto)',
-          medicationType: stock.medicationType,
-          unitOfMeasure: stock.unitOfMeasure,
-          quantityPerUnit: unitSize,
-          totalQuantity: remaining, // ml restantes no recipiente
-          minStockAlert: null,
-          expirationDate: stock.expirationDate,
-          isOpened: true,
-          notes: '$container aberto em ${DateTime.now().toIso8601String().split('T')[0]}',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        await createMedication(opened);
-      }
     }
   }
 

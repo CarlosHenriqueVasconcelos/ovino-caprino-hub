@@ -147,12 +147,12 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                         ),
                       )
                     : GridView.builder(
-                        padding: const EdgeInsets.all(16),
+                         padding: const EdgeInsets.all(16),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 1.1,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
+                          crossAxisCount: 3,
+                          childAspectRatio: 1.3,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
                         ),
                         itemCount: filteredStock.length,
                         itemBuilder: (context, index) {
@@ -217,24 +217,17 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
 
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.black, width: 1),
+      ),
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                statusColor.withOpacity(0.05),
-                Colors.white,
-              ],
-            ),
-          ),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -242,69 +235,70 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                Container(
-                    padding: const EdgeInsets.all(8),
+                  Container(
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.local_pharmacy, color: statusColor, size: 20),
+                    child: Icon(Icons.local_pharmacy, color: Colors.green, size: 18),
                   ),
-                  Icon(statusIcon, size: 20, color: statusColor),
+                  Icon(statusIcon, size: 18, color: statusColor),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 stock.medicationName,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               if (stock.quantityPerUnit != null) ...[
                 Row(
                   children: [
-                    Icon(Icons.water_drop, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
+                    Icon(Icons.water_drop, size: 12, color: Colors.grey[600]),
+                    const SizedBox(width: 3),
                     Text(
                       '${stock.quantityPerUnit!.toStringAsFixed(1)} ml/un',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
               ],
               Row(
                 children: [
-                  Icon(Icons.inventory_2, size: 14, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  Icon(Icons.inventory_2, size: 12, color: Colors.grey[600]),
+                  const SizedBox(width: 3),
                   Expanded(
                     child: Text(
                       _buildStockQuantityText(stock),
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: stock.isLowStock ? Colors.orange : Colors.black87,
                       ),
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              if (stock.isOpened) ...[
-                const SizedBox(height: 8),
+              if (stock.openedQuantity > 0) ...[
+                const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                   ),
-                  child: const Text(
-                    'ABERTA',
-                    style: TextStyle(
+                  child: Text(
+                    '1 aberto (${stock.openedQuantity.toStringAsFixed(1)}ml)',
+                    style: const TextStyle(
                       color: Colors.blue,
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
@@ -346,10 +340,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
     
     if (isLiquid) {
-      final totalVolume = stock.totalQuantity * stock.quantityPerUnit!;
-      return '${stock.totalQuantity.toStringAsFixed(0)} $typeName${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)}ml total)';
+      final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+      return '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''}\n(${totalVolume.toStringAsFixed(0)}ml total)';
     }
     
-    return '${stock.totalQuantity.toStringAsFixed(0)} $typeName${stock.totalQuantity > 1 ? 's' : ''}';
+    return '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''}';
   }
 }
