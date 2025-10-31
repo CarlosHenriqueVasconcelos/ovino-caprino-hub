@@ -439,14 +439,30 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                             ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
                             : 'Animal não encontrado';
                         
+                        // Converter cor do texto para Color
+                        Color? getColorFromName(String? colorName) {
+                          if (colorName == null || colorName.isEmpty) return null;
+                          final colorLower = colorName.toLowerCase();
+                          if (colorLower.contains('branco')) return Colors.grey[700];
+                          if (colorLower.contains('preto')) return Colors.black;
+                          if (colorLower.contains('marrom')) return Colors.brown;
+                          if (colorLower.contains('vermelho')) return Colors.red[700];
+                          if (colorLower.contains('amarelo')) return Colors.amber[800];
+                          if (colorLower.contains('cinza')) return Colors.grey[600];
+                          if (colorLower.contains('azul')) return Colors.blue[700];
+                          if (colorLower.contains('verde')) return Colors.green[700];
+                          return null;
+                        }
+                        
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               animalDisplay,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
+                                color: getColorFromName(animal?.nameColor),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -606,14 +622,30 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                             ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
                             : 'Animal não encontrado';
                         
+                        // Converter cor do texto para Color
+                        Color? getColorFromName(String? colorName) {
+                          if (colorName == null || colorName.isEmpty) return null;
+                          final colorLower = colorName.toLowerCase();
+                          if (colorLower.contains('branco')) return Colors.grey[700];
+                          if (colorLower.contains('preto')) return Colors.black;
+                          if (colorLower.contains('marrom')) return Colors.brown;
+                          if (colorLower.contains('vermelho')) return Colors.red[700];
+                          if (colorLower.contains('amarelo')) return Colors.amber[800];
+                          if (colorLower.contains('cinza')) return Colors.grey[600];
+                          if (colorLower.contains('azul')) return Colors.blue[700];
+                          if (colorLower.contains('verde')) return Colors.green[700];
+                          return null;
+                        }
+                        
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               animalDisplay,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
+                                color: getColorFromName(animal?.nameColor),
                               ),
                             ),
                             const SizedBox(height: 4),
