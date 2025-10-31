@@ -17,6 +17,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   String _filter = 'Todos';
   String _searchQuery = '';
   String _sortBy = 'name'; // name, quantity, expiration
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -65,16 +66,23 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     // Aplicar ordenação
     switch (_sortBy) {
       case 'name':
-        filtered.sort((a, b) => a.medicationName.compareTo(b.medicationName));
+        filtered.sort((a, b) {
+          final cmp = a.medicationName.compareTo(b.medicationName);
+          return _sortAscending ? cmp : -cmp;
+        });
         break;
       case 'quantity':
-        filtered.sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
+        filtered.sort((a, b) {
+          final cmp = b.totalQuantity.compareTo(a.totalQuantity);
+          return _sortAscending ? cmp : -cmp;
+        });
         break;
       case 'expiration':
         filtered.sort((a, b) {
           if (a.expirationDate == null) return 1;
           if (b.expirationDate == null) return -1;
-          return a.expirationDate!.compareTo(b.expirationDate!);
+          final cmp = a.expirationDate!.compareTo(b.expirationDate!);
+          return _sortAscending ? cmp : -cmp;
         });
         break;
     }
@@ -98,237 +106,221 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredStock = _filterStock();
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.teal,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.local_pharmacy, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Farmácia — Estoque de Medicamentos',
-              style: TextStyle(color: Colors.black87, fontSize: 18),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black87),
-            onPressed: _loadStock,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Header
+              _buildHeader(theme),
+              const SizedBox(height: 16),
+              // Barra de pesquisa e filtros
+              _buildFiltersBar(theme),
+              const SizedBox(height: 16),
+
+              // Lista de medicamentos
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredStock.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.local_pharmacy_outlined,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Nenhum medicamento encontrado',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final width = constraints.maxWidth;
+                              int crossAxisCount = 2;
+                              if (width >= 1500) crossAxisCount = 4;
+                              else if (width >= 1100) crossAxisCount = 3;
+                              else if (width <= 700) crossAxisCount = 1;
+
+                              return GridView.builder(
+                                itemCount: filteredStock.length,
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  childAspectRatio: 2.4,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final stock = filteredStock[index];
+                                  return _buildStockCard(stock, theme);
+                                },
+                              );
+                            },
+                          ),
+            ],
           ),
-          PopupMenuButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black87),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'novo',
-                child: Row(
-                  children: [
-                    Icon(Icons.add, size: 18),
-                    SizedBox(width: 8),
-                    Text('Novo Medicamento'),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddDialog(),
+        icon: const Icon(Icons.add),
+        label: const Text('Novo'),
+        backgroundColor: Colors.teal,
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.teal.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.medical_services_outlined, color: Colors.teal),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          'Farmácia — Estoque de Medicamentos',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const Spacer(),
+        OutlinedButton.icon(
+          onPressed: _loadStock,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Recarregar'),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: _showAddDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Novo'),
+          style: FilledButton.styleFrom(backgroundColor: Colors.teal),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.more_vert),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltersBar(ThemeData theme) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(
+          width: 360,
+          child: TextField(
+            onChanged: (value) => setState(() => _searchQuery = value),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: 'Buscar por nome ou apresentação…',
+              isDense: true,
+              filled: true,
+              fillColor: Colors.grey[100],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        ChoiceChip(
+          label: const Text('Todos'),
+          selected: _filter == 'Todos',
+          onSelected: (_) => setState(() => _filter = 'Todos'),
+        ),
+        ChoiceChip(
+          label: const Text('Estoque Baixo'),
+          selected: _filter == 'Estoque Baixo',
+          onSelected: (_) => setState(() => _filter = 'Estoque Baixo'),
+        ),
+        ChoiceChip(
+          label: const Text('Vencendo'),
+          selected: _filter == 'Vencendo',
+          onSelected: (_) => setState(() => _filter = 'Vencendo'),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: Colors.grey[400]!,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ordenar:'),
+              const SizedBox(width: 6),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _sortBy,
+                  items: const [
+                    DropdownMenuItem(value: 'name', child: Text('Nome')),
+                    DropdownMenuItem(value: 'quantity', child: Text('Estoque')),
+                    DropdownMenuItem(value: 'expiration', child: Text('Validade')),
                   ],
+                  onChanged: (v) => v == null ? null : setState(() => _sortBy = v),
                 ),
+              ),
+              IconButton(
+                tooltip: _sortAscending ? 'Crescente' : 'Decrescente',
+                onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
               ),
             ],
-            onSelected: (value) {
-              if (value == 'novo') _showAddDialog();
-            },
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Barra de pesquisa e ordenação
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: TextField(
-                          onChanged: (value) => setState(() => _searchQuery = value),
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar por nome ou apresentação...',
-                            prefixIcon: Icon(Icons.search, color: Colors.grey),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButton<String>(
-                        value: _sortBy,
-                        underline: const SizedBox(),
-                        items: const [
-                          DropdownMenuItem(value: 'name', child: Text('Ordenar: Nome')),
-                          DropdownMenuItem(value: 'quantity', child: Text('Ordenar: Quantidade')),
-                          DropdownMenuItem(value: 'expiration', child: Text('Ordenar: Validade')),
-                        ],
-                        onChanged: (value) => setState(() => _sortBy = value!),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Filtros
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip(
-                        label: 'Todos',
-                        isSelected: _filter == 'Todos',
-                        color: Colors.blue,
-                        onTap: () => setState(() => _filter = 'Todos'),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: 'Estoque Baixo',
-                        isSelected: _filter == 'Estoque Baixo',
-                        color: Colors.orange,
-                        onTap: () => setState(() => _filter = 'Estoque Baixo'),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(
-                        label: 'Vencendo',
-                        isSelected: _filter == 'Vencendo',
-                        color: Colors.amber,
-                        onTap: () => setState(() => _filter = 'Vencendo'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Lista de medicamentos
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredStock.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.local_pharmacy_outlined,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Nenhum medicamento encontrado',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : GridView.builder(
-                         padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 1.3,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: filteredStock.length,
-                        itemBuilder: (context, index) {
-                          final stock = filteredStock[index];
-                          return _buildStockCard(stock);
-                        },
-                      ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(),
-        backgroundColor: Colors.teal,
-        child: const Icon(Icons.add, size: 28),
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.grey[200],
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
-            width: 2,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey[700],
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStockCard(PharmacyStock stock) {
-    Color statusColor = Colors.green;
-    String statusLabel = 'OK';
-
+  Widget _buildStockCard(PharmacyStock stock, ThemeData theme) {
+    final tags = <Widget>[];
+    
     if (stock.isExpired) {
-      statusColor = Colors.red;
-      statusLabel = 'Vencido';
-    } else if (stock.isExpiringSoon) {
-      statusColor = const Color(0xFFFFA726);
-      statusLabel = 'Vencendo';
-    } else if (stock.isLowStock) {
-      statusColor = const Color(0xFFFFA726);
-      statusLabel = 'Estoque abaixo';
+      tags.add(_buildBadge('Vencido', Colors.red));
+    }
+    if (stock.isExpiringSoon) {
+      tags.add(_buildBadge('Vencendo', Colors.orange));
+    }
+    if (stock.isLowStock) {
+      tags.add(_buildBadge('Estoque baixo', Colors.amber));
+    }
+    if (!stock.isExpired && !stock.isExpiringSoon && !stock.isLowStock) {
+      tags.add(_buildBadge('OK', Colors.teal));
     }
 
-    // Cor do ícone baseado no tipo
-    Color iconColor = Colors.orange;
+    // Ícone baseado no tipo
+    IconData icon = Icons.medication_outlined;
     if (stock.medicationType.toLowerCase().contains('ampola')) {
-      iconColor = Colors.orange;
+      icon = Icons.vaccines_outlined;
     } else if (stock.medicationType.toLowerCase().contains('frasco')) {
-      iconColor = Colors.red;
+      icon = Icons.medication_liquid_outlined;
     }
 
     final typeName = stock.medicationType.toLowerCase();
@@ -336,150 +328,127 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final totalVolume = isLiquid 
         ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity 
         : stock.totalQuantity;
+    
+    final percent = (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)).clamp(0.0, 1.0);
+    final percentLabel = '${(percent * 100).round()}%';
 
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.black, width: 1),
-      ),
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(14),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Título + tags
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(Icons.medication_liquid, color: iconColor, size: 24),
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.teal.withOpacity(0.1),
+                    child: Icon(icon, color: Colors.teal),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           stock.medicationName,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${stock.medicationType} • ${stock.quantityPerUnit?.toStringAsFixed(1) ?? ''} ml/un',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
+                          '${stock.medicationType}${stock.quantityPerUnit != null ? ' • ${stock.quantityPerUnit!.toStringAsFixed(1).replaceAll('.', ',')} ml/un' : ''}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.outline,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (statusLabel != 'OK')
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.warning_amber,
-                            size: 12,
-                            color: statusColor,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            statusLabel,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  Wrap(spacing: 6, runSpacing: 6, children: tags),
                 ],
               ),
               const SizedBox(height: 10),
-              // Quantidade
+              // Qtd total
               Text(
                 isLiquid
-                    ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)} ml total)'
+                    ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0).replaceAll('.', ',')} ml total)'
                     : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodyMedium,
               ),
-              // Frasco aberto
-              if (stock.openedQuantity > 0) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    'Abertos: ${stock.openedQuantity.toStringAsFixed(1)} ml',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600,
-                    ),
+              const SizedBox(height: 8),
+              // Barra de estoque
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: SizedBox(
+                  height: 8,
+                  child: LinearProgressIndicator(
+                    value: percent,
+                    minHeight: 8,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation(Colors.teal),
                   ),
                 ),
-              ],
-              const Spacer(),
-              // Barra de progresso
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const SizedBox(height: 8),
+              // Rodapé do card
+              Row(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)).clamp(0.0, 1.0),
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        stock.isLowStock ? statusColor : Colors.green,
+                  if (stock.openedQuantity > 0)
+                    Text(
+                      'Abertos: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ml',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
                       ),
-                      minHeight: 6,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Estoque ${((stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)) * 100).clamp(0, 100).toStringAsFixed(0)}%',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                      ),
-                      if (stock.expirationDate != null)
-                        Text(
-                          'Validade: ${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
-                          style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                        ),
-                    ],
+                  const Spacer(),
+                  Text(
+                    'Estoque $percentLabel',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
+              if (stock.expirationDate != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Validade: ${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadge(String text, Color tone) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tone.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tone.withOpacity(0.22)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: tone,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
       ),
     );
@@ -507,15 +476,4 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
   }
 
-  String _buildStockQuantityText(PharmacyStock stock) {
-    final typeName = stock.medicationType.toLowerCase();
-    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
-    
-    if (isLiquid) {
-      final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
-      return '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''}\n(${totalVolume.toStringAsFixed(0)}ml total)';
-    }
-    
-    return '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''}';
-  }
 }
