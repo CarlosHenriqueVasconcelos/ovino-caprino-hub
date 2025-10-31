@@ -77,9 +77,22 @@ class MigrationService {
   static Future<void> _runMigrationV5(Database db) async {
     await db.transaction((txn) async {
       // Adicionar coluna father_id nas tabelas principais
-      await txn.execute('ALTER TABLE animals ADD COLUMN father_id TEXT');
-      await txn.execute('ALTER TABLE sold_animals ADD COLUMN father_id TEXT');
-      await txn.execute('ALTER TABLE deceased_animals ADD COLUMN father_id TEXT');
+      // Ignora erro se a coluna já existir
+      try {
+        await txn.execute('ALTER TABLE animals ADD COLUMN father_id TEXT');
+      } catch (e) {
+        // Coluna já existe
+      }
+      try {
+        await txn.execute('ALTER TABLE sold_animals ADD COLUMN father_id TEXT');
+      } catch (e) {
+        // Coluna já existe
+      }
+      try {
+        await txn.execute('ALTER TABLE deceased_animals ADD COLUMN father_id TEXT');
+      } catch (e) {
+        // Coluna já existe
+      }
     });
   }
 
