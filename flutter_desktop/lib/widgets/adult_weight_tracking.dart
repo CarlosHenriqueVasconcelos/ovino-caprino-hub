@@ -559,6 +559,15 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Erro ao salvar: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -612,14 +621,5 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       'black': Colors.black,
     };
     return colorValues[colorKey] ?? Colors.grey;
-  }
-}
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
