@@ -61,6 +61,7 @@ export type Database = {
           code: string
           created_at: string
           expected_delivery: string | null
+          father_id: string | null
           gender: string
           health_issue: string | null
           id: string
@@ -89,6 +90,7 @@ export type Database = {
           code: string
           created_at?: string
           expected_delivery?: string | null
+          father_id?: string | null
           gender: string
           health_issue?: string | null
           id?: string
@@ -117,6 +119,7 @@ export type Database = {
           code?: string
           created_at?: string
           expected_delivery?: string | null
+          father_id?: string | null
           gender?: string
           health_issue?: string | null
           id?: string
@@ -222,6 +225,7 @@ export type Database = {
           created_at: string
           death_date: string
           death_notes: string | null
+          father_id: string | null
           gender: string
           id: string
           location: string
@@ -249,6 +253,7 @@ export type Database = {
           created_at?: string
           death_date: string
           death_notes?: string | null
+          father_id?: string | null
           gender: string
           id?: string
           location: string
@@ -276,6 +281,7 @@ export type Database = {
           created_at?: string
           death_date?: string
           death_notes?: string | null
+          father_id?: string | null
           gender?: string
           id?: string
           location?: string
@@ -753,6 +759,7 @@ export type Database = {
           category: string | null
           code: string
           created_at: string
+          father_id: string | null
           gender: string
           id: string
           location: string
@@ -781,6 +788,7 @@ export type Database = {
           category?: string | null
           code: string
           created_at?: string
+          father_id?: string | null
           gender: string
           id?: string
           location: string
@@ -809,6 +817,7 @@ export type Database = {
           category?: string | null
           code?: string
           created_at?: string
+          father_id?: string | null
           gender?: string
           id?: string
           location?: string
