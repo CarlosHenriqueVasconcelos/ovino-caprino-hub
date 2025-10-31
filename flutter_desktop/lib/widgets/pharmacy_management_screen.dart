@@ -161,12 +161,14 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                               else if (width >= 1100) crossAxisCount = 3;
                               else if (width <= 700) crossAxisCount = 1;
 
+                              final aspect = crossAxisCount == 1 ? 3.0 : 1.9;
+
                               return GridView.builder(
-                                padding: const EdgeInsets.only(bottom: 80),
+                                padding: const EdgeInsets.only(bottom: 96),
                                 itemCount: filteredStock.length,
                                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
-                                  childAspectRatio: 2.6,
+                                  childAspectRatio: aspect,
                                   crossAxisSpacing: 16,
                                   mainAxisSpacing: 16,
                                 ),
@@ -353,7 +355,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -363,7 +365,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    radius: 18,
+                    radius: 16,
                     backgroundColor: Colors.teal.withOpacity(0.1),
                     child: Icon(icon, color: Colors.teal),
                   ),
@@ -407,10 +409,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(999),
                 child: SizedBox(
-                  height: 8,
+                  height: 6,
                   child: LinearProgressIndicator(
                     value: percent,
-                    minHeight: 8,
+                    minHeight: 6,
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation(Colors.teal),
                   ),
@@ -462,7 +464,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        minimumSize: const Size(0, 36),
+                        minimumSize: const Size(0, 34),
                       ),
                     ),
                   ),
@@ -475,7 +477,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.teal,
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        minimumSize: const Size(0, 36),
+                        minimumSize: const Size(0, 34),
                       ),
                     ),
                   ),
