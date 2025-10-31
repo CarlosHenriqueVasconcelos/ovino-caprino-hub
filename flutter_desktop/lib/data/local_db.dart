@@ -279,6 +279,7 @@ class AppDatabase {
         min_stock_alert REAL,
         expiration_date TEXT,
         is_opened INTEGER DEFAULT 0,
+        notes TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
