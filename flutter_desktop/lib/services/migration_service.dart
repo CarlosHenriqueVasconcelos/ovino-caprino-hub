@@ -32,6 +32,13 @@ class MigrationService {
       print('✓ Migração v5 aplicada: Campo father_id adicionado');
     }
 
+    // Migração v6: Adicionar coluna notes em pharmacy_stock
+    if (currentVersion < 6) {
+      await _runMigrationV6(db);
+      await db.insert('schema_migrations', {'version': 6});
+      print('✓ Migração v6 aplicada: Coluna notes adicionada em pharmacy_stock');
+    }
+
     print('✓ Todas as migrações foram aplicadas com sucesso');
   }
 
@@ -80,6 +87,18 @@ class MigrationService {
       await txn.execute('ALTER TABLE animals ADD COLUMN father_id TEXT');
       await txn.execute('ALTER TABLE sold_animals ADD COLUMN father_id TEXT');
       await txn.execute('ALTER TABLE deceased_animals ADD COLUMN father_id TEXT');
+    });
+  }
+
+  /// Migração v6: Adicionar coluna notes na tabela pharmacy_stock
+  static Future<void> _runMigrationV6(Database db) async {
+    await db.transaction((txn) async {
+      try {
+        await txn.execute('ALTER TABLE pharmacy_stock ADD COLUMN notes TEXT');
+      } catch (e) {
+        // Ignora erro se a coluna já existir
+        // (SQLite não possui IF NOT EXISTS para ADD COLUMN)
+      }
     });
   }
 }
