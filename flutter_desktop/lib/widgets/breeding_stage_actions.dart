@@ -144,74 +144,25 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
   }
 
   Future<void> _registerBirth() async {
-    final lambsCountController = TextEditingController();
-    final lambsAliveController = TextEditingController();
-    final lambsDeadController = TextEditingController();
-    
-    final result = await showDialog<Map<String, dynamic>>(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Registrar Nascimento'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Informe os detalhes do parto:'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: lambsCountController,
-                decoration: const InputDecoration(
-                  labelText: 'Total de filhotes',
-                  border: OutlineInputBorder(),
-                  helperText: 'Total nascidos (vivos + natimortos)',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: lambsAliveController,
-                decoration: const InputDecoration(
-                  labelText: 'Filhotes vivos',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: lambsDeadController,
-                decoration: const InputDecoration(
-                  labelText: 'Natimortos',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
+        content: const Text('Confirma que o parto foi realizado?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              final lambsCount = int.tryParse(lambsCountController.text);
-              final lambsAlive = int.tryParse(lambsAliveController.text) ?? 0;
-              final lambsDead = int.tryParse(lambsDeadController.text) ?? 0;
-              
-              Navigator.pop(context, {
-                'lambsCount': lambsCount,
-                'lambsAlive': lambsAlive,
-                'lambsDead': lambsDead,
-              });
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Confirmar'),
           ),
         ],
       ),
     );
 
-    if (result == null) return;
+    if (confirmed != true) return;
 
     setState(() => _isProcessing = true);
 
@@ -220,9 +171,6 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         'birth_date': DateTime.now().toIso8601String(),
         'stage': BreedingStage.partoRealizado.value,
         'status': 'Parto Realizado',
-        'lambs_count': result['lambsCount'],
-        'lambs_alive': result['lambsAlive'],
-        'lambs_dead': result['lambsDead'],
       });
 
       // limpa marcação de gestante no animal

@@ -125,14 +125,6 @@ class BreedingRecord {
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
-  // Advanced breeding fields
-  final int? lambsCount;           // Total de filhotes nascidos
-  final int? lambsAlive;           // Filhotes vivos
-  final int? lambsDead;            // Natimortos
-  final DateTime? heatDetectedDate; // Data do cio detectado
-  final bool? naturalHeat;         // Cio natural ou induzido
-  final String? heatNotes;         // Observações do cio
 
   BreedingRecord({
     required this.id,
@@ -151,12 +143,6 @@ class BreedingRecord {
     this.notes,
     required this.createdAt,
     required this.updatedAt,
-    this.lambsCount,
-    this.lambsAlive,
-    this.lambsDead,
-    this.heatDetectedDate,
-    this.naturalHeat,
-    this.heatNotes,
   });
 
   factory BreedingRecord.fromMap(Map<String, dynamic> map) {
@@ -189,12 +175,6 @@ class BreedingRecord {
       notes: map['notes'] as String?,
       createdAt: _parse(map['created_at']) ?? DateTime.now(),
       updatedAt: _parse(map['updated_at']) ?? DateTime.now(),
-      lambsCount: map['lambs_count'] as int?,
-      lambsAlive: map['lambs_alive'] as int?,
-      lambsDead: map['lambs_dead'] as int?,
-      heatDetectedDate: _parse(map['heat_detected_date']),
-      naturalHeat: map['natural_heat'] == 1,
-      heatNotes: map['heat_notes'] as String?,
     );
   }
 
@@ -216,12 +196,6 @@ class BreedingRecord {
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-      'lambs_count': lambsCount,
-      'lambs_alive': lambsAlive,
-      'lambs_dead': lambsDead,
-      'heat_detected_date': heatDetectedDate?.toIso8601String(),
-      'natural_heat': naturalHeat == true ? 1 : 0,
-      'heat_notes': heatNotes,
     };
   }
 
@@ -327,12 +301,6 @@ class BreedingRecord {
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
-    int? lambsCount,
-    int? lambsAlive,
-    int? lambsDead,
-    DateTime? heatDetectedDate,
-    bool? naturalHeat,
-    String? heatNotes,
   }) {
     return BreedingRecord(
       id: id ?? this.id,
@@ -351,12 +319,6 @@ class BreedingRecord {
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      lambsCount: lambsCount ?? this.lambsCount,
-      lambsAlive: lambsAlive ?? this.lambsAlive,
-      lambsDead: lambsDead ?? this.lambsDead,
-      heatDetectedDate: heatDetectedDate ?? this.heatDetectedDate,
-      naturalHeat: naturalHeat ?? this.naturalHeat,
-      heatNotes: heatNotes ?? this.heatNotes,
     );
   }
 }

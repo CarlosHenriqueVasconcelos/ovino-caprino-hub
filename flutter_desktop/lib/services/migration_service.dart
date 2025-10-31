@@ -25,13 +25,6 @@ class MigrationService {
       print('✓ Migração v1 aplicada: Categorias de animais atualizadas');
     }
 
-    // Migração v4: Gestão reprodutiva avançada
-    if (currentVersion < 4) {
-      await _runMigrationV4(db);
-      await db.insert('schema_migrations', {'version': 4});
-      print('✓ Migração v4 aplicada: Campos de reprodução avançada adicionados');
-    }
-
     print('✓ Todas as migrações foram aplicadas com sucesso');
   }
 
@@ -70,34 +63,6 @@ class MigrationService {
       await txn.rawUpdate(
         "UPDATE deceased_animals SET category = 'Adulto' WHERE category IN ('Fêmea Vazia', 'Macho Vazio')"
       );
-    });
-  }
-
-  /// Migração v4: Adicionar campos de gestão reprodutiva avançada
-  static Future<void> _runMigrationV4(Database db) async {
-    await db.transaction((txn) async {
-      // Verificar se as colunas já existem antes de adicionar
-      final tableInfo = await txn.rawQuery('PRAGMA table_info(breeding_records)');
-      final columnNames = tableInfo.map((col) => col['name'] as String).toList();
-
-      if (!columnNames.contains('lambs_count')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN lambs_count INTEGER');
-      }
-      if (!columnNames.contains('lambs_alive')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN lambs_alive INTEGER');
-      }
-      if (!columnNames.contains('lambs_dead')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN lambs_dead INTEGER');
-      }
-      if (!columnNames.contains('heat_detected_date')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN heat_detected_date TEXT');
-      }
-      if (!columnNames.contains('natural_heat')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN natural_heat INTEGER DEFAULT 1');
-      }
-      if (!columnNames.contains('heat_notes')) {
-        await txn.execute('ALTER TABLE breeding_records ADD COLUMN heat_notes TEXT');
-      }
     });
   }
 }
