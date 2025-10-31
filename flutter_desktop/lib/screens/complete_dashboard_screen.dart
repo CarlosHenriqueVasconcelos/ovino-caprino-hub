@@ -54,6 +54,11 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Dashboard',
     ),
     TabData(
+      title: 'Rebanho',
+      icon: Icons.groups,
+      label: 'Rebanho',
+    ),
+    TabData(
       title: 'Reprodução',
       icon: Icons.favorite,
       label: 'Reprodução',
@@ -149,11 +154,12 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             // Navigation Tabs
             _buildNavigation(theme),
             // Content
-            Expanded(
+              Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
                   _DashboardTabContent(onGoToTab: _goToTab),
+                  const _HerdTabContent(),
                   const BreedingManagementScreen(),
                   const WeightTrackingScreen(),
                   const MedicationManagementScreen(),
@@ -359,7 +365,7 @@ class _DashboardTabContent extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Alertas (vacinações/medicações) — seu widget original
-              VaccinationAlerts(onGoToVaccinations: () => onGoToTab(3)),
+              VaccinationAlerts(onGoToVaccinations: () => onGoToTab(4)),
               const SizedBox(height: 16),
 
               // NOVO: Alertas de Reprodução (separações, ultrassons, partos)
@@ -372,10 +378,6 @@ class _DashboardTabContent extends StatelessWidget {
 
               // Estatísticas (mesmo layout com StatsCard)
               _StatsOverview(stats: stats),
-              const SizedBox(height: 32),
-
-              // Rebanho com barra de busca fixa + grid original de AnimalCard
-              const _HerdSection(),
             ],
           );
         },
@@ -538,7 +540,7 @@ class _QuickActions extends StatelessWidget {
                   title: 'Gerar Relatório',
                   icon: Icons.description,
                   color: Colors.purple,
-                  onTap: () => onGoToTab(5),
+                  onTap: () => onGoToTab(8),
                 ),
                 _ActionCard(
                   title: 'Ver Histórico',
@@ -597,6 +599,19 @@ class _ActionCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// Nova aba dedicada ao Rebanho
+class _HerdTabContent extends StatelessWidget {
+  const _HerdTabContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(24),
+      child: _HerdSection(),
     );
   }
 }
