@@ -430,53 +430,51 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     child: Icon(Icons.vaccines, color: statusColor, size: 24),
                   ),
                   const SizedBox(width: 12),
-              Expanded(
-                child: FutureBuilder<Animal?>(
-                  future: _getAnimalById(vaccination['animal_id']),
-                  builder: (context, snapshot) {
-                    final animal = snapshot.data;
-                    final animalDisplay = animal != null
-                        ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
-                        : 'Animal não encontrado';
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          animalDisplay,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                        const SizedBox(height: 4),
-                        Row(
+                  Expanded(
+                    child: FutureBuilder<Animal?>(
+                      future: _getAnimalById(vaccination['animal_id']),
+                      builder: (context, snapshot) {
+                        final animal = snapshot.data;
+                        final animalDisplay = animal != null
+                            ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
+                            : 'Animal não encontrado';
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(statusIcon, size: 14, color: statusColor),
-                            const SizedBox(width: 4),
                             Text(
-                              status,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontSize: 12,
+                              animalDisplay,
+                              style: const TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(statusIcon, size: 14, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                   IconButton(
@@ -599,53 +597,51 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     child: Icon(Icons.medication, color: statusColor, size: 24),
                   ),
                   const SizedBox(width: 12),
-              Expanded(
-                child: FutureBuilder<Animal?>(
-                  future: _getAnimalById(medication['animal_id']),
-                  builder: (context, snapshot) {
-                    final animal = snapshot.data;
-                    final animalDisplay = animal != null
-                        ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
-                        : 'Animal não encontrado';
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          animalDisplay,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Medicação: ${medication['medication_name'] ?? 'Sem nome'}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                        const SizedBox(height: 4),
-                        Row(
+                  Expanded(
+                    child: FutureBuilder<Animal?>(
+                      future: _getAnimalById(medication['animal_id']),
+                      builder: (context, snapshot) {
+                        final animal = snapshot.data;
+                        final animalDisplay = animal != null
+                            ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
+                            : 'Animal não encontrado';
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(statusIcon, size: 14, color: statusColor),
-                            const SizedBox(width: 4),
                             Text(
-                              status,
-                              style: TextStyle(
-                                color: statusColor,
-                                fontSize: 12,
+                              animalDisplay,
+                              style: const TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Medicação: ${medication['medication_name'] ?? 'Sem nome'}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(statusIcon, size: 14, color: statusColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                   IconButton(
