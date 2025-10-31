@@ -92,9 +92,15 @@ class PharmacyService {
   static Future<void> deleteMedication(String id) async {
     try {
       final db = await DatabaseService.database;
+      
+      // Primeiro deletar movimentações relacionadas (foreign key)
+      await db.delete('pharmacy_stock_movements', where: 'pharmacy_stock_id = ?', whereArgs: [id]);
+      
+      // Depois deletar o medicamento
       await db.delete('pharmacy_stock', where: 'id = ?', whereArgs: [id]);
 
       if (SupabaseService.isConfigured) {
+        await SupabaseService.supabase.from('pharmacy_stock_movements').delete().eq('pharmacy_stock_id', id);
         await SupabaseService.supabase.from('pharmacy_stock').delete().eq('id', id);
       }
     } catch (e) {
@@ -195,12 +201,37 @@ class PharmacyService {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
 
-      if ((isAmpoule || stock.medicationType.toLowerCase() == 'ampola' || stock.medicationType.toLowerCase() == 'frasco')
+      // Se medicationId é null, é uma remoção manual (não aplicação em animal)
+      // Neste caso, remover simplesmente o número de unidades
+      if (medicationId == null) {
+        // Remoção manual - trabalhar com unidades (ampolas/frascos/comprimidos)
+        final newQuantity = stock.totalQuantity - quantity;
+        if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
+
+        final updated = stock.copyWith(
+          totalQuantity: newQuantity,
+          updatedAt: DateTime.now(),
+        );
+        await updateMedication(stockId, updated);
+
+        // Registrar movimentação
+        await recordMovement(
+          PharmacyStockMovement(
+            id: _uuid.v4(),
+            pharmacyStockId: stockId,
+            medicationId: null,
+            movementType: 'saida',
+            quantity: quantity,
+            reason: 'Remoção manual',
+            createdAt: DateTime.now(),
+          ),
+        );
+      } else if ((isAmpoule || stock.medicationType.toLowerCase() == 'ampola' || stock.medicationType.toLowerCase() == 'frasco')
           && stock.quantityPerUnit != null) {
-        // Lógica para recipientes (Ampola/Frasco)
+        // Aplicação em animal - usar lógica complexa para ampolas/frascos
         await _handleAmpouleUsage(stock, quantity, medicationId);
       } else {
-        // Lógica normal
+        // Aplicação em animal - lógica normal
         final newQuantity = stock.totalQuantity - quantity;
         if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
