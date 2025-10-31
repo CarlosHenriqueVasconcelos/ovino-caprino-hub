@@ -92,16 +92,38 @@ class PharmacyService {
   static Future<void> deleteMedication(String id) async {
     try {
       final db = await DatabaseService.database;
+
+      // 0) Remover vínculos em medications (FK) antes de deletar o estoque
+      await db.update(
+        'medications',
+        {'pharmacy_stock_id': null},
+        where: 'pharmacy_stock_id = ?',
+        whereArgs: [id],
+      );
       
-      // Primeiro deletar movimentações relacionadas (foreign key)
+      // 1) Deletar movimentações relacionadas (por garantia, embora exista ON DELETE CASCADE)
       await db.delete('pharmacy_stock_movements', where: 'pharmacy_stock_id = ?', whereArgs: [id]);
       
-      // Depois deletar o medicamento
+      // 2) Deletar o medicamento do estoque
       await db.delete('pharmacy_stock', where: 'id = ?', whereArgs: [id]);
 
+      // Sincronização com Supabase
       if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('pharmacy_stock_movements').delete().eq('pharmacy_stock_id', id);
-        await SupabaseService.supabase.from('pharmacy_stock').delete().eq('id', id);
+        // Remover vínculo nas medicações remotas
+        await SupabaseService.supabase
+            .from('medications')
+            .update({'pharmacy_stock_id': null})
+            .eq('pharmacy_stock_id', id);
+
+        await SupabaseService.supabase
+            .from('pharmacy_stock_movements')
+            .delete()
+            .eq('pharmacy_stock_id', id);
+        
+        await SupabaseService.supabase
+            .from('pharmacy_stock')
+            .delete()
+            .eq('id', id);
       }
     } catch (e) {
       print('Erro ao deletar medicamento: $e');
