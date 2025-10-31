@@ -47,13 +47,13 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   bool _isFemaleAllowed(Animal a) {
     final c = (a.category ?? '').toLowerCase();
     return (c.contains('fêmea') || c.contains('femea')) &&
-        (c.contains('reprodutor') || c.contains('reprodutra') || c.contains('reprodutora') || c.contains('vazia'));
+        (c.contains('reprodutor') || c.contains('reprodutra') || c.contains('reprodutora') || c.contains('adulto'));
   }
 
   bool _isMaleAllowed(Animal a) {
     final c = (a.category ?? '').toLowerCase();
     return c.contains('macho') &&
-        (c.contains('reprodutor') || c.contains('vazio'));
+        (c.contains('reprodutor') || c.contains('adulto'));
   }
 
   List<Animal> _filterForFemale(String query) {

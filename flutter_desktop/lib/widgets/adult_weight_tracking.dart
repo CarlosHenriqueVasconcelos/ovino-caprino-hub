@@ -164,9 +164,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   List<Animal> _getFilteredAdults(List<Animal> animals) {
     // Filtrar apenas animais adultos (não borregos)
     var adults = animals.where((animal) {
-      final isBorrego = animal.category == 'Macho Borrego' ||
-          animal.category == 'Fêmea Borrega';
-      return !isBorrego;
+      return animal.category != 'Borrego';
     }).toList();
 
     // Aplicar filtro de pesquisa

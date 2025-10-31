@@ -403,20 +403,20 @@ class AnimalService extends ChangeNotifier {
         ['Em tratamento'],
       );
       final maleReproducers = await _count(
-        'SELECT COUNT(*) FROM animals WHERE category = ?',
-        ['Macho Reprodutor'],
+        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
+        ['Reprodutor', 'Macho'],
       );
       final maleLambs = await _count(
-        'SELECT COUNT(*) FROM animals WHERE category = ?',
-        ['Macho Borrego'],
+        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
+        ['Borrego', 'Macho'],
       );
       final femaleLambs = await _count(
-        'SELECT COUNT(*) FROM animals WHERE category = ?',
-        ['Fêmea Borrega'],
+        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
+        ['Borrego', 'Fêmea'],
       );
       final femaleReproducers = await _count(
-        'SELECT COUNT(*) FROM animals WHERE category = ?',
-        ['Fêmea Reprodutora'],
+        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
+        ['Reprodutor', 'Fêmea'],
       );
 
       final revenue = await _scalarDouble(

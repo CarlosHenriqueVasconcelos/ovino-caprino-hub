@@ -240,8 +240,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   List<Animal> _getFilteredLambs(List<Animal> animals) {
     // Filtrar apenas borregos (machos e fêmeas)
     var lambs = animals.where((animal) {
-      return animal.category == 'Macho Borrego' || 
-             animal.category == 'Fêmea Borrega';
+      return animal.category == 'Borrego';
     }).toList();
 
     // Aplicar filtro de pesquisa
@@ -276,7 +275,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             const SizedBox(height: 8),
             Text(
               _searchQuery.isEmpty
-                  ? 'Cadastre animais com categoria "Macho Borrego" ou "Fêmea Borrega"'
+                  ? 'Cadastre animais com categoria "Borrego"'
                   : 'Tente outra pesquisa',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -565,7 +564,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         title: const Text('Promover para Adulto'),
         content: Text(
           'Tem certeza que deseja promover ${lamb.name} para adulto?\n\n'
-          'A categoria será alterada para "${lamb.gender == 'Macho' ? 'Macho Reprodutor' : 'Fêmea Reprodutora'}".',
+          'A categoria será alterada para "Reprodutor".',
         ),
         actions: [
           TextButton(
@@ -582,9 +581,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     if (confirmed != true) return;
 
-    final newCategory = lamb.gender == 'Macho' 
-        ? 'Macho Reprodutor' 
-        : 'Fêmea Reprodutora';
+    const newCategory = 'Reprodutor';
 
     final updatedAnimal = Animal(
       id: lamb.id,

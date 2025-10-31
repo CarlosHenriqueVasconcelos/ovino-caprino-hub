@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import '../services/migration_service.dart';
 
 class AppDatabase {
   final Database db;
@@ -37,6 +38,10 @@ class AppDatabase {
         version: 1, // mantenha 1; apague o .db para recriar sempre que mudar o schema
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
+        onOpen: (db) async {
+          // Executar migrações após abrir o banco
+          await MigrationService.runMigrations(db);
+        },
       ),
     );
     return AppDatabase(db);

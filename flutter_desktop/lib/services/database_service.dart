@@ -286,13 +286,13 @@ class DatabaseService {
     final underTreatment = _firstInt(await db.rawQuery(
         "SELECT COUNT(*) AS c FROM animals WHERE status IN ('Em tratamento','Tratamento')"));
     final maleReproducers = _firstInt(await db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Macho Reprodutor'"));
+        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Reprodutor' AND gender = 'Macho'"));
     final maleLambs = _firstInt(await db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Macho Borrego'"));
+        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Borrego' AND gender = 'Macho'"));
     final femaleLambs = _firstInt(await db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Fêmea Borrega'"));
+        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Borrego' AND gender = 'Fêmea'"));
     final femaleReproducers = _firstInt(await db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Fêmea Reprodutora'"));
+        "SELECT COUNT(*) AS c FROM animals WHERE category = 'Reprodutor' AND gender = 'Fêmea'"));
 
     final revenue = _firstDouble(await db.rawQuery(
         "SELECT COALESCE(SUM(amount),0) AS total FROM financial_records WHERE type = 'receita'"));

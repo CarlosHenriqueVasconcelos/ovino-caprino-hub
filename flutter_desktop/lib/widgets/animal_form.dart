@@ -36,13 +36,24 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   List<Animal> _availableMothers = [];
 
   final List<String> _categories = [
-    'Macho Reprodutor',
-    'Macho Borrego',
-    'Fêmea Borrega',
-    'Fêmea Vazia',
-    'Macho Vazio',
-    'Fêmea Reprodutora',
+    'Reprodutor',
+    'Borrego',
+    'Adulto',
     'Não especificado',
+  ];
+
+  final List<String> _breeds = [
+    'Hampshire Down',
+    'Dorper',
+    'Santa Inês',
+    'Texel',
+    'Suffolk',
+    'Ile de France',
+    'White Dorper',
+    'Morada Nova',
+    'Cariri',
+    'Somalis Brasileira',
+    'Outra',
   ];
 
   final Map<String, Color> _colorOptions = {
@@ -71,7 +82,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     setState(() {
       _availableMothers = animals.where((a) => 
         a.gender == 'Fêmea' && 
-        !['Fêmea Borrega', 'Macho Borrego'].contains(a.category)
+        a.category != 'Borrego'
       ).toList();
     });
   }
@@ -214,7 +225,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 const SizedBox(height: 16),
                 
                 // Seleção de mãe (se for borrego)
-                if (_category == 'Fêmea Borrega' || _category == 'Macho Borrego')
+                if (_category == 'Borrego')
                   Column(
                     children: [
                       DropdownButtonFormField<String>(
@@ -268,13 +279,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   onChanged: (value) {
                     setState(() {
                       _category = value!;
-                      // Inferir automaticamente o gênero baseado na categoria
-                      if (_category.toLowerCase().contains('fêmea') || 
-                          _category.toLowerCase().contains('femea')) {
-                        _gender = 'Fêmea';
-                      } else if (_category.toLowerCase().contains('macho')) {
-                        _gender = 'Macho';
-                      }
                     });
                   },
                 ),
@@ -328,26 +332,39 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Raça e Peso
+                // Raça
                 Row(
                   children: [
                     Expanded(
-                      child: TextFormField(
-                        controller: _breedController,
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        value: _breeds.contains(_breedController.text) 
+                            ? _breedController.text 
+                            : 'Outra',
                         decoration: const InputDecoration(
                           labelText: 'Raça *',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Campo obrigatório';
-                          }
-                          return null;
+                        items: _breeds.map((breed) {
+                          return DropdownMenuItem(
+                            value: breed,
+                            child: Text(breed),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == 'Outra') {
+                              _breedController.clear();
+                            } else {
+                              _breedController.text = value!;
+                            }
+                          });
                         },
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
+                      flex: 2,
                       child: TextFormField(
                         controller: _weightController,
                         decoration: const InputDecoration(
@@ -368,6 +385,24 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                
+                // Campo de texto para raça personalizada
+                if (!_breeds.contains(_breedController.text) || _breedController.text.isEmpty)
+                  TextFormField(
+                    controller: _breedController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da Raça *',
+                      border: OutlineInputBorder(),
+                      hintText: 'Digite o nome da raça',
+                    ),
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) {
+                        return 'Campo obrigatório';
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 16),
                 
                 // Data de Nascimento
