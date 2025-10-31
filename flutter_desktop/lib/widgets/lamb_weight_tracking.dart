@@ -745,7 +745,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                   lamb.id,
                   DateTime.now(),
                   weight120Value,
-                  '120d',
+                  milestone: '120d',
                 );
                 shouldShowEditDialog = true;
               }
