@@ -619,6 +619,7 @@ export type Database = {
           medication_type: string
           min_stock_alert: number | null
           notes: string | null
+          opened_quantity: number | null
           quantity_per_unit: number | null
           total_quantity: number
           unit_of_measure: string
@@ -633,6 +634,7 @@ export type Database = {
           medication_type: string
           min_stock_alert?: number | null
           notes?: string | null
+          opened_quantity?: number | null
           quantity_per_unit?: number | null
           total_quantity?: number
           unit_of_measure: string
@@ -647,6 +649,7 @@ export type Database = {
           medication_type?: string
           min_stock_alert?: number | null
           notes?: string | null
+          opened_quantity?: number | null
           quantity_per_unit?: number | null
           total_quantity?: number
           unit_of_measure?: string
