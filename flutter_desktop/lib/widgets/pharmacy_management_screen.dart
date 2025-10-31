@@ -598,24 +598,25 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 return;
               }
 
-              // Calcular a quantidade em ml se for líquido
-              final quantityToAdd = isLiquid ? (units * stock.quantityPerUnit!) : units.toDouble();
-
               try {
+                // Enviar apenas o número de unidades, não multiplicar por ML
                 await PharmacyService.addToStock(
                   stock.id,
-                  quantityToAdd,
+                  units.toDouble(),
                   reason: reasonController.text.isEmpty ? null : reasonController.text,
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
-                  final totalMl = isLiquid ? quantityToAdd.toStringAsFixed(0) : '';
-                  final msg = isLiquid 
-                      ? 'Adicionado: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)'
-                      : 'Adicionado: $units ${stock.unitOfMeasure}';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg)),
-                  );
+                  if (isLiquid) {
+                    final totalMl = (units * stock.quantityPerUnit!).toStringAsFixed(0);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Adicionado: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Adicionado: $units ${stock.unitOfMeasure}')),
+                    );
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -710,24 +711,25 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 return;
               }
 
-              // Calcular a quantidade em ml se for líquido
-              final quantityToRemove = isLiquid ? (units * stock.quantityPerUnit!) : units.toDouble();
-
               try {
+                // Enviar apenas o número de unidades, não multiplicar por ML
                 await PharmacyService.deductFromStock(
                   stock.id,
-                  quantityToRemove,
+                  units.toDouble(),
                   stock.id,
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
-                  final totalMl = isLiquid ? quantityToRemove.toStringAsFixed(0) : '';
-                  final msg = isLiquid 
-                      ? 'Removido: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)'
-                      : 'Removido: $units ${stock.unitOfMeasure}';
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(msg)),
-                  );
+                  if (isLiquid) {
+                    final totalMl = (units * stock.quantityPerUnit!).toStringAsFixed(0);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Removido: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Removido: $units ${stock.unitOfMeasure}')),
+                    );
+                  }
                 }
               } catch (e) {
                 if (context.mounted) {
