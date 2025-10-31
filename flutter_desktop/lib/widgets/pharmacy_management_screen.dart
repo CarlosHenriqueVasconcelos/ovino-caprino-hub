@@ -15,6 +15,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   List<PharmacyStock> _stock = [];
   bool _isLoading = true;
   String _filter = 'Todos';
+  String _searchQuery = '';
+  String _sortBy = 'name'; // name, quantity, expiration
 
   @override
   void initState() {
@@ -41,16 +43,43 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   }
 
   List<PharmacyStock> _filterStock() {
+    var filtered = _stock.where((s) => !s.isExpired).toList();
+    
+    // Aplicar busca
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((s) => 
+        s.medicationName.toLowerCase().contains(_searchQuery.toLowerCase())
+      ).toList();
+    }
+    
+    // Aplicar filtro
     switch (_filter) {
       case 'Estoque Baixo':
-        return _stock.where((s) => s.isLowStock && !s.isExpired).toList();
+        filtered = filtered.where((s) => s.isLowStock).toList();
+        break;
       case 'Vencendo':
-        return _stock.where((s) => s.isExpiringSoon && !s.isExpired).toList();
-      case 'Vencidos':
-        return _stock.where((s) => s.isExpired).toList();
-      default:
-        return _stock.where((s) => !s.isExpired).toList();
+        filtered = filtered.where((s) => s.isExpiringSoon).toList();
+        break;
     }
+    
+    // Aplicar ordenação
+    switch (_sortBy) {
+      case 'name':
+        filtered.sort((a, b) => a.medicationName.compareTo(b.medicationName));
+        break;
+      case 'quantity':
+        filtered.sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
+        break;
+      case 'expiration':
+        filtered.sort((a, b) {
+          if (a.expirationDate == null) return 1;
+          if (b.expirationDate == null) return -1;
+          return a.expirationDate!.compareTo(b.expirationDate!);
+        });
+        break;
+    }
+    
+    return filtered;
   }
 
   int _countByFilter(String filter) {
@@ -71,53 +100,131 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final filteredStock = _filterStock();
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Farmácia - Estoque de Medicamentos'),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.teal,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.local_pharmacy, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Farmácia — Estoque de Medicamentos',
+              style: TextStyle(color: Colors.black87, fontSize: 18),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.black87),
             onPressed: _loadStock,
+          ),
+          PopupMenuButton(
+            icon: const Icon(Icons.more_vert, color: Colors.black87),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'novo',
+                child: Row(
+                  children: [
+                    Icon(Icons.add, size: 18),
+                    SizedBox(width: 8),
+                    Text('Novo Medicamento'),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (value) {
+              if (value == 'novo') _showAddDialog();
+            },
           ),
         ],
       ),
       body: Column(
         children: [
-          // Filtros
+          // Barra de pesquisa e ordenação
           Container(
+            color: Colors.white,
             padding: const EdgeInsets.all(16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip(
-                    label: 'Todos (${_countByFilter('Todos')})',
-                    isSelected: _filter == 'Todos',
-                    color: Colors.blue,
-                    onTap: () => setState(() => _filter = 'Todos'),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: TextField(
+                          onChanged: (value) => setState(() => _searchQuery = value),
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar por nome ou apresentação...',
+                            prefixIcon: Icon(Icons.search, color: Colors.grey),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      height: 48,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _sortBy,
+                        underline: const SizedBox(),
+                        items: const [
+                          DropdownMenuItem(value: 'name', child: Text('Ordenar: Nome')),
+                          DropdownMenuItem(value: 'quantity', child: Text('Ordenar: Quantidade')),
+                          DropdownMenuItem(value: 'expiration', child: Text('Ordenar: Validade')),
+                        ],
+                        onChanged: (value) => setState(() => _sortBy = value!),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Filtros
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip(
+                        label: 'Todos',
+                        isSelected: _filter == 'Todos',
+                        color: Colors.blue,
+                        onTap: () => setState(() => _filter = 'Todos'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: 'Estoque Baixo',
+                        isSelected: _filter == 'Estoque Baixo',
+                        color: Colors.orange,
+                        onTap: () => setState(() => _filter = 'Estoque Baixo'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: 'Vencendo',
+                        isSelected: _filter == 'Vencendo',
+                        color: Colors.amber,
+                        onTap: () => setState(() => _filter = 'Vencendo'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    label: 'Estoque Baixo (${_countByFilter('Estoque Baixo')})',
-                    isSelected: _filter == 'Estoque Baixo',
-                    color: Colors.orange,
-                    onTap: () => setState(() => _filter = 'Estoque Baixo'),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    label: 'Vencendo (${_countByFilter('Vencendo')})',
-                    isSelected: _filter == 'Vencendo',
-                    color: Colors.amber,
-                    onTap: () => setState(() => _filter = 'Vencendo'),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    label: 'Vencidos (${_countByFilter('Vencidos')})',
-                    isSelected: _filter == 'Vencidos',
-                    color: Colors.red,
-                    onTap: () => setState(() => _filter = 'Vencidos'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
@@ -163,10 +270,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Novo Medicamento'),
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }
@@ -203,109 +310,174 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   Widget _buildStockCard(PharmacyStock stock) {
     Color statusColor = Colors.green;
-    IconData statusIcon = Icons.check_circle;
+    String statusLabel = 'OK';
 
     if (stock.isExpired) {
       statusColor = Colors.red;
-      statusIcon = Icons.error;
-    } else if (stock.isLowStock) {
-      statusColor = Colors.orange;
-      statusIcon = Icons.warning;
+      statusLabel = 'Vencido';
     } else if (stock.isExpiringSoon) {
-      statusColor = Colors.amber;
-      statusIcon = Icons.access_time;
+      statusColor = const Color(0xFFFFA726);
+      statusLabel = 'Vencendo';
+    } else if (stock.isLowStock) {
+      statusColor = const Color(0xFFFFA726);
+      statusLabel = 'Estoque abaixo';
     }
 
+    // Cor do ícone baseado no tipo
+    Color iconColor = Colors.orange;
+    if (stock.medicationType.toLowerCase().contains('ampola')) {
+      iconColor = Colors.orange;
+    } else if (stock.medicationType.toLowerCase().contains('frasco')) {
+      iconColor = Colors.red;
+    }
+
+    final typeName = stock.medicationType.toLowerCase();
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    final totalVolume = isLiquid 
+        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity 
+        : stock.totalQuantity;
+
     return Card(
-      elevation: 2,
-      color: Colors.white,
+      elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.black, width: 1),
+        side: const BorderSide(color: Colors.black, width: 1),
       ),
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Header
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: iconColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.local_pharmacy, color: Colors.green, size: 18),
+                    child: Icon(Icons.medication_liquid, color: iconColor, size: 24),
                   ),
-                  Icon(statusIcon, size: 18, color: statusColor),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                stock.medicationName,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              if (stock.quantityPerUnit != null) ...[
-                Row(
-                  children: [
-                    Icon(Icons.water_drop, size: 12, color: Colors.grey[600]),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${stock.quantityPerUnit!.toStringAsFixed(1)} ml/un',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-              ],
-              Row(
-                children: [
-                  Icon(Icons.inventory_2, size: 12, color: Colors.grey[600]),
-                  const SizedBox(width: 3),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      _buildStockQuantityText(stock),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: stock.isLowStock ? Colors.orange : Colors.black87,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stock.medicationName,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${stock.medicationType} • ${stock.quantityPerUnit?.toStringAsFixed(1) ?? ''} ml/un',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  if (statusLabel != 'OK')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.warning_amber,
+                            size: 12,
+                            color: statusColor,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
+              const SizedBox(height: 10),
+              // Quantidade
+              Text(
+                isLiquid
+                    ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)} ml total)'
+                    : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              // Frasco aberto
               if (stock.openedQuantity > 0) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(5),
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
                   ),
                   child: Text(
-                    '1 aberto (${stock.openedQuantity.toStringAsFixed(1)}ml)',
+                    'Abertos: ${stock.openedQuantity.toStringAsFixed(1)} ml',
                     style: const TextStyle(
+                      fontSize: 10,
                       color: Colors.blue,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
+              const Spacer(),
+              // Barra de progresso
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)).clamp(0.0, 1.0),
+                      backgroundColor: Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        stock.isLowStock ? statusColor : Colors.green,
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Estoque ${((stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)) * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                      ),
+                      if (stock.expirationDate != null)
+                        Text(
+                          'Validade: ${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
+                          style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),
