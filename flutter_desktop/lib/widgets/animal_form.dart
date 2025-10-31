@@ -78,7 +78,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       _loadAnimalData();
     } else {
       // Definir raça padrão para novos animais
-      _breedController.text = 'Dorper';
+      _breedController.text = 'Hampshire';
     }
     _loadAvailableMothers();
   }
@@ -392,7 +392,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       child: DropdownButtonFormField<String>(
                         value: _breeds.contains(_breedController.text) 
                             ? _breedController.text 
-                            : 'Dorper',
+                            : 'Hampshire',
                         decoration: const InputDecoration(
                           labelText: 'Raça *',
                           border: OutlineInputBorder(),
