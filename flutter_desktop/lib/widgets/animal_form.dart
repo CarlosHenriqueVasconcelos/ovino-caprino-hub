@@ -39,6 +39,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     'Reprodutor',
     'Borrego',
     'Adulto',
+    'Vazia',
+    'Venda',
     'Não especificado',
   ];
 
@@ -82,7 +84,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     setState(() {
       _availableMothers = animals.where((a) => 
         a.gender == 'Fêmea' && 
-        a.category != 'Borrego'
+        a.category != 'Borrego' &&
+        a.category != 'Venda'
       ).toList();
     });
   }

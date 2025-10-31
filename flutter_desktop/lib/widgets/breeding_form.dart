@@ -29,13 +29,15 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
     final femaleAnimals = animalService.animals
         .where((animal) => 
             animal.gender == 'Fêmea' && 
-            animal.category != 'Borrego')
+            animal.category != 'Borrego' &&
+            animal.category != 'Venda')
         .toList();
     
     final maleAnimals = animalService.animals
         .where((animal) => 
             animal.gender == 'Macho' && 
-            animal.category != 'Borrego')
+            animal.category != 'Borrego' &&
+            animal.category != 'Venda')
         .toList();
 
     return AlertDialog(
