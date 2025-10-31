@@ -77,6 +77,7 @@ class AnimalDisplayUtils {
     final colorValue = getColorValue(animal.nameColor);
     
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Círculo de cor
         Container(
@@ -92,8 +93,9 @@ class AnimalDisplayUtils {
         ),
         const SizedBox(width: 8),
         // Texto formatado
-        Expanded(
+        Flexible(
           child: RichText(
+            overflow: TextOverflow.ellipsis,
             text: TextSpan(
               style: textStyle ?? const TextStyle(color: Colors.black, fontSize: 14),
               children: [
