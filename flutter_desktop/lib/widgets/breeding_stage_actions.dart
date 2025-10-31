@@ -191,7 +191,6 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nascimento registrado com sucesso!')),
         );
-        widget.onUpdate?.call();
         
         // Buscar dados da mãe para pré-preencher o formulário
         final femaleId = widget.record.femaleAnimalId;
@@ -208,8 +207,10 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         }
         
         if (mounted) {
+          // Libera processamento antes de abrir o formulário
+          setState(() => _isProcessing = false);
           // Abre formulário com dados da mãe pré-preenchidos (se disponível)
-          showDialog(
+          await showDialog(
             context: context,
             builder: (context) => AnimalFormDialog(
               motherId: mother?.id,
@@ -217,10 +218,9 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
               motherBreed: mother?.breed,
               presetCategory: 'Borrego',
             ),
-          ).then((_) {
-            // Recarrega dados após fechar o formulário
-            widget.onUpdate?.call();
-          });
+          );
+          // Recarrega dados após fechar o formulário
+          widget.onUpdate?.call();
         }
       }
     } catch (e) {
@@ -233,7 +233,49 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
+  
+  Future<void> _cancelBreeding() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar Encabritamento'),
+        content: const Text('Deseja cancelar e apagar este registro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Não'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sim, cancelar'),
+          ),
+        ],
+      ),
+    );
 
+    if (confirmed != true) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      await DatabaseService.deleteBreedingRecord(widget.record.id);
+      await context.read<AnimalService>().loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Encabritamento cancelado.')),
+        );
+        widget.onUpdate?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao cancelar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     if (_isProcessing) {
@@ -248,14 +290,25 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
     switch (widget.record.stage) {
       case BreedingStage.encabritamento:
         final needsAction = widget.record.needsAction();
-        return ElevatedButton.icon(
-          onPressed: needsAction ? _separateAnimals : null,
-          icon: const Icon(Icons.call_split),
-          label: const Text('Separar Animais'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: needsAction ? Colors.orange : Colors.grey,
-            foregroundColor: Colors.white,
-          ),
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            ElevatedButton.icon(
+              onPressed: needsAction ? _separateAnimals : null,
+              icon: const Icon(Icons.call_split),
+              label: const Text('Separar Animais'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: needsAction ? Colors.orange : Colors.grey,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: _cancelBreeding,
+              icon: const Icon(Icons.cancel),
+              label: const Text('Cancelar'),
+            ),
+          ],
         );
 
       case BreedingStage.aguardandoUltrassom:

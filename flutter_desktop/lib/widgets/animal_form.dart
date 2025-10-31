@@ -285,7 +285,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: _motherId,
+                        value: _availableMothers.any((m) => m.id == _motherId) ? _motherId : null,
                         decoration: const InputDecoration(
                           labelText: 'Mãe',
                           border: OutlineInputBorder(),
@@ -317,7 +317,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<String>(
-                        value: _fatherId,
+                        value: _availableFathers.any((f) => f.id == _fatherId) ? _fatherId : null,
                         decoration: const InputDecoration(
                           labelText: 'Pai',
                           border: OutlineInputBorder(),

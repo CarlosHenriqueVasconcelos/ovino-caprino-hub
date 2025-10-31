@@ -220,6 +220,11 @@ class DatabaseService {
     await _syncAnimalPregnancyFromRecord(r);
   }
 
+  static Future<void> deleteBreedingRecord(String id) async {
+    final db = await database;
+    await db.delete('breeding_records', where: 'id = ?', whereArgs: [id]);
+  }
+
   // ================== ANOTAÇÕES ==================
   static Future<List<Map<String, dynamic>>> getNotes() async {
     final db = await database;
