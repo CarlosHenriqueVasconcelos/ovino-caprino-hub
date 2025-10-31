@@ -19,6 +19,8 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
   List<BreedingRecord> _breedingRecords = [];
   Map<String, Animal> _animalsMap = {};
   bool _isLoading = true;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -30,6 +32,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -65,7 +68,17 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
   }
 
   List<BreedingRecord> _filterByStage(BreedingStage stage) {
-    return _breedingRecords.where((r) => r.stage == stage).toList();
+    var records = _breedingRecords.where((r) => r.stage == stage).toList();
+    
+    if (_searchQuery.isNotEmpty) {
+      records = records.where((r) {
+        final female = _animalsMap[r.femaleAnimalId];
+        if (female == null) return false;
+        return female.code.toLowerCase().contains(_searchQuery.toLowerCase());
+      }).toList();
+    }
+    
+    return records;
   }
 
   void _showBreedingWizard() {
@@ -162,6 +175,40 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                     },
                   ),
                 ],
+              ),
+            ),
+
+            // Search Bar
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Buscar por código da mãe...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
               ),
             ),
 

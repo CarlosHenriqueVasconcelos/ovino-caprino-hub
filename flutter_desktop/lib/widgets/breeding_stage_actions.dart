@@ -192,11 +192,14 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
           const SnackBar(content: Text('Nascimento registrado com sucesso!')),
         );
         
-        // Buscar dados da mãe para pré-preencher o formulário
+        // Buscar dados da mãe e do pai para pré-preencher o formulário
         final femaleId = widget.record.femaleAnimalId;
-        print('🐑 DEBUG: femaleId = $femaleId');
+        final maleId = widget.record.maleAnimalId;
+        print('🐑 DEBUG: femaleId = $femaleId, maleId = $maleId');
         
         Animal? mother;
+        Animal? father;
+        
         if (femaleId != null && femaleId.isNotEmpty) {
           try {
             mother = await DatabaseService.getAnimalById(femaleId);
@@ -206,16 +209,28 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
           }
         }
         
+        if (maleId != null && maleId.isNotEmpty) {
+          try {
+            father = await DatabaseService.getAnimalById(maleId);
+            print('🐑 DEBUG: Father found - id: ${father?.id}, code: ${father?.code}, breed: ${father?.breed}');
+          } catch (e) {
+            print('🐑 DEBUG ERROR: Failed to get father data: $e');
+          }
+        }
+        
         if (mounted) {
           // Libera processamento antes de abrir o formulário
           setState(() => _isProcessing = false);
-          // Abre formulário com dados da mãe pré-preenchidos (se disponível)
+          // Abre formulário com dados da mãe e pai pré-preenchidos (se disponíveis)
           await showDialog(
             context: context,
             builder: (context) => AnimalFormDialog(
               motherId: mother?.id,
               motherCode: mother?.code,
               motherBreed: mother?.breed,
+              fatherId: father?.id,
+              fatherCode: father?.code,
+              fatherBreed: father?.breed,
               presetCategory: 'Borrego',
             ),
           );

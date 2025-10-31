@@ -9,14 +9,20 @@ class AnimalFormDialog extends StatefulWidget {
   final String? motherId;
   final String? motherCode;
   final String? motherBreed;
+  final String? fatherId;
+  final String? fatherCode;
+  final String? fatherBreed;
   final String? presetCategory;
   
   const AnimalFormDialog({
-    super.key, 
+    super.key,
     this.animal,
     this.motherId,
     this.motherCode,
     this.motherBreed,
+    this.fatherId,
+    this.fatherCode,
+    this.fatherBreed,
     this.presetCategory,
   });
 
@@ -85,7 +91,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   @override
   void initState() {
     super.initState();
-    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, presetCategory: ${widget.presetCategory}');
+    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
     
     if (widget.animal != null) {
       _loadAnimalData();
@@ -104,6 +110,10 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       if (widget.motherId != null) {
         _motherId = widget.motherId;
         print('🐑 DEBUG: Mother ID definido como ${widget.motherId}');
+      }
+      if (widget.fatherId != null) {
+        _fatherId = widget.fatherId;
+        print('🐑 DEBUG: Father ID definido como ${widget.fatherId}');
       }
       if (widget.presetCategory != null) {
         _category = widget.presetCategory!;
