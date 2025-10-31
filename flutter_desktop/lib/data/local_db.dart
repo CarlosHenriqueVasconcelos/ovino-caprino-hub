@@ -84,7 +84,8 @@ class AppDatabase {
         weight_120_days REAL,
         year INTEGER,
         lote TEXT,
-        mother_id TEXT
+        mother_id TEXT,
+        father_id TEXT
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
@@ -441,6 +442,7 @@ class AppDatabase {
         year INTEGER,
         lote TEXT,
         mother_id TEXT,
+        father_id TEXT,
         sale_date TEXT NOT NULL,
         sale_price REAL,
         buyer TEXT,
@@ -475,6 +477,7 @@ class AppDatabase {
         year INTEGER,
         lote TEXT,
         mother_id TEXT,
+        father_id TEXT,
         death_date TEXT NOT NULL,
         cause_of_death TEXT,
         death_notes TEXT,
