@@ -95,7 +95,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       if (widget.motherBreed != null) {
         _breedController.text = widget.motherBreed!;
       } else {
-        _breedController.text = 'Hampshire'; // fallback
+        _breedController.text = 'Hampshire Down'; // fallback
       }
       if (widget.motherId != null) {
         _motherId = widget.motherId;
@@ -416,7 +416,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       child: DropdownButtonFormField<String>(
                         value: _breeds.contains(_breedController.text) 
                             ? _breedController.text 
-                            : 'Hampshire',
+                            : 'Hampshire Down',
                         decoration: const InputDecoration(
                           labelText: 'Raça *',
                           border: OutlineInputBorder(),
