@@ -535,6 +535,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();
 
+    final typeName = stock.medicationType.toLowerCase();
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    final unitLabel = isLiquid ? typeName : stock.unitOfMeasure;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -547,15 +551,23 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               stock.medicationName,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
+            if (isLiquid) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Estoque atual: ${stock.totalQuantity.toInt()} $unitLabel${stock.totalQuantity != 1 ? 's' : ''}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Quantidade',
+                labelText: 'Quantidade de ${unitLabel}s',
                 hintText: 'Digite a quantidade',
                 border: const OutlineInputBorder(),
-                suffixText: stock.unitOfMeasure,
+                suffixText: unitLabel,
+                helperText: isLiquid ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel' : null,
               ),
               autofocus: true,
             ),
@@ -578,24 +590,31 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final quantity = double.tryParse(quantityController.text);
-              if (quantity == null || quantity <= 0) {
+              final units = int.tryParse(quantityController.text);
+              if (units == null || units <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Quantidade inválida')),
                 );
                 return;
               }
 
+              // Calcular a quantidade em ml se for líquido
+              final quantityToAdd = isLiquid ? (units * stock.quantityPerUnit!) : units.toDouble();
+
               try {
                 await PharmacyService.addToStock(
                   stock.id,
-                  quantity,
+                  quantityToAdd,
                   reason: reasonController.text.isEmpty ? null : reasonController.text,
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
+                  final totalMl = isLiquid ? quantityToAdd.toStringAsFixed(0) : '';
+                  final msg = isLiquid 
+                      ? 'Adicionado: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)'
+                      : 'Adicionado: $units ${stock.unitOfMeasure}';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Quantidade adicionada com sucesso')),
+                    SnackBar(content: Text(msg)),
                   );
                 }
               } catch (e) {
@@ -622,6 +641,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();
 
+    final typeName = stock.medicationType.toLowerCase();
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    final unitLabel = isLiquid ? typeName : stock.unitOfMeasure;
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -636,18 +659,19 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Estoque atual: ${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
-              style: TextStyle(color: Colors.grey[600]),
+              'Estoque atual: ${stock.totalQuantity.toInt()} $unitLabel${stock.totalQuantity != 1 ? 's' : ''}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: quantityController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Quantidade',
+                labelText: 'Quantidade de ${unitLabel}s',
                 hintText: 'Digite a quantidade',
                 border: const OutlineInputBorder(),
-                suffixText: stock.unitOfMeasure,
+                suffixText: unitLabel,
+                helperText: isLiquid ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel' : null,
               ),
               autofocus: true,
             ),
@@ -670,31 +694,39 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
           ),
           FilledButton(
             onPressed: () async {
-              final quantity = double.tryParse(quantityController.text);
-              if (quantity == null || quantity <= 0) {
+              final units = int.tryParse(quantityController.text);
+              if (units == null || units <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Quantidade inválida')),
                 );
                 return;
               }
 
-              if (quantity > stock.totalQuantity) {
+              // Verificar se tem unidades suficientes
+              if (units > stock.totalQuantity) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Quantidade maior que o estoque disponível')),
+                  SnackBar(content: Text('Quantidade maior que o estoque disponível (${stock.totalQuantity.toInt()} $unitLabel${stock.totalQuantity != 1 ? 's' : ''})')),
                 );
                 return;
               }
 
+              // Calcular a quantidade em ml se for líquido
+              final quantityToRemove = isLiquid ? (units * stock.quantityPerUnit!) : units.toDouble();
+
               try {
                 await PharmacyService.deductFromStock(
                   stock.id,
-                  quantity,
+                  quantityToRemove,
                   stock.id,
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
+                  final totalMl = isLiquid ? quantityToRemove.toStringAsFixed(0) : '';
+                  final msg = isLiquid 
+                      ? 'Removido: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)'
+                      : 'Removido: $units ${stock.unitOfMeasure}';
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Quantidade removida com sucesso')),
+                    SnackBar(content: Text(msg)),
                   );
                 }
               } catch (e) {
