@@ -14,12 +14,15 @@ class BreedingFormDialog extends StatefulWidget {
 class _BreedingFormDialogState extends State<BreedingFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
+  final _heatNotesController = TextEditingController();
   
   String? _femaleAnimalId;
   String? _maleAnimalId;
   String _status = 'Cobertura';
   DateTime _breedingDate = DateTime.now();
   DateTime? _expectedBirth;
+  DateTime? _heatDetectedDate;
+  bool _naturalHeat = true;
 
   @override
   Widget build(BuildContext context) {
@@ -266,6 +269,81 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                 ),
                 const SizedBox(height: 16),
                 
+                // Heat Detection Section
+                const Divider(),
+                const Text(
+                  'Detecção de Cio (Opcional)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Heat Detected Date
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _heatDetectedDate ?? _breedingDate,
+                      firstDate: DateTime.now().subtract(const Duration(days: 60)),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _heatDetectedDate = date;
+                      });
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Data do Cio Detectado',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_today),
+                      hintText: 'Toque para selecionar',
+                    ),
+                    child: Text(
+                      _heatDetectedDate != null
+                        ? '${_heatDetectedDate!.day.toString().padLeft(2, '0')}/${_heatDetectedDate!.month.toString().padLeft(2, '0')}/${_heatDetectedDate!.year}'
+                        : 'Não informado',
+                      style: TextStyle(
+                        color: _heatDetectedDate != null ? Colors.black : Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                
+                // Natural Heat Switch
+                SwitchListTile(
+                  title: const Text('Cio Natural'),
+                  subtitle: Text(_naturalHeat ? 'Cio espontâneo' : 'Cio induzido'),
+                  value: _naturalHeat,
+                  onChanged: (value) {
+                    setState(() {
+                      _naturalHeat = value;
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 12),
+                
+                // Heat Notes
+                TextFormField(
+                  controller: _heatNotesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Observações do Cio',
+                    border: OutlineInputBorder(),
+                    hintText: 'Sinais observados, comportamento, etc.',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 16),
+                
+                const Divider(),
+                const SizedBox(height: 12),
+                
                 // Notes
                 TextFormField(
                   controller: _notesController,
@@ -305,6 +383,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         'expected_birth': _expectedBirth?.toIso8601String().split('T')[0],
         'status': _status,
         'notes': _notesController.text.isEmpty ? null : _notesController.text,
+        'heat_detected_date': _heatDetectedDate?.toIso8601String().split('T')[0],
+        'natural_heat': _naturalHeat ? 1 : 0,
+        'heat_notes': _heatNotesController.text.isEmpty ? null : _heatNotesController.text,
         'created_at': DateTime.now().toIso8601String(),
       };
 
@@ -346,6 +427,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   @override
   void dispose() {
     _notesController.dispose();
+    _heatNotesController.dispose();
     super.dispose();
   }
 }

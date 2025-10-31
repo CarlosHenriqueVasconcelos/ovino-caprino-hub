@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import 'breeding_wizard_dialog.dart';
 import 'breeding_stage_actions.dart';
 import 'breeding_import_dialog.dart';
+import 'breeding_kpi_screen.dart';
 
 class BreedingManagementScreen extends StatefulWidget {
   const BreedingManagementScreen({super.key});
@@ -142,6 +143,26 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BreedingKpiScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.analytics),
+                    label: const Text('Indicadores'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
                         vertical: 16,
