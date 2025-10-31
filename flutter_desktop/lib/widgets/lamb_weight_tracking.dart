@@ -5,6 +5,7 @@ import '../services/animal_service.dart';
 import '../models/animal.dart';
 import '../data/local_db.dart';
 import '../data/animal_repository.dart';
+import 'animal_form.dart';
 
 class LambWeightTracking extends StatefulWidget {
   const LambWeightTracking({super.key});
@@ -654,7 +655,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     }
   }
 
-  void _showWeightEditDialog(Animal lamb) {
+  void _showWeightEditDialog(Animal lamb) async {
     // Pega automaticamente o birthWeight do banco, ou usa o peso atual se não houver
     final initialBirthWeight = lamb.birthWeight ?? lamb.weight;
     final birthWeightController = TextEditingController(
@@ -669,6 +670,14 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     final weight90Controller = TextEditingController(
       text: lamb.weight90Days?.toStringAsFixed(1) ?? '',
     );
+    
+    // Buscar peso de 120 dias existente
+    final weight120 = await _getWeight120Days(lamb.id);
+    final weight120Controller = TextEditingController(
+      text: weight120?.toStringAsFixed(1) ?? '',
+    );
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -686,10 +695,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               const SizedBox(height: 16),
               _buildWeightInput('Peso aos 90 dias (kg)', weight90Controller),
               const SizedBox(height: 16),
-              const Text(
-                'Para registrar peso de 120 dias, use o controle de peso geral.',
-                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-              ),
+              _buildWeightInput('Peso aos 120 dias (kg)', weight120Controller),
             ],
           ),
         ),
@@ -699,7 +705,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final updatedLamb = Animal(
                 id: lamb.id,
                 code: lamb.code,
@@ -725,14 +731,42 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 updatedAt: DateTime.now(),
               );
 
-              Provider.of<AnimalService>(context, listen: false)
+              await Provider.of<AnimalService>(context, listen: false)
                   .updateAnimal(updatedLamb);
               
+              // Salvar peso de 120 dias se informado
+              final weight120Value = double.tryParse(weight120Controller.text);
+              bool shouldShowEditDialog = false;
+              
+              if (weight120Value != null && weight120Value > 0) {
+                final db = await AppDatabase.open();
+                final repo = AnimalRepository(db);
+                await repo.addWeight(
+                  lamb.id,
+                  DateTime.now(),
+                  weight120Value,
+                  '120d',
+                );
+                shouldShowEditDialog = true;
+              }
+              
+              if (!mounted) return;
               Navigator.pop(context);
               
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Pesos atualizados com sucesso!')),
               );
+              
+              // Se salvou peso de 120 dias, abrir tela de edição do animal
+              if (shouldShowEditDialog && mounted) {
+                await Future.delayed(const Duration(milliseconds: 300));
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AnimalFormDialog(animal: lamb),
+                  );
+                }
+              }
             },
             child: const Text('Salvar'),
           ),
