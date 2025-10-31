@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/animal.dart';
 import '../services/animal_service.dart';
-import '../utils/animal_display_utils.dart';
 
 class AnimalFormDialog extends StatefulWidget {
   final Animal? animal;
@@ -153,10 +152,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
         a.category != 'Borrego' &&
         a.category != 'Venda'
       ).toList();
-      
-      // Ordenar por cor e número
-      AnimalDisplayUtils.sortAnimalsList(_availableMothers);
-      AnimalDisplayUtils.sortAnimalsList(_availableFathers);
     });
   }
 
@@ -332,7 +327,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           ..._availableMothers.map((mother) {
                             return DropdownMenuItem(
                               value: mother.id,
-                              child: AnimalDisplayUtils.buildAnimalDropdownItem(mother),
+                              child: Text('${mother.name} (${mother.code})'),
                             );
                           }),
                         ],
@@ -364,7 +359,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           ..._availableFathers.map((father) {
                             return DropdownMenuItem(
                               value: father.id,
-                              child: AnimalDisplayUtils.buildAnimalDropdownItem(father),
+                              child: Text('${father.name} (${father.code})'),
                             );
                           }),
                         ],
