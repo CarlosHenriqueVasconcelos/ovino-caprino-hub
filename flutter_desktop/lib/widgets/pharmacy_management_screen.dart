@@ -429,6 +429,34 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   ),
                 ),
               ],
+              const SizedBox(height: 12),
+              // Botões de ação
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showRemoveQuantityDialog(stock),
+                      icon: const Icon(Icons.remove, size: 18),
+                      label: const Text('Remover'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _showAddQuantityDialog(stock),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Adicionar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -470,6 +498,192 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => PharmacyStockDetails(stock: stock),
+    );
+
+    if (result == true) {
+      _loadStock();
+    }
+  }
+
+  Future<void> _showAddQuantityDialog(PharmacyStock stock) async {
+    final quantityController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Adicionar ao Estoque'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              stock.medicationName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Quantidade',
+                hintText: 'Digite a quantidade',
+                border: const OutlineInputBorder(),
+                suffixText: stock.unitOfMeasure,
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (opcional)',
+                hintText: 'Ex: Compra, Devolução...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final quantity = double.tryParse(quantityController.text);
+              if (quantity == null || quantity <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Quantidade inválida')),
+                );
+                return;
+              }
+
+              try {
+                await PharmacyService.addToStock(
+                  stock.id,
+                  quantity,
+                  reason: reasonController.text.isEmpty ? null : reasonController.text,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context, true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Quantidade adicionada com sucesso')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao adicionar: $e')),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.teal),
+            child: const Text('Adicionar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      _loadStock();
+    }
+  }
+
+  Future<void> _showRemoveQuantityDialog(PharmacyStock stock) async {
+    final quantityController = TextEditingController();
+    final reasonController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remover do Estoque'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              stock.medicationName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Estoque atual: ${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Quantidade',
+                hintText: 'Digite a quantidade',
+                border: const OutlineInputBorder(),
+                suffixText: stock.unitOfMeasure,
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (opcional)',
+                hintText: 'Ex: Descarte, Vencimento...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final quantity = double.tryParse(quantityController.text);
+              if (quantity == null || quantity <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Quantidade inválida')),
+                );
+                return;
+              }
+
+              if (quantity > stock.totalQuantity) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Quantidade maior que o estoque disponível')),
+                );
+                return;
+              }
+
+              try {
+                await PharmacyService.deductFromStock(
+                  stock.id,
+                  quantity,
+                  stock.id,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context, true);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Quantidade removida com sucesso')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erro ao remover: $e')),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
     );
 
     if (result == true) {
