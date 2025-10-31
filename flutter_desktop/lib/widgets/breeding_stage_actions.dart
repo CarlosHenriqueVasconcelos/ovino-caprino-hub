@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/breeding_record.dart';
+import '../models/animal.dart';
 import '../services/database_service.dart';
 import '../services/animal_service.dart';
 import 'animal_form.dart';
