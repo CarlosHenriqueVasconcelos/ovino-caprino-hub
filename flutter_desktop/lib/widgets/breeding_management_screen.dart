@@ -74,7 +74,9 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
       records = records.where((r) {
         final female = _animalsMap[r.femaleAnimalId];
         if (female == null) return false;
-        return female.code.toLowerCase().contains(_searchQuery.toLowerCase());
+        final searchLower = _searchQuery.toLowerCase();
+        return female.code.toLowerCase().contains(searchLower) ||
+               female.name.toLowerCase().contains(searchLower);
       }).toList();
     }
     
@@ -185,7 +187,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Buscar por código da mãe...',
+                  hintText: 'Buscar por número ou nome da mãe...',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
