@@ -92,8 +92,8 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
     try {
       final isConfirmed = result == 'Confirmada';
-      final baseUltrasound = widget.record.ultrasoundDate ?? DateTime.now();
-      final birthEta = baseUltrasound.add(const Duration(days: 150)); // ~5 meses
+      final now = DateTime.now();
+      final birthEta = now.add(const Duration(days: 150)); // 150 dias a partir de HOJE
 
       final update = <String, dynamic>{
         'ultrasound_date':
@@ -192,14 +192,27 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         );
         widget.onUpdate?.call();
         
-        // Abre automaticamente o formulário de novo animal
-        showDialog(
-          context: context,
-          builder: (context) => const AnimalFormDialog(),
-        ).then((_) {
-          // Recarrega dados após fechar o formulário
-          widget.onUpdate?.call();
-        });
+        // Buscar dados da mãe para pré-preencher o formulário
+        final femaleId = widget.record.femaleAnimalId;
+        if (femaleId != null && femaleId.isNotEmpty) {
+          final mother = await DatabaseService.getAnimalById(femaleId);
+          
+          if (mother != null && mounted) {
+            // Abre formulário com dados da mãe pré-preenchidos
+            showDialog(
+              context: context,
+              builder: (context) => AnimalFormDialog(
+                motherId: mother.id,
+                motherCode: mother.code,
+                motherBreed: mother.breed,
+                presetCategory: 'Borrego',
+              ),
+            ).then((_) {
+              // Recarrega dados após fechar o formulário
+              widget.onUpdate?.call();
+            });
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

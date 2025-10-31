@@ -6,8 +6,19 @@ import '../services/animal_service.dart';
 
 class AnimalFormDialog extends StatefulWidget {
   final Animal? animal;
+  final String? motherId;
+  final String? motherCode;
+  final String? motherBreed;
+  final String? presetCategory;
   
-  const AnimalFormDialog({super.key, this.animal});
+  const AnimalFormDialog({
+    super.key, 
+    this.animal,
+    this.motherId,
+    this.motherCode,
+    this.motherBreed,
+    this.presetCategory,
+  });
 
   @override
   State<AnimalFormDialog> createState() => _AnimalFormDialogState();
@@ -77,8 +88,21 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     if (widget.animal != null) {
       _loadAnimalData();
     } else {
-      // Definir raça padrão para novos animais
-      _breedController.text = 'Hampshire';
+      // Pré-preencher campos quando vem do registro de nascimento
+      if (widget.motherCode != null) {
+        _codeController.text = widget.motherCode!;
+      }
+      if (widget.motherBreed != null) {
+        _breedController.text = widget.motherBreed!;
+      } else {
+        _breedController.text = 'Hampshire'; // fallback
+      }
+      if (widget.motherId != null) {
+        _motherId = widget.motherId;
+      }
+      if (widget.presetCategory != null) {
+        _category = widget.presetCategory!;
+      }
     }
     _loadAvailableMothers();
   }
