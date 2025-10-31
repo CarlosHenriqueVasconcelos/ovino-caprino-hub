@@ -7,6 +7,8 @@ import '../services/animal_service.dart';
 class AnimalFormDialog extends StatefulWidget {
   final Animal? animal;
   final String? motherId;
+  final String? motherName;
+  final String? motherColor;
   final String? motherCode;
   final String? motherBreed;
   final String? fatherId;
@@ -18,6 +20,8 @@ class AnimalFormDialog extends StatefulWidget {
     super.key,
     this.animal,
     this.motherId,
+    this.motherName,
+    this.motherColor,
     this.motherCode,
     this.motherBreed,
     this.fatherId,
@@ -106,12 +110,20 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   @override
   void initState() {
     super.initState();
-    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
+    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherName: ${widget.motherName}, motherColor: ${widget.motherColor}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
     
     if (widget.animal != null) {
       _loadAnimalData();
     } else {
       // Pré-preencher campos quando vem do registro de nascimento
+      if (widget.motherName != null) {
+        _nameController.text = widget.motherName!;
+        print('🐑 DEBUG: Name preenchido com ${widget.motherName}');
+      }
+      if (widget.motherColor != null) {
+        _nameColor = widget.motherColor!;
+        print('🐑 DEBUG: Color definida como ${widget.motherColor}');
+      }
       if (widget.motherCode != null) {
         _codeController.text = widget.motherCode!;
         print('🐑 DEBUG: Code preenchido com ${widget.motherCode}');

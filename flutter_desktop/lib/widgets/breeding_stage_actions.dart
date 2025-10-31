@@ -145,25 +145,30 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
   }
 
   Future<void> _registerBirth() async {
-    final confirmed = await showDialog<bool>(
+    // Primeiro, perguntar quantas crias nasceram
+    final numberOfOffspring = await showDialog<int>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Registrar Nascimento'),
-        content: const Text('Confirma que o parto foi realizado?'),
+        content: const Text('Quantas crias nasceram?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context, null),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
+            onPressed: () => Navigator.pop(context, 1),
+            child: const Text('1 Cria'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 2),
+            child: const Text('2 Crias'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (numberOfOffspring == null) return;
 
     setState(() => _isProcessing = true);
 
@@ -221,20 +226,28 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         if (mounted) {
           // Libera processamento antes de abrir o formulário
           setState(() => _isProcessing = false);
-          // Abre formulário com dados da mãe e pai pré-preenchidos (se disponíveis)
-          await showDialog(
-            context: context,
-            builder: (context) => AnimalFormDialog(
-              motherId: mother?.id,
-              motherCode: mother?.code,
-              motherBreed: mother?.breed,
-              fatherId: father?.id,
-              fatherCode: father?.code,
-              fatherBreed: father?.breed,
-              presetCategory: 'Borrego',
-            ),
-          );
-          // Recarrega dados após fechar o formulário
+          
+          // Abre o formulário o número de vezes conforme a quantidade de crias
+          for (int i = 0; i < numberOfOffspring; i++) {
+            if (!mounted) break;
+            
+            await showDialog(
+              context: context,
+              builder: (context) => AnimalFormDialog(
+                motherId: mother?.id,
+                motherName: mother?.name,
+                motherColor: mother?.nameColor,
+                motherCode: mother?.code,
+                motherBreed: mother?.breed,
+                fatherId: father?.id,
+                fatherCode: father?.code,
+                fatherBreed: father?.breed,
+                presetCategory: 'Borrego',
+              ),
+            );
+          }
+          
+          // Recarrega dados após fechar todos os formulários
           widget.onUpdate?.call();
         }
       }

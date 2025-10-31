@@ -80,6 +80,42 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
       }).toList();
     }
     
+    // Ordenar por data - os mais antigos (próximos de acabar o ciclo) no topo
+    records.sort((a, b) {
+      DateTime? dateA;
+      DateTime? dateB;
+      
+      // Definir a data relevante para cada estágio
+      switch (stage) {
+        case BreedingStage.encabritamento:
+          dateA = a.matingEndDate;
+          dateB = b.matingEndDate;
+          break;
+        case BreedingStage.aguardandoUltrassom:
+          dateA = a.ultrasoundDate;
+          dateB = b.ultrasoundDate;
+          break;
+        case BreedingStage.gestacaoConfirmada:
+          dateA = a.expectedBirth;
+          dateB = b.expectedBirth;
+          break;
+        default:
+          // Para outros estágios, ordenar pela data de início
+          dateA = a.matingStartDate ?? a.breedingDate;
+          dateB = b.matingStartDate ?? b.breedingDate;
+      }
+      
+      // Se ambas as datas existem, ordenar
+      if (dateA != null && dateB != null) {
+        return dateA.compareTo(dateB);
+      }
+      // Se apenas uma existe, ela vem primeiro
+      if (dateA != null) return -1;
+      if (dateB != null) return 1;
+      // Se nenhuma existe, manter ordem original
+      return 0;
+    });
+    
     return records;
   }
 
