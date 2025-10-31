@@ -194,24 +194,32 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         
         // Buscar dados da mãe para pré-preencher o formulário
         final femaleId = widget.record.femaleAnimalId;
+        print('🐑 DEBUG: femaleId = $femaleId');
+        
+        Animal? mother;
         if (femaleId != null && femaleId.isNotEmpty) {
-          final mother = await DatabaseService.getAnimalById(femaleId);
-          
-          if (mother != null && mounted) {
-            // Abre formulário com dados da mãe pré-preenchidos
-            showDialog(
-              context: context,
-              builder: (context) => AnimalFormDialog(
-                motherId: mother.id,
-                motherCode: mother.code,
-                motherBreed: mother.breed,
-                presetCategory: 'Borrego',
-              ),
-            ).then((_) {
-              // Recarrega dados após fechar o formulário
-              widget.onUpdate?.call();
-            });
+          try {
+            mother = await DatabaseService.getAnimalById(femaleId);
+            print('🐑 DEBUG: Mother found - id: ${mother?.id}, code: ${mother?.code}, breed: ${mother?.breed}');
+          } catch (e) {
+            print('🐑 DEBUG ERROR: Failed to get mother data: $e');
           }
+        }
+        
+        if (mounted) {
+          // Abre formulário com dados da mãe pré-preenchidos (se disponível)
+          showDialog(
+            context: context,
+            builder: (context) => AnimalFormDialog(
+              motherId: mother?.id,
+              motherCode: mother?.code,
+              motherBreed: mother?.breed,
+              presetCategory: 'Borrego',
+            ),
+          ).then((_) {
+            // Recarrega dados após fechar o formulário
+            widget.onUpdate?.call();
+          });
         }
       }
     } catch (e) {

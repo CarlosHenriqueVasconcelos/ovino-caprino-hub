@@ -85,23 +85,29 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   @override
   void initState() {
     super.initState();
+    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, presetCategory: ${widget.presetCategory}');
+    
     if (widget.animal != null) {
       _loadAnimalData();
     } else {
       // Pré-preencher campos quando vem do registro de nascimento
       if (widget.motherCode != null) {
         _codeController.text = widget.motherCode!;
+        print('🐑 DEBUG: Code preenchido com ${widget.motherCode}');
       }
       if (widget.motherBreed != null) {
         _breedController.text = widget.motherBreed!;
+        print('🐑 DEBUG: Breed preenchido com ${widget.motherBreed}');
       } else {
         _breedController.text = 'Hampshire Down'; // fallback
       }
       if (widget.motherId != null) {
         _motherId = widget.motherId;
+        print('🐑 DEBUG: Mother ID definido como ${widget.motherId}');
       }
       if (widget.presetCategory != null) {
         _category = widget.presetCategory!;
+        print('🐑 DEBUG: Category definida como ${widget.presetCategory}');
       }
     }
     _loadAvailableMothers();
