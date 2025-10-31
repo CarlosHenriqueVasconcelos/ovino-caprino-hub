@@ -18,17 +18,13 @@ class BreedingWizardDialog extends StatefulWidget {
 
 class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _femaleSearchController = TextEditingController();
-  final _maleSearchController = TextEditingController();
 
   List<Animal> _females = [];
   List<Animal> _males = [];
-  List<Animal> _filteredFemales = [];
-  List<Animal> _filteredMales = [];
   bool _isLoading = true;
 
-  String? _selectedFemaleId;
-  String? _selectedMaleId;
+  Animal? _selectedFemale;
+  Animal? _selectedMale;
   DateTime _matingStartDate = DateTime.now();
   DateTime? _matingEndDate;
   String _notes = '';
@@ -59,8 +55,6 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       setState(() {
         _females = females;
         _males = males;
-        _filteredFemales = females;
-        _filteredMales = males;
         _isLoading = false;
       });
     } catch (e) {
@@ -95,37 +89,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     return match != null ? int.parse(match.group(0)!) : 0;
   }
 
-  void _filterFemales(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredFemales = _females;
-      } else {
-        _filteredFemales = _females.where((animal) {
-          return animal.code.toLowerCase().contains(query.toLowerCase()) ||
-                 animal.name.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
-    });
-  }
-
-  void _filterMales(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredMales = _males;
-      } else {
-        _filteredMales = _males.where((animal) {
-          return animal.code.toLowerCase().contains(query.toLowerCase()) ||
-                 animal.name.toLowerCase().contains(query.toLowerCase());
-        }).toList();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _femaleSearchController.dispose();
-    _maleSearchController.dispose();
-    super.dispose();
+  String _getAnimalDisplayText(Animal animal) {
+    final color = animal.nameColor ?? 'Sem cor';
+    return '$color - ${animal.code} - ${animal.name}';
   }
 
   void _calculateMatingEndDate() {
@@ -136,7 +102,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedFemaleId == null || _selectedMaleId == null) {
+    if (_selectedFemale == null || _selectedMale == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione a fêmea e o macho')),
       );
@@ -149,8 +115,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       // ⚠️ IMPORTANTE:
       // Não gravar expected_birth aqui. Ele será definido quando/SE a gestação for confirmada.
       await DatabaseService.createBreedingRecord({
-        'female_animal_id': _selectedFemaleId,
-        'male_animal_id': _selectedMaleId,
+        'female_animal_id': _selectedFemale!.id,
+        'male_animal_id': _selectedMale!.id,
         'breeding_date': _matingStartDate,
         'mating_start_date': _matingStartDate,
         'mating_end_date': _matingEndDate,
@@ -216,73 +182,135 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const Divider(height: 32),
 
-                      // Female Selection with Search
-                      TextField(
-                        controller: _femaleSearchController,
-                        decoration: const InputDecoration(
-                          labelText: 'Buscar Fêmea',
-                          hintText: 'Digite o número ou nome',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: _filterFemales,
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _filteredFemales.any((a) => a.id == _selectedFemaleId) 
-                            ? _selectedFemaleId 
-                            : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Fêmea *',
-                          prefixIcon: Icon(Icons.female),
-                          border: OutlineInputBorder(),
-                        ),
-                        isExpanded: true,
-                        menuMaxHeight: 300,
-                        items: _filteredFemales.map((animal) {
-                          final color = animal.nameColor ?? 'Sem cor';
-                          return DropdownMenuItem(
-                            value: animal.id,
-                            child: Text('$color - ${animal.code} - ${animal.name}'),
+                      // Female Selection with Integrated Search
+                      Autocomplete<Animal>(
+                        displayStringForOption: _getAnimalDisplayText,
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return _females;
+                          }
+                          return _females.where((animal) {
+                            final searchText = textEditingValue.text.toLowerCase();
+                            return animal.code.toLowerCase().contains(searchText) ||
+                                   animal.name.toLowerCase().contains(searchText);
+                          });
+                        },
+                        onSelected: (Animal animal) {
+                          setState(() => _selectedFemale = animal);
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Fêmea *',
+                              hintText: 'Digite o número ou nome para buscar',
+                              prefixIcon: const Icon(Icons.female),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _selectedFemale != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() => _selectedFemale = null);
+                                        controller.clear();
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            validator: (value) => _selectedFemale == null ? 'Selecione uma fêmea' : null,
                           );
-                        }).toList(),
-                        onChanged: (value) => setState(() => _selectedFemaleId = value),
-                        validator: (value) => value == null ? 'Selecione uma fêmea' : null,
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              child: Container(
+                                constraints: const BoxConstraints(maxHeight: 200),
+                                width: 500,
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final animal = options.elementAt(index);
+                                    return ListTile(
+                                      leading: const Icon(Icons.female, size: 20),
+                                      title: Text(_getAnimalDisplayText(animal)),
+                                      onTap: () => onSelected(animal),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
-                      // Male Selection with Search
-                      TextField(
-                        controller: _maleSearchController,
-                        decoration: const InputDecoration(
-                          labelText: 'Buscar Macho',
-                          hintText: 'Digite o número ou nome',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: _filterMales,
-                      ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _filteredMales.any((a) => a.id == _selectedMaleId) 
-                            ? _selectedMaleId 
-                            : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Macho *',
-                          prefixIcon: Icon(Icons.male),
-                          border: OutlineInputBorder(),
-                        ),
-                        isExpanded: true,
-                        menuMaxHeight: 300,
-                        items: _filteredMales.map((animal) {
-                          final color = animal.nameColor ?? 'Sem cor';
-                          return DropdownMenuItem(
-                            value: animal.id,
-                            child: Text('$color - ${animal.code} - ${animal.name}'),
+                      // Male Selection with Integrated Search
+                      Autocomplete<Animal>(
+                        displayStringForOption: _getAnimalDisplayText,
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return _males;
+                          }
+                          return _males.where((animal) {
+                            final searchText = textEditingValue.text.toLowerCase();
+                            return animal.code.toLowerCase().contains(searchText) ||
+                                   animal.name.toLowerCase().contains(searchText);
+                          });
+                        },
+                        onSelected: (Animal animal) {
+                          setState(() => _selectedMale = animal);
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Macho *',
+                              hintText: 'Digite o número ou nome para buscar',
+                              prefixIcon: const Icon(Icons.male),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: _selectedMale != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() => _selectedMale = null);
+                                        controller.clear();
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            validator: (value) => _selectedMale == null ? 'Selecione um macho' : null,
                           );
-                        }).toList(),
-                        onChanged: (value) => setState(() => _selectedMaleId = value),
-                        validator: (value) => value == null ? 'Selecione um macho' : null,
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4,
+                              child: Container(
+                                constraints: const BoxConstraints(maxHeight: 200),
+                                width: 500,
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  shrinkWrap: true,
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final animal = options.elementAt(index);
+                                    return ListTile(
+                                      leading: const Icon(Icons.male, size: 20),
+                                      title: Text(_getAnimalDisplayText(animal)),
+                                      onTap: () => onSelected(animal),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
