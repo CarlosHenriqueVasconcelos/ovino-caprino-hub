@@ -27,6 +27,13 @@ class DatabaseService {
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
 
+  static Future<Animal?> getAnimalById(String id) async {
+    final db = await database;
+    final rows = await db.query('animals', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (rows.isEmpty) return null;
+    return Animal.fromMap(rows.first);
+  }
+
   static Future<Animal> createAnimal(Map<String, dynamic> animal) async {
     final db = await database;
     final data = _prepareAnimalMap(animal, isNew: true);

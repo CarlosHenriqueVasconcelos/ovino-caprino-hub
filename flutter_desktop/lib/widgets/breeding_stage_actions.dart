@@ -97,7 +97,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
       final update = <String, dynamic>{
         'ultrasound_date':
-            widget.record.ultrasoundDate?.toIso8601String() ?? baseUltrasound.toIso8601String(),
+            widget.record.ultrasoundDate?.toIso8601String() ?? now.toIso8601String(),
         'ultrasound_result': result,
         'stage': isConfirmed
             ? BreedingStage.gestacaoConfirmada.value
