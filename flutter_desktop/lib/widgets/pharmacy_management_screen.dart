@@ -44,7 +44,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   }
 
   List<PharmacyStock> _filterStock() {
-    var filtered = _stock.where((s) => !s.isExpired).toList();
+    var filtered = _stock.toList();
     
     // Aplicar busca
     if (_searchQuery.isNotEmpty) {
@@ -56,10 +56,16 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     // Aplicar filtro
     switch (_filter) {
       case 'Estoque Baixo':
-        filtered = filtered.where((s) => s.isLowStock).toList();
+        filtered = filtered.where((s) => s.isLowStock && !s.isExpired).toList();
         break;
       case 'Vencendo':
-        filtered = filtered.where((s) => s.isExpiringSoon).toList();
+        filtered = filtered.where((s) => s.isExpiringSoon && !s.isExpired).toList();
+        break;
+      case 'Vencidos':
+        filtered = filtered.where((s) => s.isExpired).toList();
+        break;
+      case 'Todos':
+        filtered = filtered.where((s) => !s.isExpired).toList();
         break;
     }
     
@@ -156,10 +162,11 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                               else if (width <= 700) crossAxisCount = 1;
 
                               return GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 80),
                                 itemCount: filteredStock.length,
                                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
-                                  childAspectRatio: 2.4,
+                                  childAspectRatio: 2.6,
                                   crossAxisSpacing: 16,
                                   mainAxisSpacing: 16,
                                 ),
@@ -262,6 +269,11 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
           selected: _filter == 'Vencendo',
           onSelected: (_) => setState(() => _filter = 'Vencendo'),
         ),
+        ChoiceChip(
+          label: const Text('Vencidos'),
+          selected: _filter == 'Vencidos',
+          onSelected: (_) => setState(() => _filter = 'Vencidos'),
+        ),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -337,13 +349,14 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       elevation: 0,
       color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _showDetailsDialog(stock),
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               // Título + tags
               Row(
@@ -378,15 +391,18 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   Wrap(spacing: 6, runSpacing: 6, children: tags),
                 ],
               ),
-              const SizedBox(height: 10),
-              // Qtd total
-              Text(
-                isLiquid
-                    ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0).replaceAll('.', ',')} ml total)'
-                    : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
-                style: theme.textTheme.bodyMedium,
-              ),
               const SizedBox(height: 8),
+              // Qtd total
+              Flexible(
+                child: Text(
+                  isLiquid
+                      ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0).replaceAll('.', ',')} ml total)'
+                      : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
+                  style: theme.textTheme.bodyMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 6),
               // Barra de estoque
               ClipRRect(
                 borderRadius: BorderRadius.circular(999),
@@ -400,15 +416,18 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               // Rodapé do card
               Row(
                 children: [
                   if (stock.openedQuantity > 0)
-                    Text(
-                      'Abertos: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ml',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                    Flexible(
+                      child: Text(
+                        'Abertos: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ml',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   const Spacer(),
@@ -421,26 +440,29 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 ],
               ),
               if (stock.expirationDate != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'Validade: ${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.outline,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               // Botões de ação
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _showRemoveQuantityDialog(stock),
-                      icon: const Icon(Icons.remove, size: 18),
-                      label: const Text('Remover'),
+                      icon: const Icon(Icons.remove, size: 16),
+                      label: const Text('Remover', style: TextStyle(fontSize: 13)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        minimumSize: const Size(0, 36),
                       ),
                     ),
                   ),
@@ -448,10 +470,12 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => _showAddQuantityDialog(stock),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Adicionar'),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Adicionar', style: TextStyle(fontSize: 13)),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        minimumSize: const Size(0, 36),
                       ),
                     ),
                   ),
