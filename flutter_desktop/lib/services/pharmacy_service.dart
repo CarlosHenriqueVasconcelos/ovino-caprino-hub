@@ -190,7 +190,7 @@ class PharmacyService {
   }
 
   // Deduzir do estoque (ao aplicar medicação)
-  static Future<void> deductFromStock(String stockId, double quantity, String medicationId, {bool isAmpoule = false}) async {
+  static Future<void> deductFromStock(String stockId, double quantity, String? medicationId, {bool isAmpoule = false}) async {
     try {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
@@ -230,7 +230,7 @@ class PharmacyService {
   }
 
   // Lógica de uso de ampolas/frascos parciais
-  static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String medicationId) async {
+  static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String? medicationId) async {
     final container = stock.medicationType.toLowerCase() == 'frasco' ? 'Frasco' : 'Ampola';
     final unitSize = stock.quantityPerUnit!;
     

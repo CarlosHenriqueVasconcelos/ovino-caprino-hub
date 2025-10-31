@@ -114,7 +114,7 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                   await PharmacyService.deductFromStock(
                     widget.stock.id,
                     quantity,
-                    '',
+                    null, // Passar null pois não está associado a uma aplicação em animal
                   );
                 }
                 Navigator.of(context).pop(true);
