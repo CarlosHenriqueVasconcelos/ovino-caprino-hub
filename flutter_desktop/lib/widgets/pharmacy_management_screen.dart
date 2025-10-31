@@ -170,6 +170,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                               );
                             },
                           ),
+              ),
             ],
           ),
         ),
