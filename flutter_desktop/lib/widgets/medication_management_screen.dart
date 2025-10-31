@@ -5,6 +5,7 @@ import '../services/animal_service.dart';
 import '../services/database_service.dart';
 import '../services/pharmacy_service.dart';
 import '../models/pharmacy_stock.dart';
+import '../utils/animal_display_utils.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
@@ -991,7 +992,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   items: animalService.animals.map((animal) {
                     return DropdownMenuItem(
                       value: animal.id,
-                      child: Text('${animal.name} (${animal.code})'),
+                      child: AnimalDisplayUtils.buildAnimalDropdownItem(animal),
                     );
                   }).toList(),
                   onChanged: (value) {

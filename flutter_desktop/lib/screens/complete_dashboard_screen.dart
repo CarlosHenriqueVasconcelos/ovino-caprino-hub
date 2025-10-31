@@ -9,6 +9,7 @@ import '../data/animal_repository.dart';
 import '../widgets/stats_card.dart';
 import '../widgets/animal_card.dart';
 import '../models/animal.dart';
+import '../utils/animal_display_utils.dart';
 import '../widgets/animal_form.dart';
 import '../widgets/breeding_management_screen.dart';
 import '../widgets/weight_tracking_screen.dart';
@@ -1078,7 +1079,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   items: animalService.animals.map((animal) {
                     return DropdownMenuItem(
                       value: animal.id,
-                      child: Text('${animal.name} (${animal.code})'),
+                      child: AnimalDisplayUtils.buildAnimalDropdownItem(animal),
                     );
                   }).toList(),
                   onChanged: (value) {

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
+import '../utils/animal_display_utils.dart';
 
 class NotesFormDialog extends StatefulWidget {
   final String? animalId;
@@ -61,7 +62,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                       ...animalService.animals.map((animal) {
                         return DropdownMenuItem(
                           value: animal.id,
-                          child: Text('${animal.name} (${animal.code})'),
+                          child: AnimalDisplayUtils.buildAnimalDropdownItem(animal),
                         );
                       }),
                     ],
