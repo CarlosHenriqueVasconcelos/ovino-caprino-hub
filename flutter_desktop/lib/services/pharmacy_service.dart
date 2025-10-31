@@ -111,7 +111,30 @@ class PharmacyService {
       await db.insert('pharmacy_stock_movements', map);
 
       if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('pharmacy_stock_movements').insert(map);
+        try {
+          // Verifica se há medication_id e se ele existe na tabela medications
+          if (movement.medicationId != null) {
+            final medicationExists = await SupabaseService.supabase
+                .from('medications')
+                .select('id')
+                .eq('id', movement.medicationId!)
+                .maybeSingle();
+            
+            // Se o medicamento não existe no Supabase, insere sem o medication_id
+            if (medicationExists == null) {
+              final mapWithoutMedId = Map<String, dynamic>.from(map);
+              mapWithoutMedId.remove('medication_id');
+              await SupabaseService.supabase.from('pharmacy_stock_movements').insert(mapWithoutMedId);
+            } else {
+              await SupabaseService.supabase.from('pharmacy_stock_movements').insert(map);
+            }
+          } else {
+            await SupabaseService.supabase.from('pharmacy_stock_movements').insert(map);
+          }
+        } catch (supabaseError) {
+          print('Erro ao sincronizar movimentação com Supabase: $supabaseError');
+          // Continua a execução mesmo se falhar no Supabase
+        }
       }
     } catch (e) {
       print('Erro ao registrar movimentação: $e');

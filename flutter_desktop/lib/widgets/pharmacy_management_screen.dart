@@ -242,13 +242,13 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
+                Container(
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.local_pharmacy, color: statusColor, size: 28),
+                    child: Icon(Icons.local_pharmacy, color: statusColor, size: 20),
                   ),
                   Icon(statusIcon, size: 20, color: statusColor),
                 ],
@@ -283,7 +283,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${stock.totalQuantity.toStringAsFixed(0)} ${stock.medicationType.toLowerCase()}${stock.totalQuantity > 1 ? 's' : ''}',
+                      _buildStockQuantityText(stock),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -339,5 +339,17 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     if (result == true) {
       _loadStock();
     }
+  }
+
+  String _buildStockQuantityText(PharmacyStock stock) {
+    final typeName = stock.medicationType.toLowerCase();
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    
+    if (isLiquid) {
+      final totalVolume = stock.totalQuantity * stock.quantityPerUnit!;
+      return '${stock.totalQuantity.toStringAsFixed(0)} $typeName${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)}ml total)';
+    }
+    
+    return '${stock.totalQuantity.toStringAsFixed(0)} $typeName${stock.totalQuantity > 1 ? 's' : ''}';
   }
 }

@@ -1082,10 +1082,17 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                         ? const Text('Carregando...') 
                         : Text('Selecione (${_pharmacyStock.length} disponíveis)'),
                     items: _pharmacyStock.map((stock) {
+                      final isLiquid = (stock.medicationType.toLowerCase() == 'ampola' || 
+                                       stock.medicationType.toLowerCase() == 'frasco') && 
+                                       stock.quantityPerUnit != null;
+                      final displayText = isLiquid
+                          ? '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(0)} un = ${(stock.totalQuantity * stock.quantityPerUnit!).toStringAsFixed(0)}ml)'
+                          : '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})';
+                      
                       return DropdownMenuItem(
                         value: stock,
                         child: Text(
-                          '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})',
+                          displayText,
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
@@ -1121,7 +1128,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Estoque baixo! Apenas ${_selectedMedication!.totalQuantity.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure} disponível(is)',
+                                _buildLowStockMessage(_selectedMedication!),
                                 style: const TextStyle(fontSize: 12),
                               ),
                             ),
@@ -1221,6 +1228,19 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     );
   }
 
+  String _buildLowStockMessage(PharmacyStock stock) {
+    final isLiquid = (stock.medicationType.toLowerCase() == 'ampola' || 
+                     stock.medicationType.toLowerCase() == 'frasco') && 
+                     stock.quantityPerUnit != null;
+    
+    if (isLiquid) {
+      final totalVolume = stock.totalQuantity * stock.quantityPerUnit!;
+      return 'Estoque baixo! Apenas ${stock.totalQuantity.toStringAsFixed(0)} ${stock.medicationType.toLowerCase()}${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)}ml total)';
+    }
+    
+    return 'Estoque baixo! Apenas ${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure} disponível(is)';
+  }
+
   void _save() async {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
@@ -1241,11 +1261,21 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
       if (quantityMatch != null) {
         final quantityUsed = double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
-        if (quantityUsed > _selectedMedication!.totalQuantity) {
+        
+        // Calcular estoque disponível
+        final isLiquid = (_selectedMedication!.medicationType.toLowerCase() == 'ampola' || 
+                         _selectedMedication!.medicationType.toLowerCase() == 'frasco') && 
+                         _selectedMedication!.quantityPerUnit != null;
+        
+        final availableStock = isLiquid 
+            ? _selectedMedication!.totalQuantity * _selectedMedication!.quantityPerUnit!
+            : _selectedMedication!.totalQuantity;
+        
+        if (quantityUsed > availableStock) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Estoque insuficiente! Disponível: ${_selectedMedication!.totalQuantity.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure}',
+                'Estoque insuficiente! Disponível: ${availableStock.toStringAsFixed(1)} ${isLiquid ? 'ml' : _selectedMedication!.unitOfMeasure}',
               ),
               backgroundColor: Colors.red,
             ),
