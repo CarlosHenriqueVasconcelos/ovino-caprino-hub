@@ -472,10 +472,36 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
     return await repo.getMonthlyWeights(animalId);
   }
 
-  void _showMonthlyWeightDialog(Animal animal) {
+  void _showMonthlyWeightDialog(Animal animal) async {
     final theme = Theme.of(context);
     final weightController = TextEditingController();
+    
+    // Buscar pesos mensais existentes para determinar o próximo mês
+    final existingWeights = await _getMonthlyWeights(animal.id);
+    final existingMonths = existingWeights
+        .where((w) => w['milestone']?.toString().startsWith('monthly_') ?? false)
+        .map((w) {
+          final milestone = w['milestone']?.toString() ?? '';
+          final monthStr = milestone.replaceFirst('monthly_', '');
+          return int.tryParse(monthStr) ?? 0;
+        })
+        .toList();
+    
+    // Determinar próximo mês disponível
     int? selectedMonth;
+    if (existingMonths.isEmpty) {
+      selectedMonth = 1; // Primeiro registro
+    } else {
+      existingMonths.sort();
+      final lastMonth = existingMonths.last;
+      if (lastMonth < 24) {
+        selectedMonth = lastMonth + 1; // Próximo mês
+      } else {
+        selectedMonth = null; // Todos os 24 meses já foram registrados
+      }
+    }
+    
+    if (!mounted) return;
 
     showDialog(
       context: context,
