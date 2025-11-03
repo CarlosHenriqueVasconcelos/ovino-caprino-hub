@@ -28,6 +28,7 @@ import '../widgets/repro_alerts_card.dart';
 import '../widgets/feeding_screen.dart';
 import '../widgets/weight_alerts_card.dart';
 import '../widgets/pharmacy_management_screen.dart';
+import '../utils/animal_display_utils.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
