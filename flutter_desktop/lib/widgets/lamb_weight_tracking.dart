@@ -807,7 +807,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                   
                   // Recarrega os dados
                   if (mounted) {
-                    await Provider.of<AnimalService>(context, listen: false).loadAnimals();
+                    await Provider.of<AnimalService>(context, listen: false).loadData();
                     
                     // Agora abre o dialog de edição
                     if (mounted) {
