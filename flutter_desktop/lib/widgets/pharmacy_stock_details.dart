@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
 import '../services/pharmacy_service.dart';
@@ -147,6 +148,79 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
     }
   }
 
+  Future<void> _deleteOpenedStock() async {
+    if (!widget.stock.isOpened || widget.stock.openedQuantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não há recipiente aberto para excluir')),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Recipiente Aberto'),
+        content: Text(
+          'Deseja excluir o recipiente aberto de "${widget.stock.medicationName}"?\n\n'
+          'Quantidade a ser descartada: ${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('Excluir Aberto'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final updated = widget.stock.copyWith(
+          openedQuantity: 0,
+          isOpened: false,
+          updatedAt: DateTime.now(),
+        );
+        await PharmacyService.updateMedication(widget.stock.id, updated);
+        
+        // Registrar movimentação de descarte
+        await PharmacyService.recordMovement(
+          PharmacyStockMovement(
+            id: const Uuid().v4(),
+            pharmacyStockId: widget.stock.id,
+            movementType: 'vencimento',
+            quantity: widget.stock.openedQuantity,
+            reason: 'Descarte de recipiente aberto',
+            createdAt: DateTime.now(),
+          ),
+        );
+        
+        if (mounted) {
+          Navigator.of(context).pop(true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Recipiente aberto descartado com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erro ao descartar: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _deleteStock() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -209,6 +283,12 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                 icon: const Icon(Icons.edit),
                 onPressed: _showEditDialog,
               ),
+              if (widget.stock.isOpened && widget.stock.openedQuantity > 0)
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep),
+                  tooltip: 'Excluir Aberto',
+                  onPressed: _deleteOpenedStock,
+                ),
               IconButton(
                 icon: const Icon(Icons.delete),
                 onPressed: _deleteStock,
@@ -246,6 +326,12 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                         '${widget.stock.totalQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
                         valueColor: widget.stock.isLowStock ? Colors.orange : null,
                       ),
+                      if (widget.stock.isOpened && widget.stock.openedQuantity > 0)
+                        _buildInfoRow(
+                          'Recipiente Aberto:',
+                          '${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
+                          valueColor: Colors.blue,
+                        ),
                       if (widget.stock.minStockAlert != null)
                         _buildInfoRow('Estoque Mínimo:', '${widget.stock.minStockAlert} ${widget.stock.unitOfMeasure}'),
                       if (widget.stock.expirationDate != null)

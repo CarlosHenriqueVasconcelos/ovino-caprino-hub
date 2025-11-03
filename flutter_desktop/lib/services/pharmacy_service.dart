@@ -248,9 +248,8 @@ class PharmacyService {
             createdAt: DateTime.now(),
           ),
         );
-      } else if ((isAmpoule || stock.medicationType.toLowerCase() == 'ampola' || stock.medicationType.toLowerCase() == 'frasco')
-          && stock.quantityPerUnit != null) {
-        // Aplicação em animal - usar lógica complexa para ampolas/frascos
+      } else if (_shouldUseAmpouleLogic(stock) && stock.quantityPerUnit != null) {
+        // Aplicação em animal - usar lógica complexa para ampolas/frascos/sprays/pomadas com ml/mg/g
         await _handleAmpouleUsage(stock, quantity, medicationId);
       } else {
         // Aplicação em animal - lógica normal
@@ -282,9 +281,38 @@ class PharmacyService {
     }
   }
 
-  // Lógica de uso de ampolas/frascos parciais
+  // Verifica se deve usar lógica de recipiente com quantidade aberta
+  static bool _shouldUseAmpouleLogic(PharmacyStock stock) {
+    final type = stock.medicationType.toLowerCase();
+    final unit = stock.unitOfMeasure.toLowerCase();
+    
+    // Tipos que sempre usam a lógica: ampola, frasco
+    if (type == 'ampola' || type == 'frasco') return true;
+    
+    // Outros tipos (spray, pomada, pó, outro) usam se forem ml, mg ou g
+    if (unit == 'ml' || unit == 'mg' || unit == 'g') return true;
+    
+    return false;
+  }
+
+  // Lógica de uso de ampolas/frascos/recipientes parciais
   static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String? medicationId) async {
-    final container = stock.medicationType.toLowerCase() == 'frasco' ? 'Frasco' : 'Ampola';
+    final type = stock.medicationType.toLowerCase();
+    String container;
+    if (type == 'frasco') {
+      container = 'Frasco';
+    } else if (type == 'ampola') {
+      container = 'Ampola';
+    } else if (type == 'spray') {
+      container = 'Spray';
+    } else if (type == 'pomada') {
+      container = 'Pomada';
+    } else if (type == 'pó') {
+      container = 'Embalagem';
+    } else {
+      container = 'Recipiente';
+    }
+    
     final unitSize = stock.quantityPerUnit!;
     
     // Primeiro verifica se há frasco aberto

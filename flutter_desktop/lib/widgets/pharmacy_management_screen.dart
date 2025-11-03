@@ -18,6 +18,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   String _searchQuery = '';
   String _sortBy = 'name'; // name, quantity, expiration
   bool _sortAscending = true;
+  
+  // Paginação
+  int _currentPage = 0;
+  final int _itemsPerPage = 20;
 
   @override
   void initState() {
@@ -43,7 +47,12 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
   }
 
-  List<PharmacyStock> _filterStock() {
+  int get _totalPages {
+    final allFiltered = _filterStockWithoutPagination();
+    return (allFiltered.length / _itemsPerPage).ceil();
+  }
+
+  List<PharmacyStock> _filterStockWithoutPagination() {
     var filtered = _stock.toList();
     
     // Aplicar busca
@@ -96,6 +105,20 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     return filtered;
   }
 
+  List<PharmacyStock> _filterStock() {
+    final allFiltered = _filterStockWithoutPagination();
+    
+    // Aplica paginação
+    final start = _currentPage * _itemsPerPage;
+    final end = (start + _itemsPerPage).clamp(0, allFiltered.length);
+    
+    if (start >= allFiltered.length) {
+      return [];
+    }
+    
+    return allFiltered.sublist(start, end);
+  }
+
   int _countByFilter(String filter) {
     switch (filter) {
       case 'Estoque Baixo':
@@ -126,7 +149,13 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               const SizedBox(height: 16),
               // Barra de pesquisa e filtros
               _buildFiltersBar(theme),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Paginação
+              if (!_isLoading && _stock.isNotEmpty)
+                _buildPagination(),
+
+              const SizedBox(height: 12),
 
               // Lista de medicamentos
               Expanded(
@@ -233,6 +262,41 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     );
   }
 
+  Widget _buildPagination() {
+    if (_totalPages <= 1) return const SizedBox.shrink();
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: _currentPage > 0
+                ? () => setState(() {
+                      _currentPage--;
+                    })
+                : null,
+            icon: const Icon(Icons.chevron_left),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            'Página ${_currentPage + 1} de $_totalPages',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(width: 16),
+          IconButton(
+            onPressed: _currentPage < _totalPages - 1
+                ? () => setState(() {
+                      _currentPage++;
+                    })
+                : null,
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFiltersBar(ThemeData theme) {
     return Wrap(
       spacing: 8,
@@ -242,7 +306,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         SizedBox(
           width: 360,
           child: TextField(
-            onChanged: (value) => setState(() => _searchQuery = value),
+          onChanged: (value) => setState(() {
+            _searchQuery = value;
+            _currentPage = 0; // Reset para primeira página
+          }),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: 'Buscar por nome ou apresentação…',
@@ -259,22 +326,34 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         ChoiceChip(
           label: const Text('Todos'),
           selected: _filter == 'Todos',
-          onSelected: (_) => setState(() => _filter = 'Todos'),
+          onSelected: (_) => setState(() {
+            _filter = 'Todos';
+            _currentPage = 0;
+          }),
         ),
         ChoiceChip(
           label: const Text('Estoque Baixo'),
           selected: _filter == 'Estoque Baixo',
-          onSelected: (_) => setState(() => _filter = 'Estoque Baixo'),
+          onSelected: (_) => setState(() {
+            _filter = 'Estoque Baixo';
+            _currentPage = 0;
+          }),
         ),
         ChoiceChip(
           label: const Text('Vencendo'),
           selected: _filter == 'Vencendo',
-          onSelected: (_) => setState(() => _filter = 'Vencendo'),
+          onSelected: (_) => setState(() {
+            _filter = 'Vencendo';
+            _currentPage = 0;
+          }),
         ),
         ChoiceChip(
           label: const Text('Vencidos'),
           selected: _filter == 'Vencidos',
-          onSelected: (_) => setState(() => _filter = 'Vencidos'),
+          onSelected: (_) => setState(() {
+            _filter = 'Vencidos';
+            _currentPage = 0;
+          }),
         ),
         const SizedBox(width: 8),
         Container(
