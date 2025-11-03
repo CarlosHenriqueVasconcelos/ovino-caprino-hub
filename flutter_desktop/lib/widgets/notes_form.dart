@@ -174,6 +174,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
+                      locale: const Locale('pt', 'BR'),
                       initialDate: _date,
                       firstDate: DateTime.now().subtract(const Duration(days: 365)),
                       lastDate: DateTime.now().add(const Duration(days: 365)),

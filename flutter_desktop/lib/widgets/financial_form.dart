@@ -114,6 +114,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
+      locale: const Locale('pt', 'BR'),
       initialDate: _selectedDueDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),

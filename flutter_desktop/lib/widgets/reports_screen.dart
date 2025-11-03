@@ -223,6 +223,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       onTap: () async {
         final selectedDate = await showDatePicker(
           context: context,
+          locale: const Locale('pt', 'BR'),
           initialDate: date,
           firstDate: DateTime.now().subtract(const Duration(days: 365)),
           lastDate: DateTime.now().add(const Duration(days: 30)),

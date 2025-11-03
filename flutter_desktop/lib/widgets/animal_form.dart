@@ -646,6 +646,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
+                      locale: const Locale('pt', 'BR'),
                       initialDate: _birthDate,
                       firstDate: DateTime(2000),
                       lastDate: DateTime.now(),
@@ -727,6 +728,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                       onTap: () async {
                         final date = await showDatePicker(
                           context: context,
+                          locale: const Locale('pt', 'BR'),
                           initialDate: _expectedDelivery ?? DateTime.now().add(const Duration(days: 150)),
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 365)),

@@ -164,11 +164,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                       child: Material(
                         elevation: 8.0,
                         color: Theme.of(context).cardColor,
-                        child: Container
-                        (
+                        child: Container(
                           constraints: const BoxConstraints(maxHeight: 240),
                           width: 468,
-                          color: Theme.of(context).cardColor,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             itemCount: options.length,
@@ -241,7 +239,6 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                         child: Container(
                           constraints: const BoxConstraints(maxHeight: 240),
                           width: 468,
-                          color: Theme.of(context).cardColor,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             itemCount: options.length,
@@ -273,6 +270,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
+                      locale: const Locale('pt', 'BR'),
                       initialDate: _breedingDate,
                       firstDate: DateTime.now().subtract(const Duration(days: 365)),
                       lastDate: DateTime.now(),
@@ -304,6 +302,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _expectedBirth!,
                         firstDate: _breedingDate.add(const Duration(days: 120)),
                         lastDate: _breedingDate.add(const Duration(days: 180)),

@@ -257,6 +257,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
+                      locale: const Locale('pt', 'BR'),
                       initialDate: _expirationDate ?? DateTime.now().add(const Duration(days: 365)),
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 3650)),

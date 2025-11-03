@@ -365,6 +365,7 @@ class _DatePickerField extends StatelessWidget {
                 final last = DateTime(now.year + 1, 12, 31);
                 final picked = await showDatePicker(
                   context: context,
+                  locale: const Locale('pt', 'BR'),
                   initialDate: value ?? now,
                   firstDate: first,
                   lastDate: last,

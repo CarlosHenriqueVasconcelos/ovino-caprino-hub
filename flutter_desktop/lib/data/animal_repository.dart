@@ -51,8 +51,21 @@ class AnimalRepository {
       'updated_at': DateTime.now().toIso8601String(),
     });
 
+    // Busca o peso mais recente após inserção
+    final latestWeightResult = await _db.db.query(
+      'animal_weights',
+      where: 'animal_id = ?',
+      whereArgs: [animalId],
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    
+    final latestWeight = latestWeightResult.isNotEmpty 
+        ? (latestWeightResult.first['weight'] as num).toDouble()
+        : weight;
+
     // Sincroniza com os campos cache em animals
-    final Map<String, dynamic> updateData = {'weight': weight};
+    final Map<String, dynamic> updateData = {'weight': latestWeight};
     
     if (milestone == 'birth') {
       updateData['birth_weight'] = weight;

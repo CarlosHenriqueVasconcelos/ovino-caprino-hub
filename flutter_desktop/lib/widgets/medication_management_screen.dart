@@ -1251,6 +1251,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   onTap: () async {
                     final date = await showDatePicker(
                       context: context,
+                      locale: const Locale('pt', 'BR'),
                       initialDate: _scheduledDate,
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),

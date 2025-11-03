@@ -177,6 +177,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                         onTap: () async {
                           final date = await showDatePicker(
                             context: context,
+                            locale: const Locale('pt', 'BR'),
                             initialDate: _scheduledDate,
                             firstDate: DateTime.now().subtract(const Duration(days: 365)),
                             lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -235,6 +236,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _appliedDate ?? DateTime.now(),
                         firstDate: DateTime.now().subtract(const Duration(days: 365)),
                         lastDate: DateTime.now(),

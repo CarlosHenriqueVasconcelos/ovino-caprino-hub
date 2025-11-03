@@ -305,6 +305,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                           onPressed: () async {
                             final date = await showDatePicker(
                               context: context,
+                              locale: const Locale('pt', 'BR'),
                               initialDate: _matingStartDate,
                               firstDate: DateTime(2020),
                               lastDate: DateTime(2030),

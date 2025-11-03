@@ -538,6 +538,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _customStart,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
@@ -563,6 +564,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _customEnd,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
