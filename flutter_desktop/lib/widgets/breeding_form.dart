@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
 import '../services/database_service.dart';
+import '../models/animal.dart';
+import '../utils/animal_display_utils.dart';
 
 class BreedingFormDialog extends StatefulWidget {
   const BreedingFormDialog({super.key});
@@ -20,25 +22,93 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   String _status = 'Cobertura';
   DateTime _breedingDate = DateTime.now();
   DateTime? _expectedBirth;
+  
+  List<Map<String, dynamic>> _breedingRecords = [];
+  bool _loadingRecords = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBreedingRecords();
+  }
+
+  Future<void> _loadBreedingRecords() async {
+    try {
+      final records = await DatabaseService.getBreedingRecords();
+      setState(() {
+        _breedingRecords = records;
+        _loadingRecords = false;
+      });
+    } catch (e) {
+      print('Erro ao carregar registros de reprodução: $e');
+      setState(() => _loadingRecords = false);
+    }
+  }
+  
+  String _getAnimalDisplayText(Animal animal) {
+    return AnimalDisplayUtils.getDisplayText(animal);
+  }
+  
+  bool _isFemaleInBreeding(String animalId) {
+    // Verifica se a fêmea está em qualquer fase de reprodução ativa
+    return _breedingRecords.any((record) {
+      if (record['female_animal_id'] != animalId) return false;
+      final stage = record['stage']?.toString() ?? '';
+      // Considera ativa se estiver aguardando ultrassom ou em outras fases antes do nascimento
+      return stage == 'Ultrassom agendado' || 
+             stage == 'Ultrassom confirmado' ||
+             stage == 'Gestante';
+    });
+  }
+  
+  bool _isMaleInBreeding(String animalId) {
+    // Verifica se o macho está em fase de encabritamento
+    return _breedingRecords.any((record) {
+      if (record['male_animal_id'] != animalId) return false;
+      final stage = record['stage']?.toString() ?? '';
+      return stage == 'Encabritamento';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
     
+    if (_loadingRecords) {
+      return const AlertDialog(
+        title: Text('Registrar Cobertura'),
+        content: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    // Filtrar fêmeas: excluir borregas, gestantes e que estão aguardando ultrassom
     final femaleAnimals = animalService.animals
         .where((animal) => 
             animal.gender == 'Fêmea' && 
             animal.category != 'Borrego' &&
-            animal.category != 'Venda')
+            animal.category != 'Borrega' &&
+            animal.category != 'Venda' &&
+            !animal.pregnant &&
+            !_isFemaleInBreeding(animal.id))
         .toList();
     
+    // Ordenar fêmeas
+    AnimalDisplayUtils.sortAnimalsList(femaleAnimals);
+    
+    // Filtrar machos: excluir borregos e que estão em encabritamento
     final maleAnimals = animalService.animals
         .where((animal) => 
             animal.gender == 'Macho' && 
             animal.category != 'Borrego' &&
-            animal.category != 'Venda')
+            animal.category != 'Venda' &&
+            !_isMaleInBreeding(animal.id))
         .toList();
+    
+    // Ordenar machos
+    AnimalDisplayUtils.sortAnimalsList(maleAnimals);
 
     return AlertDialog(
       title: const Text('Registrar Cobertura'),
@@ -51,65 +121,62 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Female Selection with Search
-                Autocomplete<String>(
-                  initialValue: _femaleAnimalId != null 
-                      ? TextEditingValue(text: femaleAnimals
-                          .firstWhere((a) => a.id == _femaleAnimalId, 
-                              orElse: () => femaleAnimals.first)
-                          .code)
-                      : null,
+                Autocomplete<Animal>(
+                  displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text.isEmpty) {
-                      return femaleAnimals.map((a) => a.code);
+                      return femaleAnimals;
                     }
-                    return femaleAnimals
-                        .where((animal) =>
-                            animal.code.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                            animal.name.toLowerCase().contains(textEditingValue.text.toLowerCase()))
-                        .map((a) => a.code);
-                  },
-                  onSelected: (String code) {
-                    final animal = femaleAnimals.firstWhere((a) => a.code == code);
-                    setState(() {
-                      _femaleAnimalId = animal.id;
+                    return femaleAnimals.where((animal) {
+                      final searchText = textEditingValue.text.toLowerCase();
+                      return animal.code.toLowerCase().contains(searchText) ||
+                             animal.name.toLowerCase().contains(searchText);
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  onSelected: (Animal animal) {
+                    setState(() => _femaleAnimalId = animal.id);
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        labelText: 'Fêmea * (digite o código ou nome)',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.search),
+                      decoration: InputDecoration(
+                        labelText: 'Fêmea *',
+                        hintText: 'Digite o número ou nome para buscar',
+                        prefixIcon: const Icon(Icons.female),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: _femaleAnimalId != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() => _femaleAnimalId = null);
+                                  controller.clear();
+                                },
+                              )
+                            : null,
                       ),
-                      validator: (value) {
-                        if (_femaleAnimalId == null) {
-                          return 'Selecione uma fêmea';
-                        }
-                        return null;
-                      },
-                      onEditingComplete: onEditingComplete,
+                      validator: (value) => _femaleAnimalId == null ? 'Selecione uma fêmea' : null,
                     );
                   },
                   optionsViewBuilder: (context, onSelected, options) {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Material(
-                        elevation: 4,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                        elevation: 4.0,
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          width: 468,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
-                            shrinkWrap: true,
                             itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final code = options.elementAt(index);
-                              final animal = femaleAnimals.firstWhere((a) => a.code == code);
-                              return ListTile(
-                                title: Text('${animal.code} - ${animal.name}'),
-                                subtitle: Text('${animal.breed} | ${animal.category}'),
-                                onTap: () => onSelected(code),
+                            itemBuilder: (BuildContext context, int index) {
+                              final Animal animal = options.elementAt(index);
+                              return InkWell(
+                                onTap: () => onSelected(animal),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                ),
                               );
                             },
                           ),
@@ -121,60 +188,61 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                 const SizedBox(height: 16),
                 
                 // Male Selection (Optional) with Search
-                Autocomplete<String>(
-                  initialValue: _maleAnimalId != null 
-                      ? TextEditingValue(text: maleAnimals
-                          .firstWhere((a) => a.id == _maleAnimalId, 
-                              orElse: () => maleAnimals.first)
-                          .code)
-                      : null,
+                Autocomplete<Animal>(
+                  displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     if (textEditingValue.text.isEmpty) {
-                      return maleAnimals.map((a) => a.code);
+                      return maleAnimals;
                     }
-                    return maleAnimals
-                        .where((animal) =>
-                            animal.code.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                            animal.name.toLowerCase().contains(textEditingValue.text.toLowerCase()))
-                        .map((a) => a.code);
-                  },
-                  onSelected: (String code) {
-                    final animal = maleAnimals.firstWhere((a) => a.code == code);
-                    setState(() {
-                      _maleAnimalId = animal.id;
+                    return maleAnimals.where((animal) {
+                      final searchText = textEditingValue.text.toLowerCase();
+                      return animal.code.toLowerCase().contains(searchText) ||
+                             animal.name.toLowerCase().contains(searchText);
                     });
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  onSelected: (Animal animal) {
+                    setState(() => _maleAnimalId = animal.id);
+                  },
+                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        labelText: 'Macho (opcional - digite o código ou nome)',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.search),
-                        hintText: 'Deixe vazio para "Não especificado"',
+                      decoration: InputDecoration(
+                        labelText: 'Macho (opcional)',
+                        hintText: 'Digite o número ou nome para buscar',
+                        prefixIcon: const Icon(Icons.male),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: _maleAnimalId != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() => _maleAnimalId = null);
+                                  controller.clear();
+                                },
+                              )
+                            : null,
                       ),
-                      onEditingComplete: onEditingComplete,
                     );
                   },
                   optionsViewBuilder: (context, onSelected, options) {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Material(
-                        elevation: 4,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200, maxWidth: 400),
+                        elevation: 4.0,
+                        child: Container(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          width: 468,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
-                            shrinkWrap: true,
                             itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final code = options.elementAt(index);
-                              final animal = maleAnimals.firstWhere((a) => a.code == code);
-                              return ListTile(
-                                title: Text('${animal.code} - ${animal.name}'),
-                                subtitle: Text('${animal.breed} | ${animal.category}'),
-                                onTap: () => onSelected(code),
+                            itemBuilder: (BuildContext context, int index) {
+                              final Animal animal = options.elementAt(index);
+                              return InkWell(
+                                onTap: () => onSelected(animal),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                ),
                               );
                             },
                           ),
