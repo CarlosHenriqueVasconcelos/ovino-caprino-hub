@@ -324,60 +324,174 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 if (_category == 'Borrego')
                   Column(
                     children: [
-                      DropdownButtonFormField<String>(
-                        value: _availableMothers.any((m) => m.id == _motherId) ? _motherId : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Mãe',
-                          border: OutlineInputBorder(),
-                          hintText: 'Selecione a mãe',
+                      Autocomplete<Animal>(
+                        initialValue: TextEditingValue(
+                          text: _motherId != null && _availableMothers.any((m) => m.id == _motherId)
+                              ? _availableMothers.firstWhere((m) => m.id == _motherId).name
+                              : '',
                         ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('Nenhuma'),
-                          ),
-                          ..._availableMothers.map((mother) {
-                            return DropdownMenuItem(
-                              value: mother.id,
-                              child: Text('${mother.name} (${mother.code})'),
-                            );
-                          }),
-                        ],
-                        onChanged: (value) {
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return _availableMothers;
+                          }
+                          final query = textEditingValue.text.toLowerCase();
+                          return _availableMothers.where((mother) {
+                            final name = mother.name.toLowerCase();
+                            final code = mother.code.toLowerCase();
+                            final colorName = _colorNames[mother.nameColor]?.toLowerCase() ?? '';
+                            return name.contains(query) || code.contains(query) || colorName.contains(query);
+                          });
+                        },
+                        displayStringForOption: (Animal option) => '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
+                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                          return TextFormField(
+                            controller: textEditingController,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              labelText: 'Mãe',
+                              border: OutlineInputBorder(),
+                              hintText: 'Digite para buscar',
+                              prefixIcon: Icon(Icons.search),
+                            ),
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              child: Container(
+                                constraints: const BoxConstraints(maxHeight: 200),
+                                color: Colors.white,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.all(8.0),
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final Animal option = options.elementAt(index);
+                                    return InkWell(
+                                      onTap: () => onSelected(option),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: _colorOptions[option.nameColor],
+                                                shape: BoxShape.circle,
+                                                border: option.nameColor == 'white' 
+                                                    ? Border.all(color: Colors.grey, width: 1)
+                                                    : null,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
+                                                style: const TextStyle(fontSize: 14),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        onSelected: (Animal mother) {
                           setState(() {
-                            _motherId = value;
-                            // Auto-preencher nome e cor da mãe
-                            if (value != null) {
-                              final mother = _availableMothers.firstWhere((m) => m.id == value);
-                              _nameController.text = mother.name;
-                              _nameColor = mother.nameColor;
-                            }
+                            _motherId = mother.id;
+                            _nameController.text = mother.name;
+                            _nameColor = mother.nameColor;
                           });
                         },
                       ),
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        value: _availableFathers.any((f) => f.id == _fatherId) ? _fatherId : null,
-                        decoration: const InputDecoration(
-                          labelText: 'Pai',
-                          border: OutlineInputBorder(),
-                          hintText: 'Selecione o pai',
+                      Autocomplete<Animal>(
+                        initialValue: TextEditingValue(
+                          text: _fatherId != null && _availableFathers.any((f) => f.id == _fatherId)
+                              ? _availableFathers.firstWhere((f) => f.id == _fatherId).name
+                              : '',
                         ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: null,
-                            child: Text('Nenhum'),
-                          ),
-                          ..._availableFathers.map((father) {
-                            return DropdownMenuItem(
-                              value: father.id,
-                              child: Text('${father.name} (${father.code})'),
-                            );
-                          }),
-                        ],
-                        onChanged: (value) {
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return _availableFathers;
+                          }
+                          final query = textEditingValue.text.toLowerCase();
+                          return _availableFathers.where((father) {
+                            final name = father.name.toLowerCase();
+                            final code = father.code.toLowerCase();
+                            final colorName = _colorNames[father.nameColor]?.toLowerCase() ?? '';
+                            return name.contains(query) || code.contains(query) || colorName.contains(query);
+                          });
+                        },
+                        displayStringForOption: (Animal option) => '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
+                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                          return TextFormField(
+                            controller: textEditingController,
+                            focusNode: focusNode,
+                            decoration: const InputDecoration(
+                              labelText: 'Pai',
+                              border: OutlineInputBorder(),
+                              hintText: 'Digite para buscar',
+                              prefixIcon: Icon(Icons.search),
+                            ),
+                          );
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          return Align(
+                            alignment: Alignment.topLeft,
+                            child: Material(
+                              elevation: 4.0,
+                              child: Container(
+                                constraints: const BoxConstraints(maxHeight: 200),
+                                color: Colors.white,
+                                child: ListView.builder(
+                                  padding: const EdgeInsets.all(8.0),
+                                  itemCount: options.length,
+                                  itemBuilder: (context, index) {
+                                    final Animal option = options.elementAt(index);
+                                    return InkWell(
+                                      onTap: () => onSelected(option),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: _colorOptions[option.nameColor],
+                                                shape: BoxShape.circle,
+                                                border: option.nameColor == 'white' 
+                                                    ? Border.all(color: Colors.grey, width: 1)
+                                                    : null,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
+                                                style: const TextStyle(fontSize: 14),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        onSelected: (Animal father) {
                           setState(() {
-                            _fatherId = value;
+                            _fatherId = father.id;
                           });
                         },
                       ),

@@ -72,11 +72,11 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
 
     // Buscar filhotes (todos, incluindo vendidos e falecidos)
     _offspring = await db.rawQuery('''
-      SELECT id, name, code, category, 'ativo' as status FROM animals WHERE mother_id = ? OR father_id = ?
+      SELECT id, name, code, category, name_color, lote, 'ativo' as status FROM animals WHERE mother_id = ? OR father_id = ?
       UNION ALL
-      SELECT id, name, code, category, 'vendido' as status FROM sold_animals WHERE mother_id = ? OR father_id = ?
+      SELECT id, name, code, category, name_color, lote, 'vendido' as status FROM sold_animals WHERE mother_id = ? OR father_id = ?
       UNION ALL
-      SELECT id, name, code, category, 'falecido' as status FROM deceased_animals WHERE mother_id = ? OR father_id = ?
+      SELECT id, name, code, category, name_color, lote, 'falecido' as status FROM deceased_animals WHERE mother_id = ? OR father_id = ?
       ORDER BY name
     ''', [id, id, id, id, id, id]);
 
@@ -166,14 +166,14 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                       dense: true,
                       leading: const Icon(Icons.female),
                       title: Text('Mãe: ${_mother!.name}'),
-                      subtitle: Text('Código: ${_mother!.code}'),
+                      subtitle: Text('Código: ${_mother!.code}${_mother!.nameColor != null ? ' • Cor: ${_mother!.nameColor}' : ''}${_mother!.lote != null ? ' • Lote: ${_mother!.lote}' : ''}'),
                     ),
                   if (_father != null)
                     ListTile(
                       dense: true,
                       leading: const Icon(Icons.male),
                       title: Text('Pai: ${_father!.name}'),
-                      subtitle: Text('Código: ${_father!.code}'),
+                      subtitle: Text('Código: ${_father!.code}${_father!.nameColor != null ? ' • Cor: ${_father!.nameColor}' : ''}${_father!.lote != null ? ' • Lote: ${_father!.lote}' : ''}'),
                     ),
                 ],
               ),
@@ -197,11 +197,14 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                     if (status == 'vendido') statusColor = Colors.blue;
                     if (status == 'falecido') statusColor = Colors.red;
                     
+                    final color = child['name_color']?.toString();
+                    final lote = child['lote']?.toString();
+                    
                     return ListTile(
                       dense: true,
                       leading: Icon(Icons.child_care, color: statusColor),
                       title: Text('${child['name']} (${child['code']})'),
-                      subtitle: Text('${child['category']} • Status: $status'),
+                      subtitle: Text('${child['category']} • Status: $status${color != null ? ' • Cor: $color' : ''}${lote != null ? ' • Lote: $lote' : ''}'),
                     );
                   }),
                 ],

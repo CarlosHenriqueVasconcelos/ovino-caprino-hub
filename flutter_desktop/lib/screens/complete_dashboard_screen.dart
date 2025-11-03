@@ -632,6 +632,9 @@ class _HerdSectionState extends State<_HerdSection> {
   String? _colorFilter;
   String? _categoryFilter;
 
+  int _currentPage = 0;
+  static const int _itemsPerPage = 50;
+
   StreamSubscription<String>? _busSub;
 
   @override
@@ -772,27 +775,42 @@ class _HerdSectionState extends State<_HerdSection> {
                     ChoiceChip(
                       label: const Text('Todos'),
                       selected: _statusFilter == null,
-                      onSelected: (_) => setState(() => _statusFilter = null),
+                      onSelected: (_) => setState(() {
+                        _statusFilter = null;
+                        _currentPage = 0;
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('Saudáveis'),
                       selected: _statusFilter == 'Saudável',
-                      onSelected: (_) => setState(() => _statusFilter = 'Saudável'),
+                      onSelected: (_) => setState(() {
+                        _statusFilter = 'Saudável';
+                        _currentPage = 0;
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('Em tratamento'),
                       selected: _statusFilter == 'Em tratamento',
-                      onSelected: (_) => setState(() => _statusFilter = 'Em tratamento'),
+                      onSelected: (_) => setState(() {
+                        _statusFilter = 'Em tratamento';
+                        _currentPage = 0;
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('Vendidos'),
                       selected: _statusFilter == 'Vendido',
-                      onSelected: (_) => setState(() => _statusFilter = 'Vendido'),
+                      onSelected: (_) => setState(() {
+                        _statusFilter = 'Vendido';
+                        _currentPage = 0;
+                      }),
                     ),
                     ChoiceChip(
                       label: const Text('Óbito'),
                       selected: _statusFilter == 'Óbito',
-                      onSelected: (_) => setState(() => _statusFilter = 'Óbito'),
+                      onSelected: (_) => setState(() {
+                        _statusFilter = 'Óbito';
+                        _currentPage = 0;
+                      }),
                     ),
                   ],
                 ),
@@ -807,13 +825,23 @@ class _HerdSectionState extends State<_HerdSection> {
                     ChoiceChip(
                       label: const Text('Todas'),
                       selected: _colorFilter == null,
-                      onSelected: (_) => setState(() => _colorFilter = null),
+                      onSelected: (_) => setState(() {
+                        _colorFilter = null;
+                        _currentPage = 0;
+                      }),
                     ),
-                    ...availableColors.map((color) => ChoiceChip(
-                      label: Text(color),
-                      selected: _colorFilter == color,
-                      onSelected: (_) => setState(() => _colorFilter = color),
-                    )),
+                    ...availableColors.map((color) {
+                      // Importar AnimalDisplayUtils
+                      final colorName = AnimalDisplayUtils.getColorName(color);
+                      return ChoiceChip(
+                        label: Text(colorName),
+                        selected: _colorFilter == color,
+                        onSelected: (_) => setState(() {
+                          _colorFilter = color;
+                          _currentPage = 0;
+                        }),
+                      );
+                    }),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -827,12 +855,18 @@ class _HerdSectionState extends State<_HerdSection> {
                     ChoiceChip(
                       label: const Text('Todas'),
                       selected: _categoryFilter == null,
-                      onSelected: (_) => setState(() => _categoryFilter = null),
+                      onSelected: (_) => setState(() {
+                        _categoryFilter = null;
+                        _currentPage = 0;
+                      }),
                     ),
                     ...availableCategories.map((category) => ChoiceChip(
                       label: Text(category),
                       selected: _categoryFilter == category,
-                      onSelected: (_) => setState(() => _categoryFilter = category),
+                      onSelected: (_) => setState(() {
+                        _categoryFilter = category;
+                        _currentPage = 0;
+                      }),
                     )),
                   ],
                 ),
@@ -840,7 +874,38 @@ class _HerdSectionState extends State<_HerdSection> {
 
                 if (all.isEmpty)
                   _emptyState(theme)
-                else
+                else ...[
+                  // Informações de paginação
+                  if (_statusFilter != 'Óbito' && _statusFilter != 'Vendido' && filtered.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filtered.length)} de ${filtered.length} animais',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left),
+                              onPressed: _currentPage > 0
+                                  ? () => setState(() => _currentPage--)
+                                  : null,
+                            ),
+                            Text('Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}'),
+                            IconButton(
+                              icon: const Icon(Icons.chevron_right),
+                              onPressed: (_currentPage + 1) * _itemsPerPage < filtered.length
+                                  ? () => setState(() => _currentPage++)
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   // Quando filtro = Óbito, carrega da tabela deceased_animals
                   if (_statusFilter == 'Óbito')
                     FutureBuilder<List<Animal>>(
@@ -940,32 +1005,42 @@ class _HerdSectionState extends State<_HerdSection> {
                       },
                     )
                   else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.8,
-                      ),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        return AnimalCard(
-                          animal: filtered[index],
-                          repository: context.read<AnimalRepository>(),
-                          onEdit: (animal) =>
-                              _showAnimalForm(context, animal: animal),
-                          onDeleteCascade: (animal) async {
-                            await AnimalDeleteCascade.delete(animal.id);
-                            final svc = context.read<AnimalService>();
-                            await svc.loadData();        // recarrega do banco
-                            if (mounted) setState(() {}); // atualiza a UI
+                    Builder(
+                      builder: (context) {
+                        // Aplicar paginação
+                        final startIndex = _currentPage * _itemsPerPage;
+                        final endIndex = (startIndex + _itemsPerPage).clamp(0, filtered.length);
+                        final paginatedList = filtered.sublist(startIndex, endIndex);
+                        
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.8,
+                          ),
+                          itemCount: paginatedList.length,
+                          itemBuilder: (context, index) {
+                            return AnimalCard(
+                              animal: paginatedList[index],
+                              repository: context.read<AnimalRepository>(),
+                              onEdit: (animal) =>
+                                  _showAnimalForm(context, animal: animal),
+                              onDeleteCascade: (animal) async {
+                                await AnimalDeleteCascade.delete(animal.id);
+                                final svc = context.read<AnimalService>();
+                                await svc.loadData();        // recarrega do banco
+                                if (mounted) setState(() {}); // atualiza a UI
+                              },
+                            );
                           },
                         );
                       },
                     ),
+                ],
               ],
             ),
           ),
