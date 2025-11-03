@@ -162,10 +162,13 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Material(
-                        elevation: 4.0,
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 200),
+                        elevation: 8.0,
+                        color: Theme.of(context).cardColor,
+                        child: Container
+                        (
+                          constraints: const BoxConstraints(maxHeight: 240),
                           width: 468,
+                          color: Theme.of(context).cardColor,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             itemCount: options.length,
@@ -175,7 +178,12 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                                 onTap: () => onSelected(animal),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                  child: AnimalDisplayUtils.buildDropdownItem(
+                                    animal,
+                                    textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
                                 ),
                               );
                             },
@@ -228,10 +236,12 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Material(
-                        elevation: 4.0,
+                        elevation: 8.0,
+                        color: Theme.of(context).cardColor,
                         child: Container(
-                          constraints: const BoxConstraints(maxHeight: 200),
+                          constraints: const BoxConstraints(maxHeight: 240),
                           width: 468,
+                          color: Theme.of(context).cardColor,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             itemCount: options.length,
@@ -241,7 +251,12 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                                 onTap: () => onSelected(animal),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                  child: AnimalDisplayUtils.buildDropdownItem(
+                                    animal,
+                                    textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
                                 ),
                               );
                             },

@@ -794,13 +794,16 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 const SnackBar(content: Text('Pesos atualizados com sucesso!')),
               );
               
-              // Se salvou peso de 120 dias, abrir tela de edição do animal
+              // Se salvou peso de 120 dias, abrir tela de edição do animal já como Adulto
               if (shouldShowEditDialog && mounted) {
                 await Future.delayed(const Duration(milliseconds: 300));
                 if (mounted) {
+                  // Atualiza a categoria automaticamente para 'Adulto' antes de abrir a edição
+                  final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
+                  await Provider.of<AnimalService>(context, listen: false).updateAnimal(adultAnimal);
                   showDialog(
                     context: context,
-                    builder: (context) => AnimalFormDialog(animal: lamb),
+                    builder: (context) => AnimalFormDialog(animal: adultAnimal),
                   );
                 }
               }

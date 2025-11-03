@@ -48,6 +48,8 @@ class WeightRecord {
         return '60 dias';
       case '90d':
         return '90 dias';
+      case '120d':
+        return '120 dias';
       case 'monthly_1':
         return 'Mês 1';
       case 'monthly_2':
