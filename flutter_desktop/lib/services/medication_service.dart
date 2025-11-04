@@ -103,11 +103,7 @@ class MedicationService extends ChangeNotifier {
       // Inserir no banco local
       await _repository.insert(m);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('medications').insert(m);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao criar medicação: $e');
@@ -129,14 +125,7 @@ class MedicationService extends ChangeNotifier {
       // Atualizar no banco local
       await _repository.update(id, m);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase
-            .from('medications')
-            .update(m)
-            .eq('id', id);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao atualizar medicação: $e');
@@ -150,14 +139,7 @@ class MedicationService extends ChangeNotifier {
       // Deletar no banco local
       await _repository.delete(id);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase
-            .from('medications')
-            .delete()
-            .eq('id', id);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao deletar medicação: $e');

@@ -102,11 +102,7 @@ class VaccinationService extends ChangeNotifier {
       // Inserir no banco local
       await _repository.insert(v);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('vaccinations').insert(v);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao criar vacinação: $e');
@@ -127,14 +123,7 @@ class VaccinationService extends ChangeNotifier {
       // Atualizar no banco local
       await _repository.update(id, v);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase
-            .from('vaccinations')
-            .update(v)
-            .eq('id', id);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao atualizar vacinação: $e');
@@ -148,14 +137,7 @@ class VaccinationService extends ChangeNotifier {
       // Deletar no banco local
       await _repository.delete(id);
 
-      // Sincronizar com Supabase
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase
-            .from('vaccinations')
-            .delete()
-            .eq('id', id);
-      }
-
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
       print('Erro ao deletar vacinação: $e');

@@ -34,17 +34,10 @@ class PharmacyService extends ChangeNotifier {
   // Criar medicamento
   Future<void> createMedication(PharmacyStock stock) async {
     try {
-      final map = stock.toMap();
-
-      // 1) Insere no SQLite local
+      // Insere no SQLite local
       await _repository.insertStock(stock);
 
-      // 2) Sincroniza com Supabase primeiro para garantir a FK das movimentações
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase.from('pharmacy_stock').insert(map);
-      }
-
-      // 3) Registra a movimentação inicial
+      // Registra a movimentação inicial
       if (stock.totalQuantity > 0) {
         await recordMovement(
           PharmacyStockMovement(
@@ -57,6 +50,8 @@ class PharmacyService extends ChangeNotifier {
           ),
         );
       }
+      
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao criar medicamento: $e');
       rethrow;
@@ -66,15 +61,9 @@ class PharmacyService extends ChangeNotifier {
   // Atualizar medicamento
   Future<void> updateMedication(String id, PharmacyStock stock) async {
     try {
-      final map = stock.toMap();
       await _repository.updateStock(stock);
-
-      if (SupabaseService.isConfigured) {
-        await SupabaseService.supabase
-            .from('pharmacy_stock')
-            .update(map)
-            .eq('id', id);
-      }
+      
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao atualizar medicamento: $e');
       rethrow;
@@ -87,24 +76,7 @@ class PharmacyService extends ChangeNotifier {
       // Repository já cuida da lógica de deleção
       await _repository.deleteStock(id);
 
-      // Sincronização com Supabase
-      if (SupabaseService.isConfigured) {
-        // Remover vínculo nas medicações remotas
-        await SupabaseService.supabase
-            .from('medications')
-            .update({'pharmacy_stock_id': null})
-            .eq('pharmacy_stock_id', id);
-
-        await SupabaseService.supabase
-            .from('pharmacy_stock_movements')
-            .delete()
-            .eq('pharmacy_stock_id', id);
-        
-        await SupabaseService.supabase
-            .from('pharmacy_stock')
-            .delete()
-            .eq('id', id);
-      }
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao deletar medicamento: $e');
       rethrow;
@@ -114,35 +86,9 @@ class PharmacyService extends ChangeNotifier {
   // Registrar movimentação
   Future<void> recordMovement(PharmacyStockMovement movement) async {
     try {
-      final map = movement.toMap();
       await _repository.recordMovement(movement);
-
-      if (SupabaseService.isConfigured) {
-        try {
-          // Verifica se há medication_id e se ele existe na tabela medications
-          if (movement.medicationId != null) {
-            final medicationExists = await SupabaseService.supabase
-                .from('medications')
-                .select('id')
-                .eq('id', movement.medicationId!)
-                .maybeSingle();
-            
-            // Se o medicamento não existe no Supabase, insere sem o medication_id
-            if (medicationExists == null) {
-              final mapWithoutMedId = Map<String, dynamic>.from(map);
-              mapWithoutMedId.remove('medication_id');
-              await SupabaseService.supabase.from('pharmacy_stock_movements').insert(mapWithoutMedId);
-            } else {
-              await SupabaseService.supabase.from('pharmacy_stock_movements').insert(map);
-            }
-          } else {
-            await SupabaseService.supabase.from('pharmacy_stock_movements').insert(map);
-          }
-        } catch (supabaseError) {
-          print('Erro ao sincronizar movimentação com Supabase: $supabaseError');
-          // Continua a execução mesmo se falhar no Supabase
-        }
-      }
+      
+      // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao registrar movimentação: $e');
       rethrow;
