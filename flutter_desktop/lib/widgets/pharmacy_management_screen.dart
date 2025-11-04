@@ -480,7 +480,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               Flexible(
                 child: Text(
                   useVolumeLogic
-                      ? '${stock.totalQuantity.toStringAsFixed(0)} recipiente${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure} total)'
+                      ? '${stock.totalQuantity.toStringAsFixed(0)} unidade${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure} total)'
                       : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
                   style: theme.textTheme.bodyMedium,
                   overflow: TextOverflow.ellipsis,

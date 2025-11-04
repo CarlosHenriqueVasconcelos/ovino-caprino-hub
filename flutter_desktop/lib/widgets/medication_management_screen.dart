@@ -1153,15 +1153,31 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       
                       if (useVolumeLogic) {
                         final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                        // Mostrar apenas se há volume disponível
+                        if (totalVolume <= 0) return '';
                         return '${stock.medicationName} (${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure})';
                       }
                       return '${stock.medicationName} (${stock.totalQuantity.toInt()} unidades)';
                     },
                     optionsBuilder: (TextEditingValue textEditingValue) {
+                      // Filtrar medicamentos que têm estoque disponível
+                      final availableStock = _pharmacyStock.where((stock) {
+                        final unit = stock.unitOfMeasure.toLowerCase();
+                        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                                               stock.quantityPerUnit != null && 
+                                               stock.quantityPerUnit! > 0;
+                        
+                        if (useVolumeLogic) {
+                          final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                          return totalVolume > 0;
+                        }
+                        return stock.totalQuantity > 0;
+                      }).toList();
+                      
                       if (textEditingValue.text.isEmpty) {
-                        return _pharmacyStock;
+                        return availableStock;
                       }
-                      return _pharmacyStock.where((stock) {
+                      return availableStock.where((stock) {
                         final searchText = textEditingValue.text.toLowerCase();
                         return stock.medicationName.toLowerCase().contains(searchText);
                       });
@@ -1218,7 +1234,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                                 String subtitle;
                                 if (useVolumeLogic) {
                                   final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
-                                  subtitle = '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)';
+                                  final openedInfo = stock.openedQuantity > 0 ? ' (${stock.openedQuantity.toStringAsFixed(1)}${stock.unitOfMeasure} aberto)' : '';
+                                  subtitle = '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)$openedInfo';
                                 } else {
                                   subtitle = '${stock.totalQuantity.toInt()} unidades disponíveis';
                                 }
