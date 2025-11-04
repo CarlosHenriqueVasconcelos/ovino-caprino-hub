@@ -60,14 +60,14 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Rebanho',
     ),
     TabData(
-      title: 'Alimentação',
-      icon: Icons.agriculture,
-      label: 'Alimentação',
-    ),
-    TabData(
       title: 'Reprodução',
       icon: Icons.favorite,
       label: 'Reprodução',
+    ),
+    TabData(
+      title: 'Peso & Crescimento',
+      icon: Icons.monitor_weight,
+      label: 'Peso',
     ),
     TabData(
       title: 'Vacinações e Medicamentos',
@@ -75,14 +75,19 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Vacinas',
     ),
     TabData(
+      title: 'Farmácia',
+      icon: Icons.local_pharmacy,
+      label: 'Farmácia',
+    ),
+    TabData(
       title: 'Anotações',
       icon: Icons.note_alt,
       label: 'Anotações',
     ),
     TabData(
-      title: 'Farmácia',
-      icon: Icons.local_pharmacy,
-      label: 'Farmácia',
+      title: 'Alimentação',
+      icon: Icons.agriculture,
+      label: 'Alimentação',
     ),
     TabData(
       title: 'Relatórios',
@@ -156,11 +161,12 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                 children: [
                   _DashboardTabContent(onGoToTab: _goToTab),
                   const _HerdTabContent(),
-                  const FeedingScreen(),
                   const BreedingManagementScreen(),
+                  const WeightTrackingScreen(),
                   const MedicationManagementScreen(),
-                  const NotesManagementScreen(),
                   const PharmacyManagementScreen(),
+                  const NotesManagementScreen(),
+                  const FeedingScreen(),
                   const ReportsHubScreen(),
                   const FinancialCompleteScreen(),
                   const SystemSettingsScreen(),
