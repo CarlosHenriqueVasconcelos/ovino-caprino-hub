@@ -213,8 +213,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                   itemBuilder: (context, index) {
                                     final animal = options.elementAt(index);
                                     return ListTile(
-                                      leading: const Icon(Icons.female, size: 20),
-                                      title: AnimalDisplayUtils.buildColoredNameText(animal),
+                                      title: AnimalDisplayUtils.buildDropdownItem(animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },
@@ -279,8 +278,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                   itemBuilder: (context, index) {
                                     final animal = options.elementAt(index);
                                     return ListTile(
-                                      leading: const Icon(Icons.male, size: 20),
-                                      title: AnimalDisplayUtils.buildColoredNameText(animal),
+                                      title: AnimalDisplayUtils.buildDropdownItem(animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },

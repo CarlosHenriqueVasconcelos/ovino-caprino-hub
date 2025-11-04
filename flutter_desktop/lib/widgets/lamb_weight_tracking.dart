@@ -17,6 +17,8 @@ class LambWeightTracking extends StatefulWidget {
 class _LambWeightTrackingState extends State<LambWeightTracking> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  int _currentPage = 0;
+  static const int _itemsPerPage = 25;
 
   @override
   void dispose() {
@@ -109,6 +111,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                   onChanged: (value) {
                     setState(() {
                       _searchQuery = value.toLowerCase();
+                      _currentPage = 0; // Reset para primeira página ao buscar
                     });
                   },
                 ),
@@ -302,15 +305,53 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Widget _buildLambsList(ThemeData theme, List<Animal> lambs) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: lambs.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final lamb = lambs[index];
-        return _buildLambCard(theme, lamb);
-      },
+    final totalPages = (lambs.length / _itemsPerPage).ceil();
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, lambs.length);
+    final paginatedLambs = lambs.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: paginatedLambs.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final lamb = paginatedLambs[index];
+            return _buildLambCard(theme, lamb);
+          },
+        ),
+        
+        if (totalPages > 1) ...[
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: _currentPage > 0
+                    ? () => setState(() => _currentPage--)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Página ${_currentPage + 1} de $totalPages',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage++)
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -693,10 +734,32 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   void _showWeightEditDialog(Animal lamb) async {
-    // Pega automaticamente o birthWeight do banco, ou usa o peso atual se não houver
-    final initialBirthWeight = lamb.birthWeight ?? lamb.weight;
+    // Buscar peso de nascimento do histórico se não houver no animal
+    double? initialBirthWeight = lamb.birthWeight;
+    if (initialBirthWeight == null || initialBirthWeight == 0) {
+      // Tentar buscar do histórico de pesos
+      final db = await AppDatabase.open();
+      final repo = AnimalRepository(db);
+      final weightHistory = await repo.getWeightHistory(lamb.id);
+      
+      // Procurar por peso de nascimento ou o primeiro peso registrado
+      final birthRecord = weightHistory.where((w) => 
+        w['milestone']?.toString() == 'birth' || 
+        w['milestone']?.toString() == 'nascimento'
+      ).toList();
+      
+      if (birthRecord.isNotEmpty) {
+        initialBirthWeight = (birthRecord.first['weight'] as num?)?.toDouble();
+      } else if (weightHistory.isNotEmpty) {
+        // Usar o primeiro peso registrado se não houver peso específico de nascimento
+        initialBirthWeight = (weightHistory.last['weight'] as num?)?.toDouble();
+      } else {
+        initialBirthWeight = lamb.weight;
+      }
+    }
+    
     final birthWeightController = TextEditingController(
-      text: initialBirthWeight.toStringAsFixed(1),
+      text: initialBirthWeight?.toStringAsFixed(1) ?? '',
     );
     final weight30Controller = TextEditingController(
       text: lamb.weight30Days?.toStringAsFixed(1) ?? '',
@@ -718,7 +781,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Editar Pesos - ${lamb.name}'),
         content: SingleChildScrollView(
           child: Column(
@@ -738,7 +801,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -788,35 +851,25 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               }
               
               if (!mounted) return;
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Pesos atualizados com sucesso!')),
               );
               
-              // Se salvou peso de 120 dias, atualizar categoria e abrir tela de edição
+              // Se salvou peso de 120 dias, abrir tela de edição com categoria Adulto pré-selecionada
               if (shouldShowEditDialog && mounted) {
                 await Future.delayed(const Duration(milliseconds: 300));
                 if (mounted) {
-                  // Atualiza a categoria para 'Adulto' no banco de dados
+                  // Criar cópia do animal com categoria Adulto APENAS para passar ao formulário
+                  // (não persiste ainda, só será salvo quando o usuário clicar em Salvar no card)
                   final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
-                  await Provider.of<AnimalService>(context, listen: false).updateAnimal(adultAnimal);
                   
-                  // Aguarda um pouco para garantir que atualizou
-                  await Future.delayed(const Duration(milliseconds: 200));
-                  
-                  // Recarrega os dados
-                  if (mounted) {
-                    await Provider.of<AnimalService>(context, listen: false).loadData();
-                    
-                    // Agora abre o dialog de edição
-                    if (mounted) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AnimalFormDialog(animal: adultAnimal),
-                      );
-                    }
-                  }
+                  // Abrir o dialog de edição
+                  showDialog(
+                    context: context,
+                    builder: (context) => AnimalFormDialog(animal: adultAnimal),
+                  );
                 }
               }
             },

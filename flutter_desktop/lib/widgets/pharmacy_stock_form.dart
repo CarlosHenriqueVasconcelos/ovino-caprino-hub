@@ -195,12 +195,13 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 ),
                 const SizedBox(height: 16),
 
-                if (_selectedType == 'Ampola' || _selectedType == 'Frasco') ...[
+                if (_selectedType == 'Ampola' || _selectedType == 'Frasco' || 
+                    _selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') ...[
                   TextFormField(
                     controller: _quantityPerUnitController,
                     decoration: InputDecoration(
-                      labelText: 'ML por ${_selectedType == 'Frasco' ? 'Frasco' : 'Ampola'}',
-                      hintText: 'Quantos ml tem em cada unidade',
+                      labelText: 'Quantidade por unidade ($_selectedUnit)',
+                      hintText: 'Ex: quantos $_selectedUnit tem em cada ${_selectedType.toLowerCase()}',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.water_drop),
                     ),

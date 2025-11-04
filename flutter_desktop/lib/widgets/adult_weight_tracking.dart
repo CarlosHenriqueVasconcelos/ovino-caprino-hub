@@ -16,6 +16,8 @@ class AdultWeightTracking extends StatefulWidget {
 class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  int _currentPage = 0;
+  static const int _itemsPerPage = 25;
 
   @override
   void dispose() {
@@ -108,6 +110,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   onChanged: (value) {
                     setState(() {
                       _searchQuery = value.toLowerCase();
+                      _currentPage = 0; // Reset para primeira página ao buscar
                     });
                   },
                 ),
@@ -225,15 +228,53 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   }
 
   Widget _buildAdultsList(ThemeData theme, List<Animal> adults) {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: adults.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 16),
-      itemBuilder: (context, index) {
-        final adult = adults[index];
-        return _buildAdultCard(theme, adult);
-      },
+    final totalPages = (adults.length / _itemsPerPage).ceil();
+    final startIndex = _currentPage * _itemsPerPage;
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, adults.length);
+    final paginatedAdults = adults.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: paginatedAdults.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 16),
+          itemBuilder: (context, index) {
+            final adult = paginatedAdults[index];
+            return _buildAdultCard(theme, adult);
+          },
+        ),
+        
+        if (totalPages > 1) ...[
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: _currentPage > 0
+                    ? () => setState(() => _currentPage--)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'Página ${_currentPage + 1} de $totalPages',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage++)
+                    : null,
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
