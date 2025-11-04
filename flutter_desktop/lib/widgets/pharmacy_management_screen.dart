@@ -507,7 +507,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   if (useVolumeLogic && stock.openedQuantity > 0)
                     Flexible(
                       child: Text(
-                        'Aberto: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}',
+                        '1 unidade aberta: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),
