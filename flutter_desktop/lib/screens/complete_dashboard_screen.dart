@@ -60,9 +60,9 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Rebanho',
     ),
     TabData(
-      title: 'Reprodução',
-      icon: Icons.favorite,
-      label: 'Reprodução',
+      title: 'Alimentação',
+      icon: Icons.agriculture,
+      label: 'Alimentação',
     ),
     TabData(
       title: 'Peso & Crescimento',
@@ -70,14 +70,14 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Peso',
     ),
     TabData(
+      title: 'Reprodução',
+      icon: Icons.favorite,
+      label: 'Reprodução',
+    ),
+    TabData(
       title: 'Vacinações e Medicamentos',
       icon: Icons.medication,
       label: 'Vacinas',
-    ),
-    TabData(
-      title: 'Farmácia',
-      icon: Icons.local_pharmacy,
-      label: 'Farmácia',
     ),
     TabData(
       title: 'Anotações',
@@ -85,9 +85,9 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       label: 'Anotações',
     ),
     TabData(
-      title: 'Alimentação',
-      icon: Icons.agriculture,
-      label: 'Alimentação',
+      title: 'Farmácia',
+      icon: Icons.local_pharmacy,
+      label: 'Farmácia',
     ),
     TabData(
       title: 'Relatórios',
@@ -161,12 +161,12 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                 children: [
                   _DashboardTabContent(onGoToTab: _goToTab),
                   const _HerdTabContent(),
-                  const BreedingManagementScreen(),
-                  const WeightTrackingScreen(),
-                  const MedicationManagementScreen(),
-                  const PharmacyManagementScreen(),
-                  const NotesManagementScreen(),
                   const FeedingScreen(),
+                  const WeightTrackingScreen(),
+                  const BreedingManagementScreen(),
+                  const MedicationManagementScreen(),
+                  const NotesManagementScreen(),
+                  const PharmacyManagementScreen(),
                   const ReportsHubScreen(),
                   const FinancialCompleteScreen(),
                   const SystemSettingsScreen(),
@@ -366,7 +366,7 @@ class _DashboardTabContent extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Alertas (vacinações/medicações) — seu widget original
-              VaccinationAlerts(onGoToVaccinations: () => onGoToTab(4)),
+              VaccinationAlerts(onGoToVaccinations: () => onGoToTab(5)),
               const SizedBox(height: 16),
 
               // NOVO: Alertas de Reprodução (separações, ultrassons, partos)
