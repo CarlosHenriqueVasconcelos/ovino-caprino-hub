@@ -108,8 +108,14 @@ Migrar de uma arquitetura com acesso direto ao banco em widgets para uma arquite
 - [x] Atualizar main.dart com WeightService provider
 - [x] Remover todos os 11 acessos diretos ao banco em widgets
 
-### 🚧 Fase 3 - Consolidar Farmácia (PRÓXIMA)
-### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
+### 🚧 Fase 3 - Consolidar Farmácia (COMPLETA)
+- [x] Criar MedicationService usando MedicationRepository
+- [x] Criar VaccinationService usando VaccinationRepository
+- [x] Atualizar MedicationManagementScreen para usar MedicationService e VaccinationService
+- [x] Adicionar MedicationService e VaccinationService providers no main.dart
+- [x] Remover dependências diretas de DatabaseService para medicações e vacinações
+
+### ⏳ Fase 4 - Peso & Crescimento (PRÓXIMA)
 ### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
 ### ⏳ Fase 5 - Preparar para Mobile (PENDENTE)
 ### ⏳ Fase 6 - Micro Otimizações (PENDENTE)

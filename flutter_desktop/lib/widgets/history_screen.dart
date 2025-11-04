@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../services/database_service.dart';
+import '../services/vaccination_service.dart';
+import '../services/medication_service.dart';
 import '../models/animal.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -51,7 +54,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
       
       // Buscar vacinações aplicadas
-      final vaccinations = await DatabaseService.getVaccinations();
+      final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+      final vaccinations = await vaccinationService.getVaccinations();
       for (var vaccination in vaccinations.where((v) => v['status'] == 'Aplicada')) {
         final animalId = vaccination['animal_id'];
         final animal = animals.where((a) => a.id == animalId).firstOrNull;
@@ -73,7 +77,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
       
       // Buscar medicamentos aplicados
-      final medications = await DatabaseService.getMedications();
+      final medicationService = Provider.of<MedicationService>(context, listen: false);
+      final medications = await medicationService.getMedications();
       for (var med in medications.where((m) => m['status'] == 'Aplicado')) {
         final animalId = med['animal_id'];
         final animal = animals.where((a) => a.id == animalId).firstOrNull;

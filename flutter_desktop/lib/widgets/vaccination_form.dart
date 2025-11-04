@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/database_service.dart';
+import '../services/vaccination_service.dart';
 import '../models/animal.dart';
 import '../utils/animal_display_utils.dart';
 
@@ -304,6 +304,8 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
     try {
+      final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+      
       final vaccination = {
         'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId!,
@@ -317,7 +319,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
         'created_at': DateTime.now().toIso8601String(),
       };
 
-      await DatabaseService.createVaccination(vaccination);
+      await vaccinationService.createVaccination(vaccination);
       
       if (mounted) {
         Navigator.of(context).pop();

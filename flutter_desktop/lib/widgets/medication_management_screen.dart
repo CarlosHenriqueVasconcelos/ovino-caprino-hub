@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../services/animal_service.dart';
-import '../services/database_service.dart';
+import '../services/medication_service.dart';
+import '../services/vaccination_service.dart';
 import '../services/pharmacy_service.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/animal.dart';
@@ -33,8 +34,12 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final vaccinations = await DatabaseService.getVaccinations();
-      final medications = await DatabaseService.getMedications();
+      final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+      final medicationService = Provider.of<MedicationService>(context, listen: false);
+      
+      final vaccinations = await vaccinationService.getVaccinations();
+      final medications = await medicationService.getMedications();
+      
       setState(() {
         _vaccinations = List<Map<String, dynamic>>.from(vaccinations);
         _medications = List<Map<String, dynamic>>.from(medications);
@@ -815,26 +820,22 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
       final today = now.toIso8601String().split('T')[0];
       
       if (isVaccination) {
-        await DatabaseService.updateVaccination(id, {
+        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+        await vaccinationService.updateVaccination(id, {
           'status': 'Aplicada',
           'applied_date': today,
         });
       } else {
         // MEDICAMENTO - DEDUZIR DO ESTOQUE DA FARMÁCIA
-        final db = await DatabaseService.database;
-        final medicationRows = await db.query(
-          'medications',
-          where: 'id = ?',
-          whereArgs: [id],
-        );
+        final medicationService = Provider.of<MedicationService>(context, listen: false);
+        final medication = await medicationService.getMedicationById(id);
         
-        if (medicationRows.isNotEmpty) {
-          final medication = medicationRows.first;
+        if (medication != null) {
           final pharmacyStockId = medication['pharmacy_stock_id'] as String?;
           final quantityUsed = medication['quantity_used'] as double?;
 
           // Atualizar status
-          await DatabaseService.updateMedication(id, {
+          await medicationService.updateMedication(id, {
             'status': 'Aplicado',
             'applied_date': today,
           });
@@ -876,11 +877,13 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Future<void> _cancelItem(String id, {required bool isVaccination}) async {
     try {
       if (isVaccination) {
-        await DatabaseService.updateVaccination(id, {
+        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+        await vaccinationService.updateVaccination(id, {
           'status': 'Cancelada',
         });
       } else {
-        await DatabaseService.updateMedication(id, {
+        final medicationService = Provider.of<MedicationService>(context, listen: false);
+        await medicationService.updateMedication(id, {
           'status': 'Cancelado',
         });
       }
@@ -1467,6 +1470,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       final now = DateTime.now().toIso8601String();
       
       if (_type == 'Vacinação') {
+        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
         final vaccination = {
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
@@ -1479,9 +1483,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'created_at': now,
           'updated_at': now,
         };
-        await DatabaseService.createVaccination(vaccination);
+        await vaccinationService.createVaccination(vaccination);
       } else {
         // Medicamento - INCLUIR REFERÊNCIA DA FARMÁCIA
+        final medicationService = Provider.of<MedicationService>(context, listen: false);
         final dosageText = _dosageController.text.trim();
         final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
         final quantityUsed = quantityMatch != null 
@@ -1502,7 +1507,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'quantity_used': quantityUsed,
           'created_at': now,
         };
-        await DatabaseService.createMedication(medication);
+        await medicationService.createMedication(medication);
       }
       
       if (mounted) {

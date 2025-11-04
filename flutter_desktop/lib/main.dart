@@ -15,6 +15,8 @@ import 'services/animal_service.dart';
 import 'services/pharmacy_service.dart';
 import 'services/feeding_service.dart';
 import 'services/weight_service.dart';
+import 'services/medication_service.dart';
+import 'services/vaccination_service.dart';
 import 'data/local_db.dart';
 import 'data/animal_repository.dart';
 import 'data/pharmacy_repository.dart';
@@ -157,6 +159,16 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => WeightService(
             context.read<AnimalRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => MedicationService(
+            context.read<MedicationRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => VaccinationService(
+            context.read<VaccinationRepository>(),
           ),
         ),
       ],
