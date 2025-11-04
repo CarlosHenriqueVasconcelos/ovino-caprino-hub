@@ -73,14 +73,23 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     setState(() => _isSaving = true);
 
     try {
+      // Garantir que quantityPerUnit seja null quando unitOfMeasure for 'unidade'
+      double? quantityPerUnitValue;
+      if (_selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') {
+        if (_quantityPerUnitController.text.isEmpty) {
+          throw Exception('Quantidade por recipiente é obrigatória para $_selectedUnit');
+        }
+        quantityPerUnitValue = double.tryParse(_quantityPerUnitController.text.replaceAll(',', '.'));
+      } else {
+        quantityPerUnitValue = null; // Forçar null para 'unidade'
+      }
+
       final stock = PharmacyStock(
         id: widget.stock?.id ?? _uuid.v4(),
         medicationName: _nameController.text.trim(),
         medicationType: _selectedType,
         unitOfMeasure: _selectedUnit,
-        quantityPerUnit: _quantityPerUnitController.text.isEmpty
-            ? null
-            : double.tryParse(_quantityPerUnitController.text.replaceAll(',', '.')),
+        quantityPerUnit: quantityPerUnitValue,
         totalQuantity: double.parse(_totalQuantityController.text.replaceAll(',', '.')),
         minStockAlert: _minStockController.text.isEmpty
             ? null
@@ -195,17 +204,27 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 ),
                 const SizedBox(height: 16),
 
-                if (_selectedType == 'Ampola' || _selectedType == 'Frasco' || 
-                    _selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') ...[
+                // Mostrar campo de quantidade por recipiente apenas para ml/mg/g
+                if (_selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') ...[
                   TextFormField(
                     controller: _quantityPerUnitController,
                     decoration: InputDecoration(
-                      labelText: 'Quantidade por unidade ($_selectedUnit)',
-                      hintText: 'Ex: quantos $_selectedUnit tem em cada ${_selectedType.toLowerCase()}',
+                      labelText: 'Quantidade por recipiente ($_selectedUnit) *',
+                      hintText: 'Ex: 20 $_selectedUnit por ${_selectedType.toLowerCase()}',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.water_drop),
                     ),
                     keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Quantidade por recipiente é obrigatória para $_selectedUnit';
+                      }
+                      final number = double.tryParse(value.replaceAll(',', '.'));
+                      if (number == null || number <= 0) {
+                        return 'Quantidade deve ser maior que zero';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -216,12 +235,12 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                       child: TextFormField(
                         controller: _totalQuantityController,
                         decoration: InputDecoration(
-                          labelText: _selectedType == 'Ampola' || _selectedType == 'Frasco' 
-                              ? 'Quantidade de ${_selectedType == 'Frasco' ? 'Frascos' : 'Ampolas'} *'
-                              : 'Quantidade Total *',
-                          hintText: _selectedType == 'Ampola' || _selectedType == 'Frasco'
-                              ? 'Número de unidades'
-                              : null,
+                          labelText: _selectedUnit == 'unidade'
+                              ? 'Quantidade Total (unidades) *'
+                              : 'Quantidade de Recipientes *',
+                          hintText: _selectedUnit == 'unidade'
+                              ? 'Número de comprimidos/cápsulas'
+                              : 'Número de frascos/ampolas/embalagens',
                           border: const OutlineInputBorder(),
                           prefixIcon: const Icon(Icons.inventory),
                         ),

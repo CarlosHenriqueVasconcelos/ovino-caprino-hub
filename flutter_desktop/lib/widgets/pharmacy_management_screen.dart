@@ -417,9 +417,12 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       icon = Icons.medication_liquid_outlined;
     }
 
-    final typeName = stock.medicationType.toLowerCase();
-    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
-    final totalVolume = isLiquid 
+    final unit = stock.unitOfMeasure.toLowerCase();
+    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                           stock.quantityPerUnit != null && 
+                           stock.quantityPerUnit! > 0;
+    
+    final totalVolume = useVolumeLogic
         ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity 
         : stock.totalQuantity;
     
@@ -461,7 +464,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${stock.medicationType}${stock.quantityPerUnit != null ? ' • ${stock.quantityPerUnit!.toStringAsFixed(1).replaceAll('.', ',')} ml/un' : ''}',
+                          '${stock.medicationType}${stock.quantityPerUnit != null ? ' • ${stock.quantityPerUnit!.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}/un' : ''}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -476,8 +479,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               // Qtd total
               Flexible(
                 child: Text(
-                  isLiquid
-                      ? '${stock.totalQuantity.toStringAsFixed(0)} ${typeName}${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0).replaceAll('.', ',')} ml total)'
+                  useVolumeLogic
+                      ? '${stock.totalQuantity.toStringAsFixed(0)} recipiente${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure} total)'
                       : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
                   style: theme.textTheme.bodyMedium,
                   overflow: TextOverflow.ellipsis,
@@ -501,10 +504,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               // Rodapé do card
               Row(
                 children: [
-                  if (stock.openedQuantity > 0)
+                  if (useVolumeLogic && stock.openedQuantity > 0)
                     Flexible(
                       child: Text(
-                        'Abertos: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ml',
+                        'Aberto: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.outline,
                         ),

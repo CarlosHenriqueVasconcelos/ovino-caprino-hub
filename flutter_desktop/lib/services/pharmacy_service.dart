@@ -301,6 +301,13 @@ class PharmacyService {
     }
     
     final unitSize = stock.quantityPerUnit!;
+    final unit = stock.unitOfMeasure;
+    
+    // Validar estoque total disponível antes de aplicar
+    final totalAvailable = (stock.totalQuantity * unitSize) + stock.openedQuantity;
+    if (quantityUsed > totalAvailable) {
+      throw Exception('Quantidade insuficiente em estoque. Disponível: ${totalAvailable.toStringAsFixed(2)} $unit');
+    }
     
     // Primeiro verifica se há frasco aberto
     if (stock.openedQuantity > 0) {
@@ -321,7 +328,7 @@ class PharmacyService {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantityUsed,
-            reason: 'Aplicação de medicamento (${quantityUsed}${stock.unitOfMeasure} do $container aberto)',
+            reason: 'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit do $container aberto)',
             createdAt: DateTime.now(),
           ),
         );
@@ -351,7 +358,7 @@ class PharmacyService {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantityUsed,
-            reason: 'Aplicação de medicamento (${stock.openedQuantity}${stock.unitOfMeasure} do aberto + ${remaining}${stock.unitOfMeasure} de $frascosFechados novo${frascosFechados > 1 ? 's' : ''})',
+            reason: 'Aplicação de medicamento (${stock.openedQuantity.toStringAsFixed(2)} $unit do aberto + ${remaining.toStringAsFixed(2)} $unit de $frascosFechados novo${frascosFechados > 1 ? 's' : ''})',
             createdAt: DateTime.now(),
           ),
         );
@@ -404,7 +411,7 @@ class PharmacyService {
           medicationId: medicationId,
           movementType: 'saida',
           quantity: quantityUsed,
-          reason: 'Aplicação de medicamento (${quantityUsed}${stock.unitOfMeasure} usados, ${remaining}${stock.unitOfMeasure} restantes no $container aberto)',
+          reason: 'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit usados, ${remaining.toStringAsFixed(2)} $unit restantes no $container aberto)',
           createdAt: DateTime.now(),
         ),
       );

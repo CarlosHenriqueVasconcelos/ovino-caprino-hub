@@ -319,19 +319,40 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                       const Divider(height: 24),
                       _buildInfoRow('Tipo:', widget.stock.medicationType),
                       _buildInfoRow('Unidade:', widget.stock.unitOfMeasure),
-                      if (widget.stock.quantityPerUnit != null)
-                        _buildInfoRow('Quantidade por unidade:', '${widget.stock.quantityPerUnit} ${widget.stock.unitOfMeasure}'),
-                      _buildInfoRow(
-                        'Quantidade Total:',
-                        '${widget.stock.totalQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
-                        valueColor: widget.stock.isLowStock ? Colors.orange : null,
-                      ),
-                      if (widget.stock.isOpened && widget.stock.openedQuantity > 0)
+                      
+                      // Exibição diferenciada baseada na unidade de medida
+                      if (widget.stock.unitOfMeasure == 'ml' || 
+                          widget.stock.unitOfMeasure == 'mg' || 
+                          widget.stock.unitOfMeasure == 'g') ...[
+                        if (widget.stock.quantityPerUnit != null)
+                          _buildInfoRow(
+                            'Quantidade por recipiente:',
+                            '${widget.stock.quantityPerUnit!.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'
+                          ),
                         _buildInfoRow(
-                          'Recipiente Aberto:',
-                          '${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
-                          valueColor: Colors.blue,
+                          'Recipientes fechados:',
+                          '${widget.stock.totalQuantity.toInt()} unidades',
                         ),
+                        if (widget.stock.isOpened && widget.stock.openedQuantity > 0)
+                          _buildInfoRow(
+                            'Recipiente aberto:',
+                            '${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
+                            valueColor: Colors.blue,
+                          ),
+                        if (widget.stock.quantityPerUnit != null)
+                          _buildInfoRow(
+                            'Volume Total Disponível:',
+                            '${((widget.stock.totalQuantity * widget.stock.quantityPerUnit!) + widget.stock.openedQuantity).toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
+                            valueColor: widget.stock.isLowStock ? Colors.orange : Colors.green,
+                          ),
+                      ] else ...[
+                        // Para "unidade" (comprimidos, cápsulas, etc.)
+                        _buildInfoRow(
+                          'Quantidade Total:',
+                          '${widget.stock.totalQuantity.toInt()} unidades',
+                          valueColor: widget.stock.isLowStock ? Colors.orange : null,
+                        ),
+                      ],
                       if (widget.stock.minStockAlert != null)
                         _buildInfoRow('Estoque Mínimo:', '${widget.stock.minStockAlert} ${widget.stock.unitOfMeasure}'),
                       if (widget.stock.expirationDate != null)
