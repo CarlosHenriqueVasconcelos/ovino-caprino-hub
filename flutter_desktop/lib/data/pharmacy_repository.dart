@@ -48,7 +48,24 @@ class PharmacyRepository {
   }
 
   /// Deleta um item do estoque
+  /// Remove vínculos em medications antes de deletar
   Future<void> deleteStock(String id) async {
+    // Remover vínculos em medications (FK) antes de deletar o estoque
+    await _db.db.update(
+      'medications',
+      {'pharmacy_stock_id': null},
+      where: 'pharmacy_stock_id = ?',
+      whereArgs: [id],
+    );
+    
+    // Deletar movimentações relacionadas
+    await _db.db.delete(
+      'pharmacy_stock_movements',
+      where: 'pharmacy_stock_id = ?',
+      whereArgs: [id],
+    );
+    
+    // Deletar o medicamento do estoque
     await _db.db.delete(
       'pharmacy_stock',
       where: 'id = ?',

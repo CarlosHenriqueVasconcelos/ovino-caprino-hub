@@ -12,8 +12,17 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
 import 'services/animal_service.dart';
+import 'services/pharmacy_service.dart';
+import 'services/feeding_service.dart';
 import 'data/local_db.dart';
 import 'data/animal_repository.dart';
+import 'data/pharmacy_repository.dart';
+import 'data/breeding_repository.dart';
+import 'data/finance_repository.dart';
+import 'data/feeding_repository.dart';
+import 'data/vaccination_repository.dart';
+import 'data/medication_repository.dart';
+import 'data/note_repository.dart';
 import 'services/backup_service.dart';
 
 Future<void> main() async {
@@ -50,9 +59,19 @@ Future<void> main() async {
       anonKey: supabaseAnonKey,
     );
 
-    // Abrir banco local e injetar serviços
+    // Abrir banco local e criar repositórios
     final appDb = await AppDatabase.open();
+    
+    // Criar todos os repositórios
     final animalRepository = AnimalRepository(appDb);
+    final pharmacyRepository = PharmacyRepository(appDb);
+    final breedingRepository = BreedingRepository(appDb);
+    final financeRepository = FinanceRepository(appDb);
+    final feedingRepository = FeedingRepository(appDb);
+    final vaccinationRepository = VaccinationRepository(appDb);
+    final medicationRepository = MedicationRepository(appDb);
+    final noteRepository = NoteRepository(appDb);
+    
     final backupService = BackupService(
       db: appDb,
       supabaseUrl: supabaseUrl,
@@ -61,7 +80,14 @@ Future<void> main() async {
 
     runApp(FazendaSaoPetronioApp(
       db: appDb,
-      repository: animalRepository,
+      animalRepository: animalRepository,
+      pharmacyRepository: pharmacyRepository,
+      breedingRepository: breedingRepository,
+      financeRepository: financeRepository,
+      feedingRepository: feedingRepository,
+      vaccinationRepository: vaccinationRepository,
+      medicationRepository: medicationRepository,
+      noteRepository: noteRepository,
       backup: backupService,
     ));
   }, (error, stack) {
@@ -73,12 +99,27 @@ Future<void> main() async {
 
 class FazendaSaoPetronioApp extends StatelessWidget {
   final AppDatabase db;
-  final AnimalRepository repository;
+  final AnimalRepository animalRepository;
+  final PharmacyRepository pharmacyRepository;
+  final BreedingRepository breedingRepository;
+  final FinanceRepository financeRepository;
+  final FeedingRepository feedingRepository;
+  final VaccinationRepository vaccinationRepository;
+  final MedicationRepository medicationRepository;
+  final NoteRepository noteRepository;
   final BackupService backup;
+  
   const FazendaSaoPetronioApp({
     super.key,
     required this.db,
-    required this.repository,
+    required this.animalRepository,
+    required this.pharmacyRepository,
+    required this.breedingRepository,
+    required this.financeRepository,
+    required this.feedingRepository,
+    required this.vaccinationRepository,
+    required this.medicationRepository,
+    required this.noteRepository,
     required this.backup,
   });
 
@@ -86,10 +127,32 @@ class FazendaSaoPetronioApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Database e Backup
         Provider<AppDatabase>.value(value: db),
-        Provider<AnimalRepository>.value(value: repository),
         Provider<BackupService>.value(value: backup),
+        
+        // Repositórios
+        Provider<AnimalRepository>.value(value: animalRepository),
+        Provider<PharmacyRepository>.value(value: pharmacyRepository),
+        Provider<BreedingRepository>.value(value: breedingRepository),
+        Provider<FinanceRepository>.value(value: financeRepository),
+        Provider<FeedingRepository>.value(value: feedingRepository),
+        Provider<VaccinationRepository>.value(value: vaccinationRepository),
+        Provider<MedicationRepository>.value(value: medicationRepository),
+        Provider<NoteRepository>.value(value: noteRepository),
+        
+        // Services (com injeção de dependência)
         ChangeNotifierProvider(create: (_) => AnimalService()),
+        ChangeNotifierProvider(
+          create: (context) => PharmacyService(
+            context.read<PharmacyRepository>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => FeedingService(
+            context.read<FeedingRepository>(),
+          ),
+        ),
       ],
       child: MaterialApp(
         title: 'Fazenda São Petrônio - Sistema de Gestão Pecuária',

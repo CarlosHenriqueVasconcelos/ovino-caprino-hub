@@ -1,18 +1,19 @@
 import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
-import '../services/database_service.dart';
+import '../data/pharmacy_repository.dart';
 import '../services/supabase_service.dart';
 
 class PharmacyService {
+  final PharmacyRepository _repository;
   static final _uuid = Uuid();
 
+  PharmacyService(this._repository);
+
   // Listar medicamentos em estoque
-  static Future<List<PharmacyStock>> getPharmacyStock() async {
+  Future<List<PharmacyStock>> getPharmacyStock() async {
     try {
-      final db = await DatabaseService.database;
-      final result = await db.query('pharmacy_stock', orderBy: 'medication_name');
-      return result.map((row) => PharmacyStock.fromMap(row)).toList();
+      return await _repository.getAllStock();
     } catch (e) {
       print('Erro ao buscar estoque da farmácia: $e');
       return [];
@@ -20,16 +21,9 @@ class PharmacyService {
   }
 
   // Buscar medicamento por ID
-  static Future<PharmacyStock?> getStockById(String id) async {
+  Future<PharmacyStock?> getStockById(String id) async {
     try {
-      final db = await DatabaseService.database;
-      final result = await db.query(
-        'pharmacy_stock',
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      if (result.isEmpty) return null;
-      return PharmacyStock.fromMap(result.first);
+      return await _repository.getStockById(id);
     } catch (e) {
       print('Erro ao buscar medicamento: $e');
       return null;
@@ -37,20 +31,19 @@ class PharmacyService {
   }
 
   // Criar medicamento
-  static Future<void> createMedication(PharmacyStock stock) async {
+  Future<void> createMedication(PharmacyStock stock) async {
     try {
-      final db = await DatabaseService.database;
       final map = stock.toMap();
 
       // 1) Insere no SQLite local
-      await db.insert('pharmacy_stock', map);
+      await _repository.insertStock(stock);
 
       // 2) Sincroniza com Supabase primeiro para garantir a FK das movimentações
       if (SupabaseService.isConfigured) {
         await SupabaseService.supabase.from('pharmacy_stock').insert(map);
       }
 
-      // 3) Só então registra a movimentação inicial (evita erro de FK no Supabase)
+      // 3) Registra a movimentação inicial
       if (stock.totalQuantity > 0) {
         await recordMovement(
           PharmacyStockMovement(
@@ -70,11 +63,10 @@ class PharmacyService {
   }
 
   // Atualizar medicamento
-  static Future<void> updateMedication(String id, PharmacyStock stock) async {
+  Future<void> updateMedication(String id, PharmacyStock stock) async {
     try {
-      final db = await DatabaseService.database;
       final map = stock.toMap();
-      await db.update('pharmacy_stock', map, where: 'id = ?', whereArgs: [id]);
+      await _repository.updateStock(stock);
 
       if (SupabaseService.isConfigured) {
         await SupabaseService.supabase
@@ -89,23 +81,10 @@ class PharmacyService {
   }
 
   // Deletar medicamento
-  static Future<void> deleteMedication(String id) async {
+  Future<void> deleteMedication(String id) async {
     try {
-      final db = await DatabaseService.database;
-
-      // 0) Remover vínculos em medications (FK) antes de deletar o estoque
-      await db.update(
-        'medications',
-        {'pharmacy_stock_id': null},
-        where: 'pharmacy_stock_id = ?',
-        whereArgs: [id],
-      );
-      
-      // 1) Deletar movimentações relacionadas (por garantia, embora exista ON DELETE CASCADE)
-      await db.delete('pharmacy_stock_movements', where: 'pharmacy_stock_id = ?', whereArgs: [id]);
-      
-      // 2) Deletar o medicamento do estoque
-      await db.delete('pharmacy_stock', where: 'id = ?', whereArgs: [id]);
+      // Repository já cuida da lógica de deleção
+      await _repository.deleteStock(id);
 
       // Sincronização com Supabase
       if (SupabaseService.isConfigured) {
@@ -132,11 +111,10 @@ class PharmacyService {
   }
 
   // Registrar movimentação
-  static Future<void> recordMovement(PharmacyStockMovement movement) async {
+  Future<void> recordMovement(PharmacyStockMovement movement) async {
     try {
-      final db = await DatabaseService.database;
       final map = movement.toMap();
-      await db.insert('pharmacy_stock_movements', map);
+      await _repository.recordMovement(movement);
 
       if (SupabaseService.isConfigured) {
         try {
@@ -171,16 +149,9 @@ class PharmacyService {
   }
 
   // Buscar histórico de movimentações
-  static Future<List<PharmacyStockMovement>> getMovements(String stockId) async {
+  Future<List<PharmacyStockMovement>> getMovements(String stockId) async {
     try {
-      final db = await DatabaseService.database;
-      final result = await db.query(
-        'pharmacy_stock_movements',
-        where: 'pharmacy_stock_id = ?',
-        whereArgs: [stockId],
-        orderBy: 'created_at DESC',
-      );
-      return result.map((row) => PharmacyStockMovement.fromMap(row)).toList();
+      return await _repository.getMovementsByStockId(stockId);
     } catch (e) {
       print('Erro ao buscar movimentações: $e');
       return [];
@@ -188,13 +159,9 @@ class PharmacyService {
   }
 
   // Verificar estoque baixo
-  static Future<List<PharmacyStock>> getLowStockItems() async {
+  Future<List<PharmacyStock>> getLowStockItems() async {
     try {
-      final db = await DatabaseService.database;
-      final result = await db.rawQuery(
-        'SELECT * FROM pharmacy_stock WHERE min_stock_alert IS NOT NULL AND total_quantity <= min_stock_alert ORDER BY total_quantity',
-      );
-      return result.map((row) => PharmacyStock.fromMap(row)).toList();
+      return await _repository.getLowStockItems();
     } catch (e) {
       print('Erro ao buscar itens com estoque baixo: $e');
       return [];
@@ -202,15 +169,9 @@ class PharmacyService {
   }
 
   // Verificar medicamentos próximos ao vencimento
-  static Future<List<PharmacyStock>> getExpiringItems(int daysThreshold) async {
+  Future<List<PharmacyStock>> getExpiringItems(int daysThreshold) async {
     try {
-      final db = await DatabaseService.database;
-      final thresholdDate = DateTime.now().add(Duration(days: daysThreshold));
-      final result = await db.rawQuery(
-        'SELECT * FROM pharmacy_stock WHERE expiration_date IS NOT NULL AND expiration_date <= ? AND expiration_date >= ? ORDER BY expiration_date',
-        [thresholdDate.toIso8601String().split('T')[0], DateTime.now().toIso8601String().split('T')[0]],
-      );
-      return result.map((row) => PharmacyStock.fromMap(row)).toList();
+      return await _repository.getExpiringItems(daysThreshold);
     } catch (e) {
       print('Erro ao buscar itens vencendo: $e');
       return [];
@@ -218,7 +179,7 @@ class PharmacyService {
   }
 
   // Deduzir do estoque (ao aplicar medicação)
-  static Future<void> deductFromStock(String stockId, double quantity, String? medicationId, {bool isAmpoule = false}) async {
+  Future<void> deductFromStock(String stockId, double quantity, String? medicationId, {bool isAmpoule = false}) async {
     try {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
@@ -283,7 +244,7 @@ class PharmacyService {
   }
 
   // Lógica de desconto por volume (ml/mg/g) com recipientes parciais
-  static Future<void> _handleVolumeDeduction(PharmacyStock stock, double quantityUsed, String? medicationId) async {
+  Future<void> _handleVolumeDeduction(PharmacyStock stock, double quantityUsed, String? medicationId) async {
     final type = stock.medicationType.toLowerCase();
     String container;
     if (type == 'frasco') {
@@ -419,7 +380,7 @@ class PharmacyService {
   }
 
   // Adicionar ao estoque (ao cancelar medicação ou comprar)
-  static Future<void> addToStock(String stockId, double quantity, {String? reason}) async {
+  Future<void> addToStock(String stockId, double quantity, {String? reason}) async {
     try {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
