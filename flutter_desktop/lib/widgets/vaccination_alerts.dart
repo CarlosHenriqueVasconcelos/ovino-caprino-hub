@@ -51,11 +51,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       ''');
 
       // MEDICAÇÕES — usa a "data de compromisso" = COALESCE(date, next_date)
-      // Sem exigir coluna status; filtramos vencidos/próximos em Dart.
+      // Filtra por status Agendado e não aplicados
       final medsRaw = await db.rawQuery('''
         SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
         FROM medications m
         LEFT JOIN animals a ON a.id = m.animal_id
+        WHERE m.status = 'Agendado'
         ORDER BY date(COALESCE(m.date, m.next_date)) ASC
         LIMIT 500
       ''');
@@ -376,11 +377,11 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     final labelDate = scheduled != null ? _formatDate(scheduled) : null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(
@@ -392,11 +393,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('$animalColor - $animalName($animalCode)',
-                    style: theme.textTheme.titleMedium
+                    style: theme.textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
                 Text(
                   'Vacina: $vaccineName',
-                  style: theme.textTheme.bodyMedium,
+                  style: theme.textTheme.bodyLarge,
                 ),
                 if (labelDate != null)
                   Text(
@@ -440,11 +442,11 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     final labelDate = when != null ? _formatDate(when) : null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(
@@ -456,11 +458,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('$animalColor - $animalName($animalCode)',
-                    style: theme.textTheme.titleMedium
+                    style: theme.textTheme.titleLarge
                         ?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
                 Text(
                   'Medicação: $medName',
-                  style: theme.textTheme.bodyMedium,
+                  style: theme.textTheme.bodyLarge,
                 ),
                 if (labelDate != null)
                   Text(
