@@ -829,6 +829,10 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 weight90Days: double.tryParse(weight90Controller.text),
                 createdAt: lamb.createdAt,
                 updatedAt: DateTime.now(),
+                year: lamb.year,
+                lote: lamb.lote,
+                motherId: lamb.motherId,
+                fatherId: lamb.fatherId,
               );
 
               await Provider.of<AnimalService>(context, listen: false)
