@@ -839,18 +839,13 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
             'applied_date': today,
           });
 
-          // DEDUZIR DO ESTOQUE
+          // DEDUZIR DO ESTOQUE (a lógica agora é baseada na unidade de medida, não no tipo)
           if (pharmacyStockId != null && quantityUsed != null && quantityUsed > 0) {
-            final stock = await PharmacyService.getStockById(pharmacyStockId);
-            if (stock != null) {
-              final isAmpoule = stock.medicationType == 'Ampola' && stock.quantityPerUnit != null;
-              await PharmacyService.deductFromStock(
-                pharmacyStockId,
-                quantityUsed,
-                id,
-                isAmpoule: isAmpoule,
-              );
-            }
+            await PharmacyService.deductFromStock(
+              pharmacyStockId,
+              quantityUsed,
+              id,
+            );
           }
         }
       }
@@ -1148,49 +1143,129 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     },
                   )
                 else ...[
-                  // DROPDOWN DE MEDICAMENTOS DA FARMÁCIA
-                  DropdownButtonFormField<PharmacyStock>(
-                    value: _selectedMedication,
-                    decoration: const InputDecoration(
-                      labelText: 'Medicamento da Farmácia *',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.local_pharmacy),
-                    ),
-                    hint: _isLoadingStock 
-                        ? const Text('Carregando...') 
-                        : Text('Selecione (${_pharmacyStock.length} disponíveis)'),
-                    items: _pharmacyStock.map((stock) {
-                      final isLiquid = (stock.medicationType.toLowerCase() == 'ampola' || 
-                                       stock.medicationType.toLowerCase() == 'frasco') && 
-                                       stock.quantityPerUnit != null;
+                  // AUTOCOMPLETE DE MEDICAMENTOS DA FARMÁCIA
+                  Autocomplete<PharmacyStock>(
+                    displayStringForOption: (stock) {
+                      final unit = stock.unitOfMeasure.toLowerCase();
+                      final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                                             stock.quantityPerUnit != null && 
+                                             stock.quantityPerUnit! > 0;
                       
-                      String displayText;
-                      if (isLiquid) {
-                        // Soma quantidade total (frascos completos) + frasco aberto em ml
-                        final totalMl = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
-                        displayText = '${stock.medicationName} (${totalMl.toStringAsFixed(0)}ml total)';
-                      } else {
-                        displayText = '${stock.medicationName} (${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure})';
+                      if (useVolumeLogic) {
+                        final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                        return '${stock.medicationName} (${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure})';
                       }
-                      
-                      return DropdownMenuItem(
-                        value: stock,
-                        child: Text(
-                          displayText,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedMedication = value;
-                        _nameController.text = value?.medicationName ?? '';
-                        // Não pré-preencher dosagem
+                      return '${stock.medicationName} (${stock.totalQuantity.toInt()} unidades)';
+                    },
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return _pharmacyStock;
+                      }
+                      return _pharmacyStock.where((stock) {
+                        final searchText = textEditingValue.text.toLowerCase();
+                        return stock.medicationName.toLowerCase().contains(searchText);
                       });
                     },
-                    validator: (value) {
-                      if (value == null) return 'Selecione um medicamento';
-                      return null;
+                    onSelected: (PharmacyStock stock) {
+                      setState(() {
+                        _selectedMedication = stock;
+                        _nameController.text = stock.medicationName;
+                      });
+                    },
+                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Medicamento da Farmácia *',
+                          hintText: 'Digite para buscar (${_pharmacyStock.length} disponíveis)',
+                          prefixIcon: const Icon(Icons.local_pharmacy),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _selectedMedication != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedMedication = null;
+                                      _nameController.clear();
+                                    });
+                                    controller.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                        validator: (value) => _selectedMedication == null ? 'Selecione um medicamento' : null,
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4.0,
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            width: 468,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final stock = options.elementAt(index);
+                                final unit = stock.unitOfMeasure.toLowerCase();
+                                final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                                                       stock.quantityPerUnit != null && 
+                                                       stock.quantityPerUnit! > 0;
+                                
+                                String subtitle;
+                                if (useVolumeLogic) {
+                                  final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                                  subtitle = '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)';
+                                } else {
+                                  subtitle = '${stock.totalQuantity.toInt()} unidades disponíveis';
+                                }
+                                
+                                return InkWell(
+                                  onTap: () => onSelected(stock),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          stock.medicationName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          subtitle,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        if (stock.isLowStock)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              'Estoque baixo!',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.orange[700],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                   if (_selectedMedication != null && _selectedMedication!.isLowStock)
@@ -1311,16 +1386,17 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   }
 
   String _buildLowStockMessage(PharmacyStock stock) {
-    final isLiquid = (stock.medicationType.toLowerCase() == 'ampola' || 
-                     stock.medicationType.toLowerCase() == 'frasco') && 
-                     stock.quantityPerUnit != null;
+    final unit = stock.unitOfMeasure.toLowerCase();
+    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                           stock.quantityPerUnit != null && 
+                           stock.quantityPerUnit! > 0;
     
-    if (isLiquid) {
-      final totalVolume = stock.totalQuantity * stock.quantityPerUnit!;
-      return 'Estoque baixo! Apenas ${stock.totalQuantity.toStringAsFixed(0)} ${stock.medicationType.toLowerCase()}${stock.totalQuantity > 1 ? 's' : ''} (${totalVolume.toStringAsFixed(0)}ml total)';
+    if (useVolumeLogic) {
+      final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+      return 'Estoque baixo! Apenas ${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''})';
     }
     
-    return 'Estoque baixo! Apenas ${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure} disponível(is)';
+    return 'Estoque baixo! Apenas ${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''} disponível';
   }
 
   void _save() async {
@@ -1344,12 +1420,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       if (quantityMatch != null) {
         final quantityUsed = double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
         
-        // Calcular estoque disponível (inclui frasco aberto)
-        final isLiquid = (_selectedMedication!.medicationType.toLowerCase() == 'ampola' || 
-                         _selectedMedication!.medicationType.toLowerCase() == 'frasco') && 
-                         _selectedMedication!.quantityPerUnit != null;
+        // Calcular estoque disponível baseado na unidade de medida
+        final unit = _selectedMedication!.unitOfMeasure.toLowerCase();
+        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
+                               _selectedMedication!.quantityPerUnit != null && 
+                               _selectedMedication!.quantityPerUnit! > 0;
         
-        final availableStock = isLiquid 
+        final availableStock = useVolumeLogic 
             ? (_selectedMedication!.totalQuantity * _selectedMedication!.quantityPerUnit!) + _selectedMedication!.openedQuantity
             : _selectedMedication!.totalQuantity;
         
@@ -1357,7 +1434,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Estoque insuficiente! Disponível: ${availableStock.toStringAsFixed(1)} ${isLiquid ? 'ml' : _selectedMedication!.unitOfMeasure}',
+                'Estoque insuficiente! Disponível: ${availableStock.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure.toLowerCase()}',
               ),
               backgroundColor: Colors.red,
             ),

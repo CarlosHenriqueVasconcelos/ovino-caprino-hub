@@ -223,10 +223,13 @@ class PharmacyService {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
 
-      // Se medicationId é null, é uma remoção manual (não aplicação em animal)
-      // Neste caso, remover simplesmente o número de unidades
+      final unit = stock.unitOfMeasure.toLowerCase();
+      
+      // Determinar qual lógica usar baseado na unidade de medida
+      final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && stock.quantityPerUnit != null && stock.quantityPerUnit! > 0;
+      
       if (medicationId == null) {
-        // Remoção manual - trabalhar com unidades (ampolas/frascos/comprimidos)
+        // Remoção manual - sempre trabalhar com unidades (ampolas/frascos/comprimidos)
         final newQuantity = stock.totalQuantity - quantity;
         if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
@@ -236,7 +239,6 @@ class PharmacyService {
         );
         await updateMedication(stockId, updated);
 
-        // Registrar movimentação
         await recordMovement(
           PharmacyStockMovement(
             id: _uuid.v4(),
@@ -248,11 +250,11 @@ class PharmacyService {
             createdAt: DateTime.now(),
           ),
         );
-      } else if (_shouldUseAmpouleLogic(stock) && stock.quantityPerUnit != null) {
-        // Aplicação em animal - usar lógica complexa para ampolas/frascos/sprays/pomadas com ml/mg/g
-        await _handleAmpouleUsage(stock, quantity, medicationId);
+      } else if (useVolumeLogic) {
+        // Aplicação com ml/mg/g - usar lógica de recipiente com volume
+        await _handleVolumeDeduction(stock, quantity, medicationId);
       } else {
-        // Aplicação em animal - lógica normal
+        // Aplicação com "Unidade" - descontar diretamente da quantidade total
         final newQuantity = stock.totalQuantity - quantity;
         if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
 
@@ -262,7 +264,6 @@ class PharmacyService {
         );
         await updateMedication(stockId, updated);
 
-        // Registrar movimentação
         await recordMovement(
           PharmacyStockMovement(
             id: _uuid.v4(),
@@ -270,7 +271,7 @@ class PharmacyService {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantity,
-            reason: 'Aplicação de medicamento',
+            reason: 'Aplicação de medicamento (${quantity.toStringAsFixed(1)} unidade${quantity > 1 ? 's' : ''})',
             createdAt: DateTime.now(),
           ),
         );
@@ -281,22 +282,8 @@ class PharmacyService {
     }
   }
 
-  // Verifica se deve usar lógica de recipiente com quantidade aberta
-  static bool _shouldUseAmpouleLogic(PharmacyStock stock) {
-    final type = stock.medicationType.toLowerCase();
-    final unit = stock.unitOfMeasure.toLowerCase();
-    
-    // Tipos que sempre usam a lógica: ampola, frasco
-    if (type == 'ampola' || type == 'frasco') return true;
-    
-    // Outros tipos (spray, pomada, pó, outro) usam se forem ml, mg ou g
-    if (unit == 'ml' || unit == 'mg' || unit == 'g') return true;
-    
-    return false;
-  }
-
-  // Lógica de uso de ampolas/frascos/recipientes parciais
-  static Future<void> _handleAmpouleUsage(PharmacyStock stock, double quantityUsed, String? medicationId) async {
+  // Lógica de desconto por volume (ml/mg/g) com recipientes parciais
+  static Future<void> _handleVolumeDeduction(PharmacyStock stock, double quantityUsed, String? medicationId) async {
     final type = stock.medicationType.toLowerCase();
     String container;
     if (type == 'frasco') {
