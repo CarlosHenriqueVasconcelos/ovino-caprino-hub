@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/pharmacy_stock.dart';
 import '../services/pharmacy_service.dart';
 import 'pharmacy_stock_form.dart';
@@ -32,7 +33,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   Future<void> _loadStock() async {
     setState(() => _isLoading = true);
     try {
-      final stock = await PharmacyService.getPharmacyStock();
+      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final stock = await pharmacyService.getPharmacyStock();
       setState(() {
         _stock = stock;
         _isLoading = false;
@@ -682,7 +684,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
               try {
                 // Enviar apenas o número de unidades, não multiplicar por ML
-                await PharmacyService.addToStock(
+                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+                await pharmacyService.addToStock(
                   stock.id,
                   units.toDouble(),
                   reason: reasonController.text.isEmpty ? null : reasonController.text,
@@ -796,7 +799,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               try {
                 // Enviar apenas o número de unidades, não multiplicar por ML
                 // medication_id deve ser null quando não está associado a uma aplicação
-                await PharmacyService.deductFromStock(
+                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+                await pharmacyService.deductFromStock(
                   stock.id,
                   units.toDouble(),
                   null, // Passar null como medicationId pois não é uma aplicação em animal

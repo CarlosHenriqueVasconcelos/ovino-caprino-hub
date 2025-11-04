@@ -84,19 +84,21 @@ Migrar de uma arquitetura com acesso direto ao banco em widgets para uma arquite
 - [x] Roteiro de testes definido
 - [x] Estado estável confirmado
 
-### 🚧 Fase 1 - Criar Camada de Repositórios (EM ANDAMENTO)
-- [ ] Criar PharmacyRepository
-- [ ] Criar BreedingRepository
-- [ ] Criar FinanceRepository
-- [ ] Criar FeedingRepository
-- [ ] Criar VaccinationRepository
-- [ ] Criar MedicationRepository
-- [ ] Atualizar AnimalRepository
-- [ ] Eliminar DatabaseService
-- [ ] Atualizar Services para usar Repositórios
-- [ ] Atualizar main.dart com Providers
+### ✅ Fase 1 - Criar Camada de Repositórios (COMPLETA)
+- [x] Criar PharmacyRepository
+- [x] Criar BreedingRepository
+- [x] Criar FinanceRepository
+- [x] Criar FeedingRepository
+- [x] Criar VaccinationRepository
+- [x] Criar MedicationRepository
+- [x] Criar NoteRepository
+- [x] Criar DatabaseFactory (suporte multiplataforma)
+- [x] Atualizar PharmacyService para usar PharmacyRepository e estender ChangeNotifier
+- [x] Criar FeedingService com FeedingRepository
+- [x] Atualizar todos os widgets para usar Provider em vez de chamadas estáticas
+- [x] Atualizar main.dart com todos os Providers
 
-### ⏳ Fase 2 - Limpar Widgets (PENDENTE)
+### 🚧 Fase 2 - Limpar Widgets (PRÓXIMA)
 ### ⏳ Fase 3 - Consolidar Farmácia (PENDENTE)
 ### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
 ### ⏳ Fase 5 - Preparar para Mobile (PENDENTE)

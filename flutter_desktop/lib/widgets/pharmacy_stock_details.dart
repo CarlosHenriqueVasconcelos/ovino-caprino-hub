@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
@@ -27,7 +28,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   Future<void> _loadMovements() async {
     setState(() => _isLoading = true);
     try {
-      final movements = await PharmacyService.getMovements(widget.stock.id);
+      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final movements = await pharmacyService.getMovements(widget.stock.id);
       setState(() {
         _movements = movements;
         _isLoading = false;
@@ -105,14 +107,15 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
               }
 
               try {
+                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
                 if (selectedType == 'entrada') {
-                  await PharmacyService.addToStock(
+                  await pharmacyService.addToStock(
                     widget.stock.id,
                     quantity,
                     reason: reasonController.text.isEmpty ? null : reasonController.text,
                   );
                 } else if (selectedType == 'saida' || selectedType == 'vencimento' || selectedType == 'ajuste') {
-                  await PharmacyService.deductFromStock(
+                  await pharmacyService.deductFromStock(
                     widget.stock.id,
                     quantity,
                     null, // Passar null pois não está associado a uma aplicação em animal
@@ -185,10 +188,11 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
           isOpened: false,
           updatedAt: DateTime.now(),
         );
-        await PharmacyService.updateMedication(widget.stock.id, updated);
+        final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+        await pharmacyService.updateMedication(widget.stock.id, updated);
         
         // Registrar movimentação de descarte
-        await PharmacyService.recordMovement(
+        await pharmacyService.recordMovement(
           PharmacyStockMovement(
             id: const Uuid().v4(),
             pharmacyStockId: widget.stock.id,
@@ -243,7 +247,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
 
     if (confirm == true) {
       try {
-        await PharmacyService.deleteMedication(widget.stock.id);
+        final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+        await pharmacyService.deleteMedication(widget.stock.id);
         if (mounted) {
           Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(

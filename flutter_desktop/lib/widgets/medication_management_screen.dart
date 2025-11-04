@@ -841,7 +841,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
 
           // DEDUZIR DO ESTOQUE (a lógica agora é baseada na unidade de medida, não no tipo)
           if (pharmacyStockId != null && quantityUsed != null && quantityUsed > 0) {
-            await PharmacyService.deductFromStock(
+            final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+            await pharmacyService.deductFromStock(
               pharmacyStockId,
               quantityUsed,
               id,
@@ -1016,7 +1017,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   Future<void> _loadPharmacyStock() async {
     setState(() => _isLoadingStock = true);
     try {
-      final stock = await PharmacyService.getPharmacyStock();
+      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final stock = await pharmacyService.getPharmacyStock();
       setState(() {
         _pharmacyStock = stock.where((s) => !s.isExpired && s.totalQuantity > 0).toList();
         _isLoadingStock = false;

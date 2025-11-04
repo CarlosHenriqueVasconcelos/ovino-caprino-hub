@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../services/pharmacy_service.dart';
@@ -99,10 +100,11 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         updatedAt: DateTime.now(),
       );
 
+      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
       if (widget.stock == null) {
-        await PharmacyService.createMedication(stock);
+        await pharmacyService.createMedication(stock);
       } else {
-        await PharmacyService.updateMedication(stock.id, stock);
+        await pharmacyService.updateMedication(stock.id, stock);
       }
 
       if (mounted) {
