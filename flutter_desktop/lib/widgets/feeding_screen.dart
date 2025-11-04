@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../data/local_db.dart';
+import '../services/feeding_service.dart';
 import '../models/feeding_pen.dart';
 import 'pen_details_screen.dart';
 
@@ -12,25 +13,11 @@ class FeedingScreen extends StatefulWidget {
 }
 
 class _FeedingScreenState extends State<FeedingScreen> {
-  List<FeedingPen> _pens = [];
-  bool _loading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadPens();
-  }
-
-  Future<void> _loadPens() async {
-    setState(() => _loading = true);
-    final appDb = await AppDatabase.open();
-    final List<Map<String, dynamic>> maps = await appDb.db.query(
-      'feeding_pens',
-      orderBy: 'created_at ASC',
-    );
-    setState(() {
-      _pens = maps.map((m) => FeedingPen.fromMap(m)).toList();
-      _loading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<FeedingService>(context, listen: false).loadPens();
     });
   }
 
@@ -39,7 +26,7 @@ class _FeedingScreenState extends State<FeedingScreen> {
     final numberController = TextEditingController();
     final notesController = TextEditingController();
 
-    final result = await showDialog<bool>(
+    await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cadastrar Nova Baia'),
@@ -88,16 +75,18 @@ class _FeedingScreenState extends State<FeedingScreen> {
                 return;
               }
 
-              final appDb = await AppDatabase.open();
+              final feedingService = Provider.of<FeedingService>(context, listen: false);
               final now = DateTime.now().toIso8601String();
-              await appDb.db.insert('feeding_pens', {
-                'id': const Uuid().v4(),
-                'name': nameController.text.trim(),
-                'number': numberController.text.trim().isEmpty ? null : numberController.text.trim(),
-                'notes': notesController.text.trim().isEmpty ? null : notesController.text.trim(),
-                'created_at': now,
-                'updated_at': now,
-              });
+              final pen = FeedingPen(
+                id: const Uuid().v4(),
+                name: nameController.text.trim(),
+                number: numberController.text.trim().isEmpty ? null : numberController.text.trim(),
+                notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                createdAt: DateTime.parse(now),
+                updatedAt: DateTime.parse(now),
+              );
+              
+              await feedingService.addPen(pen);
 
               if (context.mounted) {
                 Navigator.pop(context, true);
@@ -108,10 +97,6 @@ class _FeedingScreenState extends State<FeedingScreen> {
         ],
       ),
     );
-
-    if (result == true) {
-      _loadPens();
-    }
   }
 
   @override
@@ -127,49 +112,59 @@ class _FeedingScreenState extends State<FeedingScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _pens.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.agriculture_outlined,
-                        size: 80,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Nenhuma baia cadastrada',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: _showAddPenDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Cadastrar Primeira Baia'),
-                      ),
-                    ],
+      body: Consumer<FeedingService>(
+        builder: (context, feedingService, _) {
+          if (feedingService.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final pens = feedingService.pens;
+          
+          if (pens.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.agriculture_outlined,
+                    size: 80,
+                    color: Colors.grey[400],
                   ),
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 200,
-                    childAspectRatio: 1,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhuma baia cadastrada',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                  itemCount: _pens.length,
-                  itemBuilder: (context, index) {
-                    final pen = _pens[index];
-                    return _buildPenCard(pen);
-                  },
-                ),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: _showAddPenDialog,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Cadastrar Primeira Baia'),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          return GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 200,
+              childAspectRatio: 1,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: pens.length,
+            itemBuilder: (context, index) {
+              final pen = pens[index];
+              return _buildPenCard(pen);
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -178,14 +173,13 @@ class _FeedingScreenState extends State<FeedingScreen> {
       elevation: 4,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () async {
-          await Navigator.push(
+        onTap: () {
+          Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => PenDetailsScreen(pen: pen),
             ),
           );
-          _loadPens();
         },
         child: Container(
           decoration: BoxDecoration(

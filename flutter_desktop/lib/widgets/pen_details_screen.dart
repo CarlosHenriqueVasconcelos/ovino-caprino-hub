@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/local_db.dart';
+import 'package:provider/provider.dart';
+import '../services/feeding_service.dart';
 import '../models/feeding_pen.dart';
 import '../models/feeding_schedule.dart';
 import 'feeding_form_dialog.dart';
@@ -14,27 +15,11 @@ class PenDetailsScreen extends StatefulWidget {
 }
 
 class _PenDetailsScreenState extends State<PenDetailsScreen> {
-  List<FeedingSchedule> _schedules = [];
-  bool _loading = true;
-
   @override
   void initState() {
     super.initState();
-    _loadSchedules();
-  }
-
-  Future<void> _loadSchedules() async {
-    setState(() => _loading = true);
-    final appDb = await AppDatabase.open();
-    final List<Map<String, dynamic>> maps = await appDb.db.query(
-      'feeding_schedules',
-      where: 'pen_id = ?',
-      whereArgs: [widget.pen.id],
-      orderBy: 'created_at DESC',
-    );
-    setState(() {
-      _schedules = maps.map((m) => FeedingSchedule.fromMap(m)).toList();
-      _loading = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<FeedingService>(context, listen: false).loadPens();
     });
   }
 
@@ -47,8 +32,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
       ),
     );
 
-    if (result == true) {
-      _loadSchedules();
+    if (result == true && mounted) {
+      Provider.of<FeedingService>(context, listen: false).loadPens();
     }
   }
 
@@ -74,14 +59,9 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
       ),
     );
 
-    if (confirmed == true) {
-      final appDb = await AppDatabase.open();
-      await appDb.db.delete(
-        'feeding_schedules',
-        where: 'id = ?',
-        whereArgs: [schedule.id],
-      );
-      _loadSchedules();
+    if (confirmed == true && mounted) {
+      final feedingService = Provider.of<FeedingService>(context, listen: false);
+      await feedingService.deleteSchedule(schedule.id, widget.pen.id);
     }
   }
 
@@ -153,43 +133,53 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
           ),
           // Lista de Tratos
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _schedules.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.fastfood_outlined,
-                              size: 80,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Nenhum trato cadastrado',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: () => _showFeedingDialog(),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Informar Primeiro Trato'),
-                            ),
-                          ],
+            child: Consumer<FeedingService>(
+              builder: (context, feedingService, _) {
+                if (feedingService.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                final schedules = feedingService.getSchedulesForPen(widget.pen.id);
+                
+                if (schedules.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.fastfood_outlined,
+                          size: 80,
+                          color: Colors.grey[400],
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _schedules.length,
-                        itemBuilder: (context, index) {
-                          final schedule = _schedules[index];
-                          return _buildScheduleCard(schedule);
-                        },
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Nenhum trato cadastrado',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _showFeedingDialog(),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Informar Primeiro Trato'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: schedules.length,
+                  itemBuilder: (context, index) {
+                    final schedule = schedules[index];
+                    return _buildScheduleCard(schedule);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

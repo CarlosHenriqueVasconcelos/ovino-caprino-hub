@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../data/local_db.dart';
+import '../services/feeding_service.dart';
 import '../models/feeding_schedule.dart';
 
 class FeedingFormDialog extends StatefulWidget {
@@ -98,32 +99,25 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
       return;
     }
 
-    final appDb = await AppDatabase.open();
+    final feedingService = Provider.of<FeedingService>(context, listen: false);
     final now = DateTime.now().toIso8601String();
 
-    final data = {
-      'pen_id': widget.penId,
-      'feed_type': _feedTypeController.text.trim(),
-      'quantity': double.parse(_quantityController.text.trim()),
-      'times_per_day': int.parse(_timesPerDayController.text.trim()),
-      'feeding_times': feedingTimes,
-      'notes': _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      'updated_at': now,
-    };
+    final schedule = FeedingSchedule(
+      id: widget.schedule?.id ?? const Uuid().v4(),
+      penId: widget.penId,
+      feedType: _feedTypeController.text.trim(),
+      quantity: double.parse(_quantityController.text.trim()),
+      timesPerDay: int.parse(_timesPerDayController.text.trim()),
+      feedingTimes: feedingTimes,
+      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      createdAt: widget.schedule?.createdAt ?? DateTime.parse(now),
+      updatedAt: DateTime.parse(now),
+    );
 
     if (widget.schedule == null) {
-      // Criar novo
-      data['id'] = const Uuid().v4();
-      data['created_at'] = now;
-      await appDb.db.insert('feeding_schedules', data);
+      await feedingService.addSchedule(schedule);
     } else {
-      // Atualizar existente
-      await appDb.db.update(
-        'feeding_schedules',
-        data,
-        where: 'id = ?',
-        whereArgs: [widget.schedule!.id],
-      );
+      await feedingService.updateSchedule(schedule);
     }
 
     if (mounted) {

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
+import '../services/weight_service.dart';
 import '../models/animal.dart';
-import '../data/local_db.dart';
-import '../data/animal_repository.dart';
 import 'animal_form.dart';
 
 class LambWeightTracking extends StatefulWidget {
@@ -530,10 +529,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Future<double?> _getWeight120Days(String animalId) async {
-    final db = await AppDatabase.open();
-    final repo = AnimalRepository(db);
-    final weights = await repo.getWeightRecord(animalId, '120d');
-    return weights.isNotEmpty ? weights.first['weight'] as double : null;
+    final weightService = Provider.of<WeightService>(context, listen: false);
+    return await weightService.getWeight120Days(animalId);
   }
 
   Map<String, dynamic> _calculateWeightStatus(Animal lamb, int ageInDays) {
@@ -738,9 +735,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     double? initialBirthWeight = lamb.birthWeight;
     if (initialBirthWeight == null || initialBirthWeight == 0) {
       // Tentar buscar do histórico de pesos
-      final db = await AppDatabase.open();
-      final repo = AnimalRepository(db);
-      final weightHistory = await repo.getWeightHistory(lamb.id);
+      final weightService = Provider.of<WeightService>(context, listen: false);
+      final weightHistory = await weightService.getWeightHistory(lamb.id);
       
       // Procurar por peso de nascimento ou o primeiro peso registrado
       final birthRecord = weightHistory.where((w) => 
@@ -843,9 +839,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               bool shouldShowEditDialog = false;
               
               if (weight120Value != null && weight120Value > 0) {
-                final db = await AppDatabase.open();
-                final repo = AnimalRepository(db);
-                await repo.addWeight(
+                final weightService = Provider.of<WeightService>(context, listen: false);
+                await weightService.addWeight(
                   lamb.id,
                   DateTime.now(),
                   weight120Value,

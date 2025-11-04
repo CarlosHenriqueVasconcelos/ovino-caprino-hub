@@ -98,8 +98,18 @@ Migrar de uma arquitetura com acesso direto ao banco em widgets para uma arquite
 - [x] Atualizar todos os widgets para usar Provider em vez de chamadas estáticas
 - [x] Atualizar main.dart com todos os Providers
 
-### 🚧 Fase 2 - Limpar Widgets (PRÓXIMA)
-### ⏳ Fase 3 - Consolidar Farmácia (PENDENTE)
+### ✅ Fase 2 - Limpar Widgets (COMPLETA)
+- [x] Criar WeightService usando AnimalRepository
+- [x] Atualizar lamb_weight_tracking.dart para usar WeightService
+- [x] Atualizar adult_weight_tracking.dart para usar WeightService
+- [x] Atualizar feeding_screen.dart para usar FeedingService
+- [x] Atualizar feeding_form_dialog.dart para usar FeedingService
+- [x] Atualizar pen_details_screen.dart para usar FeedingService
+- [x] Atualizar main.dart com WeightService provider
+- [x] Remover todos os 11 acessos diretos ao banco em widgets
+
+### 🚧 Fase 3 - Consolidar Farmácia (PRÓXIMA)
+### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
 ### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
 ### ⏳ Fase 5 - Preparar para Mobile (PENDENTE)
 ### ⏳ Fase 6 - Micro Otimizações (PENDENTE)

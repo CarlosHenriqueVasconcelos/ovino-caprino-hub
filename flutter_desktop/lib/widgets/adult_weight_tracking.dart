@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
+import '../services/weight_service.dart';
 import '../models/animal.dart';
-import '../data/local_db.dart';
-import '../data/animal_repository.dart';
 
 class AdultWeightTracking extends StatefulWidget {
   const AdultWeightTracking({super.key});
@@ -508,9 +507,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   }
 
   Future<List<Map<String, dynamic>>> _getMonthlyWeights(String animalId) async {
-    final db = await AppDatabase.open();
-    final repo = AnimalRepository(db);
-    return await repo.getMonthlyWeights(animalId);
+    final weightService = Provider.of<WeightService>(context, listen: false);
+    return await weightService.getMonthlyWeights(animalId);
   }
 
   void _showMonthlyWeightDialog(Animal animal) async {
@@ -604,9 +602,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 if (weight == null) return;
 
                 try {
-                  final db = await AppDatabase.open();
-                  final repo = AnimalRepository(db);
-                  await repo.addWeight(
+                  final weightService = Provider.of<WeightService>(context, listen: false);
+                  await weightService.addWeight(
                     animal.id,
                     DateTime.now(),
                     weight,
