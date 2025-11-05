@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/weight_alert_service.dart';
 import '../services/animal_service.dart';
-import '../models/alert_item.dart';
+import '../models/weight_alert.dart';
 
 class WeightAlertsCard extends StatelessWidget {
   const WeightAlertsCard({super.key});
@@ -10,126 +11,163 @@ class WeightAlertsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Consumer<AnimalService>(
-      builder: (context, animalService, _) {
-        final weighingAlerts = animalService.alerts
-            .where((a) => a.type == AlertType.weighing)
-            .toList();
+    return Consumer2<WeightAlertService, AnimalService>(
+      builder: (context, weightAlertService, animalService, _) {
+        return FutureBuilder<List<WeightAlert>>(
+          future: weightAlertService.getPendingAlerts(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Card(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
 
-        if (weighingAlerts.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            final weighingAlerts = snapshot.data!;
+
+            if (weighingAlerts.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.monitor_weight,
-                        size: 28,
-                        color: theme.colorScheme.primary,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.monitor_weight,
+                            size: 28,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Alertas de Pesagem',
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Alertas de Pesagem',
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              size: 48,
+                              color: theme.colorScheme.tertiary,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Todas as pesagens em dia!',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Column(
+                ),
+              );
+            }
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
                         Icon(
-                          Icons.check_circle_outline,
-                          size: 48,
-                          color: theme.colorScheme.tertiary,
+                          Icons.monitor_weight,
+                          size: 28,
+                          color: theme.colorScheme.primary,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(width: 12),
                         Text(
-                          'Todas as pesagens em dia!',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.tertiary,
+                          'Alertas de Pesagem',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${weighingAlerts.length} pendente${weighingAlerts.length != 1 ? 's' : ''}',
+                            style: TextStyle(
+                              color: theme.colorScheme.error,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.monitor_weight,
-                      size: 28,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Alertas de Pesagem',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.error.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${weighingAlerts.length} pendente${weighingAlerts.length != 1 ? 's' : ''}',
-                        style: TextStyle(
-                          color: theme.colorScheme.error,
-                          fontWeight: FontWeight.bold,
+                    const SizedBox(height: 16),
+                    ...weighingAlerts.take(5).map((alert) {
+                      final animal = animalService.animals.firstWhere(
+                        (a) => a.id == alert.animalId,
+                        orElse: () => throw Exception('Animal não encontrado'),
+                      );
+                      return _buildAlertItem(theme, alert, animal.name, animal.code);
+                    }),
+                    if (weighingAlerts.length > 5) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          'e mais ${weighingAlerts.length - 5} alertas...',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-                const SizedBox(height: 16),
-                ...weighingAlerts.take(5).map((alert) {
-                  return _buildAlertItem(theme, alert);
-                }),
-                if (weighingAlerts.length > 5) ...[
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      'e mais ${weighingAlerts.length - 5} alertas...',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildAlertItem(ThemeData theme, AlertItem alert) {
-    final isOverdue = alert.isOverdue;
+  Widget _buildAlertItem(ThemeData theme, WeightAlert alert, String animalName, String animalCode) {
+    final isOverdue = alert.dueDate.isBefore(DateTime.now());
     final daysUntil = alert.dueDate.difference(DateTime.now()).inDays;
+    
+    String alertTitle;
+    switch (alert.alertType) {
+      case '30d':
+        alertTitle = 'Pesagem 30 dias';
+        break;
+      case '60d':
+        alertTitle = 'Pesagem 60 dias';
+        break;
+      case '90d':
+        alertTitle = 'Pesagem 90 dias';
+        break;
+      case '120d':
+        alertTitle = 'Pesagem 120 dias';
+        break;
+      case 'monthly':
+        alertTitle = 'Pesagem mensal';
+        break;
+      default:
+        alertTitle = 'Pesagem';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -160,13 +198,13 @@ class WeightAlertsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${alert.animalName} (${alert.animalCode})',
+                  '$animalName ($animalCode)',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  alert.title,
+                  alertTitle,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.7),
                   ),

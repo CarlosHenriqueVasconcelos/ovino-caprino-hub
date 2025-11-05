@@ -3,7 +3,7 @@ import '../data/local_db.dart';
 import '../models/animal.dart';
 import '../models/weight_alert.dart';
 
-class WeightAlertService {
+class WeightAlertService extends ChangeNotifier {
   final AppDatabase db;
 
   WeightAlertService(this.db);
@@ -59,6 +59,7 @@ class WeightAlertService {
     }
 
     debugPrint('Criados alertas de pesagem para borrego ${animal.name}');
+    notifyListeners();
   }
 
   /// Cria próximo alerta mensal para animais adultos
@@ -87,6 +88,7 @@ class WeightAlertService {
 
     await db.db.insert('weight_alerts', nextAlert.toMap());
     debugPrint('Criado alerta mensal para $animalId');
+    notifyListeners();
   }
 
   /// Marca alerta como completo
@@ -97,6 +99,7 @@ class WeightAlertService {
       where: 'id = ?',
       whereArgs: [alertId],
     );
+    notifyListeners();
   }
 
   /// Busca alertas pendentes (não completados e dentro do horizonte)
@@ -127,5 +130,6 @@ class WeightAlertService {
   /// Remove todos os alertas de um animal
   Future<void> deleteAnimalAlerts(String animalId) async {
     await db.db.delete('weight_alerts', where: 'animal_id = ?', whereArgs: [animalId]);
+    notifyListeners();
   }
 }

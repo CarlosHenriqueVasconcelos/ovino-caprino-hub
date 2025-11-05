@@ -115,8 +115,13 @@ Migrar de uma arquitetura com acesso direto ao banco em widgets para uma arquite
 - [x] Adicionar MedicationService e VaccinationService providers no main.dart
 - [x] Remover dependências diretas de DatabaseService para medicações e vacinações
 
-### ⏳ Fase 4 - Peso & Crescimento (PRÓXIMA)
-### ⏳ Fase 4 - Peso & Crescimento (PENDENTE)
+### ✅ Fase 4 - Peso & Crescimento (COMPLETA)
+- [x] WeightService já criado usando AnimalRepository
+- [x] WeightAlertService transformado em ChangeNotifier
+- [x] WeightAlertService integrado com Provider no main.dart
+- [x] weight_alerts_card.dart atualizado para usar WeightAlertService
+- [x] Todos os widgets de peso usando WeightService
+- [x] Integração completa entre peso e alertas funcionando
 ### ⏳ Fase 5 - Preparar para Mobile (PENDENTE)
 ### ⏳ Fase 6 - Micro Otimizações (PENDENTE)
 ### ⏳ Fase 7 - Validação Final (PENDENTE)
