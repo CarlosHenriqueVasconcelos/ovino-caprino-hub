@@ -5,8 +5,8 @@
 import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
 import 'package:uuid/uuid.dart';
 
+import '../data/local_db.dart';          // ⬅️ AppDatabase em vez de DatabaseService
 import '../models/financial_account.dart';
-import 'database_service.dart';
 import 'data_refresh_bus.dart';
 
 const _uuid = Uuid();
@@ -19,13 +19,16 @@ DateTime? _tryParseDate(dynamic v) {
 }
 
 Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
+  // Só interessa para receitas de "Venda de Animais"
   if (account.type != 'receita') return;
   if (account.category != 'Venda de Animais') return;
 
   final animalId = account.animalId;
   if (animalId == null || animalId.isEmpty) return;
 
-  final db = await DatabaseService.database;
+  // Usa AppDatabase direto
+  final appDb = await AppDatabase.open();
+  final db = appDb.db;
 
   // Busca os dados do animal (apenas 1)
   final animals = await db.query(
@@ -68,6 +71,7 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
         'weight_60_days': animalData['weight_60_days'],
         'weight_90_days': animalData['weight_90_days'],
         'weight_120_days': animalData['weight_120_days'],
+        // campos extras da tabela (se existirem) ficam nulos, o SQLite aceita
         'sale_date': saleDateIso,
         'sale_price': account.amount,
         'buyer': account.supplierCustomer,

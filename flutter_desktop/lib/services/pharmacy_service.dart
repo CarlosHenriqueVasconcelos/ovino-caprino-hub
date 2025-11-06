@@ -3,7 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
 import '../data/pharmacy_repository.dart';
-import '../services/supabase_service.dart';
+
 
 class PharmacyService extends ChangeNotifier {
   final PharmacyRepository _repository;

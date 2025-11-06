@@ -4,13 +4,13 @@
 //
 // Observações:
 // - Chaves estrangeiras habilitadas (PRAGMA foreign_keys = ON)
-// - Triggers de updated_at (com cláusula WHEN para evitar recursão)
-// - Sem migrações: apague o .db para recriar caso já exista.
-
+// - Triggers de updated_at (com cláusula WHEN para evitar recursã
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite/sqflite.dart';
+
+import 'database_factory.dart';
 import '../services/migration_service.dart';
 
 class AppDatabase {
@@ -26,16 +26,20 @@ class AppDatabase {
     return p.join(dir.path, fileName);
   }
 
-  /// Abre o SQLite local. **Sem migrações** — cria tudo se não existir.
+  /// Abre o SQLite local, habilita foreign_keys e executa migrações.
+  /// Usa factory dinâmica:
+  /// - Desktop: sqflite_common_ffi
+  /// - Mobile:  sqflite nativo
   static Future<AppDatabase> open() async {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+    // Decide a factory correta para a plataforma atual
+    final factory = await getDatabaseFactory();
 
     final path = await _resolveDbPath();
-    final db = await databaseFactory.openDatabase(
+    final db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1, // mantenha 1; apague o .db para recriar sempre que mudar o schema
+        // mantenha 1; se mudar o schema, use MigrationService ou apague o .db
+        version: 1,
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
         onOpen: (db) async {
@@ -172,7 +176,7 @@ class AppDatabase {
       END;
     ''');
 
-    // === NOVOS gatilhos: mantêm animals.pregnant/expected_delivery coerentes com o estágio ===
+    // === Gatilhos: mantêm animals.pregnant/expected_delivery coerentes com o estágio ===
     await db.execute('''
       CREATE TRIGGER IF NOT EXISTS breeding_records_pregnancy_ins_trg
       AFTER INSERT ON breeding_records

@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../models/breeding_record.dart';
 import '../models/animal.dart';
-import '../services/database_service.dart';
 import '../services/animal_service.dart';
+import '../services/breeding_service.dart';
 import 'animal_form.dart';
 
 class BreedingStageActions extends StatefulWidget {
@@ -28,22 +28,18 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
     setState(() => _isProcessing = true);
 
     try {
-      final now = DateTime.now();
-      final ultrasoundEta = now.add(const Duration(days: 30));
+      final breedingService = context.read<BreedingService>();
 
-      await DatabaseService.updateBreedingRecord(widget.record.id, {
-        'separation_date': now.toIso8601String(),
-        'ultrasound_date': ultrasoundEta.toIso8601String(), // previsão automática
-        'stage': BreedingStage.aguardandoUltrassom.value,
-        'status': 'Aguardando Ultrassom',
-      });
+      await breedingService.separarAnimais(widget.record.id);
 
-      // atualiza painel
+      // Mantém o comportamento antigo de atualizar painel/KPIs
       await context.read<AnimalService>().loadData();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Animais separados! Aguardando ultrassom.')),
+          const SnackBar(
+            content: Text('Animais separados! Aguardando ultrassom.'),
+          ),
         );
         widget.onUpdate?.call();
       }
@@ -94,41 +90,49 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
     try {
       final isConfirmed = result == 'Confirmada';
       final now = DateTime.now();
-      final birthEta = now.add(const Duration(days: 150)); // 150 dias a partir de HOJE
+      // mesmo comportamento antigo: parto previsto 150 dias a partir de HOJE
+      final birthEta = now.add(const Duration(days: 150));
 
-      final update = <String, dynamic>{
-        'ultrasound_date':
-            widget.record.ultrasoundDate?.toIso8601String() ?? now.toIso8601String(),
-        'ultrasound_result': result,
-        'stage': isConfirmed
-            ? BreedingStage.gestacaoConfirmada.value
-            : BreedingStage.falhou.value,
-        'status': isConfirmed ? 'Gestação Confirmada' : 'Falhou',
-        if (isConfirmed) 'expected_birth': birthEta.toIso8601String(),
-        if (!isConfirmed) 'expected_birth': null,
-      };
+      final breedingService = context.read<BreedingService>();
+      final animalService = context.read<AnimalService>();
 
-      await DatabaseService.updateBreedingRecord(widget.record.id, update);
+      await breedingService.registrarUltrassom(
+        breedingId: widget.record.id,
+        isConfirmada: isConfirmed,
+        ultrasoundResult: result,
+        nowOverride: now,
+        expectedBirthOverride: isConfirmed ? birthEta : null,
+      );
 
-      // Sincroniza o ANIMAL imediatamente (extra, além do service)
+      // Atualiza estado da fêmea (gestante / saudável) via AnimalService
       final femaleId = widget.record.femaleAnimalId;
       if (femaleId != null && femaleId.isNotEmpty) {
-        await DatabaseService.updateAnimal(femaleId, {
-          'pregnant': isConfirmed ? 1 : 0,
-          'expected_delivery': isConfirmed ? birthEta.toIso8601String() : null,
-          'status': isConfirmed ? 'Gestante' : 'Saudável',
-        });
-      }
+        Animal? female;
+        try {
+          female =
+              animalService.animals.firstWhere((a) => a.id == femaleId);
+        } catch (_) {
+          female = null;
+        }
 
-      // atualiza painel
-      await context.read<AnimalService>().loadData();
+        if (female != null) {
+          final updatedFemale = female.copyWith(
+            pregnant: isConfirmed,
+            expectedDelivery: isConfirmed ? birthEta : null,
+            status: isConfirmed ? 'Gestante' : 'Saudável',
+          );
+          await animalService.updateAnimal(updatedFemale);
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isConfirmed
-                ? 'Gestação confirmada!'
-                : 'Gestação não confirmada.'),
+            content: Text(
+              isConfirmed
+                  ? 'Gestação confirmada!'
+                  : 'Gestação não confirmada.',
+            ),
           ),
         );
         widget.onUpdate?.call();
@@ -173,83 +177,93 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
     setState(() => _isProcessing = true);
 
     try {
-      await DatabaseService.updateBreedingRecord(widget.record.id, {
-        'birth_date': DateTime.now().toIso8601String(),
-        'stage': BreedingStage.partoRealizado.value,
-        'status': 'Parto Realizado',
-      });
+      final now = DateTime.now();
+      final breedingService = context.read<BreedingService>();
+      final animalService = context.read<AnimalService>();
 
-      // limpa marcação de gestante no animal
+      // Atualiza registro de reprodução (parto realizado)
+      await breedingService.registrarParto(
+        breedingId: widget.record.id,
+        birthDate: now,
+      );
+
+      // Limpa marcação de gestante no animal
       final femaleId = widget.record.femaleAnimalId;
       if (femaleId != null && femaleId.isNotEmpty) {
-        await DatabaseService.updateAnimal(femaleId, {
-          'pregnant': 0,
-          'expected_delivery': null,
-          'status': 'Saudável',
-        });
-      }
+        Animal? mother;
+        try {
+          mother =
+              animalService.animals.firstWhere((a) => a.id == femaleId);
+        } catch (_) {
+          mother = null;
+        }
 
-      // atualiza painel
-      await context.read<AnimalService>().loadData();
+        if (mother != null) {
+          final updatedMother = mother.copyWith(
+            pregnant: false,
+            expectedDelivery: null,
+            status: 'Saudável',
+          );
+          await animalService.updateAnimal(updatedMother);
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nascimento registrado com sucesso!')),
+          const SnackBar(
+            content: Text('Nascimento registrado com sucesso!'),
+          ),
         );
-        
-        // Buscar dados da mãe e do pai para pré-preencher o formulário
-        final femaleId = widget.record.femaleAnimalId;
+
+        // Buscar dados da mãe e do pai a partir do AnimalService (já atualizado)
         final maleId = widget.record.maleAnimalId;
-        print('🐑 DEBUG: femaleId = $femaleId, maleId = $maleId');
-        
+
         Animal? mother;
         Animal? father;
-        
+
         if (femaleId != null && femaleId.isNotEmpty) {
           try {
-            mother = await DatabaseService.getAnimalById(femaleId);
-            print('🐑 DEBUG: Mother found - id: ${mother?.id}, code: ${mother?.code}, breed: ${mother?.breed}');
-          } catch (e) {
-            print('🐑 DEBUG ERROR: Failed to get mother data: $e');
+            mother =
+                animalService.animals.firstWhere((a) => a.id == femaleId);
+          } catch (_) {
+            mother = null;
           }
         }
-        
+
         if (maleId != null && maleId.isNotEmpty) {
           try {
-            father = await DatabaseService.getAnimalById(maleId);
-            print('🐑 DEBUG: Father found - id: ${father?.id}, code: ${father?.code}, breed: ${father?.breed}');
-          } catch (e) {
-            print('🐑 DEBUG ERROR: Failed to get father data: $e');
+            father =
+                animalService.animals.firstWhere((a) => a.id == maleId);
+          } catch (_) {
+            father = null;
           }
         }
-        
-        if (mounted) {
-          // Libera processamento antes de abrir o formulário
-          setState(() => _isProcessing = false);
-          
-          // Abre o formulário o número de vezes conforme a quantidade de crias
-          for (int i = 0; i < numberOfOffspring; i++) {
-            if (!mounted) break;
-            
-            await showDialog(
-              context: context,
-              builder: (context) => AnimalFormDialog(
-                motherId: mother?.id,
-                motherName: mother?.name,
-                motherColor: mother?.nameColor,
-                motherCode: mother?.code,
-                motherBreed: mother?.breed,
-                fatherId: father?.id,
-                fatherCode: father?.code,
-                fatherBreed: father?.breed,
-                presetCategory: 'Borrego',
-              ),
-            );
-          }
-          
-          // Recarrega dados após fechar todos os formulários
-          widget.onUpdate?.call();
+
+        // Libera processamento antes de abrir o(s) formulário(s)
+        setState(() => _isProcessing = false);
+
+        // Abre o formulário o número de vezes conforme a quantidade de crias
+        for (int i = 0; i < numberOfOffspring; i++) {
+          if (!mounted) break;
+
+          await showDialog(
+            context: context,
+            builder: (context) => AnimalFormDialog(
+              motherId: mother?.id,
+              motherName: mother?.name,
+              motherColor: mother?.nameColor,
+              motherCode: mother?.code,
+              motherBreed: mother?.breed,
+              fatherId: father?.id,
+              fatherCode: father?.code,
+              fatherBreed: father?.breed,
+              presetCategory: 'Borrego',
+            ),
+          );
         }
+
+        // Recarrega dados após fechar todos os formulários
+        widget.onUpdate?.call();
       }
     } catch (e) {
       if (mounted) {
@@ -261,7 +275,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
-  
+
   Future<void> _cancelBreeding() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -285,8 +299,13 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
     setState(() => _isProcessing = true);
     try {
-      await DatabaseService.deleteBreedingRecord(widget.record.id);
+      final breedingService = context.read<BreedingService>();
+
+      await breedingService.cancelarRegistro(widget.record.id);
+
+      // Mantém comportamento antigo de atualizar painel / KPIs
       await context.read<AnimalService>().loadData();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Encabritamento cancelado.')),
@@ -303,7 +322,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_isProcessing) {

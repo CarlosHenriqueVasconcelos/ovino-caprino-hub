@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../data/local_db.dart';
 import '../models/animal.dart';
 import '../models/weight_alert.dart';
@@ -16,7 +17,13 @@ class WeightAlertService extends ChangeNotifier {
     final animalId = animal.id;
 
     // Remove alertas antigos do animal
-    await db.db.delete('weight_alerts', where: 'animal_id = ?', whereArgs: [animalId]);
+    await db.db.delete(
+      'weight_alerts',
+      where: 'animal_id = ?',
+      whereArgs: [animalId],
+    );
+
+    final now = DateTime.now();
 
     // Cria alertas para 30, 60, 90 e 120 dias
     final alerts = [
@@ -26,7 +33,7 @@ class WeightAlertService extends ChangeNotifier {
         alertType: '30d',
         dueDate: birthDate.add(const Duration(days: 30)),
         completed: false,
-        createdAt: DateTime.now(),
+        createdAt: now,
       ),
       WeightAlert(
         id: 'wa_${animalId}_60d',
@@ -34,7 +41,7 @@ class WeightAlertService extends ChangeNotifier {
         alertType: '60d',
         dueDate: birthDate.add(const Duration(days: 60)),
         completed: false,
-        createdAt: DateTime.now(),
+        createdAt: now,
       ),
       WeightAlert(
         id: 'wa_${animalId}_90d',
@@ -42,7 +49,7 @@ class WeightAlertService extends ChangeNotifier {
         alertType: '90d',
         dueDate: birthDate.add(const Duration(days: 90)),
         completed: false,
-        createdAt: DateTime.now(),
+        createdAt: now,
       ),
       WeightAlert(
         id: 'wa_${animalId}_120d',
@@ -50,7 +57,7 @@ class WeightAlertService extends ChangeNotifier {
         alertType: '120d',
         dueDate: birthDate.add(const Duration(days: 120)),
         completed: false,
-        createdAt: DateTime.now(),
+        createdAt: now,
       ),
     ];
 
@@ -91,11 +98,35 @@ class WeightAlertService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// NOVO: usado pelo AnimalService para montar o painel de alertas:
+  /// retorna as linhas cruas da tabela `weight_alerts` (Map),
+  /// não só os modelos [WeightAlert].
+  Future<List<Map<String, dynamic>>> getPendingWeightAlerts(
+    DateTime horizon,
+  ) async {
+    try {
+      final rows = await db.db.query(
+        'weight_alerts',
+        where: 'completed = 0 AND date(due_date) <= date(?)',
+        whereArgs: [horizon.toIso8601String().split('T').first],
+        orderBy: 'due_date ASC',
+      );
+
+      return rows.map((r) => Map<String, dynamic>.from(r)).toList();
+    } catch (e) {
+      debugPrint('Erro ao buscar weight alerts pendentes: $e');
+      return [];
+    }
+  }
+
   /// Marca alerta como completo
   Future<void> completeAlert(String alertId) async {
     await db.db.update(
       'weight_alerts',
-      {'completed': 1, 'updated_at': DateTime.now().toIso8601String()},
+      {
+        'completed': 1,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
       where: 'id = ?',
       whereArgs: [alertId],
     );
@@ -129,7 +160,11 @@ class WeightAlertService extends ChangeNotifier {
 
   /// Remove todos os alertas de um animal
   Future<void> deleteAnimalAlerts(String animalId) async {
-    await db.db.delete('weight_alerts', where: 'animal_id = ?', whereArgs: [animalId]);
+    await db.db.delete(
+      'weight_alerts',
+      where: 'animal_id = ?',
+      whereArgs: [animalId],
+    );
     notifyListeners();
   }
 }

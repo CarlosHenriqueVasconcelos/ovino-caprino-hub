@@ -1,8 +1,10 @@
 // lib/widgets/breeding_wizard_dialog.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../models/animal.dart';
-import '../models/breeding_record.dart';
-import '../services/database_service.dart';
+import '../services/animal_service.dart';
+import '../services/breeding_service.dart';
 import '../utils/animal_display_utils.dart';
 
 class BreedingWizardDialog extends StatefulWidget {
@@ -33,14 +35,21 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   @override
   void initState() {
     super.initState();
-    _loadAnimals();
     _calculateMatingEndDate();
+    _loadAnimals();
   }
 
   Future<void> _loadAnimals() async {
     try {
-      final animals = await DatabaseService.getAnimals();
-      
+      final animalService = context.read<AnimalService>();
+
+      // Garante que a lista está carregada
+      if (animalService.animals.isEmpty) {
+        await animalService.loadData();
+      }
+
+      final animals = List<Animal>.from(animalService.animals);
+
       // Filtrar: fêmeas e machos, excluindo categoria "Borrego"
       final females = animals
           .where((a) => a.gender == 'Fêmea' && a.category != 'Borrego')
@@ -48,23 +57,23 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       final males = animals
           .where((a) => a.gender == 'Macho' && a.category != 'Borrego')
           .toList();
-      
+
       // Ordenar por cor e depois por número
       AnimalDisplayUtils.sortAnimalsList(females);
       AnimalDisplayUtils.sortAnimalsList(males);
-      
+
+      if (!mounted) return;
       setState(() {
         _females = females;
         _males = males;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar animais: $e')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar animais: $e')),
+      );
     }
   }
 
@@ -73,9 +82,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   }
 
   void _calculateMatingEndDate() {
-    setState(() {
-      _matingEndDate = _matingStartDate.add(const Duration(days: 60));
-    });
+    _matingEndDate = _matingStartDate.add(const Duration(days: 60));
   }
 
   Future<void> _submit() async {
@@ -90,32 +97,31 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     _formKey.currentState!.save();
 
     try {
-      // ⚠️ IMPORTANTE:
-      // Não gravar expected_birth aqui. Ele será definido quando/SE a gestação for confirmada.
-      await DatabaseService.createBreedingRecord({
-        'female_animal_id': _selectedFemale!.id,
-        'male_animal_id': _selectedMale!.id,
-        'breeding_date': _matingStartDate,
-        'mating_start_date': _matingStartDate,
-        'mating_end_date': _matingEndDate,
-        'stage': BreedingStage.encabritamento.value, // sempre começa em encabritamento
-        'status': 'Cobertura', // o trigger também ajusta isso, mas não faz mal enviar
-        'notes': _notes.isNotEmpty ? _notes : null,
-      });
+      // ✅ Usa o service de reprodução, que centraliza a regra
+      final breedingService = context.read<BreedingService>();
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Encabritamento registrado com sucesso!')),
-        );
-        widget.onComplete?.call();
-      }
+      await breedingService.novaCobertura(
+        femaleId: _selectedFemale!.id,
+        maleId: _selectedMale!.id,
+        breedingDate: _matingStartDate,
+        matingStartDate: _matingStartDate,
+        matingEndDate: _matingEndDate,
+        notes: _notes.isNotEmpty ? _notes : null,
+      );
+      // Opcional: atualizar KPIs/listas de animais
+      await context.read<AnimalService>().loadData();
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Encabritamento registrado com sucesso!')),
+      );
+      widget.onComplete?.call();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao registrar: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao registrar: $e')),
+      );
     }
   }
 
@@ -160,7 +166,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const Divider(height: 32),
 
-                      // Female Selection with Integrated Search
+                      // Fêmea (Autocomplete)
                       Autocomplete<Animal>(
                         displayStringForOption: _getAnimalDisplayText,
                         optionsBuilder: (TextEditingValue textEditingValue) {
@@ -170,13 +176,14 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                           return _females.where((animal) {
                             final searchText = textEditingValue.text.toLowerCase();
                             return animal.code.toLowerCase().contains(searchText) ||
-                                   animal.name.toLowerCase().contains(searchText);
+                                animal.name.toLowerCase().contains(searchText);
                           });
                         },
                         onSelected: (Animal animal) {
                           setState(() => _selectedFemale = animal);
                         },
-                        fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onSubmitted) {
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -195,7 +202,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     )
                                   : null,
                             ),
-                            validator: (value) => _selectedFemale == null ? 'Selecione uma fêmea' : null,
+                            validator: (value) =>
+                                _selectedFemale == null ? 'Selecione uma fêmea' : null,
                           );
                         },
                         optionsViewBuilder: (context, onSelected, options) {
@@ -225,7 +233,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Male Selection with Integrated Search
+                      // Macho (Autocomplete)
                       Autocomplete<Animal>(
                         displayStringForOption: _getAnimalDisplayText,
                         optionsBuilder: (TextEditingValue textEditingValue) {
@@ -235,13 +243,14 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                           return _males.where((animal) {
                             final searchText = textEditingValue.text.toLowerCase();
                             return animal.code.toLowerCase().contains(searchText) ||
-                                   animal.name.toLowerCase().contains(searchText);
+                                animal.name.toLowerCase().contains(searchText);
                           });
                         },
                         onSelected: (Animal animal) {
                           setState(() => _selectedMale = animal);
                         },
-                        fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                        fieldViewBuilder:
+                            (context, controller, focusNode, onSubmitted) {
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -260,7 +269,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     )
                                   : null,
                             ),
-                            validator: (value) => _selectedMale == null ? 'Selecione um macho' : null,
+                            validator: (value) =>
+                                _selectedMale == null ? 'Selecione um macho' : null,
                           );
                         },
                         optionsViewBuilder: (context, onSelected, options) {
@@ -290,7 +300,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Mating Start Date
+                      // Data de início
                       ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: const Icon(Icons.calendar_today),
@@ -320,7 +330,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 8),
 
-                      // Calculated End Date
+                      // Data de separação (calculada)
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -338,7 +348,10 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                 children: [
                                   const Text(
                                     'Data de Separação (60 dias):',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                   Text(
                                     _matingEndDate != null
@@ -357,7 +370,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Notes
+                      // Observações
                       TextFormField(
                         decoration: const InputDecoration(
                           labelText: 'Observações',
@@ -369,7 +382,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Action Buttons
+                      // Botões
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [

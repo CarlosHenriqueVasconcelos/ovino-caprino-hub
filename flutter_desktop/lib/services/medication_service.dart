@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../data/medication_repository.dart';
-import '../services/supabase_service.dart';
 
 /// Service para gerenciar medicações
 class MedicationService extends ChangeNotifier {
@@ -29,7 +28,8 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Retorna medicações de um animal específico
-  Future<List<Map<String, dynamic>>> getMedicationsByAnimalId(String animalId) async {
+  Future<List<Map<String, dynamic>>> getMedicationsByAnimalId(
+      String animalId) async {
     try {
       return await _repository.getByAnimalId(animalId);
     } catch (e) {
@@ -49,7 +49,8 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Retorna medicações por status
-  Future<List<Map<String, dynamic>>> getMedicationsByStatus(String status) async {
+  Future<List<Map<String, dynamic>>> getMedicationsByStatus(
+      String status) async {
     try {
       return await _repository.getByStatus(status);
     } catch (e) {
@@ -69,7 +70,8 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Retorna medicações próximas (dentro de X dias)
-  Future<List<Map<String, dynamic>>> getUpcomingMedications(int daysThreshold) async {
+  Future<List<Map<String, dynamic>>> getUpcomingMedications(
+      int daysThreshold) async {
     try {
       return await _repository.getUpcoming(daysThreshold);
     } catch (e) {
@@ -88,11 +90,44 @@ class MedicationService extends ChangeNotifier {
     }
   }
 
+  /// Usado pelo AnimalService para montar o painel de alertas:
+  /// retorna todas as medicações pendentes (não aplicadas/canceladas)
+  /// com `next_date` até o [horizon] (inclui vencidas + próximas).
+  Future<List<Map<String, dynamic>>> getPendingMedications(
+    DateTime horizon,
+  ) async {
+    try {
+      final now = DateTime.now();
+
+      // Se o horizonte já passou, só faz sentido olhar atrasados
+      if (!horizon.isAfter(now)) {
+        return await _repository.getOverdue();
+      }
+
+      // Quantos dias pra frente vamos considerar "próximas"
+      final daysThreshold = horizon.difference(now).inDays;
+
+      // Vencidas
+      final overdue = await _repository.getOverdue();
+
+      // Próximas até o horizonte
+      final upcoming = await _repository.getUpcoming(daysThreshold);
+
+      // Em teoria, overdue e upcoming não se sobrepõem
+      // (overdue < hoje, upcoming >= hoje), então podemos só concatenar.
+      // Se quiser garantir, daria pra remover duplicados por 'id'.
+      return [...overdue, ...upcoming];
+    } catch (e) {
+      print('Erro ao buscar medicações pendentes: $e');
+      return [];
+    }
+  }
+
   /// Cria uma nova medicação
   Future<void> createMedication(Map<String, dynamic> medication) async {
     try {
       final m = Map<String, dynamic>.from(medication);
-      
+
       // Normalizar datas
       m['date'] = _toIsoDate(m['date']);
       m['next_date'] = _toIsoDate(m['next_date']);
@@ -112,14 +147,21 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Atualiza uma medicação
-  Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
+  Future<void> updateMedication(
+      String id, Map<String, dynamic> updates) async {
     try {
       final m = Map<String, dynamic>.from(updates);
 
       // Normalizar datas
-      if (m.containsKey('date')) m['date'] = _toIsoDate(m['date']);
-      if (m.containsKey('next_date')) m['next_date'] = _toIsoDate(m['next_date']);
-      if (m.containsKey('applied_date')) m['applied_date'] = _toIsoDate(m['applied_date']);
+      if (m.containsKey('date')) {
+        m['date'] = _toIsoDate(m['date']);
+      }
+      if (m.containsKey('next_date')) {
+        m['next_date'] = _toIsoDate(m['next_date']);
+      }
+      if (m.containsKey('applied_date')) {
+        m['applied_date'] = _toIsoDate(m['applied_date']);
+      }
       m['updated_at'] = DateTime.now().toIso8601String();
 
       // Atualizar no banco local
@@ -148,7 +190,8 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Retorna medicações relacionadas a um item do estoque
-  Future<List<Map<String, dynamic>>> getMedicationsByPharmacyStockId(String stockId) async {
+  Future<List<Map<String, dynamic>>> getMedicationsByPharmacyStockId(
+      String stockId) async {
     try {
       return await _repository.getByPharmacyStockId(stockId);
     } catch (e) {

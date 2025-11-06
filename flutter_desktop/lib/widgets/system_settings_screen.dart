@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../services/animal_service.dart';
 import '../services/backup_service.dart';
-import '../data/local_db.dart'; // AppDatabase
+import '../services/system_maintenance_service.dart';
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -497,38 +497,30 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   }
 
   Future<void> _clearAllData() async {
-    final appDb = context.read<AppDatabase>();
-    final db = appDb.db;
+    final maintenance = context.read<SystemMaintenanceService>();
 
-    // Ordem segura de deleção (FKs primeiro)
-    const wipeOrder = <String>[
-      'animal_weights',
-      'breeding_records',
-      'vaccinations',
-      'medications',
-      'notes',
-      'financial_records',
-      'financial_accounts',
-      'reports',
-      'push_tokens',
-      'animals',
-    ];
+    try {
+      await maintenance.clearAllData();
 
-    await db.transaction((txn) async {
-      for (final t in wipeOrder) {
-        await txn.delete(t);
-      }
-    });
+      if (!mounted) return;
 
-    if (!mounted) return;
-    // Atualiza a UI (recarrega animais, KPIs, etc.)
-    await context.read<AnimalService>().loadData();
+      // Atualiza a UI (recarrega animais, KPIs, etc.)
+      await context.read<AnimalService>().loadData();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Todos os dados locais foram removidos.'),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Todos os dados locais foram removidos.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao limpar dados: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    }
   }
 }

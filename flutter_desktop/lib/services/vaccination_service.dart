@@ -1,12 +1,83 @@
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
+
+import '../data/local_db.dart';
 import '../data/vaccination_repository.dart';
-import '../services/supabase_service.dart';
+
+class VaccinationAlertsData {
+  final List<Map<String, dynamic>> vaccines;
+  final List<Map<String, dynamic>> meds;
+
+  const VaccinationAlertsData({
+    required this.vaccines,
+    required this.meds,
+  });
+}
 
 /// Service para gerenciar vacinações
 class VaccinationService extends ChangeNotifier {
   final VaccinationRepository _repository;
+  final AppDatabase _appDb;
 
-  VaccinationService(this._repository);
+  VaccinationService(this._repository, this._appDb);
+
+  Database get _db => _appDb.db;
+
+  /// ---------- BLOCO NOVO: ALERTAS (Vacinas + Medicações) ----------
+
+  Future<VaccinationAlertsData> getVaccinationAlerts() async {
+    // VACINAS — mesma query do widget antigo
+    final vacs = await _db.rawQuery('''
+      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status = 'Agendada'
+      ORDER BY date(v.scheduled_date) ASC
+      LIMIT 200
+    ''');
+
+    // MEDICAÇÕES — mesma query base do widget antigo
+    final medsRaw = await _db.rawQuery('''
+      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status = 'Agendado'
+      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+      LIMIT 500
+    ''');
+
+    DateTime? _parse(dynamic v) {
+      if (v == null) return null;
+      final s = v.toString().trim();
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    bool _notApplied(Map<String, dynamic> m) {
+      final ad = _parse(m['applied_date']);
+      return ad == null; // só consideramos agendadas e não aplicadas
+    }
+
+    final today = DateTime.now();
+    final baseToday = DateTime(today.year, today.month, today.day);
+    final cut = baseToday.add(const Duration(days: 30));
+
+    final onlyUpcomingMeds = medsRaw.where((m) {
+      final when = _parse(m['date']) ?? _parse(m['next_date']);
+      if (when == null) return false;
+      final day = DateTime(when.year, when.month, when.day);
+      if (day.isAfter(cut)) return false;
+      if (!_notApplied(m)) return false;
+      return true;
+    }).toList();
+
+    return VaccinationAlertsData(
+      vaccines: vacs.map((e) => Map<String, dynamic>.from(e)).toList(),
+      meds: onlyUpcomingMeds.map((e) => Map<String, dynamic>.from(e)).toList(),
+    );
+  }
+
+  // ---------- RESTO DO SEU SERVICE (igual estava) ----------
 
   /// Retorna todas as vacinações
   Future<List<Map<String, dynamic>>> getVaccinations() async {

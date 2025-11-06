@@ -1,9 +1,11 @@
+// lib/widgets/breeding_form.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
+
 import '../services/animal_service.dart';
-import '../services/database_service.dart';
+import '../services/breeding_service.dart';
 import '../models/animal.dart';
+import '../models/breeding_record.dart';
 import '../utils/animal_display_utils.dart';
 
 class BreedingFormDialog extends StatefulWidget {
@@ -16,13 +18,13 @@ class BreedingFormDialog extends StatefulWidget {
 class _BreedingFormDialogState extends State<BreedingFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
-  
+
   String? _femaleAnimalId;
   String? _maleAnimalId;
-  String _status = 'Cobertura';
+  String _status = 'Cobertura'; // ainda usado na UI; mapeamos para stage
   DateTime _breedingDate = DateTime.now();
   DateTime? _expectedBirth;
-  
+
   List<Map<String, dynamic>> _breedingRecords = [];
   bool _loadingRecords = true;
 
@@ -34,39 +36,48 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   Future<void> _loadBreedingRecords() async {
     try {
-      final records = await DatabaseService.getBreedingRecords();
+      // Agora usamos o BreedingService (injeção via Provider)
+      final svc = context.read<BreedingService>();
+      final records = await svc.getBreedingRecords();
+      if (!mounted) return;
       setState(() {
         _breedingRecords = records;
         _loadingRecords = false;
       });
     } catch (e) {
+      // ignore: avoid_print
       print('Erro ao carregar registros de reprodução: $e');
+      if (!mounted) return;
       setState(() => _loadingRecords = false);
     }
   }
-  
+
   String _getAnimalDisplayText(Animal animal) {
     return AnimalDisplayUtils.getDisplayText(animal);
   }
-  
+
+  /// Verifica se a fêmea está em alguma fase reprodutiva ativa.
+  /// Antes a checagem era por strings como "Ultrassom agendado", "Gestante".
+  /// Agora usamos o enum BreedingStage + valores snake_case do DB.
   bool _isFemaleInBreeding(String animalId) {
-    // Verifica se a fêmea está em qualquer fase de reprodução ativa
     return _breedingRecords.any((record) {
       if (record['female_animal_id'] != animalId) return false;
-      final stage = record['stage']?.toString() ?? '';
-      // Considera ativa se estiver aguardando ultrassom ou em outras fases antes do nascimento
-      return stage == 'Ultrassom agendado' || 
-             stage == 'Ultrassom confirmado' ||
-             stage == 'Gestante';
+      final stage = BreedingStage.fromString(record['stage'] as String?);
+
+      // Mantém a lógica antiga:
+      // - aguardando_ultrassom  ~ "Ultrassom agendado/confirmado"
+      // - gestacao_confirmada   ~ "Gestante"
+      return stage == BreedingStage.aguardandoUltrassom ||
+          stage == BreedingStage.gestacaoConfirmada;
     });
   }
-  
+
+  /// Verifica se o macho está em encabritamento (usado para bloquear).
   bool _isMaleInBreeding(String animalId) {
-    // Verifica se o macho está em fase de encabritamento
     return _breedingRecords.any((record) {
       if (record['male_animal_id'] != animalId) return false;
-      final stage = record['stage']?.toString() ?? '';
-      return stage == 'Encabritamento';
+      final stage = BreedingStage.fromString(record['stage'] as String?);
+      return stage == BreedingStage.encabritamento;
     });
   }
 
@@ -74,7 +85,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
-    
+
     if (_loadingRecords) {
       return const AlertDialog(
         title: Text('Registrar Cobertura'),
@@ -83,30 +94,30 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         ),
       );
     }
-    
-    // Filtrar fêmeas: excluir borregas, gestantes e que estão aguardando ultrassom
+
+    // Filtrar fêmeas: excluir borregas, venda, gestantes e que estão em reprodução ativa
     final femaleAnimals = animalService.animals
-        .where((animal) => 
-            animal.gender == 'Fêmea' && 
+        .where((animal) =>
+            animal.gender == 'Fêmea' &&
             animal.category != 'Borrego' &&
             animal.category != 'Borrega' &&
             animal.category != 'Venda' &&
             !animal.pregnant &&
             !_isFemaleInBreeding(animal.id))
         .toList();
-    
+
     // Ordenar fêmeas
     AnimalDisplayUtils.sortAnimalsList(femaleAnimals);
-    
-    // Filtrar machos: excluir borregos e que estão em encabritamento
+
+    // Filtrar machos: excluir borregos, venda e que estão em encabritamento
     final maleAnimals = animalService.animals
-        .where((animal) => 
-            animal.gender == 'Macho' && 
+        .where((animal) =>
+            animal.gender == 'Macho' &&
             animal.category != 'Borrego' &&
             animal.category != 'Venda' &&
             !_isMaleInBreeding(animal.id))
         .toList();
-    
+
     // Ordenar machos
     AnimalDisplayUtils.sortAnimalsList(maleAnimals);
 
@@ -130,13 +141,14 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     return femaleAnimals.where((animal) {
                       final searchText = textEditingValue.text.toLowerCase();
                       return animal.code.toLowerCase().contains(searchText) ||
-                             animal.name.toLowerCase().contains(searchText);
+                          animal.name.toLowerCase().contains(searchText);
                     });
                   },
                   onSelected: (Animal animal) {
                     setState(() => _femaleAnimalId = animal.id);
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -155,7 +167,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                               )
                             : null,
                       ),
-                      validator: (value) => _femaleAnimalId == null ? 'Selecione uma fêmea' : null,
+                      validator: (value) => _femaleAnimalId == null
+                          ? 'Selecione uma fêmea'
+                          : null,
                     );
                   },
                   optionsViewBuilder: (context, onSelected, options) {
@@ -175,12 +189,18 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                               return InkWell(
                                 onTap: () => onSelected(animal),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                   child: AnimalDisplayUtils.buildDropdownItem(
                                     animal,
-                                    textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                    ),
+                                    textStyle: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
                                   ),
                                 ),
                               );
@@ -192,7 +212,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Male Selection (Optional) with Search
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
@@ -203,13 +223,14 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     return maleAnimals.where((animal) {
                       final searchText = textEditingValue.text.toLowerCase();
                       return animal.code.toLowerCase().contains(searchText) ||
-                             animal.name.toLowerCase().contains(searchText);
+                          animal.name.toLowerCase().contains(searchText);
                     });
                   },
                   onSelected: (Animal animal) {
                     setState(() => _maleAnimalId = animal.id);
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -247,12 +268,18 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                               return InkWell(
                                 onTap: () => onSelected(animal),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
                                   child: AnimalDisplayUtils.buildDropdownItem(
                                     animal,
-                                    textStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                    ),
+                                    textStyle: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
                                   ),
                                 ),
                               );
@@ -264,7 +291,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Breeding Date
                 InkWell(
                   onTap: () async {
@@ -272,13 +299,14 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                       context: context,
                       locale: const Locale('pt', 'BR'),
                       initialDate: _breedingDate,
-                      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                      firstDate:
+                          DateTime.now().subtract(const Duration(days: 365)),
                       lastDate: DateTime.now(),
                     );
                     if (date != null) {
                       setState(() {
                         _breedingDate = date;
-                        // Calculate expected birth (approximately 150 days for sheep/goats)
+                        // Calcula uma previsão aproximada de parto (150 dias)
                         _expectedBirth = date.add(const Duration(days: 150));
                       });
                     }
@@ -290,12 +318,14 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                       suffixIcon: Icon(Icons.calendar_today),
                     ),
                     child: Text(
-                      '${_breedingDate.day.toString().padLeft(2, '0')}/${_breedingDate.month.toString().padLeft(2, '0')}/${_breedingDate.year}',
+                      '${_breedingDate.day.toString().padLeft(2, '0')}/'
+                      '${_breedingDate.month.toString().padLeft(2, '0')}/'
+                      '${_breedingDate.year}',
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Expected Birth
                 if (_expectedBirth != null) ...[
                   InkWell(
@@ -304,8 +334,10 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                         context: context,
                         locale: const Locale('pt', 'BR'),
                         initialDate: _expectedBirth!,
-                        firstDate: _breedingDate.add(const Duration(days: 120)),
-                        lastDate: _breedingDate.add(const Duration(days: 180)),
+                        firstDate:
+                            _breedingDate.add(const Duration(days: 120)),
+                        lastDate:
+                            _breedingDate.add(const Duration(days: 180)),
                       );
                       if (date != null) {
                         setState(() {
@@ -320,21 +352,24 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                         suffixIcon: Icon(Icons.calendar_today),
                       ),
                       child: Text(
-                        '${_expectedBirth!.day.toString().padLeft(2, '0')}/${_expectedBirth!.month.toString().padLeft(2, '0')}/${_expectedBirth!.year}',
+                        '${_expectedBirth!.day.toString().padLeft(2, '0')}/'
+                        '${_expectedBirth!.month.toString().padLeft(2, '0')}/'
+                        '${_expectedBirth!.year}',
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
-                
-                // Status
+
+                // Status (aqui ainda usamos os rótulos antigos; mapeamos para stage)
                 DropdownButtonFormField<String>(
                   value: _status,
                   decoration: const InputDecoration(
                     labelText: 'Status',
                     border: OutlineInputBorder(),
                   ),
-                  items: ['Cobertura', 'Confirmada', 'Nasceu', 'Perdida'].map((status) {
+                  items: ['Cobertura', 'Confirmada', 'Nasceu', 'Perdida']
+                      .map((status) {
                     return DropdownMenuItem(
                       value: status,
                       child: Text(status),
@@ -347,7 +382,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Notes
                 TextFormField(
                   controller: _notesController,
@@ -375,53 +410,71 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
     );
   }
 
-  void _saveBreeding() async {
+  /// Converte o "status" antigo de UI para o novo estágio canônico.
+  BreedingStage _mapStatusToStage(String status) {
+    switch (status) {
+      case 'Confirmada':
+        return BreedingStage.gestacaoConfirmada;
+      case 'Nasceu':
+        return BreedingStage.partoRealizado;
+      case 'Perdida':
+        return BreedingStage.falhou;
+      case 'Cobertura':
+      default:
+        return BreedingStage.encabritamento;
+    }
+  }
+
+  Future<void> _saveBreeding() async {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      final breeding = {
-        'id': const Uuid().v4(),
-        'female_animal_id': _femaleAnimalId!,
-        'male_animal_id': _maleAnimalId,
-        'breeding_date': _breedingDate.toIso8601String().split('T')[0],
-        'expected_birth': _expectedBirth?.toIso8601String().split('T')[0],
-        'status': _status,
-        'notes': _notesController.text.isEmpty ? null : _notesController.text,
-        'created_at': DateTime.now().toIso8601String(),
-      };
+      final breedingService = context.read<BreedingService>();
+      final animalService =
+          Provider.of<AnimalService>(context, listen: false);
 
-      await DatabaseService.createBreedingRecord(breeding);
-      
-      // If status is "Confirmada", update the female animal as pregnant
-      if (_status == 'Confirmada') {
-        final animalService = Provider.of<AnimalService>(context, listen: false);
-        final female = animalService.animals.firstWhere((a) => a.id == _femaleAnimalId);
-        final updatedFemale = female.toJson();
-        updatedFemale['pregnant'] = true;
-        updatedFemale['expected_delivery'] = _expectedBirth?.toIso8601String().split('T')[0];
-        
-        await DatabaseService.updateAnimal(_femaleAnimalId!, updatedFemale);
-        animalService.loadData(); // Refresh data
-      }
-      
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Cobertura registrada com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
+      final stageEnum = _mapStatusToStage(_status);
+      final notes = _notesController.text.trim();
+
+      // Cria registro de reprodução via service (usa repositório/DB e gatilhos de status)
+      await breedingService.createRecord(
+        femaleId: _femaleAnimalId!,
+        maleId: _maleAnimalId,
+        stage: stageEnum.value,
+        breedingDate: _breedingDate,
+        expectedBirth: _expectedBirth,
+        notes: notes.isEmpty ? null : notes,
+      );
+
+      // Se o estágio representar gestação confirmada, marcamos a fêmea como gestante
+      if (stageEnum == BreedingStage.gestacaoConfirmada) {
+        final female = animalService.animals
+            .firstWhere((a) => a.id == _femaleAnimalId);
+
+        final updatedFemale = female.copyWith(
+          pregnant: true,
+          expectedDelivery: _expectedBirth,
         );
+
+        await animalService.updateAnimal(updatedFemale);
       }
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Cobertura registrada com sucesso!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao registrar cobertura: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao registrar cobertura: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     }
   }
 

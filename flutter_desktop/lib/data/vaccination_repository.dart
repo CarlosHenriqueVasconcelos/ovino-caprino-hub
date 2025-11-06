@@ -1,4 +1,3 @@
-import 'package:sqflite_common/sqlite_api.dart';
 import 'local_db.dart';
 
 /// Repository para gerenciar vacinações

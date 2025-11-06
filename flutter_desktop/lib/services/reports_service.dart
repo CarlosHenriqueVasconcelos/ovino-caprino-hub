@@ -1,6 +1,8 @@
 // lib/services/reports_service.dart
 // Service for generating comprehensive reports with filters and KPIs
-import 'database_service.dart';
+import 'dart:convert';
+
+import '../data/local_db.dart';
 import '../models/animal.dart';
 
 class DateRange {
@@ -137,9 +139,18 @@ class ReportsService {
     return noAccents.replaceAll(' ', '_');
   }
 
+  static String _yyyyMmDd(DateTime d) => d.toIso8601String().substring(0, 10);
+
+  static Future<List<Animal>> _loadAnimals() async {
+    final appDb = await AppDatabase.open();
+    final rows = await appDb.db.query('animals');
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
   // ==================== ANIMAIS ====================
-  static Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) async {
-    var animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getAnimalsReport(
+      ReportFilters filters) async {
+    var animals = await _loadAnimals();
 
     animals = animals.where((a) {
       final createdAt = _toDate(a.createdAt);
@@ -172,31 +183,34 @@ class ReportsService {
         'machos': machos,
         'femeas': femeas,
       },
-      'data': animals.map((a) => {
-            'code': a.code,
-            'name': a.name,
-            'species': a.species,
-            'breed': a.breed,
-            'gender': a.gender,
-            'birth_date': a.birthDate is DateTime
-                ? (a.birthDate as DateTime).toIso8601String().split('T')[0]
-                : a.birthDate,
-            'weight': a.weight,
-            'status': a.status,
-            'location': a.location,
-            'category': a.category ?? '',
-            'pregnant': a.pregnant,
-            'expected_delivery': a.expectedDelivery ?? '',
-          }).toList(),
+      'data': animals
+          .map((a) => {
+                'code': a.code,
+                'name': a.name,
+                'species': a.species,
+                'breed': a.breed,
+                'gender': a.gender,
+                'birth_date': a.birthDate is DateTime
+                    ? _yyyyMmDd(a.birthDate as DateTime)
+                    : a.birthDate,
+                'weight': a.weight,
+                'status': a.status,
+                'location': a.location,
+                'category': a.category ?? '',
+                'pregnant': a.pregnant,
+                'expected_delivery': a.expectedDelivery ?? '',
+              })
+          .toList(),
     };
   }
 
   // ---------- Pesos: leitor robusto ----------
   static Future<List<Map<String, dynamic>>> _readWeightRows(
       DateTime start, DateTime end) async {
-    final db = await DatabaseService.database;
-    final s = start.toIso8601String().split('T')[0];
-    final e = end.toIso8601String().split('T')[0];
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+    final s = _yyyyMmDd(start);
+    final e = _yyyyMmDd(end);
 
     Future<List<Map<String, dynamic>>> tryQuery(
         String table, String dcol, String wcol) async {
@@ -207,10 +221,12 @@ class ReportsService {
           WHERE $dcol >= ? AND $dcol <= ?
           ORDER BY $dcol ASC
         ''', [s, e]);
+        // ignore: avoid_print
         print('✅ Encontrados ${rows.length} registros de peso em $table');
         return rows;
-      } catch (e) {
-        print('⚠️ Erro ao buscar pesos em $table: $e');
+      } catch (err) {
+        // ignore: avoid_print
+        print('⚠️ Erro ao buscar pesos em $table: $err');
         return [];
       }
     }
@@ -218,23 +234,30 @@ class ReportsService {
     // ordem de tentativas (tabelas/colunas legadas comuns)
     var rows = await tryQuery('animal_weights', 'date', 'weight');
     if (rows.isEmpty) rows = await tryQuery('weights', 'date', 'weight');
-    if (rows.isEmpty) rows = await tryQuery('weights', 'weigh_date', 'weight');
-    if (rows.isEmpty) rows = await tryQuery('animal_weight', 'date', 'weight');
-    if (rows.isEmpty) rows = await tryQuery('animal_weight', 'recorded_at', 'weight');
+    if (rows.isEmpty) {
+      rows = await tryQuery('weights', 'weigh_date', 'weight');
+    }
+    if (rows.isEmpty) {
+      rows = await tryQuery('animal_weight', 'date', 'weight');
+    }
+    if (rows.isEmpty) {
+      rows = await tryQuery('animal_weight', 'recorded_at', 'weight');
+    }
 
     return rows;
   }
 
   // ==================== PESOS ====================
-  static Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) async {
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getWeightsReport(
+      ReportFilters filters) async {
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // Busca histórico de pesagens na tabela animal_weights
+    // Busca histórico de pesagens
     final weights = await _readWeightRows(filters.startDate, filters.endDate);
 
     final byAnimal = <String, List<Map<String, dynamic>>>{};
-    
+
     // Adiciona pesagens do histórico
     for (var w in weights) {
       final animalId = (w['animal_id'] ?? '').toString();
@@ -243,29 +266,37 @@ class ReportsService {
       byAnimal[animalId]!.add(w);
     }
 
+    // ignore: avoid_print
     print('📊 Histórico de pesagens encontrado: ${weights.length}');
+    // ignore: avoid_print
     print('📊 Animais com histórico: ${byAnimal.length}');
 
     // Se não houver histórico, usa os pesos atuais da tabela animals
     if (weights.isEmpty) {
-      print('⚠️ Nenhum histórico de pesagens encontrado, usando pesos atuais dos animais');
-      
+      // ignore: avoid_print
+      print(
+          '⚠️ Nenhum histórico de pesagens encontrado, usando pesos atuais dos animais');
+
       for (var animal in animals) {
         final createdAt = _toDate(animal.createdAt);
-        if (!_between(createdAt, filters.startDate, filters.endDate)) continue;
-        
+        if (!_between(createdAt, filters.startDate, filters.endDate)) {
+          continue;
+        }
+
         if (animal.weight > 0) {
           byAnimal.putIfAbsent(animal.id, () => []);
           byAnimal[animal.id]!.add({
             'animal_id': animal.id,
-            'date': animal.createdAt is DateTime 
-                ? (animal.createdAt as DateTime).toIso8601String().split('T')[0]
+            'date': animal.createdAt is DateTime
+                ? _yyyyMmDd(animal.createdAt as DateTime)
                 : animal.createdAt.toString().split('T')[0],
             'weight': animal.weight,
           });
         }
       }
-      print('📊 Animais adicionados com peso atual: ${byAnimal.length}');
+      // ignore: avoid_print
+      print(
+          '📊 Animais adicionados com peso atual: ${byAnimal.length}');
     }
 
     final animalStats = byAnimal.entries.map((entry) {
@@ -276,10 +307,12 @@ class ReportsService {
       final weightValues =
           weighings.map((w) => (w['weight'] as num).toDouble()).toList();
 
-      weighings.sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+      weighings.sort((a, b) =>
+          (b['date'] as String).compareTo(a['date'] as String));
 
-      final double lastWeight =
-          weighings.isEmpty ? 0 : (weighings[0]['weight'] as num).toDouble();
+      final double lastWeight = weighings.isEmpty
+          ? 0
+          : (weighings[0]['weight'] as num).toDouble();
 
       return {
         'animal_id': animalId,
@@ -305,11 +338,14 @@ class ReportsService {
         .where((w) => w > 0)
         .toList();
 
-    print('📊 Total de animais no relatório final: ${animalStats.length}');
+    // ignore: avoid_print
+    print(
+        '📊 Total de animais no relatório final: ${animalStats.length}');
 
     return {
       'summary': {
-        'total_weighings': weights.isEmpty ? byAnimal.length : weights.length,
+        'total_weighings':
+            weights.isEmpty ? byAnimal.length : weights.length,
         'animals_weighed': byAnimal.length,
         'avg_last_weight': allLastWeights.isEmpty
             ? 0
@@ -320,9 +356,13 @@ class ReportsService {
   }
 
   // ==================== VACINAÇÕES ====================
-  static Future<Map<String, dynamic>> getVaccinationsReport(ReportFilters filters) async {
-    var vaccinations = await DatabaseService.getVaccinations();
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getVaccinationsReport(
+      ReportFilters filters) async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+
+    var vaccinations = await db.query('vaccinations');
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
     vaccinations = vaccinations.where((v) {
@@ -332,15 +372,21 @@ class ReportsService {
     }).toList();
 
     if (filters.status != null && filters.status != 'Todos') {
-      vaccinations = vaccinations.where((v) => v['status'] == filters.status).toList();
+      vaccinations =
+          vaccinations.where((v) => v['status'] == filters.status).toList();
     }
     if (filters.vaccineType != null && filters.vaccineType != 'Todos') {
-      vaccinations = vaccinations.where((v) => v['vaccine_type'] == filters.vaccineType).toList();
+      vaccinations = vaccinations
+          .where((v) => v['vaccine_type'] == filters.vaccineType)
+          .toList();
     }
 
-    final scheduled = vaccinations.where((v) => v['status'] == 'Agendada').length;
-    final applied = vaccinations.where((v) => v['status'] == 'Aplicada').length;
-    final cancelled = vaccinations.where((v) => v['status'] == 'Cancelada').length;
+    final scheduled =
+        vaccinations.where((v) => v['status'] == 'Agendada').length;
+    final applied =
+        vaccinations.where((v) => v['status'] == 'Aplicada').length;
+    final cancelled =
+        vaccinations.where((v) => v['status'] == 'Cancelada').length;
 
     return {
       'summary': {
@@ -367,26 +413,37 @@ class ReportsService {
   }
 
   // ==================== MEDICAÇÕES ====================
-  static Future<Map<String, dynamic>> getMedicationsReport(ReportFilters filters) async {
-    var medications = await DatabaseService.getMedications();
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getMedicationsReport(
+      ReportFilters filters) async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+
+    var medications = await db.query('medications');
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
     medications = medications.where((m) {
-      final eventDate = (m['status'] == 'Aplicado' && m['applied_date'] != null)
-          ? m['applied_date']
-          : m['date'];
+      final eventDate =
+          (m['status'] == 'Aplicado' && m['applied_date'] != null)
+              ? m['applied_date']
+              : m['date'];
       final d = _toDate(eventDate);
       return _between(d, filters.startDate, filters.endDate);
     }).toList();
 
-    if (filters.medicationStatus != null && filters.medicationStatus != 'Todos') {
-      medications = medications.where((m) => m['status'] == filters.medicationStatus).toList();
+    if (filters.medicationStatus != null &&
+        filters.medicationStatus != 'Todos') {
+      medications = medications
+          .where((m) => m['status'] == filters.medicationStatus)
+          .toList();
     }
 
-    final scheduled = medications.where((m) => m['status'] == 'Agendado').length;
-    final applied = medications.where((m) => m['status'] == 'Aplicado').length;
-    final cancelled = medications.where((m) => m['status'] == 'Cancelado').length;
+    final scheduled =
+        medications.where((m) => m['status'] == 'Agendado').length;
+    final applied =
+        medications.where((m) => m['status'] == 'Aplicado').length;
+    final cancelled =
+        medications.where((m) => m['status'] == 'Cancelado').length;
 
     return {
       'summary': {
@@ -414,30 +471,40 @@ class ReportsService {
   }
 
   // ==================== REPRODUÇÃO ====================
-  static Future<Map<String, dynamic>> getBreedingReport(ReportFilters filters) async {
-    var breeding = await DatabaseService.getBreedingRecords();
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getBreedingReport(
+      ReportFilters filters) async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+
+    var breeding = await db.query('breeding_records');
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    print('📊 Total de registros de reprodução encontrados: ${breeding.length}');
+    // ignore: avoid_print
+    print(
+        '📊 Total de registros de reprodução encontrados: ${breeding.length}');
 
     breeding = breeding.where((b) {
       final d = _toDate(b['breeding_date']);
       final inRange = _between(d, filters.startDate, filters.endDate);
       if (!inRange) {
+        // ignore: avoid_print
         print('⏭️ Registro fora do período: ${b['breeding_date']}');
       }
       return inRange;
     }).toList();
 
+    // ignore: avoid_print
     print('📊 Registros após filtro de data: ${breeding.length}');
 
-    if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
+    if (filters.breedingStage != null &&
+        filters.breedingStage != 'Todos') {
       final expected = _slug(filters.breedingStage!);
       breeding = breeding.where((b) {
         final stage = _slug((b['stage'] ?? '').toString());
         return stage == expected;
       }).toList();
+      // ignore: avoid_print
       print('📊 Registros após filtro de estágio: ${breeding.length}');
     }
 
@@ -477,7 +544,8 @@ class ReportsService {
 
   // ==================== FINANCEIRO ====================
   static Future<List<Map<String, dynamic>>> _readFinancialRows() async {
-    final db = await DatabaseService.database;
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
     List<Map<String, dynamic>> rows = [];
 
     Future<void> tryTable(String name) async {
@@ -488,30 +556,20 @@ class ReportsService {
     }
 
     // Tenta as tabelas mais prováveis
-    await tryTable('financial_accounts');   // app atual
+    await tryTable('financial_accounts'); // app atual
     await tryTable('finance_accounts');
-    await tryTable('financial');            // planos antigos
+    await tryTable('financial'); // planos antigos
     await tryTable('accounts');
+    await tryTable('financial_records'); // legado
 
-    // Fallback para helper
-    if (rows.isEmpty) {
-      try {
-        final any = await DatabaseService.getFinancialRecords();
-        if (any is List) {
-          rows = any
-              .map<Map<String, dynamic>>(
-                  (e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-        }
-      } catch (_) {}
-    }
     return rows;
   }
 
   /// Compatível com chaves snake/camel e datas dd/MM/yyyy ou ISO.
   /// Período usa data efetiva: paid_date ?? date ?? due_date ?? created_at.
-  static Future<Map<String, dynamic>> getFinancialReport(ReportFilters filters) async {
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getFinancialReport(
+      ReportFilters filters) async {
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
     var raw = await _readFinancialRows();
@@ -532,14 +590,20 @@ class ReportsService {
       if (type == 'expense') type = 'despesa';
 
       final status = _asLower(map['status']);
-      final category = (map['category'] ?? map['categoria'] ?? '').toString();
+      final category =
+          (map['category'] ?? map['categoria'] ?? '').toString();
 
       // datas
       final rawDate = _firstNonEmpty(map, [
-        'paid_date', 'paidDate', 'payment_date',
-        'date', 'data',
-        'due_date', 'dueDate',
-        'created_at', 'createdAt'
+        'paid_date',
+        'paidDate',
+        'payment_date',
+        'date',
+        'data',
+        'due_date',
+        'dueDate',
+        'created_at',
+        'createdAt'
       ]);
       final eff = _toDate(rawDate);
       // valor
@@ -559,23 +623,31 @@ class ReportsService {
         'status': status,
         'category': category,
         'amount': amount,
-        'description': (map['description'] ?? map['descricao'] ?? '').toString(),
+        'description':
+            (map['description'] ?? map['descricao'] ?? '').toString(),
         'animal_code': animal?.code ?? '',
       });
     }
 
     // Filtra por período
     norm = norm
-        .where((m) => _between(m['effective_date'] as DateTime?, filters.startDate, filters.endDate))
+        .where((m) => _between(
+            m['effective_date'] as DateTime?,
+            filters.startDate,
+            filters.endDate))
         .toList();
 
     // Filtros tipo/categoria
-    if (filters.financialType != null && filters.financialType != 'Todos') {
+    if (filters.financialType != null &&
+        filters.financialType != 'Todos') {
       final ft = _asLower(filters.financialType);
       norm = norm.where((m) => m['type'] == ft).toList();
     }
-    if (filters.financialCategory != null && filters.financialCategory != 'Todos') {
-      norm = norm.where((m) => (m['category'] ?? '') == filters.financialCategory).toList();
+    if (filters.financialCategory != null &&
+        filters.financialCategory != 'Todos') {
+      norm = norm
+          .where((m) => (m['category'] ?? '') == filters.financialCategory)
+          .toList();
     }
 
     // Somatórios
@@ -597,15 +669,18 @@ class ReportsService {
     });
 
     // Dados para a tabela
-    final data = norm.map((m) => {
-          'date': m['date'] ?? '',
-          'type': m['type'],
-          'category': m['category'],
-          'amount': m['amount'],
-          'description': m['description'],
-          'status': (m['status'] as String?)?.isEmpty ?? true ? '' : m['status'],
-          'animal_code': m['animal_code'],
-        }).toList();
+    final data = norm
+        .map((m) => {
+              'date': m['date'] ?? '',
+              'type': m['type'],
+              'category': m['category'],
+              'amount': m['amount'],
+              'description': m['description'],
+              'status':
+                  (m['status'] as String?)?.isEmpty ?? true ? '' : m['status'],
+              'animal_code': m['animal_code'],
+            })
+        .toList();
 
     return {
       'summary': {
@@ -618,9 +693,13 @@ class ReportsService {
   }
 
   // ==================== ANOTAÇÕES ====================
-  static Future<Map<String, dynamic>> getNotesReport(ReportFilters filters) async {
-    var notes = await DatabaseService.getNotes();
-    final animals = await DatabaseService.getAnimals();
+  static Future<Map<String, dynamic>> getNotesReport(
+      ReportFilters filters) async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+
+    var notes = await db.query('notes');
+    final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
     notes = notes.where((n) {
@@ -629,11 +708,15 @@ class ReportsService {
     }).toList();
 
     if (filters.notesIsRead != null) {
-      notes =
-          notes.where((n) => (n['is_read'] == 1) == filters.notesIsRead!).toList();
+      notes = notes
+          .where((n) => (n['is_read'] == 1) == filters.notesIsRead!)
+          .toList();
     }
-    if (filters.notesPriority != null && filters.notesPriority != 'Todos') {
-      notes = notes.where((n) => n['priority'] == filters.notesPriority).toList();
+    if (filters.notesPriority != null &&
+        filters.notesPriority != 'Todos') {
+      notes = notes
+          .where((n) => n['priority'] == filters.notesPriority)
+          .toList();
     }
 
     final read = notes.where((n) => n['is_read'] == 1).length;
@@ -664,5 +747,25 @@ class ReportsService {
         };
       }).toList(),
     };
+  }
+
+  // ==================== SALVAR HISTÓRICO DE RELATÓRIOS ====================
+  static Future<void> saveGeneratedReport({
+    required String title,
+    required String reportType,
+    required Map<String, dynamic> parameters,
+    String generatedBy = 'Dashboard',
+  }) async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+
+    await db.insert('reports', {
+      'id': 'rep_${DateTime.now().millisecondsSinceEpoch}',
+      'title': title,
+      'report_type': reportType,
+      'parameters': jsonEncode(parameters),
+      'generated_at': DateTime.now().toIso8601String(),
+      'generated_by': generatedBy,
+    });
   }
 }

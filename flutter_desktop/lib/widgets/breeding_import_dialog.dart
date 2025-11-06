@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/animal.dart';
-import '../services/database_service.dart';
 import '../services/animal_service.dart';
+import '../services/breeding_service.dart';
 
 class BreedingImportDialog extends StatefulWidget {
   const BreedingImportDialog({super.key});
@@ -20,11 +20,12 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   Animal? _female;
   Animal? _male;
 
-  DateTime? _breedingStart;   // obrigatório
-  DateTime? _separationDate;  // opcional
-  DateTime? _ultrasoundDate;  // opcional
+  DateTime? _breedingStart; // obrigatório
+  DateTime? _separationDate; // opcional
+  DateTime? _ultrasoundDate; // opcional
 
-  String _ultrasoundResult = 'nao_informado'; // confirmada | nao_confirmada | nao_informado
+  // confirmada | nao_confirmada | nao_informado
+  String _ultrasoundResult = 'nao_informado';
   String? _notes;
 
   final _femaleCtrl = TextEditingController();
@@ -35,19 +36,27 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   @override
   void initState() {
     super.initState();
-    _loadAnimals();
     _breedingStart = DateTime.now();
+    _loadAnimals();
   }
 
   Future<void> _loadAnimals() async {
-    final list = await DatabaseService.getAnimals();
-    setState(() => _allAnimals = list);
+    final animalService = context.read<AnimalService>();
+    if (animalService.animals.isEmpty) {
+      await animalService.loadData();
+    }
+    setState(() {
+      _allAnimals = List<Animal>.from(animalService.animals);
+    });
   }
 
   bool _isFemaleAllowed(Animal a) {
     final c = (a.category ?? '').toLowerCase();
     return (c.contains('fêmea') || c.contains('femea')) &&
-        (c.contains('reprodutor') || c.contains('reprodutra') || c.contains('reprodutora') || c.contains('adulto'));
+        (c.contains('reprodutor') ||
+            c.contains('reprodutra') ||
+            c.contains('reprodutora') ||
+            c.contains('adulto'));
   }
 
   bool _isMaleAllowed(Animal a) {
@@ -84,11 +93,14 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_female == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecione a fêmea.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione a fêmea.')),
+      );
       return;
     }
 
     setState(() => _saving = true);
+
     try {
       // 1) Determinar stage coerente com os dados informados
       String stage;
@@ -104,30 +116,58 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
         stage = 'encabritamento';
       }
 
-      // 2) Montar payload p/ DB local (gatilhos cuidam de 'status')
-      final payload = <String, dynamic>{
-        'female_animal_id': _female!.id,
-        'male_animal_id': _male?.id,
-        'breeding_date': _breedingStart,
-        'mating_start_date': _breedingStart,
-        'stage': stage,
-
-        if (_separationDate != null) 'separation_date': _separationDate,
-        if (_separationDate != null) 'mating_end_date': _separationDate, // ajuda nos eventos do encabritamento
-        if (_ultrasoundDate != null) 'ultrasound_date': _ultrasoundDate,
-
-        if (_ultrasoundResult == 'confirmada') 'ultrasound_result': 'Confirmada',
-        if (_ultrasoundResult == 'nao_confirmada') 'ultrasound_result': 'Nao_Confirmada',
-
-        if ((_notes ?? '').isNotEmpty) 'notes': _notes,
-      };
-
-      // se gestação confirmada, sugerir data prevista de parto (150 dias da breeding_date, se houver)
+      // 2) Calcular data prevista de parto (se fizer sentido)
+      DateTime? expectedBirth;
       if (stage == 'gestacao_confirmada' && _breedingStart != null) {
-        payload['expected_birth'] = _breedingStart!.add(const Duration(days: 150));
+        expectedBirth = _breedingStart!.add(const Duration(days: 150));
       }
 
-      await DatabaseService.createBreedingRecord(payload);
+      final ultrasoundResultText = _ultrasoundResult == 'confirmada'
+          ? 'Confirmada'
+          : _ultrasoundResult == 'nao_confirmada'
+              ? 'Nao_Confirmada'
+              : null;
+
+      // 3) Criar registro via BreedingService (gatilhos cuidam de status)
+      final breedingService = context.read<BreedingService>();
+
+      await breedingService.createRecord(
+        femaleId: _female!.id,
+        maleId: _male?.id,
+        stage: stage,
+        breedingDate: _breedingStart,
+        matingStartDate: _breedingStart,
+        matingEndDate: _separationDate,
+        separationDate: _separationDate,
+        ultrasoundDate: _ultrasoundDate,
+        expectedBirth: expectedBirth,
+        ultrasoundResult: ultrasoundResultText,
+        notes: (_notes ?? '').isNotEmpty ? _notes : null,
+      );
+
+      // 4) Se for gestação confirmada, marcar a fêmea como gestante via AnimalService
+      if (stage == 'gestacao_confirmada') {
+        final animalService = context.read<AnimalService>();
+        final femaleId = _female!.id;
+
+        // tenta achar a fêmea no service, se não achar usa a selecionada (_female)
+        Animal? female;
+        try {
+          female =
+              animalService.animals.firstWhere((a) => a.id == femaleId);
+        } catch (_) {
+          female = _female;
+        }
+
+        if (female != null) {
+          final updatedFemale = female.copyWith(
+            pregnant: true,
+            expectedDelivery: expectedBirth,
+            status: 'Gestante',
+          );
+          await animalService.updateAnimal(updatedFemale);
+        }
+      }
 
       // Atualizar provider/UI (cards e lista)
       await context.read<AnimalService>().loadData();
@@ -175,9 +215,16 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                       Autocomplete<Animal>(
                         optionsBuilder: (text) => _filterForFemale(text.text),
                         displayStringForOption: _labelOf,
-                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        fieldViewBuilder: (
+                          context,
+                          controller,
+                          focusNode,
+                          onFieldSubmitted,
+                        ) {
                           _femaleCtrl.value = controller.value;
-                          controller.text = _female == null ? controller.text : _labelOf(_female!);
+                          if (_female != null) {
+                            controller.text = _labelOf(_female!);
+                          }
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -214,7 +261,10 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                       if (state.hasError)
                         Padding(
                           padding: const EdgeInsets.only(top: 4, left: 8),
-                          child: Text(state.errorText!, style: const TextStyle(color: Colors.red)),
+                          child: Text(
+                            state.errorText!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
                         ),
                     ],
                   );
@@ -232,9 +282,16 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                       Autocomplete<Animal>(
                         optionsBuilder: (text) => _filterForMale(text.text),
                         displayStringForOption: _labelOf,
-                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        fieldViewBuilder: (
+                          context,
+                          controller,
+                          focusNode,
+                          onFieldSubmitted,
+                        ) {
                           _maleCtrl.value = controller.value;
-                          controller.text = _male == null ? controller.text : _labelOf(_male!);
+                          if (_male != null) {
+                            controller.text = _labelOf(_male!);
+                          }
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -303,19 +360,33 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
               DropdownButtonFormField<String>(
                 value: _ultrasoundResult,
                 items: const [
-                  DropdownMenuItem(value: 'nao_informado', child: Text('Não informado')),
-                  DropdownMenuItem(value: 'confirmada', child: Text('Gestação Confirmada')),
-                  DropdownMenuItem(value: 'nao_confirmada', child: Text('Não Confirmada')),
+                  DropdownMenuItem(
+                    value: 'nao_informado',
+                    child: Text('Não informado'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'confirmada',
+                    child: Text('Gestação Confirmada'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'nao_confirmada',
+                    child: Text('Não Confirmada'),
+                  ),
                 ],
-                onChanged: (v) => setState(() => _ultrasoundResult = v ?? 'nao_informado'),
-                decoration: const InputDecoration(labelText: 'Resultado do Ultrassom'),
+                onChanged: (v) =>
+                    setState(() => _ultrasoundResult = v ?? 'nao_informado'),
+                decoration: const InputDecoration(
+                  labelText: 'Resultado do Ultrassom',
+                ),
               ),
               const SizedBox(height: 8),
 
               // Observações
               TextFormField(
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Observações (opcional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Observações (opcional)',
+                ),
                 onChanged: (v) => _notes = v,
               ),
             ],
@@ -323,8 +394,14 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: _saving ? null : _save, child: const Text('Salvar')),
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _saving ? null : _save,
+          child: const Text('Salvar'),
+        ),
       ],
     );
   }
@@ -343,8 +420,11 @@ class _DatePickerField extends StatelessWidget {
     this.required = false,
   });
 
-  String _fmt(DateTime? d) =>
-      d == null ? 'Selecionar' : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  String _fmt(DateTime? d) => d == null
+      ? 'Selecionar'
+      : '${d.day.toString().padLeft(2, '0')}/'
+          '${d.month.toString().padLeft(2, '0')}/'
+          '${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -379,7 +459,10 @@ class _DatePickerField extends StatelessWidget {
             if (state.hasError)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Text(state.errorText!, style: const TextStyle(color: Colors.red)),
+                child: Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
           ],
         );

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
 import '../services/animal_service.dart';
-import '../services/database_service.dart';
+import '../services/financial_service.dart';
 import 'financial_form_dialog.dart';
 
 /// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
@@ -20,7 +21,8 @@ class FinancialManagementScreen extends StatefulWidget {
   const FinancialManagementScreen({super.key});
 
   @override
-  State<FinancialManagementScreen> createState() => _FinancialManagementScreenState();
+  State<FinancialManagementScreen> createState() =>
+      _FinancialManagementScreenState();
 }
 
 class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
@@ -42,10 +44,11 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
   Future<void> _loadFinancialRecords() async {
     setState(() => _isLoading = true);
     try {
-      final db = await Provider.of<AnimalService>(context, listen: false);
-      // Carregar do banco local
-      _financialRecords = await DatabaseService.getFinancialRecords();
+      // Agora usamos o FinancialService em vez de DatabaseService
+      final svc = context.read<FinancialService>();
+      _financialRecords = await svc.getFinancialRecords();
     } catch (e) {
+      // ignore: avoid_print
       print('Error loading financial records: $e');
     }
     if (mounted) setState(() => _isLoading = false);
@@ -53,7 +56,7 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
 
   Widget _buildPasswordScreen(ThemeData theme) {
     final passwordController = TextEditingController();
-    
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -136,19 +139,18 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
       _showError('Digite a senha');
       return;
     }
-    
+
     final int? pass = int.tryParse(password);
     if (pass == null || pass < 1 || pass > 5) {
       _showError('Senha deve ser um número de 1 a 5');
       return;
     }
-    
-    // Aqui você pode validar contra uma senha armazenada
+
     // Por enquanto, qualquer número de 1 a 5 desbloqueia
     setState(() {
       _isUnlocked = true;
     });
-    
+
     _loadFinancialRecords();
   }
 
@@ -163,27 +165,29 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
 
   List<Map<String, dynamic>> get _filteredRecords {
     return _financialRecords.where((record) {
-      final typeMatch = _selectedType == 'Todos' || 
-                       record['type'] == _selectedType;
-      
+      final typeMatch =
+          _selectedType == 'Todos' || record['type'] == _selectedType;
+
       // Period filter (simplified)
-      final recordDate = DateTime.tryParse(record['date'] ?? '') ?? DateTime.now();
+      final recordDate =
+          DateTime.tryParse(record['date'] ?? '') ?? DateTime.now();
       final now = DateTime.now();
       bool periodMatch = true;
-      
+
       switch (_selectedPeriod) {
         case 'Esta Semana':
           final weekAgo = now.subtract(const Duration(days: 7));
           periodMatch = recordDate.isAfter(weekAgo);
           break;
         case 'Este Mês':
-          periodMatch = recordDate.month == now.month && recordDate.year == now.year;
+          periodMatch =
+              recordDate.month == now.month && recordDate.year == now.year;
           break;
         case 'Este Ano':
           periodMatch = recordDate.year == now.year;
           break;
       }
-      
+
       return typeMatch && periodMatch;
     }).toList();
   }
@@ -273,7 +277,6 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
                     Row(
                       children: [
                         // Type Filter
@@ -290,8 +293,13 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                                 spacing: 8,
                                 children: _types.map((type) {
                                   return FilterChip(
-                                    label: Text(type == 'receita' ? 'Receita' : 
-                                               type == 'despesa' ? 'Despesa' : type),
+                                    label: Text(
+                                      type == 'receita'
+                                          ? 'Receita'
+                                          : type == 'despesa'
+                                              ? 'Despesa'
+                                              : type,
+                                    ),
                                     selected: type == _selectedType,
                                     onSelected: (selected) {
                                       setState(() {
@@ -305,7 +313,6 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                           ),
                         ),
                         const SizedBox(width: 24),
-                        
                         // Period Filter
                         Expanded(
                           child: Column(
@@ -366,7 +373,6 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    
                     if (_isLoading)
                       const Center(
                         child: Padding(
@@ -390,18 +396,18 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
 
   Widget _buildFinancialSummary(ThemeData theme) {
     if (_financialRecords.isEmpty) return const SizedBox.shrink();
-    
+
     final filteredRecords = _filteredRecords;
     final revenues = filteredRecords
         .where((r) => r['type'] == 'receita')
         .fold(0.0, (sum, r) => sum + (r['amount'] as num).toDouble());
-        
+
     final expenses = filteredRecords
         .where((r) => r['type'] == 'despesa')
         .fold(0.0, (sum, r) => sum + (r['amount'] as num).toDouble());
-        
+
     final balance = revenues - expenses;
-    
+
     return Card(
       color: theme.colorScheme.primaryContainer.withOpacity(0.3),
       child: Padding(
@@ -416,7 +422,6 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
             Row(
               children: [
                 Expanded(
@@ -444,8 +449,11 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                     theme,
                     title: 'Saldo',
                     value: balance,
-                    icon: balance >= 0 ? Icons.account_balance : Icons.warning,
-                    color: balance >= 0 ? theme.colorScheme.primary : theme.colorScheme.error,
+                    icon:
+                        balance >= 0 ? Icons.account_balance : Icons.warning,
+                    color: balance >= 0
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.error,
                   ),
                 ),
               ],
@@ -456,7 +464,8 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
     );
   }
 
-  Widget _buildSummaryCard(ThemeData theme, {
+  Widget _buildSummaryCard(
+    ThemeData theme, {
     required String title,
     required double value,
     required IconData icon,
@@ -513,14 +522,16 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              _financialRecords.isEmpty ? 'Nenhuma transação registrada' : 'Nenhuma transação encontrada',
+              _financialRecords.isEmpty
+                  ? 'Nenhuma transação registrada'
+                  : 'Nenhuma transação encontrada',
               style: theme.textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              _financialRecords.isEmpty 
-                ? 'Registre receitas e despesas para controlar a rentabilidade'
-                : 'Ajuste os filtros para encontrar transações',
+              _financialRecords.isEmpty
+                  ? 'Registre receitas e despesas para controlar a rentabilidade'
+                  : 'Ajuste os filtros para encontrar transações',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
@@ -530,7 +541,9 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
             ElevatedButton.icon(
               onPressed: () => _showFinancialForm(),
               icon: const Icon(Icons.add),
-              label: Text(_financialRecords.isEmpty ? 'Primeira Transação' : 'Nova Transação'),
+              label: Text(_financialRecords.isEmpty
+                  ? 'Primeira Transação'
+                  : 'Nova Transação'),
             ),
           ],
         ),
@@ -542,8 +555,10 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
     // Sort records by date (newest first)
     final sortedRecords = List<Map<String, dynamic>>.from(_filteredRecords);
     sortedRecords.sort((a, b) {
-      final aDate = DateTime.tryParse(a['date'] ?? '') ?? DateTime.now();
-      final bDate = DateTime.tryParse(b['date'] ?? '') ?? DateTime.now();
+      final aDate =
+          DateTime.tryParse(a['date'] ?? '') ?? DateTime.now();
+      final bDate =
+          DateTime.tryParse(b['date'] ?? '') ?? DateTime.now();
       return bDate.compareTo(aDate);
     });
 
@@ -555,10 +570,12 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
       itemBuilder: (context, index) {
         final record = sortedRecords[index];
         final isRevenue = record['type'] == 'receita';
-        
-        Color typeColor = isRevenue ? theme.colorScheme.tertiary : theme.colorScheme.error;
-        IconData typeIcon = isRevenue ? Icons.trending_up : Icons.trending_down;
-        
+
+        Color typeColor =
+            isRevenue ? theme.colorScheme.tertiary : theme.colorScheme.error;
+        IconData typeIcon =
+            isRevenue ? Icons.trending_up : Icons.trending_down;
+
         Color categoryColor;
         IconData categoryIcon;
         switch (record['category']) {
@@ -619,7 +636,10 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                     const SizedBox(width: 4),
                     Text(
                       record['category'] ?? '-',
-                      style: TextStyle(color: categoryColor, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: categoryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -631,7 +651,9 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                           .where((a) => a.id == record['animal_id'])
                           .firstOrNull;
                       return Text(
-                        animal != null ? 'Animal: ${animal.name} (${animal.code})' : 'Animal: Não encontrado',
+                        animal != null
+                            ? 'Animal: ${animal.name} (${animal.code})'
+                            : 'Animal: Não encontrado',
                       );
                     },
                   ),
@@ -649,11 +671,14 @@ class _FinancialManagementScreenState extends State<FinancialManagementScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: typeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: typeColor.withOpacity(0.3)),
+                    border: Border.all(
+                      color: typeColor.withOpacity(0.3),
+                    ),
                   ),
                   child: Text(
                     isRevenue ? 'Receita' : 'Despesa',

@@ -1,3 +1,4 @@
+// lib/data/animal_repository.dart
 import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
 
 import '../models/animal.dart';
@@ -7,22 +8,33 @@ class AnimalRepository {
   final AppDatabase _db;
   AnimalRepository(this._db);
 
+  // ----------------- CRUD básico de animals -----------------
+
   Future<List<Animal>> all() async {
-    final rows = await _db.db.query('animals', orderBy: 'created_at DESC');
+    // Se preferir por nome/cor, pode trocar o orderBy.
+    final rows = await _db.db.query(
+      'animals',
+      orderBy: 'created_at DESC',
+    );
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
 
   Future<Animal?> getAnimalById(String id) async {
-    final maps = await _db.db.query('animals', where: 'id = ?', whereArgs: [id], limit: 1);
+    final maps = await _db.db.query(
+      'animals',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
     if (maps.isEmpty) return null;
     return Animal.fromMap(maps.first);
   }
 
   Future<List<Animal>> getOffspring(String parentId) async {
     final maps = await _db.db.query(
-      'animals', 
-      where: 'mother_id = ? OR father_id = ?', 
-      whereArgs: [parentId, parentId]
+      'animals',
+      where: 'mother_id = ? OR father_id = ?',
+      whereArgs: [parentId, parentId],
     );
     return maps.map((m) => Animal.fromMap(m)).toList();
   }
@@ -36,11 +48,23 @@ class AnimalRepository {
   }
 
   Future<void> delete(String id) async {
-    await _db.db.delete('animals', where: 'id = ?', whereArgs: [id]);
+    await _db.db.delete(
+      'animals',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
-  Future<void> addWeight(String animalId, DateTime date, double weight, {String? milestone}) async {
+  // ----------------- Pesos / histórico de peso -----------------
+
+  Future<void> addWeight(
+    String animalId,
+    DateTime date,
+    double weight, {
+    String? milestone,
+  }) async {
     final id = 'wt_${DateTime.now().microsecondsSinceEpoch}';
+
     await _db.db.insert('animal_weights', {
       'id': id,
       'animal_id': animalId,
@@ -59,14 +83,14 @@ class AnimalRepository {
       orderBy: 'date DESC',
       limit: 1,
     );
-    
-    final latestWeight = latestWeightResult.isNotEmpty 
+
+    final latestWeight = latestWeightResult.isNotEmpty
         ? (latestWeightResult.first['weight'] as num).toDouble()
         : weight;
 
     // Sincroniza com os campos cache em animals
     final Map<String, dynamic> updateData = {'weight': latestWeight};
-    
+
     if (milestone == 'birth') {
       updateData['birth_weight'] = weight;
     } else if (milestone == '30d') {
@@ -116,15 +140,20 @@ class AnimalRepository {
   Future<List<Map<String, dynamic>>> getMonthlyWeights(String animalId) async {
     return await _db.db.query(
       'animal_weights',
-      where: "animal_id = ? AND (milestone LIKE 'monthly_%' OR milestone IS NULL)",
+      where:
+          "animal_id = ? AND (milestone LIKE 'monthly_%' OR milestone IS NULL)",
       whereArgs: [animalId],
       orderBy: 'date DESC',
-      limit: 24, // Mudado de 5 para 24 meses
+      // Últimos 24 meses
+      limit: 24,
     );
   }
 
   /// Busca peso específico por milestone (ex: '120d')
-  Future<List<Map<String, dynamic>>> getWeightRecord(String animalId, String milestone) async {
+  Future<List<Map<String, dynamic>>> getWeightRecord(
+    String animalId,
+    String milestone,
+  ) async {
     return await _db.db.query(
       'animal_weights',
       where: 'animal_id = ? AND milestone = ?',
@@ -133,6 +162,8 @@ class AnimalRepository {
       limit: 1,
     );
   }
+
+  // ----------------- Estatísticas (AnimalStats) -----------------
 
   int _firstInt(List<Map<String, Object?>> result) {
     if (result.isEmpty) return 0;
@@ -143,30 +174,103 @@ class AnimalRepository {
     return 0;
   }
 
-  Future<AnimalStats> stats() async {
-    final total = _firstInt(await _db.db.rawQuery('SELECT COUNT(*) AS c FROM animals'));
-    final healthy = _firstInt(await _db.db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE status='Saudável' OR status='Ativo'"));
-    final pregnant = _firstInt(await _db.db.rawQuery(
-        "SELECT COUNT(*) AS c FROM animals WHERE pregnant=1"));
-    final underTreatment = _firstInt(await _db.db.rawQuery(
-       "SELECT COUNT(*) AS c FROM animals WHERE status='Em tratamento'"));
+  double _firstDouble(List<Map<String, Object?>> result) {
+    if (result.isEmpty) return 0.0;
+    final v = result.first.values.first;
+    if (v is double) return v;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0.0;
+    return 0.0;
+  }
 
-    final avgRow = await _db.db.rawQuery('SELECT AVG(weight) AS w FROM animals');
-    final avg = avgRow.isNotEmpty ? avgRow.first['w'] : null;
-    final avgWeight = (avg is num) ? avg.toDouble() : 0.0;
+  Future<AnimalStats> stats() async {
+    // Contagens básicas
+    final totalAnimals =
+        _firstInt(await _db.db.rawQuery('SELECT COUNT(*) AS c FROM animals'));
+
+    final healthy = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE status = ?",
+      ['Saudável'],
+    ));
+
+    final pregnant = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE pregnant = 1",
+    ));
+
+    final underTreatment = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE status = ?",
+      ['Em tratamento'],
+    ));
+
+    // Distribuição por categoria/gênero
+    final maleReproducers = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE category = ? AND gender = ?",
+      ['Reprodutor', 'Macho'],
+    ));
+
+    final maleLambs = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE category = ? AND gender = ?",
+      ['Borrego', 'Macho'],
+    ));
+
+    final femaleLambs = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE category = ? AND gender = ?",
+      ['Borrego', 'Fêmea'],
+    ));
+
+    final femaleReproducers = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals WHERE category = ? AND gender = ?",
+      ['Reprodutor', 'Fêmea'],
+    ));
+
+    // Receita total (financeiro)
+    final revenue = _firstDouble(await _db.db.rawQuery(
+      "SELECT SUM(amount) AS s FROM financial_records WHERE type = ?",
+      ['receita'],
+    ));
+
+    // Peso médio do rebanho
+    final avgWeight = _firstDouble(
+      await _db.db.rawQuery('SELECT AVG(weight) AS w FROM animals'),
+    );
+
+    // Mês atual YYYY-MM
+    final now = DateTime.now();
+    final ym =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+
+    // Vacinas aplicadas / agendadas neste mês
+    final vaccinesThisMonth = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM vaccinations "
+      "WHERE substr(COALESCE(applied_date, scheduled_date),1,7) = ?",
+      [ym],
+    ));
+
+    // Partos previstos neste mês
+    final birthsThisMonth = _firstInt(await _db.db.rawQuery(
+      "SELECT COUNT(*) AS c FROM animals "
+      "WHERE expected_delivery IS NOT NULL "
+      "AND substr(expected_delivery,1,7) = ?",
+      [ym],
+    ));
 
     return AnimalStats(
-      totalAnimals: total,
+      totalAnimals: totalAnimals,
       healthy: healthy,
       pregnant: pregnant,
       underTreatment: underTreatment,
-      vaccinesThisMonth: 0,
-      birthsThisMonth: 0,
+      maleReproducers: maleReproducers,
+      maleLambs: maleLambs,
+      femaleLambs: femaleLambs,
+      femaleReproducers: femaleReproducers,
+      revenue: revenue,
       avgWeight: avgWeight,
-      revenue: 0.0,
+      vaccinesThisMonth: vaccinesThisMonth,
+      birthsThisMonth: birthsThisMonth,
     );
   }
+
+  // ----------------- Vendidos / Falecidos -----------------
 
   /// Move animal para a tabela de vendidos e remove da tabela principal
   Future<void> markAsSold({
@@ -176,7 +280,11 @@ class AnimalRepository {
     String? buyer,
     String? notes,
   }) async {
-    final animal = await _db.db.query('animals', where: 'id = ?', whereArgs: [animalId]);
+    final animal = await _db.db.query(
+      'animals',
+      where: 'id = ?',
+      whereArgs: [animalId],
+    );
     if (animal.isEmpty) throw Exception('Animal não encontrado');
 
     final animalData = animal.first;
@@ -218,7 +326,11 @@ class AnimalRepository {
     String? causeOfDeath,
     String? notes,
   }) async {
-    final animal = await _db.db.query('animals', where: 'id = ?', whereArgs: [animalId]);
+    final animal = await _db.db.query(
+      'animals',
+      where: 'id = ?',
+      whereArgs: [animalId],
+    );
     if (animal.isEmpty) throw Exception('Animal não encontrado');
 
     final animalData = animal.first;
@@ -254,11 +366,17 @@ class AnimalRepository {
 
   /// Busca animais vendidos
   Future<List<Map<String, dynamic>>> getSoldAnimals() async {
-    return await _db.db.query('sold_animals', orderBy: 'sale_date DESC');
+    return await _db.db.query(
+      'sold_animals',
+      orderBy: 'sale_date DESC',
+    );
   }
 
   /// Busca animais falecidos
   Future<List<Map<String, dynamic>>> getDeceasedAnimals() async {
-    return await _db.db.query('deceased_animals', orderBy: 'death_date DESC');
+    return await _db.db.query(
+      'deceased_animals',
+      orderBy: 'death_date DESC',
+    );
   }
 }

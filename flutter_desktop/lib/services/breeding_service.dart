@@ -1,14 +1,17 @@
 // lib/services/breeding_service.dart
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
-import 'database_service.dart';
-import '../models/breeding_record.dart';
+
+import '../data/animal_repository.dart';
+import '../data/breeding_repository.dart';
 import '../models/animal.dart';
+import '../models/breeding_record.dart';
 
 class BreedingEvent {
-  final String label;     // ex: "Ultrassom", "Parto previsto"
+  final String label; // ex: "Ultrassom", "Parto previsto"
   final DateTime date;
-  final String stage;     // estágio salvo no DB (snake_case)
+  final String stage; // estágio salvo no DB (snake_case)
   final String femaleCode;
   final String femaleName;
   final bool overdue;
@@ -41,7 +44,12 @@ class ReproBoardData {
         ].where((e) => e.overdue).length;
 }
 
-class BreedingService {
+class BreedingService extends ChangeNotifier {
+  final BreedingRepository _repository;
+  final AnimalRepository _animalRepository;
+
+  BreedingService(this._repository, this._animalRepository);
+
   // ========================
   // Helpers internos
   // ========================
@@ -54,80 +62,53 @@ class BreedingService {
     b[6] = (b[6] & 0x0f) | 0x40; // v4
     b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122
     String h(int x) => x.toRadixString(16).padLeft(2, '0');
-    return '${h(b[0])}${h(b[1])}${h(b[2])}${h(b[3])}-${h(b[4])}${h(b[5])}-${h(b[6])}${h(b[7])}-${h(b[8])}${h(b[9])}-${h(b[10])}${h(b[11])}${h(b[12])}${h(b[13])}${h(b[14])}${h(b[15])}';
+    return '${h(b[0])}${h(b[1])}${h(b[2])}${h(b[3])}-'
+        '${h(b[4])}${h(b[5])}-'
+        '${h(b[6])}${h(b[7])}-'
+        '${h(b[8])}${h(b[9])}-'
+        '${h(b[10])}${h(b[11])}${h(b[12])}${h(b[13])}${h(b[14])}${h(b[15])}';
   }
 
-  /// Normaliza os estágios aceitando variações e acentos → snake_case usado no DB local.
-  static String _canonStage(String? raw) {
-    final t = (raw ?? '')
-        .trim()
-        .toLowerCase()
-        .replaceAll('ã', 'a')
-        .replaceAll('á', 'a')
-        .replaceAll('â', 'a')
-        .replaceAll('ç', 'c')
-        .replaceAll('é', 'e')
-        .replaceAll('ê', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ô', 'o')
-        .replaceAll('õ', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ü', 'u')
-        .replaceAll(' ', '_');
+  /// Normaliza o estágio usando o enum como fonte da verdade.
+  static String _canonStage(String? raw) =>
+      BreedingStage.fromString(raw).value;
 
-    switch (t) {
-      case 'encabritamento':
-      case 'encabriutamento': // typo comum
-        return 'encabritamento';
-      case 'separacao':
-      case 'separacao_':
-      case 'separacao-':
-      case 'separacao__':
-      case 'separacap': // tolerância
-        return 'separacao';
-      case 'aguardando_ultrassom':
-      case 'aguardando-ultrassom':
-      case 'aguardando_ultra':
-      case 'aguardando_ultrason':
-      case 'aguardando_ultrasom':
-      case 'aguardando_ultrasound':
-      case 'aguardando_ultrassom_':
-        return 'aguardando_ultrassom';
-      case 'gestacao_confirmada':
-      case 'gestante':
-      case 'gestantes':
-        return 'gestacao_confirmada';
-      case 'parto_realizado':
-      case 'concluido':
-      case 'concluidos':
-        return 'parto_realizado';
-      case 'falhou':
-      case 'falhado':
-      case 'falhados':
-        return 'falhou';
-      default:
-        return 'encabritamento';
-    }
-  }
+  // ===================================
+  // API de instância (via Provider)
+  // ===================================
 
-  static DateTime? _toDate(dynamic v) {
-    if (v == null) return null;
-    if (v is DateTime) return v;
-    final s = v.toString();
-    // dd/MM/yyyy
-    if (s.contains('/')) {
-      final p = s.split('/');
-      if (p.length == 3) {
-        final d = int.tryParse(p[0]);
-        final m = int.tryParse(p[1]);
-        final y = int.tryParse(p[2]);
-        if (d != null && m != null && y != null) {
-          return DateTime(y, m, d);
-        }
-      }
-    }
-    return DateTime.tryParse(s);
+  /// Usado na aba de Reprodução da ManagementScreen.
+  ///
+  /// Mantém o formato esperado pela UI:
+  /// - datas como String (yyyy-MM-dd)
+  /// - campos `female_animal_id`, `male_animal_id`, `status`, `stage`, `expected_birth`
+  Future<List<Map<String, dynamic>>> getBreedingRecords() async {
+    final records = await _repository.getAll();
+
+    return records.map((r) {
+      return <String, dynamic>{
+        'id': r.id,
+        'female_animal_id': r.femaleAnimalId,
+        'male_animal_id': r.maleAnimalId,
+        'breeding_date': _yyyyMmDd(r.breedingDate),
+        'mating_start_date':
+            r.matingStartDate != null ? _yyyyMmDd(r.matingStartDate!) : null,
+        'mating_end_date':
+            r.matingEndDate != null ? _yyyyMmDd(r.matingEndDate!) : null,
+        'separation_date':
+            r.separationDate != null ? _yyyyMmDd(r.separationDate!) : null,
+        'ultrasound_date':
+            r.ultrasoundDate != null ? _yyyyMmDd(r.ultrasoundDate!) : null,
+        'ultrasound_result': r.ultrasoundResult,
+        'expected_birth':
+            r.expectedBirth != null ? _yyyyMmDd(r.expectedBirth!) : null,
+        'birth_date':
+            r.birthDate != null ? _yyyyMmDd(r.birthDate!) : null,
+        'stage': r.stage.value,
+        'status': r.status,
+        'notes': r.notes,
+      };
+    }).toList();
   }
 
   // ===================================
@@ -135,12 +116,11 @@ class BreedingService {
   // ===================================
 
   /// Cria um registro de reprodução em qualquer estágio.
-  /// Gatilhos do SQLite cuidam de `status` (derivado de `stage`).
   ///
   /// 🔒 Salvaguarda importante:
-  /// - se o estágio NÃO for `gestacao_confirmada`, **não** persistimos `expected_birth` nem `ultrasound_result`
-  ///   (isso evita qualquer regra externa interpretar como “gestantes”).
-  static Future<void> createRecord({
+  /// - se o estágio NÃO for `gestacao_confirmada`, **não** persistimos
+  ///   `expected_birth` nem `ultrasound_result`.
+  Future<void> createRecord({
     required String femaleId,
     String? maleId,
     String stage = 'encabritamento', // padrão botão "Nova cobertura"
@@ -153,199 +133,207 @@ class BreedingService {
     String? ultrasoundResult,
     String? notes,
   }) async {
-    final db = await DatabaseService.database;
-    final nowIso = DateTime.now().toIso8601String();
+    final now = DateTime.now();
     final stageCanon = _canonStage(stage);
-
-    final data = <String, dynamic>{
-      'id': _uuidV4(),
-      'female_animal_id': femaleId,
-      'male_animal_id': maleId,
-      'breeding_date': _yyyyMmDd(breedingDate ?? DateTime.now()),
-      'mating_start_date': matingStartDate != null ? _yyyyMmDd(matingStartDate) : null,
-      'mating_end_date': matingEndDate != null ? _yyyyMmDd(matingEndDate) : null,
-      'separation_date': separationDate != null ? _yyyyMmDd(separationDate) : null,
-      'ultrasound_date': ultrasoundDate != null ? _yyyyMmDd(ultrasoundDate) : null,
-      'stage': stageCanon,
-      'notes': notes,
-      'created_at': nowIso,
-      'updated_at': nowIso,
-      // NÃO setamos 'status' manualmente; o trigger traduz a partir do stage
-    };
+    final stageEnum = BreedingStage.fromString(stageCanon);
 
     // Somente em gestação confirmada persistimos expected_birth/ultrasound_result
-    if (stageCanon == 'gestacao_confirmada') {
-      if (expectedBirth != null) data['expected_birth'] = _yyyyMmDd(expectedBirth);
+    DateTime? safeExpectedBirth;
+    String? safeUltrasoundResult;
+    if (stageEnum == BreedingStage.gestacaoConfirmada) {
+      safeExpectedBirth = expectedBirth;
       if (ultrasoundResult != null && ultrasoundResult.isNotEmpty) {
-        data['ultrasound_result'] = ultrasoundResult;
+        safeUltrasoundResult = ultrasoundResult;
       }
     }
 
-    await db.insert('breeding_records', data);
+    final record = BreedingRecord(
+      id: _uuidV4(),
+      femaleAnimalId: femaleId,
+      maleAnimalId: maleId,
+      breedingDate: breedingDate ?? now,
+      matingStartDate: matingStartDate,
+      matingEndDate: matingEndDate,
+      separationDate: separationDate,
+      ultrasoundDate: ultrasoundDate,
+      ultrasoundResult: safeUltrasoundResult,
+      expectedBirth: safeExpectedBirth,
+      birthDate: null,
+      stage: stageEnum,
+      status: stageEnum.statusLabel,
+      notes: notes,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _repository.insert(record);
+    notifyListeners();
   }
 
   /// Botão "Nova cobertura" → começa em encabritamento.
-  static Future<void> novaCobertura({
+  Future<void> novaCobertura({
     required String femaleId,
     String? maleId,
     DateTime? breedingDate,
     DateTime? matingStartDate, // se quiser já marcar início do encabritamento
-    DateTime? matingEndDate,   // se já souber o término
+    DateTime? matingEndDate, // se já souber o término
     String? notes,
-  }) =>
-      createRecord(
-        femaleId: femaleId,
-        maleId: maleId,
-        stage: 'encabritamento',
-        breedingDate: breedingDate,
-        matingStartDate: matingStartDate ?? DateTime.now(),
-        matingEndDate: matingEndDate,
-        notes: notes,
-      );
+  }) {
+    return createRecord(
+      femaleId: femaleId,
+      maleId: maleId,
+      stage: 'encabritamento',
+      breedingDate: breedingDate,
+      matingStartDate: matingStartDate ?? DateTime.now(),
+      matingEndDate: matingEndDate,
+      notes: notes,
+    );
+  }
 
   /// Criar diretamente na etapa "Separação".
-  static Future<void> criarEmSeparacao({
+  Future<void> criarEmSeparacao({
     required String femaleId,
     String? maleId,
     DateTime? breedingDate,
     DateTime? separationDate,
     String? notes,
-  }) =>
-      createRecord(
-        femaleId: femaleId,
-        maleId: maleId,
-        stage: 'separacao',
-        breedingDate: breedingDate,
-        separationDate: separationDate ?? DateTime.now(),
-        notes: notes,
-      );
+  }) {
+    return createRecord(
+      femaleId: femaleId,
+      maleId: maleId,
+      stage: 'separacao',
+      breedingDate: breedingDate,
+      separationDate: separationDate ?? DateTime.now(),
+      notes: notes,
+    );
+  }
 
   /// Criar diretamente na etapa "Aguardando Ultrassom".
-  static Future<void> criarAguardandoUltrassom({
+  Future<void> criarAguardandoUltrassom({
     required String femaleId,
     String? maleId,
     DateTime? breedingDate,
     DateTime? separationDate,
     DateTime? ultrasoundDate,
     String? notes,
-  }) =>
-      createRecord(
-        femaleId: femaleId,
-        maleId: maleId,
-        stage: 'aguardando_ultrassom',
-        breedingDate: breedingDate,
-        separationDate: separationDate,
-        ultrasoundDate: ultrasoundDate,
-        notes: notes,
-      );
+  }) {
+    return createRecord(
+      femaleId: femaleId,
+      maleId: maleId,
+      stage: 'aguardando_ultrassom',
+      breedingDate: breedingDate,
+      separationDate: separationDate,
+      ultrasoundDate: ultrasoundDate,
+      notes: notes,
+    );
+  }
 
   /// Atualiza para "Gestação Confirmada".
   /// Se `expectedBirth` for informado, já preenche a previsão de parto.
-  static Future<void> confirmarGestacao({
+  Future<void> confirmarGestacao({
     required String breedingId,
     DateTime? expectedBirth,
     String? ultrasoundResult, // opcional (ex.: "Confirmada")
   }) async {
-    final db = await DatabaseService.database;
-    final update = <String, Object?>{
-      'stage': 'gestacao_confirmada',
-      'updated_at': DateTime.now().toIso8601String(),
-    };
-    if (expectedBirth != null) update['expected_birth'] = _yyyyMmDd(expectedBirth);
-    if (ultrasoundResult != null && ultrasoundResult.isNotEmpty) {
-      update['ultrasound_result'] = ultrasoundResult;
-    }
-    await db.update(
-      'breeding_records',
-      update,
-      where: 'id = ?',
-      whereArgs: [breedingId],
+    final existing = await _repository.getById(breedingId);
+    if (existing == null) return;
+
+    final now = DateTime.now();
+    final updated = existing.copyWith(
+      stage: BreedingStage.gestacaoConfirmada,
+      expectedBirth: expectedBirth ?? existing.expectedBirth,
+      ultrasoundResult:
+          (ultrasoundResult != null && ultrasoundResult.isNotEmpty)
+              ? ultrasoundResult
+              : existing.ultrasoundResult,
+      status: BreedingStage.gestacaoConfirmada.statusLabel,
+      updatedAt: now,
     );
+
+    await _repository.update(updated);
+    notifyListeners();
   }
 
   /// Atualiza para "Parto Realizado".
-  static Future<void> registrarParto({
+  Future<void> registrarParto({
     required String breedingId,
     DateTime? birthDate,
   }) async {
-    final db = await DatabaseService.database;
-    await db.update(
-      'breeding_records',
-      {
-        'stage': 'parto_realizado',
-        if (birthDate != null) 'birth_date': _yyyyMmDd(birthDate),
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [breedingId],
+    final existing = await _repository.getById(breedingId);
+    if (existing == null) return;
+
+    final now = DateTime.now();
+    final updated = existing.copyWith(
+      stage: BreedingStage.partoRealizado,
+      birthDate: birthDate ?? existing.birthDate ?? now,
+      status: BreedingStage.partoRealizado.statusLabel,
+      updatedAt: now,
     );
+
+    await _repository.update(updated);
+    notifyListeners();
   }
 
   /// Atualiza para "Falhou".
-  static Future<void> marcarFalha({
+  Future<void> marcarFalha({
     required String breedingId,
   }) async {
-    final db = await DatabaseService.database;
-    await db.update(
-      'breeding_records',
-      {
-        'stage': 'falhou',
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [breedingId],
+    final existing = await _repository.getById(breedingId);
+    if (existing == null) return;
+
+    final now = DateTime.now();
+    final updated = existing.copyWith(
+      stage: BreedingStage.falhou,
+      status: BreedingStage.falhou.statusLabel,
+      updatedAt: now,
     );
+
+    await _repository.update(updated);
+    notifyListeners();
   }
 
   // ======================================
-  // Consultas para Dashboard (SEU CÓDIGO)
+  // Consultas para Dashboard (widgets)
   // ======================================
 
   /// Eventos dos próximos [days] dias (e atrasados).
-  static Future<List<BreedingEvent>> getUpcomingEvents(int days) async {
-    final records = await DatabaseService.getBreedingRecords();
-    final animals = await DatabaseService.getAnimals();
-    final animalMap = {for (var a in animals) a.id: a};
+  ///
+  /// Mantém a mesma semântica do método original, agora usando
+  /// BreedingRepository + AnimalRepository injetados.
+  Future<List<BreedingEvent>> getUpcomingEvents(int days) async {
+    final records = await _repository.getAll();
+    final animals = await _animalRepository.all();
+    final animalMap = {for (final a in animals) a.id: a};
 
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final limit = now.add(Duration(days: days));
     final events = <BreedingEvent>[];
 
     for (final r in records) {
-      final st = BreedingStage.fromString(r['stage'] as String?);
-      final stage = (r['stage'] ?? '').toString();
+      final st = r.stage;
+      final stage = r.stage.value;
 
       DateTime? eventDate;
       String? label;
 
       switch (st) {
         case BreedingStage.encabritamento:
-          eventDate = _toDate(r['mating_end_date']);
+          eventDate = r.matingEndDate;
           label = 'Fim do encabritamento';
           break;
 
         case BreedingStage.separacao:
-          {
-            final sep = _toDate(r['separation_date']);
-            final ult = _toDate(r['ultrasound_date']) ??
-                (sep != null ? sep.add(const Duration(days: 30)) : null);
-            eventDate = ult;
-            label = 'Ultrassom';
-          }
-          break;
-
         case BreedingStage.aguardandoUltrassom:
-          {
-            final sep = _toDate(r['separation_date']);
-            final ult = _toDate(r['ultrasound_date']) ??
-                (sep != null ? sep.add(const Duration(days: 30)) : null);
-            eventDate = ult;
-            label = 'Ultrassom';
-          }
+          final sep = r.separationDate;
+          final ult = r.ultrasoundDate ??
+              (sep != null ? sep.add(const Duration(days: 30)) : null);
+          eventDate = ult;
+          label = 'Ultrassom';
           break;
 
         case BreedingStage.gestacaoConfirmada:
-          eventDate = _toDate(r['expected_birth']);
+          eventDate = r.expectedBirth;
           label = 'Parto previsto';
           break;
 
@@ -356,15 +344,19 @@ class BreedingService {
 
       if (eventDate == null) continue;
 
-      final isOverdue = eventDate.isBefore(DateTime(now.year, now.month, now.day));
-      final isSoon = !eventDate.isAfter(limit);
+      final baseEventDate =
+          DateTime(eventDate.year, eventDate.month, eventDate.day);
+      final isOverdue = baseEventDate.isBefore(today);
+      final isSoon = !baseEventDate.isAfter(limit);
 
       if (isOverdue || isSoon) {
-        final female = animalMap[r['female_animal_id']];
+        final Animal? female = r.femaleAnimalId != null
+            ? animalMap[r.femaleAnimalId]
+            : null;
         events.add(
           BreedingEvent(
             label: label ?? 'Evento',
-            date: eventDate,
+            date: baseEventDate,
             stage: stage,
             femaleCode: female?.code ?? 'N/A',
             femaleName: female?.name ?? 'N/A',
@@ -382,7 +374,7 @@ class BreedingService {
   }
 
   /// Contadores para o dashboard.
-  static Future<Map<String, int>> getCounters(int days) async {
+  Future<Map<String, int>> getCounters(int days) async {
     final list = await getUpcomingEvents(days);
     final overdue = list.where((e) => e.overdue).length;
     final upcoming = list.length - overdue;
@@ -392,10 +384,10 @@ class BreedingService {
   // ======================================
   // (Opcional) Quadro de avisos por grupo
   // ======================================
-  static Future<ReproBoardData> getBoard({int daysAhead = 30}) async {
-    final records = await DatabaseService.getBreedingRecords();
-    final animals = await DatabaseService.getAnimals();
-    final animalMap = {for (var a in animals) a.id: a};
+  Future<ReproBoardData> getBoard({int daysAhead = 30}) async {
+    final records = await _repository.getAll();
+    final animals = await _animalRepository.all();
+    final animalMap = {for (final a in animals) a.id: a};
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -406,12 +398,12 @@ class BreedingService {
     final partos = <BreedingEvent>[];
 
     for (final r in records) {
-      final st = BreedingStage.fromString(r['stage'] as String?);
+      final st = r.stage;
 
-      final matingEnd = _toDate(r['mating_end_date']);
-      final separation = _toDate(r['separation_date']);
-      final ultrasound = _toDate(r['ultrasound_date']);
-      final expected  = _toDate(r['expected_birth']);
+      final matingEnd = r.matingEndDate;
+      final separation = r.separationDate;
+      final ultrasound = r.ultrasoundDate;
+      final expected = r.expectedBirth;
 
       // SEPARAÇÃO (encabritamento)
       if (st == BreedingStage.encabritamento) {
@@ -421,7 +413,9 @@ class BreedingService {
           final inWindow = !d.isAfter(limit);
           final overdue = d.isBefore(today);
           if (overdue || inWindow) {
-            final female = animalMap[r['female_animal_id']];
+            final female = r.femaleAnimalId != null
+                ? animalMap[r.femaleAnimalId]
+                : null;
             separacoes.add(BreedingEvent(
               label: 'Separação',
               date: d,
@@ -435,15 +429,19 @@ class BreedingService {
       }
 
       // ULTRASSOM (separacao/aguardando_ultrassom)
-      if (st == BreedingStage.separacao || st == BreedingStage.aguardandoUltrassom) {
-        DateTime? base = separation ?? matingEnd;
-        final target = ultrasound ?? (base != null ? base.add(const Duration(days: 30)) : null);
+      if (st == BreedingStage.separacao ||
+          st == BreedingStage.aguardandoUltrassom) {
+        final base = separation ?? matingEnd;
+        final target =
+            ultrasound ?? (base != null ? base.add(const Duration(days: 30)) : null);
         if (target != null) {
           final d = DateTime(target.year, target.month, target.day);
           final inWindow = !d.isAfter(limit);
           final overdue = d.isBefore(today);
           if (overdue || inWindow) {
-            final female = animalMap[r['female_animal_id']];
+            final female = r.femaleAnimalId != null
+                ? animalMap[r.femaleAnimalId]
+                : null;
             ultrassons.add(BreedingEvent(
               label: 'Ultrassom',
               date: d,
@@ -462,7 +460,9 @@ class BreedingService {
         final inWindow = !d.isAfter(limit);
         final overdue = d.isBefore(today);
         if (overdue || inWindow) {
-          final female = animalMap[r['female_animal_id']];
+          final female = r.femaleAnimalId != null
+              ? animalMap[r.femaleAnimalId]
+              : null;
           partos.add(BreedingEvent(
             label: 'Parto previsto',
             date: d,
@@ -490,7 +490,81 @@ class BreedingService {
       partos: partos,
     );
   }
+  /// Transição de Encabritamento → Aguardando Ultrassom.
+  /// Define a data de separação como agora e agenda o ultrassom para +30 dias.
+  Future<void> separarAnimais(String breedingId) async {
+    final existing = await _repository.getById(breedingId);
+    if (existing == null) return;
+
+    final now = DateTime.now();
+    final ultrasoundEta = now.add(const Duration(days: 30));
+
+    final updated = existing.copyWith(
+      separationDate: now,
+      ultrasoundDate: ultrasoundEta,
+      stage: BreedingStage.aguardandoUltrassom,
+      status: BreedingStage.aguardandoUltrassom.statusLabel,
+      updatedAt: now,
+    );
+
+    await _repository.update(updated);
+    notifyListeners();
+  }
+
+  /// Registra o resultado do ultrassom, atualizando estágio e previsão de parto.
+  Future<void> registrarUltrassom({
+    required String breedingId,
+    required bool isConfirmada,
+    String? ultrasoundResult,
+    DateTime? nowOverride,
+    DateTime? expectedBirthOverride,
+  }) async {
+    final existing = await _repository.getById(breedingId);
+    if (existing == null) return;
+
+    final now = nowOverride ?? DateTime.now();
+    final ultrasoundDate = existing.ultrasoundDate ?? now;
+
+    DateTime? expectedBirth = expectedBirthOverride;
+    if (isConfirmada) {
+      expectedBirth ??=
+          existing.expectedBirth ?? now.add(const Duration(days: 150));
+    } else {
+      expectedBirth = null;
+    }
+
+    final stage = isConfirmada
+        ? BreedingStage.gestacaoConfirmada
+        : BreedingStage.falhou;
+
+    final updated = existing.copyWith(
+      ultrasoundDate: ultrasoundDate,
+      ultrasoundResult: (ultrasoundResult != null &&
+              ultrasoundResult.isNotEmpty)
+          ? ultrasoundResult
+          : existing.ultrasoundResult,
+      expectedBirth: expectedBirth,
+      stage: stage,
+      status: stage.statusLabel,
+      updatedAt: now,
+    );
+
+    await _repository.update(updated);
+    notifyListeners();
+  }
+
+  /// Remove completamente o registro de reprodução.
+  Future<void> cancelarRegistro(String breedingId) async {
+    await _repository.delete(breedingId);
+    notifyListeners();
+  }
+
+
+
+
+
 }
 
 /// Label amigável de estágio (se você usa em algum lugar da UI).
-String _toUiStageLabel(String? raw) => BreedingStage.fromString(raw).uiTabLabel;
+String _toUiStageLabel(String? raw) =>
+    BreedingStage.fromString(raw).uiTabLabel;

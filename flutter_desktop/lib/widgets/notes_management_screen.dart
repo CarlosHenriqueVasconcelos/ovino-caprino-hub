@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/animal_service.dart';
-import '../services/database_service.dart';
+import '../services/note_service.dart';
 import 'notes_form.dart';
 
 /// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
@@ -16,6 +16,15 @@ String _formatDateFromDb(String? dateStr) {
   }
 }
 
+/// Formata o conteúdo da anotação para exibição da primeira linha, sem quebrar o layout
+String _formatContentPreview(String? content) {
+  if (content == null || content.isEmpty) return 'Sem descrição';
+  const maxLength = 60;
+  if (content.length <= maxLength) return content;
+  return '${content.substring(0, maxLength)}...';
+}
+
+/// Tela de gerenciamento de anotações
 class NotesManagementScreen extends StatefulWidget {
   const NotesManagementScreen({super.key});
 
@@ -25,12 +34,13 @@ class NotesManagementScreen extends StatefulWidget {
 
 class _NotesManagementScreenState extends State<NotesManagementScreen> {
   List<Map<String, dynamic>> _notes = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
+  String _searchTerm = '';
   String _selectedCategory = 'Todas';
   String _selectedPriority = 'Todas';
-  bool _showOnlyUnread = true;
+  bool _showOnlyUnread = false;
 
-  final List<String> _categories = [
+  final List<String> _categories = const [
     'Todas',
     'Geral',
     'Saúde',
@@ -39,10 +49,15 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     'Alimentação',
     'Manejo',
     'Financeiro',
-    'Veterinário'
+    'Veterinário',
   ];
 
-  final List<String> _priorities = ['Todas', 'Alta', 'Média', 'Baixa'];
+  final List<String> _priorities = const [
+    'Todas',
+    'Baixa',
+    'Média',
+    'Alta',
+  ];
 
   @override
   void initState() {
@@ -53,8 +68,10 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   Future<void> _loadNotes() async {
     setState(() => _isLoading = true);
     try {
-      _notes = await DatabaseService.getNotes();
+      final noteService = context.read<NoteService>();
+      _notes = await noteService.getNotes();
     } catch (e) {
+      // ignore: avoid_print
       print('Error loading notes: $e');
     }
     if (mounted) setState(() => _isLoading = false);
@@ -62,213 +79,147 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
 
   List<Map<String, dynamic>> get _filteredNotes {
     return _notes.where((note) {
-      final categoryMatch = _selectedCategory == 'Todas' || 
-                          note['category'] == _selectedCategory;
-      final priorityMatch = _selectedPriority == 'Todas' || 
-                          note['priority'] == _selectedPriority;
-      final readMatch = !_showOnlyUnread || (note['is_read'] == 0 || note['is_read'] == null);
-      return categoryMatch && priorityMatch && readMatch;
+      final categoryMatch = _selectedCategory == 'Todas' ||
+          note['category'] == _selectedCategory;
+      final priorityMatch = _selectedPriority == 'Todas' ||
+          note['priority'] == _selectedPriority;
+      final readMatch =
+          !_showOnlyUnread || (note['is_read'] == 0 || note['is_read'] == null);
+
+      if (!categoryMatch || !priorityMatch || !readMatch) return false;
+
+      if (_searchTerm.isEmpty) return true;
+
+      final searchLower = _searchTerm.toLowerCase();
+      final title = (note['title'] ?? '').toString().toLowerCase();
+      final content = (note['content'] ?? '').toString().toLowerCase();
+      final createdBy = (note['created_by'] ?? '').toString().toLowerCase();
+      final category = (note['category'] ?? '').toString().toLowerCase();
+      final priority = (note['priority'] ?? '').toString().toLowerCase();
+
+      return title.contains(searchLower) ||
+          content.contains(searchLower) ||
+          createdBy.contains(searchLower) ||
+          category.contains(searchLower) ||
+          priority.contains(searchLower);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final filteredNotes = _filteredNotes;
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
-            Colors.transparent,
-          ],
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Anotações da Propriedade'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadNotes,
+            tooltip: 'Recarregar anotações',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _showAddNoteDialog(context),
+            tooltip: 'Nova anotação',
+          ),
+        ],
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      body: Column(
+        children: [
+          _buildFilterBar(theme),
+          const Divider(height: 1),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredNotes.isEmpty
+                    ? _buildEmptyState(theme)
+                    : _buildNotesList(theme),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar(ThemeData theme) {
+    return Material(
+      elevation: 2,
+      color: theme.colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.note_alt,
-                          size: 28,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Anotações e Observações',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: () => _showNotesForm(),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Nova Anotação'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Registre observações importantes sobre saúde, comportamento, alimentação e reprodução. '
-                      'Organize por categoria e prioridade para um acompanhamento eficiente.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
+            SizedBox(
+              width: 260,
+              child: TextField(
+                decoration: const InputDecoration(
+                  labelText: 'Buscar anotações',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                  isDense: true,
                 ),
+                onChanged: (value) {
+                  setState(() => _searchTerm = value.trim());
+                },
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Filters Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Filtros',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        FilterChip(
-                          label: const Text('Apenas não lidas'),
-                          selected: _showOnlyUnread,
-                          onSelected: (selected) {
-                            setState(() {
-                              _showOnlyUnread = selected;
-                            });
-                          },
-                          selectedColor: theme.colorScheme.primary.withOpacity(0.2),
-                          checkmarkColor: theme.colorScheme.primary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Category Filter
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 100,
-                          child: Text(
-                            'Categoria:',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            children: _categories.map((category) {
-                              return FilterChip(
-                                label: Text(category),
-                                selected: category == _selectedCategory,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    _selectedCategory = category;
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Priority Filter
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 100,
-                          child: Text(
-                            'Prioridade:',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            children: _priorities.map((priority) {
-                              return FilterChip(
-                                label: Text(priority),
-                                selected: priority == _selectedPriority,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    _selectedPriority = priority;
-                                  });
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+            SizedBox(
+              width: 180,
+              child: DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                isDense: true,
+                decoration: const InputDecoration(
+                  labelText: 'Categoria',
+                  border: OutlineInputBorder(),
                 ),
+                items: _categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category,
+                    child: Text(category),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedCategory = value);
+                },
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Notes List Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Anotações',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${_filteredNotes.length} de ${_notes.length} registros',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    
-                    if (_isLoading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (_filteredNotes.isEmpty)
-                      _buildEmptyState(theme)
-                    else
-                      _buildNotesList(theme),
-                  ],
+            SizedBox(
+              width: 160,
+              child: DropdownButtonFormField<String>(
+                value: _selectedPriority,
+                isDense: true,
+                decoration: const InputDecoration(
+                  labelText: 'Prioridade',
+                  border: OutlineInputBorder(),
                 ),
+                items: _priorities.map((priority) {
+                  return DropdownMenuItem(
+                    value: priority,
+                    child: Text(priority),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedPriority = value);
+                },
               ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: _showOnlyUnread,
+                  onChanged: (value) {
+                    setState(() => _showOnlyUnread = value);
+                  },
+                ),
+                const Text('Mostrar apenas não lidas'),
+              ],
             ),
           ],
         ),
@@ -279,34 +230,28 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(48),
+        padding: const EdgeInsets.all(32),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.note_add_outlined,
+              Icons.note_alt_outlined,
               size: 64,
-              color: theme.colorScheme.outline,
+              color: theme.colorScheme.onSurface.withOpacity(0.4),
             ),
             const SizedBox(height: 16),
             Text(
-              _notes.isEmpty ? 'Nenhuma anotação registrada' : 'Nenhuma anotação encontrada',
-              style: theme.textTheme.headlineSmall,
+              'Nenhuma anotação encontrada',
+              style: theme.textTheme.titleMedium,
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              _notes.isEmpty 
-                ? 'Registre observações importantes sobre os animais'
-                : 'Ajuste os filtros para encontrar anotações',
-              textAlign: TextAlign.center,
+              'Use o botão "+" para adicionar uma nova anotação, ou altere os filtros de busca.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _showNotesForm(),
-              icon: const Icon(Icons.add),
-              label: Text(_notes.isEmpty ? 'Primeira Anotação' : 'Nova Anotação'),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -315,414 +260,251 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   }
 
   Widget _buildNotesList(ThemeData theme) {
-    // Sort notes by date (newest first) and priority
-    final sortedNotes = List<Map<String, dynamic>>.from(_filteredNotes);
-    sortedNotes.sort((a, b) {
-      // First sort by priority
-      final priorityOrder = {'Alta': 0, 'Média': 1, 'Baixa': 2};
-      final aPriority = priorityOrder[a['priority']] ?? 3;
-      final bPriority = priorityOrder[b['priority']] ?? 3;
-      
-      if (aPriority != bPriority) {
-        return aPriority.compareTo(bPriority);
-      }
-      
-      // Then sort by date
-      final aDate = DateTime.tryParse(a['date'] ?? '') ?? DateTime.now();
-      final bDate = DateTime.tryParse(b['date'] ?? '') ?? DateTime.now();
-      return bDate.compareTo(aDate);
-    });
+    final sortedNotes = [..._filteredNotes]
+      ..sort((a, b) {
+        final dateA = a['date'] ?? '';
+        final dateB = b['date'] ?? '';
+        return dateB.compareTo(dateA);
+      });
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: sortedNotes.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final note = sortedNotes[index];
-        final animalService = Provider.of<AnimalService>(context, listen: false);
+    return Consumer<AnimalService>(
+      builder: (context, animalService, _) {
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemCount: sortedNotes.length,
+          itemBuilder: (context, index) {
+            final note = sortedNotes[index];
+            final animalService =
+                Provider.of<AnimalService>(context, listen: false);
 
-        // Find associated animal if exists
-        final noteAnimalId = note['animal_id'];
-        var animal;
-        if (noteAnimalId != null) {
-          final matches = animalService.animals.where(
-            (a) => a.id == noteAnimalId,
-          );
-          animal = matches.isNotEmpty ? matches.first : null;
-        }
+            // Find associated animal if exists
+            final noteAnimalId = note['animal_id'];
+            dynamic animal;
+            if (noteAnimalId != null) {
+              try {
+                // se não encontrar, firstWhere lança StateError e cai no catch
+                animal = animalService.animals.firstWhere((a) => a.id == noteAnimalId);
+              } on StateError {
+                animal = null;
+              }
+            }
 
-        Color priorityColor;
-        IconData priorityIcon;
-        switch (note['priority']) {
-          case 'Alta':
-            priorityColor = theme.colorScheme.error;
-            priorityIcon = Icons.priority_high;
-            break;
-          case 'Média':
-            priorityColor = theme.colorScheme.tertiary;
-            priorityIcon = Icons.remove;
-            break;
-          default:
-            priorityColor = theme.colorScheme.primary;
-            priorityIcon = Icons.low_priority;
-        }
 
-        Color categoryColor;
-        IconData categoryIcon;
-        switch (note['category']) {
-          case 'Saúde':
-            categoryColor = theme.colorScheme.error;
-            categoryIcon = Icons.medical_services;
-            break;
-          case 'Reprodução':
-            categoryColor = theme.colorScheme.tertiary;
-            categoryIcon = Icons.favorite;
-            break;
-          case 'Alimentação':
-            categoryColor = theme.colorScheme.secondary;
-            categoryIcon = Icons.restaurant;
-            break;
-          case 'Comportamento':
-            categoryColor = theme.colorScheme.primary;
-            categoryIcon = Icons.psychology;
-            break;
-          default:
-            categoryColor = theme.colorScheme.outline;
-            categoryIcon = Icons.note;
-        }
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border(left: BorderSide(color: priorityColor, width: 4)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: categoryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(categoryIcon, color: categoryColor, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              note['title'] ?? 'Sem título',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(categoryIcon, size: 14, color: categoryColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  note['category'] ?? '-',
-                                  style: TextStyle(
-                                    color: categoryColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: priorityColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: priorityColor.withOpacity(0.3)),
-                        ),
-                        child: Text(
-                          note['priority'] ?? '-',
-                          style: TextStyle(
-                            color: priorityColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Data: ${_formatDateFromDb(note['date'])}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
-                  ),
-                  if (animal != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.pets, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Animal: ${animal.name} (${animal.code})',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _showNoteDetails(note, animal),
-                          icon: const Icon(Icons.visibility, size: 18),
-                          label: const Text('Ver Detalhes'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                      if (note['is_read'] == 0 || note['is_read'] == null) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _markAsRead(note['id']),
-                            icon: const Icon(Icons.check, size: 18),
-                            label: const Text('Marcar como Lida'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+            return _buildNoteCard(theme, note, animal);
+          },
         );
       },
     );
   }
 
-  void _showNotesForm() {
-    showDialog(
-      context: context,
-      builder: (context) => const NotesFormDialog(),
-    ).then((_) => _loadNotes());
-  }
+  Widget _buildNoteCard(
+      ThemeData theme, Map<String, dynamic> note, dynamic animal) {
+    final isRead = note['is_read'] == 1;
+    final dateStr = _formatDateFromDb(note['date']);
+    final contentPreview = _formatContentPreview(note['content']);
 
-  void _showNoteDetails(Map<String, dynamic> note, dynamic animal) {
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    
     Color priorityColor;
+    IconData priorityIcon;
     switch (note['priority']) {
       case 'Alta':
-        priorityColor = Theme.of(context).colorScheme.error;
+        priorityColor = theme.colorScheme.error;
+        priorityIcon = Icons.warning_amber_rounded;
         break;
-      case 'Média':
-        priorityColor = Theme.of(context).colorScheme.tertiary;
-        break;
-      default:
-        priorityColor = Theme.of(context).colorScheme.primary;
-    }
-
-    Color categoryColor;
-    IconData categoryIcon;
-    switch (note['category']) {
-      case 'Saúde':
-        categoryColor = Theme.of(context).colorScheme.error;
-        categoryIcon = Icons.medical_services;
-        break;
-      case 'Reprodução':
-        categoryColor = Theme.of(context).colorScheme.tertiary;
-        categoryIcon = Icons.favorite;
-        break;
-      case 'Alimentação':
-        categoryColor = Theme.of(context).colorScheme.secondary;
-        categoryIcon = Icons.restaurant;
-        break;
-      case 'Comportamento':
-        categoryColor = Theme.of(context).colorScheme.primary;
-        categoryIcon = Icons.psychology;
+      case 'Baixa':
+        priorityColor = Colors.green.shade600;
+        priorityIcon = Icons.arrow_downward_rounded;
         break;
       default:
-        categoryColor = Theme.of(context).colorScheme.outline;
-        categoryIcon = Icons.note;
+        priorityColor = Colors.orange.shade700;
+        priorityIcon = Icons.drag_handle_rounded;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          width: 600,
-          constraints: const BoxConstraints(maxHeight: 700),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    final categoryChip = Chip(
+      label: Text(
+        note['category'] ?? 'Sem categoria',
+        style: TextStyle(
+          color: theme.colorScheme.onPrimary,
+          fontSize: 11,
+        ),
+      ),
+      backgroundColor: theme.colorScheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+
+    final priorityChip = Chip(
+      avatar: Icon(priorityIcon, size: 16, color: priorityColor),
+      label: Text(
+        note['priority'] ?? 'Média',
+        style: TextStyle(
+          color: priorityColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      side: BorderSide(color: priorityColor.withOpacity(0.6)),
+      backgroundColor: priorityColor.withOpacity(0.06),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    );
+
+    final createdBy = (note['created_by'] ?? '').toString().trim();
+
+    return Card(
+      elevation: isRead ? 1 : 3,
+      color:
+          isRead ? theme.colorScheme.surface : theme.colorScheme.surfaceVariant,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isRead
+              ? theme.dividerColor
+              : theme.colorScheme.primary.withOpacity(0.5),
+          width: isRead ? 0.5 : 1.2,
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showNoteDetails(note, animal),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
+              // Ícone principal
+              Column(
+                children: [
+                  Icon(
+                    isRead ? Icons.sticky_note_2_outlined : Icons.note_alt,
+                    size: 30,
+                    color: isRead
+                        ? theme.colorScheme.onSurface.withOpacity(0.6)
+                        : theme.colorScheme.primary,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(categoryIcon, color: categoryColor, size: 32),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        note['title'] ?? 'Detalhes da Anotação',
-                        style: const TextStyle(
-                          fontSize: 20,
+                  const SizedBox(height: 8),
+                  if (!isRead)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'NOVO',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+                ],
               ),
+              const SizedBox(width: 12),
 
-              // Content
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Categoria e Prioridade
-                      _buildDetailSection(
-                        icon: categoryIcon,
-                        title: 'Categoria',
-                        content: note['category'] ?? 'N/A',
-                        color: categoryColor,
-                      ),
-                      const SizedBox(height: 16),
-
-                      _buildDetailSection(
-                        icon: Icons.priority_high,
-                        title: 'Prioridade',
-                        content: note['priority'] ?? 'N/A',
-                        color: priorityColor,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Data
-                      _buildDetailSection(
-                        icon: Icons.calendar_today,
-                        title: 'Data',
-                        content: _formatDateFromDb(note['date']),
-                        color: categoryColor,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Animal (se houver)
-                      if (animal != null) ...[
-                        _buildDetailSection(
-                          icon: Icons.pets,
-                          title: 'Animal',
-                          content: '${animal.name} (${animal.code}) - ${animal.breed}',
-                          color: categoryColor,
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Criado por
-                      if (note['created_by'] != null && note['created_by'].toString().isNotEmpty)
-                        _buildDetailSection(
-                          icon: Icons.person,
-                          title: 'Criado por',
-                          content: note['created_by'],
-                          color: categoryColor,
-                        ),
-                      if (note['created_by'] != null && note['created_by'].toString().isNotEmpty)
-                        const SizedBox(height: 16),
-
-                      // Conteúdo/Observações
-                      if (note['content'] != null && note['content'].toString().isNotEmpty)
-                        _buildDetailSection(
-                          icon: Icons.notes,
-                          title: 'Observações',
-                          content: note['content'],
-                          color: categoryColor,
-                          isMultiline: true,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Footer
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Row(
+              // Conteúdo principal
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (note['is_read'] == 0 || note['is_read'] == null)
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _markAsRead(note['id']);
-                          },
-                          icon: const Icon(Icons.check, size: 18),
-                          label: const Text('Marcar como Lida'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                    // Título + data
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            note['title'] ?? 'Sem título',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              decoration: isRead
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
                             ),
                           ),
                         ),
-                      ),
-                    if (note['is_read'] == 0 || note['is_read'] == null)
-                      const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 8),
+                        Text(
+                          dateStr,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
                           ),
                         ),
-                        child: const Text(
-                          'Fechar',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Animal vinculado (se houver)
+                    if (animal != null)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.pets,
+                            size: 16,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '${animal.code} - ${animal.name}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
+
+                    if (animal != null) const SizedBox(height: 4),
+
+                    // Prévia do conteúdo
+                    Text(
+                      contentPreview,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.85),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Rodapé com categoria, prioridade, criado por e botão de marcar como lida
+                    Row(
+                      children: [
+                        categoryChip,
+                        const SizedBox(width: 8),
+                        priorityChip,
+                        const Spacer(),
+                        if (createdBy.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
+                                size: 16,
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.7),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                createdBy,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.7),
+                                ),
+                              ),
+                            ],
+                          ),
+                        if (!isRead) ...[
+                          const SizedBox(width: 12),
+                          TextButton.icon(
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text('Marcar como lida'),
+                            onPressed: () => _markAsRead(note['id'].toString()),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -736,9 +518,10 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
 
   Future<void> _markAsRead(String noteId) async {
     try {
-      await DatabaseService.updateNote(noteId, {'is_read': 1});
+      final noteService = context.read<NoteService>();
+      await noteService.markAsRead(noteId);
       await _loadNotes();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -759,6 +542,154 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     }
   }
 
+  void _showAddNoteDialog(BuildContext context) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => const NotesFormDialog(),
+    );
+
+    if (result == true) {
+      await _loadNotes();
+    }
+  }
+
+  void _showNoteDetails(Map<String, dynamic> note, dynamic animal) {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+
+    Color priorityColor;
+    switch (note['priority']) {
+      case 'Alta':
+        priorityColor = Theme.of(context).colorScheme.error;
+        break;
+      case 'Baixa':
+        priorityColor = Colors.green;
+        break;
+      default:
+        priorityColor = Colors.orange;
+    }
+
+    final dateStr = _formatDateFromDb(note['date']);
+    final content = (note['content'] ?? 'Sem descrição').toString();
+    final createdBy = (note['created_by'] ?? '').toString().trim();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(note['title'] ?? 'Detalhes da Anotação'),
+          content: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Categoria e prioridade
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Chip(
+                        label: Text(note['category'] ?? 'Sem categoria'),
+                        backgroundColor:
+                            Theme.of(context).colorScheme.primaryContainer,
+                      ),
+                      Chip(
+                        avatar: Icon(
+                          note['priority'] == 'Alta'
+                              ? Icons.priority_high
+                              : note['priority'] == 'Baixa'
+                                  ? Icons.arrow_downward
+                                  : Icons.drag_handle,
+                          color: priorityColor,
+                          size: 18,
+                        ),
+                        label: Text(
+                          note['priority'] ?? 'Média',
+                          style: TextStyle(color: priorityColor),
+                        ),
+                        side: BorderSide(color: priorityColor),
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Data
+                  _buildDetailSection(
+                    icon: Icons.calendar_today,
+                    title: 'Data',
+                    content: dateStr,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Animal vinculado
+                  if (animal != null)
+                    _buildDetailSection(
+                      icon: Icons.pets,
+                      title: 'Animal vinculado',
+                      content: '${animal.code} - ${animal.name}',
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                  if (animal == null)
+                    _buildDetailSection(
+                      icon: Icons.pets_outlined,
+                      title: 'Animal vinculado',
+                      content: 'Nenhum animal vinculado a esta anotação',
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  const SizedBox(height: 8),
+
+                  // Criado por
+                  if (createdBy.isNotEmpty)
+                    _buildDetailSection(
+                      icon: Icons.person_outline,
+                      title: 'Criado por',
+                      content: createdBy,
+                      color:
+                          Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    ),
+                  if (createdBy.isEmpty)
+                    _buildDetailSection(
+                      icon: Icons.person_outline,
+                      title: 'Criado por',
+                      content: 'Autor não informado',
+                      color:
+                          Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  const SizedBox(height: 16),
+
+                  // Conteúdo
+                  _buildDetailSection(
+                    icon: Icons.description_outlined,
+                    title: 'Descrição / Detalhes',
+                    content: content,
+                    color: Theme.of(context).colorScheme.primary,
+                    isMultiline: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                if (note['is_read'] == 1) return;
+                await _markAsRead(note['id'].toString());
+              },
+              child: Text(
+                note['is_read'] == 1
+                    ? 'Fechar'
+                    : 'Marcar como lida e fechar',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildDetailSection({
     required IconData icon,
     required String title,
@@ -766,43 +697,36 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     required Color color,
     bool isMultiline = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Row(
-        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment:
+          isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Icon(icon, color: color),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  content,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

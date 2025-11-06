@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'dart:convert';
-import '../services/supabase_service.dart';
-import '../services/database_service.dart';
+import 'package:provider/provider.dart';
+
+import '../services/backup_service.dart';
 
 class BackupManager extends StatefulWidget {
   const BackupManager({super.key});
@@ -14,10 +13,12 @@ class BackupManager extends StatefulWidget {
 class _BackupManagerState extends State<BackupManager> {
   bool _isBackupRunning = false;
   bool _isRestoreRunning = false;
+
+  // Esses continuam só para UI/histórico fake
   bool _autoBackupEnabled = true;
   String _autoBackupFrequency = 'weekly';
   DateTime? _lastBackupDate;
-  
+
   final List<Map<String, dynamic>> _backupHistory = [
     {
       'date': DateTime.now().subtract(const Duration(days: 1)),
@@ -67,17 +68,17 @@ class _BackupManagerState extends State<BackupManager> {
               ),
             ),
             const SizedBox(height: 32),
-            
+
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Backup Actions Panel
+                  // Painel de ações
                   Expanded(
                     flex: 1,
                     child: Column(
                       children: [
-                        // Manual Backup Card
+                        // Backup Manual
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
@@ -94,36 +95,41 @@ class _BackupManagerState extends State<BackupManager> {
                                     const SizedBox(width: 12),
                                     Text(
                                       'Backup Manual',
-                                      style: theme.textTheme.titleLarge?.copyWith(
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                
                                 Text(
-                                  'Crie um backup completo de todos os dados da fazenda',
+                                  'Crie um backup completo de todos os dados da fazenda (enviado para o Supabase).',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.7),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed: _isBackupRunning ? null : _performManualBackup,
+                                    onPressed: _isBackupRunning
+                                        ? null
+                                        : _performManualBackup,
                                     icon: _isBackupRunning
                                         ? const SizedBox(
                                             width: 20,
                                             height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
                                           )
                                         : const Icon(Icons.cloud_upload),
-                                    label: Text(_isBackupRunning ? 'Fazendo Backup...' : 'Criar Backup'),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    label: Text(
+                                      _isBackupRunning
+                                          ? 'Fazendo Backup...'
+                                          : 'Criar Backup',
                                     ),
                                   ),
                                 ),
@@ -132,8 +138,8 @@ class _BackupManagerState extends State<BackupManager> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
-                        // Restore Card
+
+                        // Restore
                         Card(
                           child: Padding(
                             padding: const EdgeInsets.all(24),
@@ -150,36 +156,41 @@ class _BackupManagerState extends State<BackupManager> {
                                     const SizedBox(width: 12),
                                     Text(
                                       'Restaurar Dados',
-                                      style: theme.textTheme.titleLarge?.copyWith(
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                
                                 Text(
-                                  'Restaure seus dados a partir de um backup anterior',
+                                  'Restaure os dados a partir do backup armazenado no Supabase.',
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.7),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
-                                
                                 SizedBox(
                                   width: double.infinity,
                                   child: OutlinedButton.icon(
-                                    onPressed: _isRestoreRunning ? null : _performRestore,
+                                    onPressed: _isRestoreRunning
+                                        ? null
+                                        : _confirmRestoreFromCloud,
                                     icon: _isRestoreRunning
                                         ? const SizedBox(
                                             width: 20,
                                             height: 20,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
                                           )
-                                        : const Icon(Icons.file_upload),
-                                    label: Text(_isRestoreRunning ? 'Restaurando...' : 'Selecionar Arquivo'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                        : const Icon(Icons.cloud_download),
+                                    label: Text(
+                                      _isRestoreRunning
+                                          ? 'Restaurando...'
+                                          : 'Restaurar do Supabase',
                                     ),
                                   ),
                                 ),
@@ -188,15 +199,15 @@ class _BackupManagerState extends State<BackupManager> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
-                        // Backup automático removido (sempre manual conforme requisito)
+
+                        // Backup automático (mantido só como UI, sem mexer no DB)
                         const SizedBox.shrink(),
                       ],
                     ),
                   ),
                   const SizedBox(width: 24),
-                  
-                  // Backup History Panel
+
+                  // Painel de histórico
                   Expanded(
                     flex: 2,
                     child: Card(
@@ -224,52 +235,68 @@ class _BackupManagerState extends State<BackupManager> {
                                     label: Text(
                                       'Último: ${_lastBackupDate!.day}/${_lastBackupDate!.month}/${_lastBackupDate!.year}',
                                     ),
-                                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                    backgroundColor: theme
+                                        .colorScheme.primary
+                                        .withOpacity(0.1),
                                   ),
                               ],
                             ),
                             const SizedBox(height: 24),
-                            
                             Expanded(
                               child: ListView.builder(
                                 itemCount: _backupHistory.length,
                                 itemBuilder: (context, index) {
                                   final backup = _backupHistory[index];
-                                  final date = backup['date'] as DateTime;
-                                  
+                                  final date =
+                                      backup['date'] as DateTime;
+
                                   Color statusColor;
                                   IconData statusIcon;
                                   if (backup['status'] == 'Sucesso') {
-                                    statusColor = theme.colorScheme.primary;
+                                    statusColor =
+                                        theme.colorScheme.primary;
                                     statusIcon = Icons.check_circle;
                                   } else {
-                                    statusColor = theme.colorScheme.error;
+                                    statusColor =
+                                        theme.colorScheme.error;
                                     statusIcon = Icons.error;
                                   }
-                                  
+
                                   return Card(
-                                    margin: const EdgeInsets.only(bottom: 8),
+                                    margin:
+                                        const EdgeInsets.only(bottom: 8),
                                     child: ListTile(
                                       leading: CircleAvatar(
-                                        backgroundColor: statusColor.withOpacity(0.1),
-                                        child: Icon(statusIcon, color: statusColor),
+                                        backgroundColor:
+                                            statusColor.withOpacity(0.1),
+                                        child: Icon(
+                                          statusIcon,
+                                          color: statusColor,
+                                        ),
                                       ),
                                       title: Text(
-                                        '${date.day}/${date.month}/${date.year} às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
-                                        style: theme.textTheme.titleMedium?.copyWith(
+                                        '${date.day}/${date.month}/${date.year} '
+                                        'às ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
+                                        style: theme
+                                            .textTheme.titleMedium
+                                            ?.copyWith(
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       subtitle: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text('Tipo: ${backup['type']}'),
-                                          Text('Tamanho: ${backup['size']}'),
+                                          Text(
+                                              'Tipo: ${backup['type']}'),
+                                          Text(
+                                              'Tamanho: ${backup['size']}'),
                                         ],
                                       ),
-                                      trailing: PopupMenuButton<String>(
-                                        itemBuilder: (context) => [
-                                          const PopupMenuItem(
+                                      trailing:
+                                          PopupMenuButton<String>(
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem(
                                             value: 'restore',
                                             child: Row(
                                               children: [
@@ -279,7 +306,7 @@ class _BackupManagerState extends State<BackupManager> {
                                               ],
                                             ),
                                           ),
-                                          const PopupMenuItem(
+                                          PopupMenuItem(
                                             value: 'download',
                                             child: Row(
                                               children: [
@@ -289,18 +316,28 @@ class _BackupManagerState extends State<BackupManager> {
                                               ],
                                             ),
                                           ),
-                                          const PopupMenuItem(
+                                          PopupMenuItem(
                                             value: 'delete',
                                             child: Row(
                                               children: [
-                                                Icon(Icons.delete, color: Colors.red),
+                                                Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
                                                 SizedBox(width: 8),
-                                                Text('Excluir', style: TextStyle(color: Colors.red)),
+                                                Text(
+                                                  'Excluir',
+                                                  style: TextStyle(
+                                                      color:
+                                                          Colors.red),
+                                                ),
                                               ],
                                             ),
                                           ),
                                         ],
-                                        onSelected: (value) => _handleBackupAction(value, index),
+                                        onSelected: (value) =>
+                                            _handleBackupAction(
+                                                value, index),
                                       ),
                                     ),
                                   );
@@ -321,137 +358,167 @@ class _BackupManagerState extends State<BackupManager> {
     );
   }
 
+  // ================== BACKUP ==================
+
   Future<void> _performManualBackup() async {
-    setState(() { _isBackupRunning = true; });
+    setState(() => _isBackupRunning = true);
+
     try {
-      // 1) Ler dados locais (SQLite)
-      final animals = await DatabaseService.getAnimals();
-      final vaccinations = await DatabaseService.getVaccinations();
-      final breeding = await DatabaseService.getBreedingRecords();
-      final notes = await DatabaseService.getNotes();
-      final financial = await DatabaseService.getFinancialRecords();
+      final backup = context.read<BackupService>();
+      final stream = backup.backupAll();
 
-      // 2) Enviar para a nuvem (somente no clique de backup)
-      await SupabaseService.upsertRows('animals', animals.map((a) => a.toJson()).toList());
-      await SupabaseService.upsertRows('vaccinations', vaccinations);
-      await SupabaseService.upsertRows('breeding_records', breeding);
-      await SupabaseService.upsertRows('notes', notes);
-      await SupabaseService.upsertRows('financial_records', financial);
+      // Mesma UX do SystemSettingsScreen: dialog com StreamBuilder
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Text('Backup para Supabase'),
+          content: StreamBuilder<String>(
+            stream: stream,
+            builder: (_, snapshot) {
+              final text = snapshot.data ?? 'Preparando backup...';
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 12),
+                  Text(text),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(_).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
 
-      // 3) Criar export JSON opcional e salvar localmente
-      final backupData = await _createBackupData();
-      await _saveBackupToFile(backupData);
+      if (!mounted) return;
 
+      final now = DateTime.now();
       setState(() {
-        _lastBackupDate = DateTime.now();
+        _lastBackupDate = now;
         _backupHistory.insert(0, {
-          'date': DateTime.now(),
+          'date': now,
           'type': 'Manual',
-          'size': '${backupData.toString().length ~/ 1024} KB',
+          'size': '-',
           'status': 'Sucesso',
         });
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Backup enviado para a nuvem com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Backup concluído com sucesso!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro no backup: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro no backup: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     } finally {
       if (mounted) {
-        setState(() { _isBackupRunning = false; });
+        setState(() => _isBackupRunning = false);
       }
     }
   }
 
-  Future<void> _performRestore() async {
-    setState(() {
-      _isRestoreRunning = true;
-    });
+  // ================== RESTORE ==================
 
-    try {
-      // Simulate file selection and restore
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // In a real implementation, you would:
-      // 1. Show file picker dialog
-      // 2. Read backup file
-      // 3. Validate data
-      // 4. Restore to Supabase
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Dados restaurados com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
+  void _confirmRestoreFromCloud() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restaurar do Supabase'),
+        content: const Text(
+          'Esta ação irá substituir TODOS os dados locais pelos dados do backup '
+          'armazenado no Supabase. Deseja continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao restaurar dados: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _performRestoreFromCloud();
+            },
+            child: const Text('Restaurar'),
           ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRestoreRunning = false;
-        });
-      }
-    }
-  }
-
-  Future<Map<String, dynamic>> _createBackupData() async {
-    // Exporta dados do banco local
-    final animals = await DatabaseService.getAnimals();
-    final vaccinations = await DatabaseService.getVaccinations();
-    final breedingRecords = await DatabaseService.getBreedingRecords();
-    final notes = await DatabaseService.getNotes();
-    final financialRecords = await DatabaseService.getFinancialRecords();
-    
-    return {
-      'backup_date': DateTime.now().toIso8601String(),
-      'version': '1.0',
-      'data': {
-        'animals': animals.map((a) => a.toJson()).toList(),
-        'vaccinations': vaccinations,
-        'breeding_records': breedingRecords,
-        'notes': notes,
-        'financial_records': financialRecords,
-      },
-    };
-  }
-
-  Future<void> _saveBackupToFile(Map<String, dynamic> backupData) async {
-    // In a real implementation, save to file system
-    final jsonString = jsonEncode(backupData);
-    print('Backup size: ${jsonString.length} characters');
-  }
-
-  void _saveAutoBackupSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Configurações de backup automático salvas!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        ],
       ),
     );
   }
+
+  Future<void> _performRestoreFromCloud() async {
+    setState(() => _isRestoreRunning = true);
+
+    try {
+      final backup = context.read<BackupService>();
+      final stream = backup.restoreAll();
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          title: const Text('Restauração do Supabase'),
+          content: StreamBuilder<String>(
+            stream: stream,
+            builder: (_, snapshot) {
+              final text = snapshot.data ?? 'Preparando restauração...';
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 12),
+                  Text(text),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(_).pop(),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Dados restaurados com sucesso!'),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao restaurar dados: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isRestoreRunning = false);
+      }
+    }
+  }
+
+  // ================== AÇÕES DO HISTÓRICO ==================
 
   void _handleBackupAction(String action, int index) {
     switch (action) {
@@ -469,12 +536,16 @@ class _BackupManagerState extends State<BackupManager> {
 
   void _showRestoreConfirmation(int index) {
     final backup = _backupHistory[index];
+    final date = backup['date'] as DateTime;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Restauração'),
         content: Text(
-          'Deseja restaurar o backup de ${(backup['date'] as DateTime).day}/${(backup['date'] as DateTime).month}/${(backup['date'] as DateTime).year}?\n\nTodos os dados atuais serão substituídos.',
+          'Deseja restaurar o backup de '
+          '${date.day}/${date.month}/${date.year}?\n\n'
+          'Todos os dados atuais serão substituídos.',
         ),
         actions: [
           TextButton(
@@ -484,7 +555,7 @@ class _BackupManagerState extends State<BackupManager> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _performRestore();
+              _performRestoreFromCloud();
             },
             child: const Text('Restaurar'),
           ),
@@ -494,6 +565,7 @@ class _BackupManagerState extends State<BackupManager> {
   }
 
   void _downloadBackup(int index) {
+    // Aqui você pode integrar com download do arquivo gerado pelo BackupService, se quiser.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Download do backup iniciado')),
     );
@@ -504,13 +576,18 @@ class _BackupManagerState extends State<BackupManager> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Exclusão'),
-        content: const Text('Deseja excluir este backup? Esta ação não pode ser desfeita.'),
+        content: const Text(
+          'Deseja excluir este backup? Esta ação não pode ser desfeita.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () {
               Navigator.of(context).pop();
               setState(() {
@@ -520,12 +597,20 @@ class _BackupManagerState extends State<BackupManager> {
                 const SnackBar(content: Text('Backup excluído')),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
             child: const Text('Excluir'),
           ),
         ],
+      ),
+    );
+  }
+
+  // Só mantive pra caso queira usar no futuro;
+  // hoje é só UI, não mexe em nada real.
+  void _saveAutoBackupSettings() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Configurações de backup automático salvas!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }

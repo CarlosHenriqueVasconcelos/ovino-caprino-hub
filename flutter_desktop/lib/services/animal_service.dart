@@ -3,11 +3,11 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
-import '../data/local_db.dart';      // AppDatabase
-import '../models/animal.dart';      // Animal e AnimalStats
-import '../models/alert_item.dart';  // AlertItem
-import 'deceased_hooks.dart';        // handleAnimalDeathIfApplicable
-import 'weight_alert_service.dart';  // WeightAlertService
+import '../data/local_db.dart'; // AppDatabase
+import '../models/animal.dart'; // Animal e AnimalStats
+import '../models/alert_item.dart'; // AlertItem
+import 'deceased_hooks.dart'; // handleAnimalDeathIfApplicable
+import 'weight_alert_service.dart'; // WeightAlertService
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
@@ -18,9 +18,9 @@ class AnimalService extends ChangeNotifier {
   // Painel de alertas (vacinas + medicações + pesagens)
   final List<AlertItem> _alerts = [];
 
-  // DB
-  AppDatabase? _appDb;
-  WeightAlertService? _weightAlertService;
+  // DB e serviço de alertas de peso
+  final AppDatabase _appDb;
+  late final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
   UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
@@ -31,16 +31,13 @@ class AnimalService extends ChangeNotifier {
   UnmodifiableListView<AlertItem> get alerts => UnmodifiableListView(_alerts);
 
   // ----------------- Construtor -----------------
-  /// Carrega automaticamente os dados ao iniciar o app (remove a necessidade
-  /// de ver o botão "Recarregar" na primeira abertura).
-  AnimalService() {
+  /// Recebe o AppDatabase já aberto (injeção de dependência)
+  /// e inicializa o WeightAlertService com o mesmo DB.
+  ///
+  /// Também agenda o carregamento inicial dos dados.
+  AnimalService(this._appDb) {
+    _weightAlertService = WeightAlertService(_appDb);
     scheduleMicrotask(() => loadData());
-  }
-
-  // ----------------- Acesso ao DB -----------------
-  Future<void> _ensureDb() async {
-    _appDb ??= await AppDatabase.open();
-    _weightAlertService ??= WeightAlertService(_appDb!);
   }
 
   // ----------------- Ciclo de vida / carga -----------------
@@ -48,10 +45,8 @@ class AnimalService extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      await _ensureDb();
-
       // Carrega animais
-      final rows = await _appDb!.db.query(
+      final rows = await _appDb.db.query(
         'animals',
         orderBy: 'name COLLATE NOCASE',
       );
@@ -75,15 +70,15 @@ class AnimalService extends ChangeNotifier {
 
   // ----------------- Métodos auxiliares -----------------
   Future<List<Animal>> getAllAnimals() async {
-    await _ensureDb();
-    final rows = await _appDb!.db.query('animals', orderBy: 'name COLLATE NOCASE');
+    final rows = await _appDb.db.query(
+      'animals',
+      orderBy: 'name COLLATE NOCASE',
+    );
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
 
   // ----------------- CRUD: Animal -----------------
   Future<void> addAnimal(Animal a) async {
-    await _ensureDb();
-
     // Garante ID e timestamps mínimos
     final nowIso = DateTime.now().toIso8601String();
     final map = a.toMap();
@@ -103,14 +98,14 @@ class AnimalService extends ChangeNotifier {
     // Nova regra de validação de unicidade
     await _validateUniqueness(map, isUpdate: false);
 
-    await _appDb!.db.insert('animals', map);
+    await _appDb.db.insert('animals', map);
 
     final saved = Animal.fromMap(map);
     _animals.add(saved);
 
     // Cria alertas de pesagem se for borrego
-    if (saved.category.toLowerCase().contains('borrego')) {
-      await _weightAlertService?.createLambWeightAlerts(saved);
+    if (_isLambCategory(saved.category)) {
+      await _weightAlertService.createLambWeightAlerts(saved);
     }
 
     await _refreshStatsSafe();
@@ -137,7 +132,10 @@ class AnimalService extends ChangeNotifier {
   }
 
   // Valida a unicidade de name + name_color segundo as novas regras
-  Future<void> _validateUniqueness(Map<String, dynamic> map, {required bool isUpdate}) async {
+  Future<void> _validateUniqueness(
+    Map<String, dynamic> map, {
+    required bool isUpdate,
+  }) async {
     final nameLc = (map['name'] ?? '').toString().toLowerCase();
     final normalizedName = _normalizeNumber(nameLc);
     final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
@@ -148,14 +146,14 @@ class AnimalService extends ChangeNotifier {
     // Busca todos os animais (excluindo o próprio se for update)
     final List<Map<String, dynamic>> allAnimals;
     if (isUpdate) {
-      allAnimals = await _appDb!.db.query(
+      allAnimals = await _appDb.db.query(
         'animals',
         columns: ['id', 'name', 'name_color', 'category', 'lote'],
         where: 'id <> ?',
         whereArgs: [currentId],
       );
     } else {
-      allAnimals = await _appDb!.db.query(
+      allAnimals = await _appDb.db.query(
         'animals',
         columns: ['id', 'name', 'name_color', 'category', 'lote'],
       );
@@ -165,7 +163,8 @@ class AnimalService extends ChangeNotifier {
     final existing = allAnimals.where((animal) {
       final animalName = (animal['name'] ?? '').toString().toLowerCase();
       final animalNormalized = _normalizeNumber(animalName);
-      final animalColor = (animal['name_color'] ?? '').toString().toLowerCase();
+      final animalColor =
+          (animal['name_color'] ?? '').toString().toLowerCase();
       return animalNormalized == normalizedName && animalColor == colorLc;
     }).toList();
 
@@ -178,19 +177,30 @@ class AnimalService extends ChangeNotifier {
         final sameLote = (e['lote']?.toString() ?? '') == lote;
         return isLambCat && sameLote;
       }).length;
-      
+
       if (sameNameColorLote >= 2) {
-        throw Exception('Já existem 2 borregos com este Nome + Cor no Lote "$lote".\n\nVocê pode:\n• Usar um lote diferente para registrar mais filhotes\n• Alterar o nome ou cor');
+        throw Exception(
+          'Já existem 2 borregos com este Nome + Cor no Lote "$lote".\n\n'
+          'Você pode:\n'
+          '• Usar um lote diferente para registrar mais filhotes\n'
+          '• Alterar o nome ou cor',
+        );
       }
 
       // Verifica se existe uma mãe (adulto) com esse name + color
-      final hasAdult = existing.any((e) => !_isLambCategory(e['category']?.toString()));
+      final hasAdult =
+          existing.any((e) => !_isLambCategory(e['category']?.toString()));
       if (!hasAdult) {
-        print('⚠️ Aviso: Registrando borrego sem mãe correspondente (Nome: ${map['name']}, Cor: ${map['name_color']})');
+        // Apenas loga aviso (não impede)
+        debugPrint(
+          '⚠️ Aviso: Registrando borrego sem mãe correspondente '
+          '(Nome: ${map['name']}, Cor: ${map['name_color']})',
+        );
       }
     } else {
       // É categoria adulta - verifica se já existe um adulto com esse name + color
-      final hasAdult = existing.any((e) => !_isLambCategory(e['category']?.toString()));
+      final hasAdult =
+          existing.any((e) => !_isLambCategory(e['category']?.toString()));
       if (hasAdult) {
         throw Exception('Já existe um animal adulto com este Nome + Cor.');
       }
@@ -198,18 +208,21 @@ class AnimalService extends ChangeNotifier {
   }
 
   Future<void> updateAnimal(Animal a) async {
-    await _ensureDb();
     final map = a.toMap();
     map['updated_at'] = DateTime.now().toIso8601String();
-    
+
     // Nova validação de unicidade
     await _validateUniqueness(map, isUpdate: true);
 
     // Verifica se o status foi alterado para "Óbito"
     final newStatus = map['status'] as String?;
     if (newStatus == 'Óbito') {
-      // Move o animal para deceased_animals e remove da tabela principal
-      await handleAnimalDeathIfApplicable(map['id'] as String, newStatus!);
+      // Move o animal para deceased_animals e remove da tabela principal.
+      await handleAnimalDeathIfApplicable(
+        _appDb,
+        map['id'] as String,
+        newStatus!,
+      );
       // Remove da lista local
       _animals.removeWhere((x) => x.id == map['id']);
       await _refreshStatsSafe();
@@ -218,7 +231,7 @@ class AnimalService extends ChangeNotifier {
       return;
     }
 
-    await _appDb!.db.update(
+    await _appDb.db.update(
       'animals',
       map,
       where: 'id = ?',
@@ -237,9 +250,7 @@ class AnimalService extends ChangeNotifier {
   }
 
   Future<void> deleteAnimal(String id) async {
-    await _ensureDb();
-
-    await _appDb!.db.delete(
+    await _appDb.db.delete(
       'animals',
       where: 'id = ?',
       whereArgs: [id],
@@ -252,13 +263,102 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ----------------- Helpers de gestação (para Reprodução) -----------------
+
+  /// Marca a fêmea como gestante, com data prevista de parto opcional.
+  ///
+  /// Essa função é pensada para ser usada pelos widgets de Reprodução,
+  /// em vez de fazer `db.update('animals', ...)` direto na UI.
+  Future<void> markAsPregnant(
+    String animalId,
+    DateTime? expectedBirth,
+  ) async {
+    try {
+      // Garante que temos o animal em memória
+      if (_animals.isEmpty && !_loading) {
+        await loadData();
+      }
+
+      Map<String, dynamic> map;
+
+      final idx = _animals.indexWhere((a) => a.id == animalId);
+      if (idx >= 0) {
+        map = Map<String, dynamic>.from(_animals[idx].toMap());
+      } else {
+        // fallback: busca direto no DB
+        final rows = await _appDb.db.query(
+          'animals',
+          where: 'id = ?',
+          whereArgs: [animalId],
+          limit: 1,
+        );
+        if (rows.isEmpty) return;
+        map = Map<String, dynamic>.from(rows.first);
+      }
+
+      map['pregnant'] = 1;
+      map['expected_delivery'] = expectedBirth != null
+          ? expectedBirth.toIso8601String().split('T')[0]
+          : null;
+      map['status'] = 'Gestante';
+
+      final updated = Animal.fromMap(map);
+      await updateAnimal(updated);
+    } catch (e) {
+      debugPrint('Erro em markAsPregnant: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove a marcação de gestante da fêmea.
+  ///
+  /// Usado quando a gestação falha ou após o parto, para voltar o status
+  /// padrão (Saudável) quando fizer sentido.
+  Future<void> markAsNotPregnant(String animalId) async {
+    try {
+      // Garante que temos o animal em memória
+      if (_animals.isEmpty && !_loading) {
+        await loadData();
+      }
+
+      Map<String, dynamic> map;
+
+      final idx = _animals.indexWhere((a) => a.id == animalId);
+      if (idx >= 0) {
+        map = Map<String, dynamic>.from(_animals[idx].toMap());
+      } else {
+        // fallback: busca direto no DB
+        final rows = await _appDb.db.query(
+          'animals',
+          where: 'id = ?',
+          whereArgs: [animalId],
+          limit: 1,
+        );
+        if (rows.isEmpty) return;
+        map = Map<String, dynamic>.from(rows.first);
+      }
+
+      map['pregnant'] = 0;
+      map['expected_delivery'] = null;
+
+      final currentStatus = (map['status'] ?? '').toString();
+      if (currentStatus == 'Gestante') {
+        map['status'] = 'Saudável';
+      }
+
+      final updated = Animal.fromMap(map);
+      await updateAnimal(updated);
+    } catch (e) {
+      debugPrint('Erro em markAsNotPregnant: $e');
+      rethrow;
+    }
+  }
+
   // ----------------- Alertas (Vacinas + Medicações + Pesagens) -----------------
   /// Recalcula o painel de alertas olhando até [horizonDays] dias à frente.
   /// Inclui itens vencidos (overdue) e os que estão dentro do horizonte.
   Future<void> refreshAlerts({int horizonDays = 14}) async {
     try {
-      await _ensureDb();
-
       final now = DateTime.now();
       final horizon = now.add(Duration(days: horizonDays));
 
@@ -267,7 +367,7 @@ class AnimalService extends ChangeNotifier {
 
       // VACINAÇÕES (status != Aplicada/Cancelada)
       try {
-        final vacs = await _appDb!.db.query('vaccinations');
+        final vacs = await _appDb.db.query('vaccinations');
         for (final row in vacs) {
           final status = (row['status'] ?? 'Agendada').toString();
           if (status == 'Aplicada' || status == 'Cancelada') continue;
@@ -283,15 +383,17 @@ class AnimalService extends ChangeNotifier {
           final animal = animalsById[animalId];
           if (animal == null) continue;
 
-          next.add(AlertItem(
-            id: row['id'].toString(),
-            animalId: animalId,
-            animalName: animal.name,
-            animalCode: animal.code,
-            type: AlertType.vaccination,
-            title: 'Vacina: ${(row['vaccine_name'] ?? '').toString()}',
-            dueDate: due,
-          ));
+          next.add(
+            AlertItem(
+              id: row['id'].toString(),
+              animalId: animalId,
+              animalName: animal.name,
+              animalCode: animal.code,
+              type: AlertType.vaccination,
+              title: 'Vacina: ${(row['vaccine_name'] ?? '').toString()}',
+              dueDate: due,
+            ),
+          );
         }
       } catch (e) {
         debugPrint('Erro carregando vacinações: $e');
@@ -299,9 +401,9 @@ class AnimalService extends ChangeNotifier {
 
       // MEDICAÇÕES (usa next_date como "próxima dose")
       try {
-        final meds = await _appDb!.db.query('medications');
+        final meds = await _appDb.db.query('medications');
         for (final row in meds) {
-          // ✅ ADIÇÃO: respeitar status se existir (Agendado/Aplicado/Cancelado)
+          // Respeitar status se existir (Agendado/Aplicado/Cancelado)
           final mstatus = (row['status'] ?? 'Agendado').toString();
           if (mstatus == 'Aplicado' || mstatus == 'Cancelado') continue;
 
@@ -316,15 +418,18 @@ class AnimalService extends ChangeNotifier {
           final animal = animalsById[animalId];
           if (animal == null) continue;
 
-          next.add(AlertItem(
-            id: row['id'].toString(),
-            animalId: animalId,
-            animalName: animal.name,
-            animalCode: animal.code,
-            type: AlertType.medication,
-            title: 'Medicação: ${(row['medication_name'] ?? '').toString()}',
-            dueDate: due,
-          ));
+          next.add(
+            AlertItem(
+              id: row['id'].toString(),
+              animalId: animalId,
+              animalName: animal.name,
+              animalCode: animal.code,
+              type: AlertType.medication,
+              title:
+                  'Medicação: ${(row['medication_name'] ?? '').toString()}',
+              dueDate: due,
+            ),
+          );
         }
       } catch (e) {
         debugPrint('Erro carregando medicações: $e');
@@ -332,7 +437,7 @@ class AnimalService extends ChangeNotifier {
 
       // PESAGENS (weight_alerts)
       try {
-        final weighings = await _appDb!.db.query(
+        final weighings = await _appDb.db.query(
           'weight_alerts',
           where: 'completed = 0',
         );
@@ -365,15 +470,17 @@ class AnimalService extends ChangeNotifier {
               break;
           }
 
-          next.add(AlertItem(
-            id: row['id'].toString(),
-            animalId: animalId,
-            animalName: animal.name,
-            animalCode: animal.code,
-            type: AlertType.weighing,
-            title: title,
-            dueDate: due,
-          ));
+          next.add(
+            AlertItem(
+              id: row['id'].toString(),
+              animalId: animalId,
+              animalName: animal.name,
+              animalCode: animal.code,
+              type: AlertType.weighing,
+              title: title,
+              dueDate: due,
+            ),
+          );
         }
       } catch (e) {
         debugPrint('Erro carregando alertas de pesagem: $e');
@@ -394,10 +501,8 @@ class AnimalService extends ChangeNotifier {
   // ----------------- Estatísticas -----------------
   Future<void> _refreshStatsSafe() async {
     try {
-      await _ensureDb();
-
       Future<int> _count(String sql, [List<Object?>? args]) async {
-        final r = await _appDb!.db.rawQuery(sql, args);
+        final r = await _appDb.db.rawQuery(sql, args);
         if (r.isEmpty) return 0;
         final v = r.first.values.first;
         if (v == null) return 0;
@@ -407,7 +512,7 @@ class AnimalService extends ChangeNotifier {
       }
 
       Future<double> _scalarDouble(String sql, [List<Object?>? args]) async {
-        final r = await _appDb!.db.rawQuery(sql, args);
+        final r = await _appDb.db.rawQuery(sql, args);
         if (r.isEmpty) return 0.0;
         final v = r.first.values.first;
         if (v == null) return 0.0;

@@ -1,34 +1,36 @@
 // lib/screens/complete_dashboard_screen.dart
+import 'dart:async' show StreamSubscription;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:async' show StreamSubscription;
-import '../services/data_refresh_bus.dart';
+import 'package:uuid/uuid.dart';
 
-import '../services/animal_service.dart';
-import '../data/animal_repository.dart';
-import '../widgets/stats_card.dart';
-import '../widgets/animal_card.dart';
+
 import '../models/animal.dart';
+import '../services/animal_delete_cascade.dart';
+import '../services/animal_service.dart';
+import '../services/data_refresh_bus.dart';
+import '../utils/animal_display_utils.dart';
 import '../widgets/animal_form.dart';
+import '../widgets/animal_card.dart';
 import '../widgets/breeding_management_screen.dart';
-import '../widgets/weight_tracking_screen.dart';
-import '../widgets/notes_management_screen.dart';
-import '../widgets/reports_hub_screen.dart';
+import '../widgets/feeding_screen.dart';
 import '../widgets/financial_complete_screen.dart';
+import '../widgets/history_screen.dart';
+import '../widgets/medication_management_screen.dart';
+import '../widgets/notes_management_screen.dart';
+import '../widgets/pharmacy_management_screen.dart';
+import '../widgets/reports_hub_screen.dart';
+import '../widgets/repro_alerts_card.dart';
+import '../widgets/stats_card.dart';
 import '../widgets/system_settings_screen.dart';
-// Importar APENAS o widget para evitar conflito de nomes
 import '../widgets/vaccination_alerts.dart' show VaccinationAlerts;
 import '../widgets/vaccination_form.dart';
-import '../widgets/medication_management_screen.dart';
-import '../widgets/history_screen.dart';
-import '../services/database_service.dart';
-import 'package:uuid/uuid.dart';
-import '../services/animal_delete_cascade.dart';
-import '../widgets/repro_alerts_card.dart';
-import '../widgets/feeding_screen.dart';
 import '../widgets/weight_alerts_card.dart';
-import '../widgets/pharmacy_management_screen.dart';
-import '../utils/animal_display_utils.dart';
+import '../widgets/weight_tracking_screen.dart';
+import '../services/deceased_service.dart';
+import '../services/sold_animals_service.dart';
+import '../services/medication_service.dart';
 
 class CompleteDashboardScreen extends StatefulWidget {
   final int? initialTab;
@@ -48,7 +50,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   final TextEditingController _herdSearchController = TextEditingController();
   String _herdSearchQuery = '';
 
-  final List<TabData> _tabs = [
+  final List<TabData> _tabs = const [
     TabData(
       title: 'Dashboard',
       icon: Icons.home,
@@ -155,7 +157,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             // Navigation Tabs
             _buildNavigation(theme),
             // Content
-              Expanded(
+            Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -213,9 +215,9 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Text('🐑', style: TextStyle(fontSize: 20)),
                   SizedBox(width: 4),
                   Icon(Icons.agriculture, color: Colors.white, size: 20),
@@ -247,7 +249,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             ),
             const SizedBox(width: 16),
 
-            // ⬇️ Botão para recarregar os dados
+            // Botão para recarregar os dados
             OutlinedButton.icon(
               onPressed: () => context.read<AnimalService>().loadData(),
               icon: const Icon(Icons.refresh),
@@ -298,14 +300,14 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
     );
   }
 
-  void _showAnimalForm(BuildContext context, {animal}) {
+  void _showAnimalForm(BuildContext context, {Animal? animal}) {
     showDialog(
       context: context,
       builder: (context) => AnimalFormDialog(animal: animal),
     );
   }
 
-  void _showVaccinationForm(BuildContext context, {animal}) {
+  void _showVaccinationForm(BuildContext context, {Animal? animal}) {
     showDialog(
       context: context,
       builder: (context) => VaccinationFormDialog(animalId: animal?.id),
@@ -369,11 +371,11 @@ class _DashboardTabContent extends StatelessWidget {
               VaccinationAlerts(onGoToVaccinations: () => onGoToTab(5)),
               const SizedBox(height: 16),
 
-              // NOVO: Alertas de Reprodução (separações, ultrassons, partos)
+              // Alertas de Reprodução (separações, ultrassons, partos)
               const ReproAlertsCard(daysAhead: 30),
               const SizedBox(height: 16),
 
-              // NOVO: Alertas de Pesagem
+              // Alertas de Pesagem
               const WeightAlertsCard(),
               const SizedBox(height: 32),
 
@@ -388,8 +390,8 @@ class _DashboardTabContent extends StatelessWidget {
 }
 
 class _StatsOverview extends StatelessWidget {
+  final AnimalStats stats;
   const _StatsOverview({required this.stats});
-  final dynamic stats;
 
   @override
   Widget build(BuildContext context) {
@@ -464,14 +466,14 @@ class _QuickActions extends StatelessWidget {
     final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context, listen: false);
 
-    void showAnimalForm({animal}) {
+    void showAnimalForm({Animal? animal}) {
       showDialog(
         context: context,
         builder: (context) => AnimalFormDialog(animal: animal),
       );
     }
 
-    void showVaccinationForm({animal}) {
+    void showVaccinationForm({Animal? animal}) {
       showDialog(
         context: context,
         builder: (context) => VaccinationFormDialog(animalId: animal?.id),
@@ -525,11 +527,11 @@ class _QuickActions extends StatelessWidget {
                   color: theme.colorScheme.primary,
                   onTap: () => showAnimalForm(),
                 ),
-                _ActionCard(
+                const _ActionCard(
                   title: 'Agendar Vacinação',
                   icon: Icons.vaccines,
                   color: Colors.blue,
-                  onTap: () => showVaccinationForm(),
+                  onTap: null,
                 ),
                 _ActionCard(
                   title: 'Agendar Medicamento',
@@ -569,7 +571,7 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -657,6 +659,16 @@ class _HerdSectionState extends State<_HerdSection> {
     super.dispose();
   }
 
+  Future<List<Animal>> _loadDeceasedAnimals(BuildContext context) async {
+    final deceasedService = context.read<DeceasedService>();
+    return deceasedService.getDeceasedAnimals();
+  }
+
+  Future<List<Animal>> _loadSoldAnimals(BuildContext context) async {
+    final soldService = context.read<SoldAnimalsService>();
+    return soldService.getSoldAnimals();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -673,39 +685,50 @@ class _HerdSectionState extends State<_HerdSection> {
             return all.where((a) => a.status == 'Saudável').toList();
           } else if (_statusFilter == 'Óbito') {
             // Lista especial renderizada abaixo via FutureBuilder
-            return <dynamic>[];
+            return <Animal>[];
           } else {
             // Sem status específico: volta a valer o toggle "Incluir vendidos"
             return _includeSold
                 ? all
-                : all.where((a) => a.status == null || a.status != 'Vendido').toList();
+                : all
+                    .where((a) =>
+                        a.status == null || a.status != 'Vendido')
+                    .toList();
           }
         })();
-        
+
         // Aplicar filtros de cor e categoria
         var filtered = baseList.where((a) {
-          if (_colorFilter != null && a.nameColor != _colorFilter) return false;
-          if (_categoryFilter != null && a.category != _categoryFilter) return false;
+          if (_colorFilter != null && a.nameColor != _colorFilter) {
+            return false;
+          }
+          if (_categoryFilter != null && a.category != _categoryFilter) {
+            return false;
+          }
           return true;
         }).toList();
-        
-        // Aplicar busca por texto
+
+        // Aplicar busca por texto (exata)
         filtered = _filter(filtered, _query);
-        
+
         // Ordenar por cor e depois por número
         filtered.sort((a, b) {
           final colorCompare = a.nameColor.compareTo(b.nameColor);
           if (colorCompare != 0) return colorCompare;
-          
+
           // Extrair números do código para ordenação numérica
-          final numA = int.tryParse(a.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-          final numB = int.tryParse(b.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final numA =
+              int.tryParse(a.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+          final numB =
+              int.tryParse(b.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
           return numA.compareTo(numB);
         });
-        
+
         // Obter listas únicas de cores e categorias
-        final availableColors = all.map((a) => a.nameColor).toSet().toList()..sort();
-        final availableCategories = all.map((a) => a.category).toSet().toList()..sort();
+        final availableColors =
+            all.map((a) => a.nameColor).toSet().toList()..sort();
+        final availableCategories =
+            all.map((a) => a.category).toSet().toList()..sort();
 
         return Card(
           child: Padding(
@@ -713,7 +736,7 @@ class _HerdSectionState extends State<_HerdSection> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título e ações (mantém "Adicionar Animal"; troca “Buscar Animal” pela barra fixa)
+                // Título e ações
                 Row(
                   children: [
                     Text(
@@ -764,7 +787,8 @@ class _HerdSectionState extends State<_HerdSection> {
                     FilterChip(
                       label: const Text('Incluir vendidos'),
                       selected: _includeSold,
-                      onSelected: (v) => setState(() => _includeSold = v),
+                      onSelected: (v) =>
+                          setState(() => _includeSold = v),
                     ),
                   ],
                 ),
@@ -816,9 +840,10 @@ class _HerdSectionState extends State<_HerdSection> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Filtro de Cor
-                Text('Filtrar por Cor:', style: theme.textTheme.titleSmall),
+                Text('Filtrar por Cor:',
+                    style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -832,8 +857,8 @@ class _HerdSectionState extends State<_HerdSection> {
                       }),
                     ),
                     ...availableColors.map((color) {
-                      // Importar AnimalDisplayUtils
-                      final colorName = AnimalDisplayUtils.getColorName(color);
+                      final colorName =
+                          AnimalDisplayUtils.getColorName(color);
                       return ChoiceChip(
                         label: Text(colorName),
                         selected: _colorFilter == color,
@@ -846,9 +871,10 @@ class _HerdSectionState extends State<_HerdSection> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Filtro de Categoria
-                Text('Filtrar por Categoria:', style: theme.textTheme.titleSmall),
+                Text('Filtrar por Categoria:',
+                    style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -861,14 +887,16 @@ class _HerdSectionState extends State<_HerdSection> {
                         _currentPage = 0;
                       }),
                     ),
-                    ...availableCategories.map((category) => ChoiceChip(
-                      label: Text(category),
-                      selected: _categoryFilter == category,
-                      onSelected: (_) => setState(() {
-                        _categoryFilter = category;
-                        _currentPage = 0;
-                      }),
-                    )),
+                    ...availableCategories.map(
+                      (category) => ChoiceChip(
+                        label: Text(category),
+                        selected: _categoryFilter == category,
+                        onSelected: (_) => setState(() {
+                          _categoryFilter = category;
+                          _currentPage = 0;
+                        }),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -876,11 +904,14 @@ class _HerdSectionState extends State<_HerdSection> {
                 if (all.isEmpty)
                   _emptyState(theme)
                 else ...[
-                  // Informações de paginação
-                  if (_statusFilter != 'Óbito' && _statusFilter != 'Vendido' && filtered.isNotEmpty) ...[
+                  // Informações de paginação (apenas quando não está em Óbito/Vendido)
+                  if (_statusFilter != 'Óbito' &&
+                      _statusFilter != 'Vendido' &&
+                      filtered.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filtered.length)} de ${filtered.length} animais',
@@ -891,14 +922,22 @@ class _HerdSectionState extends State<_HerdSection> {
                             IconButton(
                               icon: const Icon(Icons.chevron_left),
                               onPressed: _currentPage > 0
-                                  ? () => setState(() => _currentPage--)
+                                  ? () => setState(
+                                        () => _currentPage--,
+                                      )
                                   : null,
                             ),
-                            Text('Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}'),
+                            Text(
+                              'Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}',
+                            ),
                             IconButton(
                               icon: const Icon(Icons.chevron_right),
-                              onPressed: (_currentPage + 1) * _itemsPerPage < filtered.length
-                                  ? () => setState(() => _currentPage++)
+                              onPressed: (_currentPage + 1) *
+                                          _itemsPerPage <
+                                      filtered.length
+                                  ? () => setState(
+                                        () => _currentPage++,
+                                      )
                                   : null,
                             ),
                           ],
@@ -907,28 +946,15 @@ class _HerdSectionState extends State<_HerdSection> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  // Quando filtro = Óbito, carrega da tabela deceased_animals
+                  // Quando filtro = Óbito, carrega da tabela deceased_animals via service
                   if (_statusFilter == 'Óbito')
                     FutureBuilder<List<Animal>>(
-                      future: (() async {
-                        final db = await DatabaseService.database;
-                        final rows = await db.query(
-                          'deceased_animals',
-                          orderBy: 'date(death_date) DESC',
-                        );
-                        return rows.map((m) {
-                          final map = Map<String, dynamic>.from(m);
-                          map['status'] = 'Óbito';
-                          map['last_vaccination'] = null;
-                          map['expected_delivery'] = null;
-                          map['created_at'] = map['created_at'] ?? DateTime.now().toIso8601String();
-                          map['updated_at'] = map['updated_at'] ?? DateTime.now().toIso8601String();
-                          return Animal.fromMap(map);
-                        }).toList();
-                      })(),
+                      future: _loadDeceasedAnimals(context),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         final list = snapshot.data!;
                         if (list.isEmpty) {
@@ -936,8 +962,10 @@ class _HerdSectionState extends State<_HerdSection> {
                         }
                         return GridView.builder(
                           shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          physics:
+                              const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
@@ -945,12 +973,11 @@ class _HerdSectionState extends State<_HerdSection> {
                           ),
                           itemCount: list.length,
                           itemBuilder: (context, index) {
-                          return AnimalCard(
-                            animal: list[index],
-                            repository: context.read<AnimalRepository>(),
-                            onEdit: null,
-                            onDeleteCascade: null,
-                          );
+                            return AnimalCard(
+                              animal: list[index],
+                              onEdit: null,
+                              onDeleteCascade: null,
+                            );
                           },
                         );
                       },
@@ -958,27 +985,12 @@ class _HerdSectionState extends State<_HerdSection> {
                   // Quando filtro = Vendido, carrega da tabela sold_animals
                   else if (_statusFilter == 'Vendido')
                     FutureBuilder<List<Animal>>(
-                      future: (() async {
-                        final db = await DatabaseService.database;
-                        final rows = await db.query(
-                          'sold_animals',
-                          orderBy: 'date(sale_date) DESC',
-                        );
-                        return rows.map((m) {
-                          final map = Map<String, dynamic>.from(m);
-                          // Adaptar para o shape do modelo Animal exibível
-                          map['status'] = 'Vendido';
-                          map['last_vaccination'] = null;
-                          map['expected_delivery'] = null;
-                          map['health_issue'] = null;
-                          map['created_at'] = map['created_at'] ?? DateTime.now().toIso8601String();
-                          map['updated_at'] = map['updated_at'] ?? DateTime.now().toIso8601String();
-                          return Animal.fromMap(map);
-                        }).toList();
-                      })(),
+                      future: _loadSoldAnimals(context),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         final list = snapshot.data!;
                         if (list.isEmpty) {
@@ -986,8 +998,10 @@ class _HerdSectionState extends State<_HerdSection> {
                         }
                         return GridView.builder(
                           shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          physics:
+                              const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
@@ -995,12 +1009,12 @@ class _HerdSectionState extends State<_HerdSection> {
                           ),
                           itemCount: list.length,
                           itemBuilder: (context, index) {
-                          return AnimalCard(
-                            animal: list[index],
-                            repository: context.read<AnimalRepository>(),
-                            onEdit: null,
-                            onDeleteCascade: null,
-                          );
+                            return AnimalCard(
+                              animal: list[index],
+                              onEdit: null,
+                              onDeleteCascade: null,
+                            );
+
                           },
                         );
                       },
@@ -1009,13 +1023,18 @@ class _HerdSectionState extends State<_HerdSection> {
                     Builder(
                       builder: (context) {
                         // Aplicar paginação
-                        final startIndex = _currentPage * _itemsPerPage;
-                        final endIndex = (startIndex + _itemsPerPage).clamp(0, filtered.length);
-                        final paginatedList = filtered.sublist(startIndex, endIndex);
-                        
+                        final startIndex =
+                            _currentPage * _itemsPerPage;
+                        final endIndex =
+                            (startIndex + _itemsPerPage)
+                                .clamp(0, filtered.length);
+                        final paginatedList =
+                            filtered.sublist(startIndex, endIndex);
+
                         return GridView.builder(
                           shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
+                          physics:
+                              const NeverScrollableScrollPhysics(),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
@@ -1027,14 +1046,15 @@ class _HerdSectionState extends State<_HerdSection> {
                           itemBuilder: (context, index) {
                             return AnimalCard(
                               animal: paginatedList[index],
-                              repository: context.read<AnimalRepository>(),
                               onEdit: (animal) =>
                                   _showAnimalForm(context, animal: animal),
                               onDeleteCascade: (animal) async {
-                                await AnimalDeleteCascade.delete(animal.id);
+                                await context.read<AnimalDeleteCascade>().delete(animal.id);
                                 final svc = context.read<AnimalService>();
-                                await svc.loadData();        // recarrega do banco
-                                if (mounted) setState(() {}); // atualiza a UI
+                                await svc.loadData(); // recarrega
+                                if (mounted) {
+                                  setState(() {});
+                                }
                               },
                             );
                           },
@@ -1050,18 +1070,15 @@ class _HerdSectionState extends State<_HerdSection> {
     );
   }
 
-  List<dynamic> _filter(List<dynamic> animals, String q) {
+  List<Animal> _filter(List<Animal> animals, String q) {
     if (q.isEmpty) return animals;
     return animals.where((animal) {
       final name = animal.name.toLowerCase();
       final code = animal.code.toLowerCase();
-      final category = (animal.category).toLowerCase();
+      final category = animal.category.toLowerCase();
       final breed = animal.breed.toLowerCase();
       // Busca exata - retorna apenas se algum campo for exatamente igual ao termo buscado
-      return name == q ||
-          code == q ||
-          category == q ||
-          breed == q;
+      return name == q || code == q || category == q || breed == q;
     }).toList();
   }
 
@@ -1071,8 +1088,10 @@ class _HerdSectionState extends State<_HerdSection> {
         children: [
           Icon(Icons.pets, size: 64, color: theme.colorScheme.outline),
           const SizedBox(height: 16),
-          Text('Nenhum animal cadastrado',
-              style: theme.textTheme.headlineSmall),
+          Text(
+            'Nenhum animal cadastrado',
+            style: theme.textTheme.headlineSmall,
+          ),
           const SizedBox(height: 8),
           Text(
             'Adicione o primeiro animal ao rebanho',
@@ -1087,10 +1106,9 @@ class _HerdSectionState extends State<_HerdSection> {
         ],
       ),
     );
-    // Mantém a experiência visual que você já tinha
   }
 
-  void _showAnimalForm(BuildContext context, {animal}) {
+  void _showAnimalForm(BuildContext context, {Animal? animal}) {
     showDialog(
       context: context,
       builder: (context) => AnimalFormDialog(animal: animal),
@@ -1103,7 +1121,7 @@ class TabData {
   final IconData icon;
   final String label;
 
-  TabData({
+  const TabData({
     required this.title,
     required this.icon,
     required this.label,
@@ -1161,7 +1179,9 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                     setState(() => _selectedAnimalId = value);
                   },
                   validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Selecione um animal';
+                    if (value?.isEmpty ?? true) {
+                      return 'Selecione um animal';
+                    }
                     return null;
                   },
                 ),
@@ -1175,7 +1195,9 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Campo obrigatório';
+                    if (value?.isEmpty ?? true) {
+                      return 'Campo obrigatório';
+                    }
                     return null;
                   },
                 ),
@@ -1199,7 +1221,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                       context: context,
                       initialDate: _scheduledDate,
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365)),
                     );
                     if (date != null) {
                       setState(() => _scheduledDate = date);
@@ -1255,39 +1278,49 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     );
   }
 
-  void _save() async {
-    if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() ||
+        _selectedAnimalId == null) {
+      return;
+    }
 
     try {
       final now = DateTime.now().toIso8601String();
+      final scheduledDateStr =
+          _scheduledDate.toIso8601String().split('T')[0];
 
-      final medication = {
+      final medication = <String, dynamic>{
         'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId!,
         'medication_name': _nameController.text,
-        'date': _scheduledDate.toIso8601String().split('T')[0],
+        'date': scheduledDateStr,
         'next_date': _scheduledDate
             .add(const Duration(days: 30))
             .toIso8601String()
             .split('T')[0],
-        'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
+        'dosage': _dosageController.text.isEmpty
+            ? null
+            : _dosageController.text,
         'veterinarian': _veterinarianController.text.isEmpty
             ? null
             : _veterinarianController.text,
         'notes':
             _notesController.text.isEmpty ? null : _notesController.text,
         'created_at': now,
+        // status será 'Agendado' pelo default da tabela
       };
 
-      await DatabaseService.createMedication(medication);
+      await context.read<MedicationService>().createMedication(medication);
 
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Medicamento agendado com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
+            content:
+                const Text('Medicamento agendado com sucesso!'),
+            backgroundColor:
+                Theme.of(context).colorScheme.primary,
           ),
         );
       }
@@ -1296,7 +1329,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            backgroundColor:
+                Theme.of(context).colorScheme.error,
           ),
         );
       }

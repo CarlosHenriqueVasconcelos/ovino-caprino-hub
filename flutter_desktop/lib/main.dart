@@ -1,16 +1,17 @@
 // flutter_desktop/lib/main.dart
 import 'dart:async';
-import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
+
+// Services
 import 'services/animal_service.dart';
 import 'services/pharmacy_service.dart';
 import 'services/feeding_service.dart';
@@ -18,6 +19,17 @@ import 'services/weight_service.dart';
 import 'services/weight_alert_service.dart';
 import 'services/medication_service.dart';
 import 'services/vaccination_service.dart';
+import 'services/backup_service.dart';
+import 'services/note_service.dart';
+import 'services/animal_history_service.dart';
+import 'services/system_maintenance_service.dart';
+import 'services/breeding_service.dart';    // Reprodução
+import 'services/financial_service.dart';  // Financeiro
+import 'services/animal_delete_cascade.dart';
+import 'services/deceased_service.dart';   // ✅ novo service de óbitos
+import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
+
+// Data / DB
 import 'data/local_db.dart';
 import 'data/animal_repository.dart';
 import 'data/pharmacy_repository.dart';
@@ -27,16 +39,14 @@ import 'data/feeding_repository.dart';
 import 'data/vaccination_repository.dart';
 import 'data/medication_repository.dart';
 import 'data/note_repository.dart';
-import 'services/backup_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-    Intl.defaultLocale = 'pt_BR';
+  Intl.defaultLocale = 'pt_BR';
   await initializeDateFormatting('pt_BR', null);
 
   // ============ Ganchos globais de erro ============
   FlutterError.onError = (FlutterErrorDetails details) {
-    // Mostra o erro vermelho e também manda pro Zone
     FlutterError.presentError(details);
     if (details.stack != null) {
       Zone.current.handleUncaughtError(details.exception, details.stack!);
@@ -45,27 +55,21 @@ Future<void> main() async {
     }
   };
 
-  
-
   // ============ Inicialização sob runZonedGuarded ============
   await runZonedGuarded<Future<void>>(() async {
-    // SQFLite FFI desktop
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-    }
-
     // Supabase (somente para backup manual)
     const supabaseUrl = 'https://heueripmlmuvqdbwyxxs.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWVyaXBtbG11dnFkYnd5eHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjU2NzEsImV4cCI6MjA3MzAwMTY3MX0.KWvjNAVqnjqFgjfOz95QU4gOEMxIBHD2yxaRMlgnxEw';
+    const supabaseAnonKey =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWVyaXBtbG11dnFkYnd5eHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjU2NzEsImV4cCI6MjA3MzAwMTY3MX0.KWvjNAVqnjqFgjfOz95QU4gOEMxIBHD2yxaRMlgnxEw';
+
     await Supabase.initialize(
       url: supabaseUrl,
       anonKey: supabaseAnonKey,
     );
 
-    // Abrir banco local e criar repositórios
+    // Abrir banco local (AppDatabase decide a factory correta: desktop/mobile)
     final appDb = await AppDatabase.open();
-    
+
     // Criar todos os repositórios
     final animalRepository = AnimalRepository(appDb);
     final pharmacyRepository = PharmacyRepository(appDb);
@@ -75,25 +79,28 @@ Future<void> main() async {
     final vaccinationRepository = VaccinationRepository(appDb);
     final medicationRepository = MedicationRepository(appDb);
     final noteRepository = NoteRepository(appDb);
-    
+
+    // Backup (Supabase como espelho/backup)
     final backupService = BackupService(
       db: appDb,
       supabaseUrl: supabaseUrl,
       supabaseAnonKey: supabaseAnonKey,
     );
 
-    runApp(FazendaSaoPetronioApp(
-      db: appDb,
-      animalRepository: animalRepository,
-      pharmacyRepository: pharmacyRepository,
-      breedingRepository: breedingRepository,
-      financeRepository: financeRepository,
-      feedingRepository: feedingRepository,
-      vaccinationRepository: vaccinationRepository,
-      medicationRepository: medicationRepository,
-      noteRepository: noteRepository,
-      backup: backupService,
-    ));
+    runApp(
+      FazendaSaoPetronioApp(
+        db: appDb,
+        animalRepository: animalRepository,
+        pharmacyRepository: pharmacyRepository,
+        breedingRepository: breedingRepository,
+        financeRepository: financeRepository,
+        feedingRepository: feedingRepository,
+        vaccinationRepository: vaccinationRepository,
+        medicationRepository: medicationRepository,
+        noteRepository: noteRepository,
+        backup: backupService,
+      ),
+    );
   }, (error, stack) {
     debugPrint('=== Uncaught error ===');
     debugPrint('$error');
@@ -112,7 +119,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
   final MedicationRepository medicationRepository;
   final NoteRepository noteRepository;
   final BackupService backup;
-  
+
   const FazendaSaoPetronioApp({
     super.key,
     required this.db,
@@ -134,7 +141,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         // Database e Backup
         Provider<AppDatabase>.value(value: db),
         Provider<BackupService>.value(value: backup),
-        
+
         // Repositórios
         Provider<AnimalRepository>.value(value: animalRepository),
         Provider<PharmacyRepository>.value(value: pharmacyRepository),
@@ -144,9 +151,13 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<VaccinationRepository>.value(value: vaccinationRepository),
         Provider<MedicationRepository>.value(value: medicationRepository),
         Provider<NoteRepository>.value(value: noteRepository),
-        
-        // Services (com injeção de dependência)
-        ChangeNotifierProvider(create: (_) => AnimalService()),
+
+        // Services
+        ChangeNotifierProvider(
+          create: (context) => AnimalService(
+            context.read<AppDatabase>(),
+          ),
+        ),
         ChangeNotifierProvider(
           create: (context) => PharmacyService(
             context.read<PharmacyRepository>(),
@@ -175,6 +186,55 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => VaccinationService(
             context.read<VaccinationRepository>(),
+            context.read<AppDatabase>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => NoteService(
+            context.read<NoteRepository>(),
+          ),
+        ),
+
+        // BreedingService: usa BreedingRepository + AnimalRepository
+        ChangeNotifierProvider(
+          create: (context) => BreedingService(
+            context.read<BreedingRepository>(),
+            context.read<AnimalRepository>(),
+          ),
+        ),
+
+        // FinancialService: utilitário (ainda usa DB direto internamente)
+        Provider<FinancialService>(
+          create: (context) => FinancialService(),
+        ),
+
+        Provider<AnimalHistoryService>(
+          create: (context) => AnimalHistoryService(
+            context.read<AppDatabase>(),
+          ),
+        ),
+        Provider<SystemMaintenanceService>(
+          create: (context) => SystemMaintenanceService(
+            context.read<AppDatabase>(),
+          ),
+        ),
+        Provider<AnimalDeleteCascade>(
+          create: (context) => AnimalDeleteCascade(
+            context.read<AppDatabase>(),
+          ),
+        ),
+
+        // ✅ Óbitos (deceased_animals)
+        ChangeNotifierProvider(
+          create: (context) => DeceasedService(
+            context.read<AppDatabase>(),
+          ),
+        ),
+
+        // ✅ Vendidos (sold_animals)
+        ChangeNotifierProvider(
+          create: (context) => SoldAnimalsService(
+            context.read<AppDatabase>(),
           ),
         ),
       ],

@@ -1,13 +1,21 @@
-import 'package:sqflite/sqflite.dart';
+// lib/services/financial_service.dart
+import 'package:sqflite_common/sqlite_api.dart' show Database, ConflictAlgorithm;
+
+import '../data/local_db.dart';
 import '../models/financial_account.dart';
-import 'database_service.dart';
-import 'sale_hooks.dart'; // <-- integra o hook de venda
+
 
 class FinancialService {
-  // Garante que a tabela/índices existem
-  static Future<void> _ensureTablesExist() async {
-    final db = await DatabaseService.database;
+  // Obtém o Database e garante que as tabelas existam
+  static Future<Database> _getDb() async {
+    final appDb = await AppDatabase.open();
+    final db = appDb.db;
+    await _ensureTablesExist(db);
+    return db;
+  }
 
+  // Garante que a tabela/índices existem
+  static Future<void> _ensureTablesExist(Database db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS financial_accounts (
         id TEXT PRIMARY KEY,
@@ -52,10 +60,13 @@ class FinancialService {
     );
   }
 
+  // Helper para data yyyy-MM-dd
+  static String _dateStr(DateTime d) => d.toIso8601String().split('T')[0];
+
   // ========== CRUD ==========
+
   static Future<void> createAccount(FinancialAccount account) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     await db.insert(
       'financial_accounts',
@@ -64,12 +75,11 @@ class FinancialService {
     );
 
     // Se for "Venda de Animais", atualiza o status do animal
-    await handleAnimalSaleIfApplicable(account);
+    
   }
 
   static Future<void> updateAccount(FinancialAccount account) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     await db.update(
       'financial_accounts',
@@ -78,13 +88,11 @@ class FinancialService {
       whereArgs: [account.id],
     );
 
-    // Reexecuta o hook (ex.: quando muda paymentDate/status)
-    await handleAnimalSaleIfApplicable(account);
+  
   }
 
   static Future<void> deleteAccount(String id) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
     await db.delete(
       'financial_accounts',
       where: 'id = ?',
@@ -94,8 +102,7 @@ class FinancialService {
   }
 
   static Future<FinancialAccount> getById(String id) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     final res = await db.query(
       'financial_accounts',
@@ -110,8 +117,7 @@ class FinancialService {
   }
 
   static Future<List<FinancialAccount>> getAllAccounts() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     final res = await db.query(
       'financial_accounts',
@@ -121,10 +127,19 @@ class FinancialService {
   }
 
   static Future<void> markAsPaid(String id, DateTime paymentDate) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
-    final acc = await getById(id);
+    final res = await db.query(
+      'financial_accounts',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (res.isEmpty) {
+      throw Exception('FinancialAccount $id não encontrado');
+    }
+
+    final acc = FinancialAccount.fromMap(res.first);
     final updated = acc.copyWith(
       status: 'Pago',
       paymentDate: paymentDate,
@@ -138,16 +153,14 @@ class FinancialService {
       whereArgs: [id],
     );
 
-    // Se for venda de animal, garante exit_date com paymentDate
-    await handleAnimalSaleIfApplicable(updated);
+
   }
 
   // ========== STATUS VENCIDO ==========
-  static Future<void> updateOverdueStatus() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
 
-    final today = DateTime.now().toIso8601String().split('T')[0];
+  static Future<void> updateOverdueStatus() async {
+    final db = await _getDb();
+    final today = _dateStr(DateTime.now());
 
     // Pendente que já passou da data => Vencido
     await db.rawUpdate(
@@ -165,9 +178,10 @@ class FinancialService {
   }
 
   // ========== DASHBOARD ==========
+
   static Future<Map<String, dynamic>> getDashboardStats() async {
     await updateOverdueStatus();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
     final today = DateTime.now();
     final firstDayOfMonth = DateTime(today.year, today.month, 1);
     final lastDayOfMonth = DateTime(today.year, today.month + 1, 0);
@@ -183,10 +197,13 @@ class FinancialService {
 
     // A vencer nos próximos 7 dias (receita + despesa)
     final next7 = today.add(const Duration(days: 7));
+    final todayStr = _dateStr(today);
+    final next7Str = _dateStr(next7);
+
     final upcomingResult = await db.rawQuery(
       "SELECT SUM(amount) as total FROM financial_accounts "
       "WHERE status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
-      [today.toIso8601String().split('T')[0], next7.toIso8601String().split('T')[0]],
+      [todayStr, next7Str],
     );
     final totalUpcoming =
         (upcomingResult.first['total'] as num?)?.toDouble() ?? 0.0;
@@ -194,7 +211,7 @@ class FinancialService {
     final countUpcomingRes = await db.rawQuery(
       "SELECT COUNT(*) as c FROM financial_accounts "
       "WHERE status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
-      [today.toIso8601String().split('T')[0], next7.toIso8601String().split('T')[0]],
+      [todayStr, next7Str],
     );
     final countUpcoming = (countUpcomingRes.first['c'] as num?)?.toInt() ?? 0;
 
@@ -211,14 +228,14 @@ class FinancialService {
     final countOverdue = (countOverdueRes.first['c'] as num?)?.toInt() ?? 0;
 
     // Receitas e despesas PAGAS no mês
+    final firstMonthStr = _dateStr(firstDayOfMonth);
+    final lastMonthStr = _dateStr(lastDayOfMonth);
+
     final revenueResult = await db.rawQuery(
       "SELECT SUM(amount) as total FROM financial_accounts "
       "WHERE status = 'Pago' AND type = 'receita' "
       "AND date(payment_date) >= date(?) AND date(payment_date) <= date(?)",
-      [
-        firstDayOfMonth.toIso8601String().split('T')[0],
-        lastDayOfMonth.toIso8601String().split('T')[0]
-      ],
+      [firstMonthStr, lastMonthStr],
     );
     final totalRevenue =
         (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
@@ -227,10 +244,7 @@ class FinancialService {
       "SELECT SUM(amount) as total FROM financial_accounts "
       "WHERE status = 'Pago' AND type = 'despesa' "
       "AND date(payment_date) >= date(?) AND date(payment_date) <= date(?)",
-      [
-        firstDayOfMonth.toIso8601String().split('T')[0],
-        lastDayOfMonth.toIso8601String().split('T')[0]
-      ],
+      [firstMonthStr, lastMonthStr],
     );
     final totalExpense =
         (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
@@ -252,8 +266,7 @@ class FinancialService {
 
   // Próximos N dias (pendentes)
   static Future<List<FinancialAccount>> getUpcomingAccounts(int days) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     final today = DateTime.now();
     final limit = today.add(Duration(days: days));
@@ -263,8 +276,8 @@ class FinancialService {
       where:
           "status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
       whereArgs: [
-        today.toIso8601String().split('T')[0],
-        limit.toIso8601String().split('T')[0],
+        _dateStr(today),
+        _dateStr(limit),
       ],
       orderBy: 'date(due_date) ASC',
     );
@@ -274,8 +287,7 @@ class FinancialService {
 
   // Vencidos
   static Future<List<FinancialAccount>> getOverdueAccounts() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
 
     final res = await db.query(
       'financial_accounts',
@@ -286,11 +298,11 @@ class FinancialService {
   }
 
   // ========== RECORRENTES ==========
+
   // Gera SEMPRE a próxima "filha" a partir do último vencimento existente
   static Future<void> generateRecurringAccounts() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    final todayStr = DateTime.now().toIso8601String().split('T')[0];
+    final db = await _getDb();
+    final todayStr = _dateStr(DateTime.now());
 
     // Seleciona apenas as "mães" (sem parent_id) ativas
     final List<Map<String, dynamic>> maps = await db.query(
@@ -339,7 +351,7 @@ class FinancialService {
       final existing = await db.query(
         'financial_accounts',
         where: 'parent_id = ? AND date(due_date) = date(?)',
-        whereArgs: [mother.id, nextDue.toIso8601String().split('T')[0]],
+        whereArgs: [mother.id, _dateStr(nextDue)],
       );
       if (existing.isNotEmpty) continue;
 
@@ -349,7 +361,7 @@ class FinancialService {
         'category': mother.category,
         'description': mother.description,
         'amount': mother.amount,
-        'due_date': nextDue.toIso8601String().split('T')[0],
+        'due_date': _dateStr(nextDue),
         'payment_date': null,
         'status': 'Pendente',
         'payment_method': mother.paymentMethod,
@@ -373,8 +385,7 @@ class FinancialService {
 
   // Lista apenas as "mães" recorrentes (útil para a tela)
   static Future<List<FinancialAccount>> getRecurringMothers() async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+    final db = await _getDb();
     final res = await db.query(
       'financial_accounts',
       where: 'is_recurring = 1 AND parent_id IS NULL',
@@ -385,16 +396,24 @@ class FinancialService {
 
   // Exclui a recorrência inteira: primeiro as filhas, depois a mãe
   static Future<void> deleteRecurringCascade(String motherId) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
-    await db.delete('financial_accounts', where: 'parent_id = ?', whereArgs: [motherId]);
-    await db.delete('financial_accounts', where: 'id = ?', whereArgs: [motherId]);
+    final db = await _getDb();
+    await db.delete(
+      'financial_accounts',
+      where: 'parent_id = ?',
+      whereArgs: [motherId],
+    );
+    await db.delete(
+      'financial_accounts',
+      where: 'id = ?',
+      whereArgs: [motherId],
+    );
   }
 
   // ========== PROJEÇÃO FLUXO DE CAIXA ==========
-  static Future<List<Map<String, dynamic>>> getCashFlowProjection(int months) async {
-    await _ensureTablesExist();
-    final db = await DatabaseService.database;
+
+  static Future<List<Map<String, dynamic>>> getCashFlowProjection(
+      int months) async {
+    final db = await _getDb();
     final today = DateTime.now();
     final List<Map<String, dynamic>> projection = [];
 
@@ -407,22 +426,24 @@ class FinancialService {
         'WHERE type = ? AND date(due_date) >= date(?) AND date(due_date) < date(?)',
         [
           'receita',
-          month.toIso8601String().split('T')[0],
-          nextMonth.toIso8601String().split('T')[0]
+          _dateStr(month),
+          _dateStr(nextMonth),
         ],
       );
-      final revenue = (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
+      final revenue =
+          (revenueResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
       final expenseResult = await db.rawQuery(
         'SELECT SUM(amount) as total FROM financial_accounts '
         'WHERE type = ? AND date(due_date) >= date(?) AND date(due_date) < date(?)',
         [
           'despesa',
-          month.toIso8601String().split('T')[0],
-          nextMonth.toIso8601String().split('T')[0]
+          _dateStr(month),
+          _dateStr(nextMonth),
         ],
       );
-      final expense = (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
+      final expense =
+          (expenseResult.first['total'] as num?)?.toDouble() ?? 0.0;
 
       projection.add({
         'month': month,
@@ -433,5 +454,35 @@ class FinancialService {
     }
 
     return projection;
+  }
+
+  // ========== ADAPTADOR PARA A TELA (INSTANCE METHOD) ==========
+
+  /// Método de instância usado pela `_FinancialTab` no ManagementScreen.
+  ///
+  /// Ele converte a lista de `FinancialAccount` em `List<Map<String, dynamic>>`
+  /// com as chaves esperadas pela tela: `type`, `category`, `description`,
+  /// `amount`, `date` (mapeada a partir de `due_date`).
+  Future<List<Map<String, dynamic>>> getFinancialRecords() async {
+    final accounts = await FinancialService.getAllAccounts();
+
+    return accounts.map((acc) {
+      final dueStr = _dateStr(acc.dueDate);
+      return <String, dynamic>{
+        'id': acc.id,
+        'type': acc.type,
+        'category': acc.category,
+        'description': acc.description,
+        'amount': acc.amount,
+        // campo que o ManagementScreen usa para exibir a data:
+        'date': dueStr,
+        // mantemos também o due_date original, se você quiser usar depois
+        'due_date': dueStr,
+        'status': acc.status,
+        'payment_date': acc.paymentDate != null
+            ? _dateStr(acc.paymentDate!)
+            : null,
+      };
+    }).toList();
   }
 }

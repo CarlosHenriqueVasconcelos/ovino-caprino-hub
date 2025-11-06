@@ -1,6 +1,7 @@
 // lib/widgets/vaccination_alerts.dart
 import 'package:flutter/material.dart';
-import '../data/local_db.dart';
+import 'package:provider/provider.dart';
+import '../services/vaccination_service.dart';
 import 'vaccination_form.dart';
 
 class VaccinationAlerts extends StatefulWidget {
@@ -37,59 +38,13 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         _error = null;
       });
 
-      final adb = await AppDatabase.open();
-      final db = adb.db;
+      final vaccinationService = context.read<VaccinationService>();
+      final data = await vaccinationService.getVaccinationAlerts();
 
-      // VACINAS — mantém sua regra original (status = 'Agendada')
-      final vacs = await db.rawQuery('''
-        SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
-        FROM vaccinations v
-        LEFT JOIN animals a ON a.id = v.animal_id
-        WHERE v.status = 'Agendada'
-        ORDER BY date(v.scheduled_date) ASC
-        LIMIT 200
-      ''');
-
-      // MEDICAÇÕES — usa a "data de compromisso" = COALESCE(date, next_date)
-      // Filtra por status Agendado e não aplicados
-      final medsRaw = await db.rawQuery('''
-        SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
-        FROM medications m
-        LEFT JOIN animals a ON a.id = m.animal_id
-        WHERE m.status = 'Agendado'
-        ORDER BY date(COALESCE(m.date, m.next_date)) ASC
-        LIMIT 500
-      ''');
-
-      // Filtra em Dart: só itens com data válida, até +30 dias,
-      // e que ainda NÃO estejam aplicados (se houver applied_date).
-      final today = DateTime.now();
-      final cut = DateTime(today.year, today.month, today.day).add(const Duration(days: 30));
-
-      DateTime? _parse(dynamic v) {
-        if (v == null) return null;
-        final s = v.toString().trim();
-        if (s.isEmpty) return null;
-        return DateTime.tryParse(s);
-      }
-
-      bool _notApplied(Map<String, dynamic> m) {
-        final ad = _parse(m['applied_date']);
-        return ad == null; // se não existe a coluna, m['applied_date'] será null → consideramos não aplicado
-      }
-
-      List<Map<String, dynamic>> _onlyUpcomingMeds = medsRaw.where((m) {
-        final when = _parse(m['date']) ?? _parse(m['next_date']); // 👈 aqui a mudança
-        if (when == null) return false;
-        final day = DateTime(when.year, when.month, when.day);
-        if (day.isAfter(cut)) return false;
-        if (!_notApplied(m)) return false;
-        return true;
-      }).toList();
-
+      if (!mounted) return;
       setState(() {
-        _vaccines = vacs;
-        _meds = _onlyUpcomingMeds;
+        _vaccines = data.vaccines;
+        _meds = data.meds;
 
         // Resetar páginas caso listas tenham mudado
         _vacPage = 0;
@@ -98,6 +53,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -162,8 +118,11 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             // Cabeçalho
             Row(
               children: [
-                Icon(Icons.notifications_active,
-                    color: theme.colorScheme.primary, size: 24),
+                Icon(
+                  Icons.notifications_active,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Alertas de Vacinação e Medicação',
@@ -203,7 +162,8 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Vacinas Agendadas',
                 total: _vaccines.length,
                 page: _vacPage,
-                onPrev: _vacPage > 0 ? () => setState(() => _vacPage--) : null,
+                onPrev:
+                    _vacPage > 0 ? () => setState(() => _vacPage--) : null,
                 onNext: (_vacPage + 1) * _pageSize < _vaccines.length
                     ? () => setState(() => _vacPage++)
                     : null,
@@ -222,7 +182,8 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Medicações (próximas)',
                 total: _meds.length,
                 page: _medPage,
-                onPrev: _medPage > 0 ? () => setState(() => _medPage--) : null,
+                onPrev:
+                    _medPage > 0 ? () => setState(() => _medPage--) : null,
                 onNext: (_medPage + 1) * _pageSize < _meds.length
                     ? () => setState(() => _medPage++)
                     : null,
@@ -249,14 +210,16 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                       Text(
                         'Nenhum alerta no momento',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color:
+                              theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Todas as vacinações e medicações estão em dia',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color:
+                              theme.colorScheme.onSurface.withOpacity(0.5),
                         ),
                       ),
                     ],
@@ -272,7 +235,9 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   // ---------- Paginação helpers ----------
 
   List<Map<String, dynamic>> _pagedSlice(
-      List<Map<String, dynamic>> list, int page) {
+    List<Map<String, dynamic>> list,
+    int page,
+  ) {
     final start = page * _pageSize;
     if (start >= list.length) return const [];
     final end = ((page + 1) * _pageSize).clamp(0, list.length);
@@ -308,8 +273,9 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         const SizedBox(width: 8),
         Text(
           '$start–$end de $total',
-          style: theme.textTheme.labelMedium
-              ?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
         ),
         const SizedBox(width: 8),
         IconButton(
@@ -328,8 +294,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
   // ---------- Chips / UI pequenos ----------
 
-  Widget _counterChip(ThemeData theme,
-      {required String label, required int value, required Color color}) {
+  Widget _counterChip(
+    ThemeData theme, {
+    required String label,
+    required int value,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -362,7 +332,10 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   // ---------- Renders das linhas ----------
 
   Widget _vaccineTile(
-      BuildContext context, ThemeData theme, Map<String, dynamic> row) {
+    BuildContext context,
+    ThemeData theme,
+    Map<String, dynamic> row,
+  ) {
     final animalName = (row['animal_name'] ?? '').toString();
     final animalCode = (row['animal_code'] ?? '').toString();
     final animalColor = (row['animal_color'] ?? '').toString();
@@ -392,9 +365,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$animalColor - $animalName($animalCode)',
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  '$animalColor - $animalName($animalCode)',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Vacina: $vaccineName',
@@ -425,13 +401,16 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   }
 
   Widget _medTile(
-      BuildContext context, ThemeData theme, Map<String, dynamic> row) {
+    BuildContext context,
+    ThemeData theme,
+    Map<String, dynamic> row,
+  ) {
     final animalName = (row['animal_name'] ?? '').toString();
     final animalCode = (row['animal_code'] ?? '').toString();
     final animalColor = (row['animal_color'] ?? '').toString();
     final medName = (row['medication_name'] ?? '').toString();
 
-    // 👇 usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
+    // Usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
     final when = _parseDate(row['date']) ?? _parseDate(row['next_date']);
     final days = _daysFromNow(when);
 
@@ -457,9 +436,12 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$animalColor - $animalName($animalCode)',
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  '$animalColor - $animalName($animalCode)',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Medicação: $medName',

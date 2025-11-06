@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/animal.dart';
 import 'animal_history_dialog.dart';
 import '../data/animal_repository.dart';
 import '../services/animal_service.dart';
-import '../services/data_refresh_bus.dart';
+
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;

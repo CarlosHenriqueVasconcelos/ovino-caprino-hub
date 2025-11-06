@@ -1,21 +1,59 @@
 // lib/services/animal_delete_cascade.dart
+//
 // Exclusão "forte": remove o animal e TODOS os registros relacionados
 // (pesos, vacinas, medicações, notas, financeiro, reprodução). Use com cautela.
 
-import 'package:sqflite_common/sqlite_api.dart';
-import 'database_service.dart';
+import '../data/local_db.dart'; // AppDatabase
 
 class AnimalDeleteCascade {
-  static Future<void> delete(String animalId) async {
-    final db = await DatabaseService.database;
+  final AppDatabase _appDatabase;
+
+  AnimalDeleteCascade(this._appDatabase);
+
+  /// Exclui o animal [animalId] e todos os registros relacionados.
+  ///
+  /// IMPORTANTE:
+  /// - Essa operação é destrutiva e não pode ser desfeita.
+  /// - Envolve múltiplas tabelas dentro de uma transação.
+  Future<void> delete(String animalId) async {
+    final db = _appDatabase.db;
 
     await db.transaction((txn) async {
-      await txn.delete('animal_weights', where: 'animal_id = ?', whereArgs: [animalId]);
-      await txn.delete('vaccinations',  where: 'animal_id = ?', whereArgs: [animalId]);
-      await txn.delete('medications',   where: 'animal_id = ?', whereArgs: [animalId]);
-      await txn.delete('notes',         where: 'animal_id = ?', whereArgs: [animalId]);
-      await txn.delete('financial_records',  where: 'animal_id = ?', whereArgs: [animalId]);
-      await txn.delete('financial_accounts', where: 'animal_id = ?', whereArgs: [animalId]);
+      await txn.delete(
+        'animal_weights',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'vaccinations',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'medications',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'notes',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'financial_records',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'financial_accounts',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
 
       await txn.delete(
         'breeding_records',
@@ -23,7 +61,11 @@ class AnimalDeleteCascade {
         whereArgs: [animalId, animalId],
       );
 
-      await txn.delete('animals', where: 'id = ?', whereArgs: [animalId]);
+      await txn.delete(
+        'animals',
+        where: 'id = ?',
+        whereArgs: [animalId],
+      );
     });
   }
 }

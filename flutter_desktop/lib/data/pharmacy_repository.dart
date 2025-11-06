@@ -1,4 +1,3 @@
-import 'package:sqflite_common/sqlite_api.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
 import 'local_db.dart';

@@ -1,5 +1,8 @@
 // lib/widgets/repro_alerts_card.dart
+// lib/widgets/repro_alerts_card.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../services/breeding_service.dart';
 
 class ReproAlertsCard extends StatelessWidget {
@@ -16,7 +19,7 @@ class ReproAlertsCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: FutureBuilder<ReproBoardData>(
-          future: BreedingService.getBoard(daysAhead: daysAhead),
+          future: context.read<BreedingService>().getBoard(daysAhead: daysAhead),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return _Header(

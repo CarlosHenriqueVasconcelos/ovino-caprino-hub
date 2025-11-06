@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
-import '../data/animal_repository.dart';
 import '../models/animal.dart';
 import '../widgets/animal_card.dart';
 import '../widgets/animal_form.dart';
@@ -428,22 +427,17 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
                                           itemBuilder: (context, index) {
                                             return AnimalCard(
                                               animal: _filteredAnimals[index],
-                                              repository: context.read<AnimalRepository>(),
                                               onEdit: (animal) {
                                                 showDialog(
                                                   context: context,
                                                   builder: (context) => AnimalFormDialog(animal: animal),
                                                 );
                                               },
-                                               onDeleteCascade: (animal) async {
-                                                await AnimalDeleteCascade.delete(animal.id);
-                                                final svc = Provider.of<AnimalService>(context, listen: false);
-                                                await svc.loadData();                 // recarrega
-                                                setState(() {
-                                                  _performSearch(svc.animals);       // re-filtra a lista
-                                                });
+                                              onDeleteCascade: (animal) async {
+                                                await context.read<AnimalDeleteCascade>().delete(animal.id);
+                                                await animalService.loadData();
+                                                _applyFilters();
                                               },
-
                                             );
                                           },
                                         ),
@@ -460,6 +454,11 @@ class _AdvancedSearchDialogState extends State<AdvancedSearchDialog> {
         ),
       ),
     );
+  }
+
+  void _applyFilters() {
+    final animalService = context.read<AnimalService>();
+    _performSearch(animalService.animals);
   }
 
   void _performSearch(List<Animal> allAnimals) {
