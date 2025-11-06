@@ -9,22 +9,30 @@ class SystemMaintenanceService {
 
   /// Apaga TODOS os dados locais.
   ///
-  /// A ordem importa por causa de FKs – usa a mesma sequência que você já tinha
-  /// no `SystemSettingsScreen`.
+  /// A ordem respeita as foreign keys para evitar constraint errors.
+  /// Tabelas referenciadas devem ser deletadas por último.
   Future<void> clearAllData() async {
     final db = _appDb.db;
 
+    // Ordem correta: tabelas dependentes primeiro, tabelas referenciadas por último
     const wipeOrder = <String>[
-      'animal_weights',
-      'breeding_records',
-      'vaccinations',
-      'medications',
-      'notes',
-      'financial_records',
-      'financial_accounts',
-      'reports',
-      'push_tokens',
-      'animals',
+      'pharmacy_stock_movements',  // referencia medications e pharmacy_stock
+      'feeding_schedules',         // referencia feeding_pens
+      'animal_weights',            // referencia animals
+      'weight_alerts',             // referencia animals
+      'breeding_records',          // referencia animals
+      'vaccinations',              // referencia animals
+      'medications',               // referencia animals e pharmacy_stock
+      'notes',                     // referencia animals
+      'financial_records',         // referencia animals
+      'financial_accounts',        // referencia animals e parent_id
+      'feeding_pens',              // sem dependências
+      'pharmacy_stock',            // sem dependências
+      'reports',                   // sem dependências
+      'push_tokens',               // sem dependências
+      'sold_animals',              // sem dependências
+      'deceased_animals',          // sem dependências
+      'animals',                   // por último - referenciado por muitas tabelas
     ];
 
     await db.transaction((txn) async {
