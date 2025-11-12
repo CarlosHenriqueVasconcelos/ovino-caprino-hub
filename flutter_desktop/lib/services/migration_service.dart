@@ -43,6 +43,14 @@ class MigrationService {
       print('✓ Migração v5 aplicada: Campo father_id adicionado');
     }
 
+    // Migração v6: Adicionar índices para otimizar consultas
+    if (currentVersion < 6) {
+      await _runMigrationV6(db);
+      await db.insert('schema_migrations', {'version': 6});
+      // ignore: avoid_print
+      print('✓ Migração v6 aplicada: Índices de performance adicionados');
+    }
+
     // Migração v7: Adicionar campo opened_quantity na tabela pharmacy_stock
     if (currentVersion < 7) {
       await _runMigrationV7(db);
@@ -117,6 +125,69 @@ class MigrationService {
       } catch (_) {
         // Coluna já existe
       }
+    });
+  }
+
+  /// Migração v6: Adicionar índices para otimizar consultas SQL
+  static Future<void> _runMigrationV6(Database db) async {
+    await db.transaction((txn) async {
+      // Índices para vaccinations
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date)');
+
+      // Índices para medications
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date)');
+
+      // Índices para animals
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code)');
+
+      // Índices para breeding_records
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id)');
+
+      // Índices para weight_alerts
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id)');
+
+      // Índices para animal_weights
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_id ON animal_weights(animal_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date)');
+
+      // Índices para financial_accounts
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_financial_accounts_status ON financial_accounts(status)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_financial_accounts_type ON financial_accounts(type)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_financial_accounts_due_date ON financial_accounts(due_date)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_financial_accounts_animal_id ON financial_accounts(animal_id)');
+
+      // Índices para notes
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read)');
+
+      // Índices para feeding_schedules
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_feeding_schedules_pen_id ON feeding_schedules(pen_id)');
+
+      // Índices para pharmacy_stock
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_medication_name ON pharmacy_stock(medication_name)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration_date ON pharmacy_stock(expiration_date)');
+
+      // Índices para pharmacy_stock_movements
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id)');
+      await txn.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_movements_medication_id ON pharmacy_stock_movements(medication_id)');
     });
   }
 
