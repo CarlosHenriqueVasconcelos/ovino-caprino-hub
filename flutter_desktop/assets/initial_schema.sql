@@ -127,17 +127,38 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 -- Índices para melhor performance
+-- Índices para otimização de performance
 CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);
 CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);
 CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);
+CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);
+CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);
+CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);
+CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name);
 CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);
+
 CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);
 CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);
+CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);
+CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);
+
 CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);
 CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);
+CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);
+CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);
+
 CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);
 CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);
 CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);
+CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);
+
 CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);
+CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);
+CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);
+CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);
+
 CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);
 CREATE INDEX IF NOT EXISTS idx_financial_type ON financial_records(type);
+
+CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);
+CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);

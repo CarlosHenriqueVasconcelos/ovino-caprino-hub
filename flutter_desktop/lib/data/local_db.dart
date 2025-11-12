@@ -96,6 +96,10 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE);');
 
     // -------- animal_weights
     await db.execute('''
@@ -111,6 +115,7 @@ class AppDatabase {
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);');
 
     // -------- breeding_records
     await db.execute('''
@@ -139,6 +144,8 @@ class AppDatabase {
 
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);');
 
     // === Trigger: traduz stage -> status na inserção ===
     await db.execute('''
@@ -334,6 +341,9 @@ class AppDatabase {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_pharmacy_stock ON medications(pharmacy_stock_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);');
 
     // -------- notes
     await db.execute('''
@@ -353,6 +363,9 @@ class AppDatabase {
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);');
 
     // -------- reports
     await db.execute('''
@@ -424,6 +437,9 @@ class AppDatabase {
       );
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);');
 
     // -------- sold_animals (animais vendidos)
     await db.execute('''
@@ -509,6 +525,7 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id);');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date);');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);');
 
     // ==========================
     // ====== TRIGGERS ==========
