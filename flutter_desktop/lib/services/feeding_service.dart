@@ -32,7 +32,7 @@ class FeedingService extends ChangeNotifier {
 
     try {
       _pens = await _repository.getAllPens();
-      
+
       // Carregar schedules para cada baia
       for (final pen in _pens) {
         _schedulesByPen[pen.id] = await _repository.getSchedulesByPenId(pen.id);
@@ -89,11 +89,11 @@ class FeedingService extends ChangeNotifier {
   Future<void> addSchedule(FeedingSchedule schedule) async {
     try {
       await _repository.insertSchedule(schedule);
-      
+
       // Recarregar schedules da baia específica
-      _schedulesByPen[schedule.penId] = 
+      _schedulesByPen[schedule.penId] =
           await _repository.getSchedulesByPenId(schedule.penId);
-      
+
       notifyListeners();
     } catch (e) {
       _error = 'Erro ao adicionar trato: $e';
@@ -107,11 +107,11 @@ class FeedingService extends ChangeNotifier {
   Future<void> updateSchedule(FeedingSchedule schedule) async {
     try {
       await _repository.updateSchedule(schedule);
-      
+
       // Recarregar schedules da baia específica
-      _schedulesByPen[schedule.penId] = 
+      _schedulesByPen[schedule.penId] =
           await _repository.getSchedulesByPenId(schedule.penId);
-      
+
       notifyListeners();
     } catch (e) {
       _error = 'Erro ao atualizar trato: $e';
@@ -125,11 +125,10 @@ class FeedingService extends ChangeNotifier {
   Future<void> deleteSchedule(String scheduleId, String penId) async {
     try {
       await _repository.deleteSchedule(scheduleId);
-      
+
       // Recarregar schedules da baia específica
-      _schedulesByPen[penId] = 
-          await _repository.getSchedulesByPenId(penId);
-      
+      _schedulesByPen[penId] = await _repository.getSchedulesByPenId(penId);
+
       notifyListeners();
     } catch (e) {
       _error = 'Erro ao deletar trato: $e';

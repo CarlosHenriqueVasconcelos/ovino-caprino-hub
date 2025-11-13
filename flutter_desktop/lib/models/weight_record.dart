@@ -3,7 +3,8 @@ class WeightRecord {
   final String animalId;
   final DateTime date;
   final double weight;
-  final String? milestone; // 'birth', '30d', '60d', '90d', 'monthly_1' a 'monthly_5', 'manual'
+  final String?
+      milestone; // 'birth', '30d', '60d', '90d', 'monthly_1' a 'monthly_5', 'manual'
   final DateTime createdAt;
 
   WeightRecord({
@@ -22,7 +23,8 @@ class WeightRecord {
       date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
       weight: (map['weight'] is num) ? (map['weight'] as num).toDouble() : 0.0,
       milestone: map['milestone']?.toString(),
-      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 

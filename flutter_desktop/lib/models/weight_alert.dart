@@ -5,6 +5,7 @@ class WeightAlert {
   final DateTime dueDate;
   final bool completed;
   final DateTime createdAt;
+  final Map<String, dynamic> extra;
 
   WeightAlert({
     required this.id,
@@ -13,16 +14,20 @@ class WeightAlert {
     required this.dueDate,
     required this.completed,
     required this.createdAt,
-  });
+    Map<String, dynamic>? extra,
+  }) : extra = extra ?? const {};
 
   factory WeightAlert.fromMap(Map<String, dynamic> map) {
     return WeightAlert(
       id: map['id']?.toString() ?? '',
       animalId: map['animal_id']?.toString() ?? '',
       alertType: map['alert_type']?.toString() ?? '',
-      dueDate: DateTime.tryParse(map['due_date']?.toString() ?? '') ?? DateTime.now(),
+      dueDate: DateTime.tryParse(map['due_date']?.toString() ?? '') ??
+          DateTime.now(),
       completed: (map['completed'] == 1 || map['completed'] == true),
-      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      extra: Map<String, dynamic>.from(map),
     );
   }
 

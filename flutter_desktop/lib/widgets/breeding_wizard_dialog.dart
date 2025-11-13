@@ -174,8 +174,11 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                             return _females;
                           }
                           return _females.where((animal) {
-                            final searchText = textEditingValue.text.toLowerCase();
-                            return animal.code.toLowerCase().contains(searchText) ||
+                            final searchText =
+                                textEditingValue.text.toLowerCase();
+                            return animal.code
+                                    .toLowerCase()
+                                    .contains(searchText) ||
                                 animal.name.toLowerCase().contains(searchText);
                           });
                         },
@@ -202,8 +205,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     )
                                   : null,
                             ),
-                            validator: (value) =>
-                                _selectedFemale == null ? 'Selecione uma fêmea' : null,
+                            validator: (value) => _selectedFemale == null
+                                ? 'Selecione uma fêmea'
+                                : null,
                           );
                         },
                         optionsViewBuilder: (context, onSelected, options) {
@@ -212,7 +216,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                             child: Material(
                               elevation: 4,
                               child: Container(
-                                constraints: const BoxConstraints(maxHeight: 200),
+                                constraints:
+                                    const BoxConstraints(maxHeight: 200),
                                 width: 500,
                                 child: ListView.builder(
                                   padding: EdgeInsets.zero,
@@ -221,7 +226,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                   itemBuilder: (context, index) {
                                     final animal = options.elementAt(index);
                                     return ListTile(
-                                      title: AnimalDisplayUtils.buildDropdownItem(animal),
+                                      title:
+                                          AnimalDisplayUtils.buildDropdownItem(
+                                              animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },
@@ -241,8 +248,11 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                             return _males;
                           }
                           return _males.where((animal) {
-                            final searchText = textEditingValue.text.toLowerCase();
-                            return animal.code.toLowerCase().contains(searchText) ||
+                            final searchText =
+                                textEditingValue.text.toLowerCase();
+                            return animal.code
+                                    .toLowerCase()
+                                    .contains(searchText) ||
                                 animal.name.toLowerCase().contains(searchText);
                           });
                         },
@@ -269,8 +279,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                     )
                                   : null,
                             ),
-                            validator: (value) =>
-                                _selectedMale == null ? 'Selecione um macho' : null,
+                            validator: (value) => _selectedMale == null
+                                ? 'Selecione um macho'
+                                : null,
                           );
                         },
                         optionsViewBuilder: (context, onSelected, options) {
@@ -279,7 +290,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                             child: Material(
                               elevation: 4,
                               child: Container(
-                                constraints: const BoxConstraints(maxHeight: 200),
+                                constraints:
+                                    const BoxConstraints(maxHeight: 200),
                                 width: 500,
                                 child: ListView.builder(
                                   padding: EdgeInsets.zero,
@@ -288,7 +300,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                   itemBuilder: (context, index) {
                                     final animal = options.elementAt(index);
                                     return ListTile(
-                                      title: AnimalDisplayUtils.buildDropdownItem(animal),
+                                      title:
+                                          AnimalDisplayUtils.buildDropdownItem(
+                                              animal),
                                       onTap: () => onSelected(animal),
                                     );
                                   },

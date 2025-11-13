@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
 
-import '../data/local_db.dart';
+import '../data/medication_repository.dart';
 import '../data/vaccination_repository.dart';
 
 class VaccinationAlertsData {
@@ -17,34 +16,15 @@ class VaccinationAlertsData {
 /// Service para gerenciar vacinações
 class VaccinationService extends ChangeNotifier {
   final VaccinationRepository _repository;
-  final AppDatabase _appDb;
+  final MedicationRepository _medicationRepository;
 
-  VaccinationService(this._repository, this._appDb);
-
-  Database get _db => _appDb.db;
+  VaccinationService(this._repository, this._medicationRepository);
 
   /// ---------- BLOCO NOVO: ALERTAS (Vacinas + Medicações) ----------
 
   Future<VaccinationAlertsData> getVaccinationAlerts() async {
-    // VACINAS — mesma query do widget antigo
-    final vacs = await _db.rawQuery('''
-      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
-      FROM vaccinations v
-      LEFT JOIN animals a ON a.id = v.animal_id
-      WHERE v.status = 'Agendada'
-      ORDER BY date(v.scheduled_date) ASC
-      LIMIT 200
-    ''');
-
-    // MEDICAÇÕES — mesma query base do widget antigo
-    final medsRaw = await _db.rawQuery('''
-      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
-      FROM medications m
-      LEFT JOIN animals a ON a.id = m.animal_id
-      WHERE m.status = 'Agendado'
-      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
-      LIMIT 500
-    ''');
+    final vacs = await _repository.getScheduledWithAnimalInfo();
+    final medsRaw = await _medicationRepository.getScheduledWithAnimalInfo();
 
     DateTime? _parse(dynamic v) {
       if (v == null) return null;
@@ -89,6 +69,46 @@ class VaccinationService extends ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>>
+      getOverdueVaccinationsWithAnimalInfo() async {
+    try {
+      return await _repository.getOverdueWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar vacinações atrasadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getScheduledVaccinationsWithAnimalInfo() async {
+    try {
+      return await _repository.getScheduledWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar vacinações agendadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getAppliedVaccinationsWithAnimalInfo() async {
+    try {
+      return await _repository.getAppliedWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar vacinações aplicadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getCancelledVaccinationsWithAnimalInfo() async {
+    try {
+      return await _repository.getCancelledWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar vacinações canceladas com info: $e');
+      return [];
+    }
+  }
+
   /// Retorna uma vacinação por ID
   Future<Map<String, dynamic>?> getVaccinationById(String id) async {
     try {
@@ -100,7 +120,8 @@ class VaccinationService extends ChangeNotifier {
   }
 
   /// Retorna vacinações de um animal específico
-  Future<List<Map<String, dynamic>>> getVaccinationsByAnimalId(String animalId) async {
+  Future<List<Map<String, dynamic>>> getVaccinationsByAnimalId(
+      String animalId) async {
     try {
       return await _repository.getByAnimalId(animalId);
     } catch (e) {
@@ -120,7 +141,8 @@ class VaccinationService extends ChangeNotifier {
   }
 
   /// Retorna vacinações por status
-  Future<List<Map<String, dynamic>>> getVaccinationsByStatus(String status) async {
+  Future<List<Map<String, dynamic>>> getVaccinationsByStatus(
+      String status) async {
     try {
       return await _repository.getByStatus(status);
     } catch (e) {
@@ -140,7 +162,8 @@ class VaccinationService extends ChangeNotifier {
   }
 
   /// Retorna vacinações próximas (dentro de X dias)
-  Future<List<Map<String, dynamic>>> getUpcomingVaccinations(int daysThreshold) async {
+  Future<List<Map<String, dynamic>>> getUpcomingVaccinations(
+      int daysThreshold) async {
     try {
       return await _repository.getUpcoming(daysThreshold);
     } catch (e) {
@@ -163,7 +186,7 @@ class VaccinationService extends ChangeNotifier {
   Future<void> createVaccination(Map<String, dynamic> vaccination) async {
     try {
       final v = Map<String, dynamic>.from(vaccination);
-      
+
       // Normalizar datas
       v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
       v['applied_date'] = _toIsoDate(v['applied_date']);
@@ -182,13 +205,16 @@ class VaccinationService extends ChangeNotifier {
   }
 
   /// Atualiza uma vacinação
-  Future<void> updateVaccination(String id, Map<String, dynamic> updates) async {
+  Future<void> updateVaccination(
+      String id, Map<String, dynamic> updates) async {
     try {
       final v = Map<String, dynamic>.from(updates);
 
       // Normalizar datas
-      if (v.containsKey('scheduled_date')) v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
-      if (v.containsKey('applied_date')) v['applied_date'] = _toIsoDate(v['applied_date']);
+      if (v.containsKey('scheduled_date'))
+        v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
+      if (v.containsKey('applied_date'))
+        v['applied_date'] = _toIsoDate(v['applied_date']);
       v['updated_at'] = DateTime.now().toIso8601String();
 
       // Atualizar no banco local

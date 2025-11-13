@@ -6,7 +6,8 @@ class FinancialCashFlowScreen extends StatefulWidget {
   const FinancialCashFlowScreen({super.key});
 
   @override
-  State<FinancialCashFlowScreen> createState() => _FinancialCashFlowScreenState();
+  State<FinancialCashFlowScreen> createState() =>
+      _FinancialCashFlowScreenState();
 }
 
 class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
@@ -126,11 +127,13 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
                       )),
                       DataCell(Text(
                         _formatCurrency(revenue),
-                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.green, fontWeight: FontWeight.bold),
                       )),
                       DataCell(Text(
                         _formatCurrency(expense),
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                            color: Colors.red, fontWeight: FontWeight.bold),
                       )),
                       DataCell(Text(
                         _formatCurrency(balance),
@@ -162,7 +165,8 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
                       'Total Receitas Previstas',
                       _projection.fold<double>(
                         0,
-                        (sum, item) => sum + (item['revenue'] as num).toDouble(),
+                        (sum, item) =>
+                            sum + (item['revenue'] as num).toDouble(),
                       ),
                       Colors.green,
                     ),
@@ -170,7 +174,8 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
                       'Total Despesas Previstas',
                       _projection.fold<double>(
                         0,
-                        (sum, item) => sum + (item['expense'] as num).toDouble(),
+                        (sum, item) =>
+                            sum + (item['expense'] as num).toDouble(),
                       ),
                       Colors.red,
                     ),
@@ -179,7 +184,8 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
                       'Saldo Projetado Total',
                       _projection.fold<double>(
                         0,
-                        (sum, item) => sum + (item['balance'] as num).toDouble(),
+                        (sum, item) =>
+                            sum + (item['balance'] as num).toDouble(),
                       ),
                       null,
                     ),

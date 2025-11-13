@@ -9,7 +9,8 @@ class FinancialCompleteScreen extends StatefulWidget {
   const FinancialCompleteScreen({super.key});
 
   @override
-  State<FinancialCompleteScreen> createState() => _FinancialCompleteScreenState();
+  State<FinancialCompleteScreen> createState() =>
+      _FinancialCompleteScreenState();
 }
 
 class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
@@ -105,7 +106,8 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
                       if (input == expected) {
                         Navigator.pop(ctx, true);
                       } else {
-                        setState(() => error = 'Senha incorreta. Tente novamente.');
+                        setState(
+                            () => error = 'Senha incorreta. Tente novamente.');
                       }
                     },
                   ),
@@ -113,7 +115,8 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(ctx, false), // apenas fecha o diálogo
+                  onPressed: () =>
+                      Navigator.pop(ctx, false), // apenas fecha o diálogo
                   child: const Text('Cancelar'),
                 ),
                 FilledButton(
@@ -121,7 +124,8 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
                     if (input == expected) {
                       Navigator.pop(ctx, true);
                     } else {
-                      setState(() => error = 'Senha incorreta. Tente novamente.');
+                      setState(
+                          () => error = 'Senha incorreta. Tente novamente.');
                     }
                   },
                   child: const Text('Entrar'),

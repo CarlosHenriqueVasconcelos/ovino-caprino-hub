@@ -56,14 +56,14 @@ class PharmacyRepository {
       where: 'pharmacy_stock_id = ?',
       whereArgs: [id],
     );
-    
+
     // Deletar movimentações relacionadas
     await _db.db.delete(
       'pharmacy_stock_movements',
       where: 'pharmacy_stock_id = ?',
       whereArgs: [id],
     );
-    
+
     // Deletar o medicamento do estoque
     await _db.db.delete(
       'pharmacy_stock',
@@ -102,7 +102,8 @@ class PharmacyRepository {
   }
 
   /// Retorna todas as movimentações de um item do estoque
-  Future<List<PharmacyStockMovement>> getMovementsByStockId(String stockId) async {
+  Future<List<PharmacyStockMovement>> getMovementsByStockId(
+      String stockId) async {
     final maps = await _db.db.query(
       'pharmacy_stock_movements',
       where: 'pharmacy_stock_id = ?',
@@ -122,7 +123,8 @@ class PharmacyRepository {
   }
 
   /// Retorna movimentações relacionadas a uma medicação específica
-  Future<List<PharmacyStockMovement>> getMovementsByMedicationId(String medicationId) async {
+  Future<List<PharmacyStockMovement>> getMovementsByMedicationId(
+      String medicationId) async {
     final maps = await _db.db.query(
       'pharmacy_stock_movements',
       where: 'medication_id = ?',

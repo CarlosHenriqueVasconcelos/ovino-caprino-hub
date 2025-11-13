@@ -75,17 +75,22 @@ class _FeedingScreenState extends State<FeedingScreen> {
                 return;
               }
 
-              final feedingService = Provider.of<FeedingService>(context, listen: false);
+              final feedingService =
+                  Provider.of<FeedingService>(context, listen: false);
               final now = DateTime.now().toIso8601String();
               final pen = FeedingPen(
                 id: const Uuid().v4(),
                 name: nameController.text.trim(),
-                number: numberController.text.trim().isEmpty ? null : numberController.text.trim(),
-                notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                number: numberController.text.trim().isEmpty
+                    ? null
+                    : numberController.text.trim(),
+                notes: notesController.text.trim().isEmpty
+                    ? null
+                    : notesController.text.trim(),
                 createdAt: DateTime.parse(now),
                 updatedAt: DateTime.parse(now),
               );
-              
+
               await feedingService.addPen(pen);
 
               if (context.mounted) {
@@ -153,16 +158,21 @@ class _FeedingScreenState extends State<FeedingScreen> {
                 return;
               }
 
-              final feedingService = Provider.of<FeedingService>(context, listen: false);
+              final feedingService =
+                  Provider.of<FeedingService>(context, listen: false);
               final updatedPen = FeedingPen(
                 id: pen.id,
                 name: nameController.text.trim(),
-                number: numberController.text.trim().isEmpty ? null : numberController.text.trim(),
-                notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                number: numberController.text.trim().isEmpty
+                    ? null
+                    : numberController.text.trim(),
+                notes: notesController.text.trim().isEmpty
+                    ? null
+                    : notesController.text.trim(),
                 createdAt: pen.createdAt,
                 updatedAt: DateTime.now(),
               );
-              
+
               await feedingService.updatePen(updatedPen);
 
               if (context.mounted) {
@@ -181,7 +191,8 @@ class _FeedingScreenState extends State<FeedingScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Excluir Baia'),
-        content: Text('Deseja realmente excluir a baia "${pen.name}"? Todos os tratos associados também serão excluídos.'),
+        content: Text(
+            'Deseja realmente excluir a baia "${pen.name}"? Todos os tratos associados também serão excluídos.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -197,7 +208,8 @@ class _FeedingScreenState extends State<FeedingScreen> {
     );
 
     if (confirm == true && mounted) {
-      final feedingService = Provider.of<FeedingService>(context, listen: false);
+      final feedingService =
+          Provider.of<FeedingService>(context, listen: false);
       await feedingService.deletePen(pen.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -225,9 +237,9 @@ class _FeedingScreenState extends State<FeedingScreen> {
           if (feedingService.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           final pens = feedingService.pens;
-          
+
           if (pens.isEmpty) {
             return Center(
               child: Column(
@@ -256,7 +268,7 @@ class _FeedingScreenState extends State<FeedingScreen> {
               ),
             );
           }
-          
+
           return GridView.builder(
             padding: const EdgeInsets.all(16),
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

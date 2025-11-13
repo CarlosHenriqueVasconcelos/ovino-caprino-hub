@@ -70,8 +70,7 @@ class BreedingService extends ChangeNotifier {
   }
 
   /// Normaliza o estágio usando o enum como fonte da verdade.
-  static String _canonStage(String? raw) =>
-      BreedingStage.fromString(raw).value;
+  static String _canonStage(String? raw) => BreedingStage.fromString(raw).value;
 
   // ===================================
   // API de instância (via Provider)
@@ -102,8 +101,7 @@ class BreedingService extends ChangeNotifier {
         'ultrasound_result': r.ultrasoundResult,
         'expected_birth':
             r.expectedBirth != null ? _yyyyMmDd(r.expectedBirth!) : null,
-        'birth_date':
-            r.birthDate != null ? _yyyyMmDd(r.birthDate!) : null,
+        'birth_date': r.birthDate != null ? _yyyyMmDd(r.birthDate!) : null,
         'stage': r.stage.value,
         'status': r.status,
         'notes': r.notes,
@@ -350,9 +348,8 @@ class BreedingService extends ChangeNotifier {
       final isSoon = !baseEventDate.isAfter(limit);
 
       if (isOverdue || isSoon) {
-        final Animal? female = r.femaleAnimalId != null
-            ? animalMap[r.femaleAnimalId]
-            : null;
+        final Animal? female =
+            r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
         events.add(
           BreedingEvent(
             label: label ?? 'Evento',
@@ -413,9 +410,8 @@ class BreedingService extends ChangeNotifier {
           final inWindow = !d.isAfter(limit);
           final overdue = d.isBefore(today);
           if (overdue || inWindow) {
-            final female = r.femaleAnimalId != null
-                ? animalMap[r.femaleAnimalId]
-                : null;
+            final female =
+                r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
             separacoes.add(BreedingEvent(
               label: 'Separação',
               date: d,
@@ -432,16 +428,15 @@ class BreedingService extends ChangeNotifier {
       if (st == BreedingStage.separacao ||
           st == BreedingStage.aguardandoUltrassom) {
         final base = separation ?? matingEnd;
-        final target =
-            ultrasound ?? (base != null ? base.add(const Duration(days: 30)) : null);
+        final target = ultrasound ??
+            (base != null ? base.add(const Duration(days: 30)) : null);
         if (target != null) {
           final d = DateTime(target.year, target.month, target.day);
           final inWindow = !d.isAfter(limit);
           final overdue = d.isBefore(today);
           if (overdue || inWindow) {
-            final female = r.femaleAnimalId != null
-                ? animalMap[r.femaleAnimalId]
-                : null;
+            final female =
+                r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
             ultrassons.add(BreedingEvent(
               label: 'Ultrassom',
               date: d,
@@ -460,9 +455,8 @@ class BreedingService extends ChangeNotifier {
         final inWindow = !d.isAfter(limit);
         final overdue = d.isBefore(today);
         if (overdue || inWindow) {
-          final female = r.femaleAnimalId != null
-              ? animalMap[r.femaleAnimalId]
-              : null;
+          final female =
+              r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
           partos.add(BreedingEvent(
             label: 'Parto previsto',
             date: d,
@@ -490,6 +484,7 @@ class BreedingService extends ChangeNotifier {
       partos: partos,
     );
   }
+
   /// Transição de Encabritamento → Aguardando Ultrassom.
   /// Define a data de separação como agora e agenda o ultrassom para +30 dias.
   Future<void> separarAnimais(String breedingId) async {
@@ -533,16 +528,15 @@ class BreedingService extends ChangeNotifier {
       expectedBirth = null;
     }
 
-    final stage = isConfirmada
-        ? BreedingStage.gestacaoConfirmada
-        : BreedingStage.falhou;
+    final stage =
+        isConfirmada ? BreedingStage.gestacaoConfirmada : BreedingStage.falhou;
 
     final updated = existing.copyWith(
       ultrasoundDate: ultrasoundDate,
-      ultrasoundResult: (ultrasoundResult != null &&
-              ultrasoundResult.isNotEmpty)
-          ? ultrasoundResult
-          : existing.ultrasoundResult,
+      ultrasoundResult:
+          (ultrasoundResult != null && ultrasoundResult.isNotEmpty)
+              ? ultrasoundResult
+              : existing.ultrasoundResult,
       expectedBirth: expectedBirth,
       stage: stage,
       status: stage.statusLabel,
@@ -558,13 +552,7 @@ class BreedingService extends ChangeNotifier {
     await _repository.delete(breedingId);
     notifyListeners();
   }
-
-
-
-
-
 }
 
 /// Label amigável de estágio (se você usa em algum lugar da UI).
-String _toUiStageLabel(String? raw) =>
-    BreedingStage.fromString(raw).uiTabLabel;
+String _toUiStageLabel(String? raw) => BreedingStage.fromString(raw).uiTabLabel;

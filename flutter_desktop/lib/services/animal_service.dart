@@ -6,8 +6,11 @@ import 'package:flutter/foundation.dart';
 import '../data/local_db.dart'; // AppDatabase
 import '../models/animal.dart'; // Animal e AnimalStats
 import '../models/alert_item.dart'; // AlertItem
+import '../utils/animal_display_utils.dart';
 import 'deceased_hooks.dart'; // handleAnimalDeathIfApplicable
 import 'weight_alert_service.dart'; // WeightAlertService
+
+enum WeightCategoryFilter { all, juveniles, adults, reproducers }
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
@@ -20,7 +23,7 @@ class AnimalService extends ChangeNotifier {
 
   // DB e serviço de alertas de peso
   final AppDatabase _appDb;
-  late final WeightAlertService _weightAlertService;
+  final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
   UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
@@ -35,8 +38,7 @@ class AnimalService extends ChangeNotifier {
   /// e inicializa o WeightAlertService com o mesmo DB.
   ///
   /// Também agenda o carregamento inicial dos dados.
-  AnimalService(this._appDb) {
-    _weightAlertService = WeightAlertService(_appDb);
+  AnimalService(this._appDb, this._weightAlertService) {
     scheduleMicrotask(() => loadData());
   }
 
@@ -163,8 +165,7 @@ class AnimalService extends ChangeNotifier {
     final existing = allAnimals.where((animal) {
       final animalName = (animal['name'] ?? '').toString().toLowerCase();
       final animalNormalized = _normalizeNumber(animalName);
-      final animalColor =
-          (animal['name_color'] ?? '').toString().toLowerCase();
+      final animalColor = (animal['name_color'] ?? '').toString().toLowerCase();
       return animalNormalized == normalizedName && animalColor == colorLc;
     }).toList();
 
@@ -261,6 +262,69 @@ class AnimalService extends ChangeNotifier {
     await _refreshStatsSafe();
     await refreshAlerts();
     notifyListeners();
+  }
+
+  Future<void> removeFromCache(
+    String id, {
+    bool refreshStats = true,
+    bool refreshAlertsData = true,
+  }) async {
+    final index = _animals.indexWhere((animal) => animal.id == id);
+    if (index == -1) return;
+    _animals.removeAt(index);
+
+    if (refreshStats) {
+      await _refreshStatsSafe();
+    }
+
+    if (refreshAlertsData) {
+      await refreshAlerts();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  List<Animal> weightTrackingQuery({
+    WeightCategoryFilter category = WeightCategoryFilter.all,
+    String? colorFilter,
+    String searchQuery = '',
+  }) {
+    final reference = DateTime.now();
+    final query = searchQuery.trim().toLowerCase();
+
+    Iterable<Animal> filtered = _animals;
+
+    filtered = filtered.where((animal) {
+      final ageInMonths = _ageInMonths(animal.birthDate, reference);
+      final categoryLabel = (animal.category ?? '').toLowerCase();
+      switch (category) {
+        case WeightCategoryFilter.juveniles:
+          return ageInMonths < 12;
+        case WeightCategoryFilter.adults:
+          return ageInMonths >= 12 && !categoryLabel.contains('reprodutor');
+        case WeightCategoryFilter.reproducers:
+          return categoryLabel.contains('reprodutor');
+        case WeightCategoryFilter.all:
+        default:
+          return true;
+      }
+    });
+
+    if (colorFilter != null && colorFilter.isNotEmpty) {
+      filtered = filtered.where((animal) => animal.nameColor == colorFilter);
+    }
+
+    if (query.isNotEmpty) {
+      filtered = filtered.where((animal) {
+        final name = animal.name.toLowerCase();
+        final code = animal.code.toLowerCase();
+        return name.contains(query) || code.contains(query);
+      });
+    }
+
+    final result = filtered.toList();
+    AnimalDisplayUtils.sortAnimalsList(result);
+    return result;
   }
 
   // ----------------- Helpers de gestação (para Reprodução) -----------------
@@ -425,8 +489,7 @@ class AnimalService extends ChangeNotifier {
               animalName: animal.name,
               animalCode: animal.code,
               type: AlertType.medication,
-              title:
-                  'Medicação: ${(row['medication_name'] ?? '').toString()}',
+              title: 'Medicação: ${(row['medication_name'] ?? '').toString()}',
               dueDate: due,
             ),
           );
@@ -599,5 +662,10 @@ class AnimalService extends ChangeNotifier {
   String _newId() {
     final t = DateTime.now().microsecondsSinceEpoch;
     return 'loc_$t';
+  }
+
+  int _ageInMonths(DateTime birthDate, DateTime reference) {
+    return (reference.year - birthDate.year) * 12 +
+        (reference.month - birthDate.month);
   }
 }

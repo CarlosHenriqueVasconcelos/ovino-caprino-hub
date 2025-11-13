@@ -5,7 +5,7 @@
 import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
 import 'package:uuid/uuid.dart';
 
-import '../data/local_db.dart';          // ⬅️ AppDatabase em vez de DatabaseService
+import '../data/local_db.dart'; // ⬅️ AppDatabase em vez de DatabaseService
 import '../models/financial_account.dart';
 import 'data_refresh_bus.dart';
 
@@ -103,9 +103,12 @@ Future<void> handleAnimalSaleIfApplicable(FinancialAccount account) async {
     );
 
     // 2) Remove dependentes (históricos que apontam obrigatoriamente)
-    await txn.delete('animal_weights', where: 'animal_id = ?', whereArgs: [animalId]);
-    await txn.delete('vaccinations',   where: 'animal_id = ?', whereArgs: [animalId]);
-    await txn.delete('medications',    where: 'animal_id = ?', whereArgs: [animalId]);
+    await txn.delete('animal_weights',
+        where: 'animal_id = ?', whereArgs: [animalId]);
+    await txn
+        .delete('vaccinations', where: 'animal_id = ?', whereArgs: [animalId]);
+    await txn
+        .delete('medications', where: 'animal_id = ?', whereArgs: [animalId]);
 
     // 3) Desvincula reprodução (preserva histórico)
     await txn.update(

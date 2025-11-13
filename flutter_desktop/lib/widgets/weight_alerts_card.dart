@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/weight_alert_service.dart';
-import '../services/animal_service.dart';
 import '../models/weight_alert.dart';
+import '../utils/animal_record_display.dart';
 
 class WeightAlertsCard extends StatelessWidget {
   const WeightAlertsCard({super.key});
@@ -11,8 +11,8 @@ class WeightAlertsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Consumer2<WeightAlertService, AnimalService>(
-      builder: (context, weightAlertService, animalService, _) {
+    return Consumer<WeightAlertService>(
+      builder: (context, weightAlertService, _) {
         return FutureBuilder<List<WeightAlert>>(
           future: weightAlertService.getPendingAlerts(),
           builder: (context, snapshot) {
@@ -116,13 +116,9 @@ class WeightAlertsCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    ...weighingAlerts.take(5).map((alert) {
-                      final animal = animalService.animals.firstWhere(
-                        (a) => a.id == alert.animalId,
-                        orElse: () => throw Exception('Animal não encontrado'),
-                      );
-                      return _buildAlertItem(theme, alert, animal.name, animal.code);
-                    }),
+                    ...weighingAlerts.take(5).map(
+                          (alert) => _buildAlertItem(theme, alert),
+                        ),
                     if (weighingAlerts.length > 5) ...[
                       const SizedBox(height: 8),
                       Center(
@@ -144,10 +140,12 @@ class WeightAlertsCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertItem(ThemeData theme, WeightAlert alert, String animalName, String animalCode) {
+  Widget _buildAlertItem(ThemeData theme, WeightAlert alert) {
     final isOverdue = alert.dueDate.isBefore(DateTime.now());
     final daysUntil = alert.dueDate.difference(DateTime.now()).inDays;
-    
+    final label = AnimalRecordDisplay.labelFromRecord(alert.extra);
+    final color = AnimalRecordDisplay.colorFromRecord(alert.extra);
+
     String alertTitle;
     switch (alert.alertType) {
       case '30d':
@@ -187,9 +185,8 @@ class WeightAlertsCard extends StatelessWidget {
         children: [
           Icon(
             Icons.monitor_weight,
-            color: isOverdue
-                ? theme.colorScheme.error
-                : theme.colorScheme.primary,
+            color:
+                isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -198,9 +195,10 @@ class WeightAlertsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$animalName ($animalCode)',
+                  label,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: color,
                   ),
                 ),
                 Text(

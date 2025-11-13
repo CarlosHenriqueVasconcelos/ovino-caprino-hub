@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/animal.dart';
 import '../services/animal_history_service.dart';
+import '../utils/animal_record_display.dart';
 
 class AnimalHistoryDialog extends StatefulWidget {
   final Animal animal;
@@ -201,11 +202,24 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
 
                     final color = child['name_color']?.toString();
                     final lote = child['lote']?.toString();
+                    final label = AnimalRecordDisplay.labelFromRecord({
+                      'animal_name': child['name'] ?? '',
+                      'animal_code': child['code'] ?? '',
+                      'animal_color': color ?? '',
+                    });
+                    final accent =
+                        AnimalRecordDisplay.colorFromDescriptor(color);
 
                     return ListTile(
                       dense: true,
                       leading: Icon(Icons.child_care, color: statusColor),
-                      title: Text('${child['name']} (${child['code']})'),
+                      title: Text(
+                        label,
+                        style: accent != null
+                            ? TextStyle(
+                                color: accent, fontWeight: FontWeight.w600)
+                            : null,
+                      ),
                       subtitle: Text(
                         '${child['category']} • Status: $status'
                         '${color != null ? ' • Cor: $color' : ''}'
@@ -300,8 +314,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
     final theme = Theme.of(context);
 
     return Dialog(
-      insetPadding:
-          const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: SizedBox(
         width: 720,
         height: 520,
@@ -361,9 +374,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                               'Agendada: ${_fmtDate(r['scheduled_date'])}  '
                               '•  Aplicada: ${_fmtDate(r['applied_date'])}',
                             ),
-                            if ((r['veterinarian'] ?? '')
-                                .toString()
-                                .isNotEmpty)
+                            if ((r['veterinarian'] ?? '').toString().isNotEmpty)
                               Text('Veterinário: ${r['veterinarian']}'),
                             if ((r['notes'] ?? '').toString().isNotEmpty)
                               Text('Obs: ${r['notes']}'),
@@ -380,13 +391,9 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                               'Data: ${_fmtDate(r['date'])}  '
                               '•  Aplicada: ${_fmtDate(r['applied_date'])}',
                             ),
-                            if ((r['dosage'] ?? '')
-                                .toString()
-                                .isNotEmpty)
+                            if ((r['dosage'] ?? '').toString().isNotEmpty)
                               Text('Dosagem: ${r['dosage']}'),
-                            if ((r['veterinarian'] ?? '')
-                                .toString()
-                                .isNotEmpty)
+                            if ((r['veterinarian'] ?? '').toString().isNotEmpty)
                               Text('Veterinário: ${r['veterinarian']}'),
                             if ((r['notes'] ?? '').toString().isNotEmpty)
                               Text('Obs: ${r['notes']}'),
@@ -402,16 +409,10 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                               '${r['title'] ?? ''} • '
                               '${_fmtDate(r['date'])}',
                             ),
-                            if ((r['content'] ?? '')
-                                .toString()
-                                .isNotEmpty)
+                            if ((r['content'] ?? '').toString().isNotEmpty)
                               Text('${r['content']}'),
-                            if ((r['category'] ?? '')
-                                    .toString()
-                                    .isNotEmpty ||
-                                (r['priority'] ?? '')
-                                    .toString()
-                                    .isNotEmpty)
+                            if ((r['category'] ?? '').toString().isNotEmpty ||
+                                (r['priority'] ?? '').toString().isNotEmpty)
                               Text(
                                 'Categoria: ${r['category'] ?? '-'}  '
                                 '•  Prioridade: ${r['priority'] ?? '-'}',

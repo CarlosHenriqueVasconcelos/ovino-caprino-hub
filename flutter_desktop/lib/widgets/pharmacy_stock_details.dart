@@ -28,7 +28,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   Future<void> _loadMovements() async {
     setState(() => _isLoading = true);
     try {
-      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final pharmacyService =
+          Provider.of<PharmacyService>(context, listen: false);
       final movements = await pharmacyService.getMovements(widget.stock.id);
       setState(() {
         _movements = movements;
@@ -63,7 +64,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                   DropdownMenuItem(value: 'entrada', child: Text('Entrada')),
                   DropdownMenuItem(value: 'saida', child: Text('Saída')),
                   DropdownMenuItem(value: 'ajuste', child: Text('Ajuste')),
-                  DropdownMenuItem(value: 'vencimento', child: Text('Vencimento/Descarte')),
+                  DropdownMenuItem(
+                      value: 'vencimento', child: Text('Vencimento/Descarte')),
                 ],
                 onChanged: (value) {
                   selectedType = value!;
@@ -98,7 +100,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final quantity = double.tryParse(quantityController.text.replaceAll(',', '.'));
+              final quantity =
+                  double.tryParse(quantityController.text.replaceAll(',', '.'));
               if (quantity == null || quantity <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Quantidade inválida')),
@@ -107,14 +110,19 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
               }
 
               try {
-                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+                final pharmacyService =
+                    Provider.of<PharmacyService>(context, listen: false);
                 if (selectedType == 'entrada') {
                   await pharmacyService.addToStock(
                     widget.stock.id,
                     quantity,
-                    reason: reasonController.text.isEmpty ? null : reasonController.text,
+                    reason: reasonController.text.isEmpty
+                        ? null
+                        : reasonController.text,
                   );
-                } else if (selectedType == 'saida' || selectedType == 'vencimento' || selectedType == 'ajuste') {
+                } else if (selectedType == 'saida' ||
+                    selectedType == 'vencimento' ||
+                    selectedType == 'ajuste') {
                   await pharmacyService.deductFromStock(
                     widget.stock.id,
                     quantity,
@@ -164,9 +172,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       builder: (context) => AlertDialog(
         title: const Text('Excluir Recipiente Aberto'),
         content: Text(
-          'Deseja excluir o recipiente aberto de "${widget.stock.medicationName}"?\n\n'
-          'Quantidade a ser descartada: ${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'
-        ),
+            'Deseja excluir o recipiente aberto de "${widget.stock.medicationName}"?\n\n'
+            'Quantidade a ser descartada: ${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -188,9 +195,10 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
           isOpened: false,
           updatedAt: DateTime.now(),
         );
-        final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+        final pharmacyService =
+            Provider.of<PharmacyService>(context, listen: false);
         await pharmacyService.updateMedication(widget.stock.id, updated);
-        
+
         // Registrar movimentação de descarte
         await pharmacyService.recordMovement(
           PharmacyStockMovement(
@@ -202,7 +210,7 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
             createdAt: DateTime.now(),
           ),
         );
-        
+
         if (mounted) {
           Navigator.of(context).pop(true);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -230,7 +238,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Exclusão'),
-        content: Text('Deseja realmente excluir "${widget.stock.medicationName}"?'),
+        content:
+            Text('Deseja realmente excluir "${widget.stock.medicationName}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -247,7 +256,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
 
     if (confirm == true) {
       try {
-        final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+        final pharmacyService =
+            Provider.of<PharmacyService>(context, listen: false);
         await pharmacyService.deleteMedication(widget.stock.id);
         if (mounted) {
           Navigator.of(context).pop(true);
@@ -311,12 +321,14 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.local_pharmacy, size: 32, color: Theme.of(context).primaryColor),
+                          Icon(Icons.local_pharmacy,
+                              size: 32, color: Theme.of(context).primaryColor),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               widget.stock.medicationName,
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -324,21 +336,20 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                       const Divider(height: 24),
                       _buildInfoRow('Tipo:', widget.stock.medicationType),
                       _buildInfoRow('Unidade:', widget.stock.unitOfMeasure),
-                      
+
                       // Exibição diferenciada baseada na unidade de medida
-                      if (widget.stock.unitOfMeasure == 'ml' || 
-                          widget.stock.unitOfMeasure == 'mg' || 
+                      if (widget.stock.unitOfMeasure == 'ml' ||
+                          widget.stock.unitOfMeasure == 'mg' ||
                           widget.stock.unitOfMeasure == 'g') ...[
                         if (widget.stock.quantityPerUnit != null)
-                          _buildInfoRow(
-                            'Quantidade por recipiente:',
-                            '${widget.stock.quantityPerUnit!.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'
-                          ),
+                          _buildInfoRow('Quantidade por recipiente:',
+                              '${widget.stock.quantityPerUnit!.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'),
                         _buildInfoRow(
                           'Recipientes fechados:',
                           '${widget.stock.totalQuantity.toInt()} unidades',
                         ),
-                        if (widget.stock.isOpened && widget.stock.openedQuantity > 0)
+                        if (widget.stock.isOpened &&
+                            widget.stock.openedQuantity > 0)
                           _buildInfoRow(
                             'Recipiente aberto:',
                             '${widget.stock.openedQuantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
@@ -348,31 +359,41 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                           _buildInfoRow(
                             'Volume Total Disponível:',
                             '${((widget.stock.totalQuantity * widget.stock.quantityPerUnit!) + widget.stock.openedQuantity).toStringAsFixed(1)} ${widget.stock.unitOfMeasure}',
-                            valueColor: widget.stock.isLowStock ? Colors.orange : Colors.green,
+                            valueColor: widget.stock.isLowStock
+                                ? Colors.orange
+                                : Colors.green,
                           ),
                       ] else ...[
                         // Para "unidade" (comprimidos, cápsulas, etc.)
                         _buildInfoRow(
                           'Quantidade Total:',
                           '${widget.stock.totalQuantity.toInt()} unidades',
-                          valueColor: widget.stock.isLowStock ? Colors.orange : null,
+                          valueColor:
+                              widget.stock.isLowStock ? Colors.orange : null,
                         ),
                       ],
                       if (widget.stock.minStockAlert != null)
-                        _buildInfoRow('Estoque Mínimo:', '${widget.stock.minStockAlert} ${widget.stock.unitOfMeasure}'),
+                        _buildInfoRow('Estoque Mínimo:',
+                            '${widget.stock.minStockAlert} ${widget.stock.unitOfMeasure}'),
                       if (widget.stock.expirationDate != null)
                         _buildInfoRow(
                           'Validade:',
                           '${widget.stock.expirationDate!.day.toString().padLeft(2, '0')}/${widget.stock.expirationDate!.month.toString().padLeft(2, '0')}/${widget.stock.expirationDate!.year}',
-                          valueColor: widget.stock.isExpiringSoon || widget.stock.isExpired ? Colors.red : null,
+                          valueColor: widget.stock.isExpiringSoon ||
+                                  widget.stock.isExpired
+                              ? Colors.red
+                              : null,
                         ),
-                      if (widget.stock.notes != null && widget.stock.notes!.isNotEmpty)
+                      if (widget.stock.notes != null &&
+                          widget.stock.notes!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Observações:', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const Text('Observações:',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 4),
                               Text(widget.stock.notes!),
                             ],
@@ -383,7 +404,6 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                 ),
               ),
               const SizedBox(height: 16),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -399,7 +419,6 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                 ],
               ),
               const SizedBox(height: 8),
-
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _movements.isEmpty
@@ -435,7 +454,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
         children: [
           SizedBox(
             width: 180,
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
           Expanded(
             child: Text(
@@ -488,7 +508,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Quantidade: ${movement.quantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'),
+            Text(
+                'Quantidade: ${movement.quantity.toStringAsFixed(1)} ${widget.stock.unitOfMeasure}'),
             if (movement.reason != null && movement.reason!.isNotEmpty)
               Text('Motivo: ${movement.reason}'),
             Text(

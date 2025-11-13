@@ -308,7 +308,8 @@ class BackupService {
   }
 
   // ---------- Implementação ----------
-  Future<void> _backupMirrorRemote({Progress? onProgress, int chunk = 500}) async {
+  Future<void> _backupMirrorRemote(
+      {Progress? onProgress, int chunk = 500}) async {
     final db = _appDb.db;
     final supa = _client;
 
@@ -366,7 +367,8 @@ class BackupService {
     onProgress?.call('Upload finalizado.');
   }
 
-  Future<void> _restoreFromRemote({Progress? onProgress, int pageSize = 1000}) async {
+  Future<void> _restoreFromRemote(
+      {Progress? onProgress, int pageSize = 1000}) async {
     final db = _appDb.db;
     final supa = _client;
 
@@ -401,7 +403,8 @@ class BackupService {
       onProgress?.call('Gravando $table (${toLocal.length})…');
       await db.transaction((txn) async {
         for (final r in toLocal) {
-          await txn.insert(table, r, conflictAlgorithm: ConflictAlgorithm.replace);
+          await txn.insert(table, r,
+              conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
     }
@@ -481,7 +484,8 @@ class BackupService {
   }
 
   // ---------- Converters ----------
-  static Map<String, dynamic> _toRemote(String table, Map<String, dynamic> row) {
+  static Map<String, dynamic> _toRemote(
+      String table, Map<String, dynamic> row) {
     final r = Map<String, dynamic>.from(row);
 
     // bools locais (0/1, bool, string) → bool (Supabase)

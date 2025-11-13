@@ -5,8 +5,7 @@
 
 import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
 
-import '../data/local_db.dart';      // AppDatabase
-import '../models/animal.dart';      // Animal (para exibir no dashboard)
+import '../data/local_db.dart'; // AppDatabase
 import 'data_refresh_bus.dart';
 
 // -----------------------------------------------------------------------------
@@ -79,44 +78,4 @@ Future<void> handleAnimalDeathIfApplicable(
 
   // 4) Notifica a UI após a transação concluir
   DataRefreshBus.emit('deceased');
-}
-
-// -----------------------------------------------------------------------------
-// Service simples para listar animais falecidos (para o CompleteDashboardScreen)
-// -----------------------------------------------------------------------------
-class DeceasedService {
-  final AppDatabase _appDb;
-
-  DeceasedService(this._appDb);
-
-  /// Retorna a lista de animais falecidos já adaptada para o modelo [Animal],
-  /// pronta para ser exibida em cards / listas.
-  Future<List<Animal>> getDeceasedAnimals() async {
-    final rows = await _appDb.db.query(
-      'deceased_animals',
-      orderBy: 'date(death_date) DESC',
-    );
-
-    return rows.map((m) {
-      final map = Map<String, dynamic>.from(m);
-
-      // Adaptar para o shape esperado pelo modelo Animal / UI
-      map['status'] = 'Óbito';
-      map['last_vaccination'] = null;
-      map['expected_delivery'] = null;
-
-      // Opcional: reaproveitar causa de morte como "problema de saúde"
-      // para aparecer nas telas que exibem healthIssue
-      if (map['cause_of_death'] != null && map['cause_of_death'].toString().isNotEmpty) {
-        map['health_issue'] = map['cause_of_death'];
-      }
-
-      map['created_at'] =
-          map['created_at'] ?? DateTime.now().toIso8601String();
-      map['updated_at'] =
-          map['updated_at'] ?? DateTime.now().toIso8601String();
-
-      return Animal.fromMap(map);
-    }).toList();
-  }
 }

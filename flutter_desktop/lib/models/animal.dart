@@ -150,7 +150,9 @@ class Animal {
       weight60Days: _read60d(),
       weight90Days: _read90d(),
       weight120Days: _read120d(),
-      year: map['year'] is int ? map['year'] : (map['year'] != null ? int.tryParse(map['year'].toString()) : null),
+      year: map['year'] is int
+          ? map['year']
+          : (map['year'] != null ? int.tryParse(map['year'].toString()) : null),
       lote: map['lote']?.toString(),
       motherId: map['mother_id']?.toString() ?? map['motherId']?.toString(),
       fatherId: map['father_id']?.toString() ?? map['fatherId']?.toString(),
@@ -216,7 +218,9 @@ class Animal {
     } else {
       final years = ageInMonths ~/ 12;
       final remainingMonths = ageInMonths % 12;
-      return remainingMonths > 0 ? '${years}a ${remainingMonths}m' : '$years anos';
+      return remainingMonths > 0
+          ? '${years}a ${remainingMonths}m'
+          : '$years anos';
     }
   }
 
@@ -253,10 +257,12 @@ class AnimalStats {
   });
 
   factory AnimalStats.fromMap(Map<String, dynamic> map) {
-    double _d(dynamic v) =>
-        v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
-    int _i(dynamic v) =>
-        v == null ? 0 : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
+    double _d(dynamic v) => v == null
+        ? 0.0
+        : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
+    int _i(dynamic v) => v == null
+        ? 0
+        : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
 
     return AnimalStats(
       totalAnimals: _i(map['totalAnimals']),

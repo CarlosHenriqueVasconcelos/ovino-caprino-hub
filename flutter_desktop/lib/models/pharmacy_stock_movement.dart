@@ -34,7 +34,8 @@ class PharmacyStockMovement {
     return PharmacyStockMovement(
       id: map['id']?.toString() ?? '',
       pharmacyStockId: map['pharmacy_stock_id'] ?? map['pharmacyStockId'] ?? '',
-      medicationId: map['medication_id']?.toString() ?? map['medicationId']?.toString(),
+      medicationId:
+          map['medication_id']?.toString() ?? map['medicationId']?.toString(),
       movementType: map['movement_type'] ?? map['movementType'] ?? '',
       quantity: _toDouble(map['quantity']),
       reason: map['reason']?.toString(),

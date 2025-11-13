@@ -16,12 +16,18 @@ enum BreedingStage {
   // Rótulo para abas/contadores
   String get uiTabLabel {
     switch (this) {
-      case BreedingStage.encabritamento:      return 'Encabritamento';
-      case BreedingStage.separacao:           return 'Separação';
-      case BreedingStage.aguardandoUltrassom: return 'Aguardando Ultrassom';
-      case BreedingStage.gestacaoConfirmada:  return 'Gestantes';
-      case BreedingStage.partoRealizado:      return 'Concluídos';
-      case BreedingStage.falhou:              return 'Falhados';
+      case BreedingStage.encabritamento:
+        return 'Encabritamento';
+      case BreedingStage.separacao:
+        return 'Separação';
+      case BreedingStage.aguardandoUltrassom:
+        return 'Aguardando Ultrassom';
+      case BreedingStage.gestacaoConfirmada:
+        return 'Gestantes';
+      case BreedingStage.partoRealizado:
+        return 'Concluídos';
+      case BreedingStage.falhou:
+        return 'Falhados';
     }
   }
 
@@ -31,12 +37,18 @@ enum BreedingStage {
   // Status legível (se optar por manter status na tabela)
   String get statusLabel {
     switch (this) {
-      case BreedingStage.encabritamento:      return 'Cobertura';
-      case BreedingStage.separacao:           return 'Separação';
-      case BreedingStage.aguardandoUltrassom: return 'Aguardando Ultrassom';
-      case BreedingStage.gestacaoConfirmada:  return 'Gestação Confirmada';
-      case BreedingStage.partoRealizado:      return 'Parto Realizado';
-      case BreedingStage.falhou:              return 'Falhou';
+      case BreedingStage.encabritamento:
+        return 'Cobertura';
+      case BreedingStage.separacao:
+        return 'Separação';
+      case BreedingStage.aguardandoUltrassom:
+        return 'Aguardando Ultrassom';
+      case BreedingStage.gestacaoConfirmada:
+        return 'Gestação Confirmada';
+      case BreedingStage.partoRealizado:
+        return 'Parto Realizado';
+      case BreedingStage.falhou:
+        return 'Falhou';
     }
   }
 
@@ -47,18 +59,48 @@ enum BreedingStage {
 
     String deaccent(String s) {
       const map = {
-        'á':'a','à':'a','ã':'a','â':'a','ä':'a',
-        'é':'e','ê':'e','è':'e','ë':'e',
-        'í':'i','ì':'i','ï':'i',
-        'ó':'o','ô':'o','õ':'o','ò':'o','ö':'o',
-        'ú':'u','ù':'u','ü':'u',
-        'ç':'c',
-        'Á':'A','À':'A','Ã':'A','Â':'A','Ä':'A',
-        'É':'E','Ê':'E','È':'E','Ë':'E',
-        'Í':'I','Ì':'I','Ï':'I',
-        'Ó':'O','Ô':'O','Õ':'O','Ò':'O','Ö':'O',
-        'Ú':'U','Ù':'U','Ü':'U',
-        'Ç':'C',
+        'á': 'a',
+        'à': 'a',
+        'ã': 'a',
+        'â': 'a',
+        'ä': 'a',
+        'é': 'e',
+        'ê': 'e',
+        'è': 'e',
+        'ë': 'e',
+        'í': 'i',
+        'ì': 'i',
+        'ï': 'i',
+        'ó': 'o',
+        'ô': 'o',
+        'õ': 'o',
+        'ò': 'o',
+        'ö': 'o',
+        'ú': 'u',
+        'ù': 'u',
+        'ü': 'u',
+        'ç': 'c',
+        'Á': 'A',
+        'À': 'A',
+        'Ã': 'A',
+        'Â': 'A',
+        'Ä': 'A',
+        'É': 'E',
+        'Ê': 'E',
+        'È': 'E',
+        'Ë': 'E',
+        'Í': 'I',
+        'Ì': 'I',
+        'Ï': 'I',
+        'Ó': 'O',
+        'Ô': 'O',
+        'Õ': 'O',
+        'Ò': 'O',
+        'Ö': 'O',
+        'Ú': 'U',
+        'Ù': 'U',
+        'Ü': 'U',
+        'Ç': 'C',
       };
       final sb = StringBuffer();
       for (final r in s.runes) {
@@ -149,7 +191,9 @@ class BreedingRecord {
     DateTime? _parse(dynamic v) {
       if (v == null) return null;
       if (v is String && v.isNotEmpty) {
-        try { return DateTime.parse(v); } catch (_) {}
+        try {
+          return DateTime.parse(v);
+        } catch (_) {}
       }
       return null;
     }
@@ -191,8 +235,8 @@ class BreedingRecord {
       'ultrasound_result': ultrasoundResult,
       'expected_birth': expectedBirth?.toIso8601String(),
       'birth_date': birthDate?.toIso8601String(),
-      'stage': stage.value,            // sempre snake_case
-      'status': status,                // opcional; trigger no DB também mantém coerência
+      'stage': stage.value, // sempre snake_case
+      'status': status, // opcional; trigger no DB também mantém coerência
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -209,7 +253,8 @@ class BreedingRecord {
         return null;
       case BreedingStage.separacao:
       case BreedingStage.aguardandoUltrassom:
-        if (ultrasoundDate != null) return ultrasoundDate!.difference(now).inDays;
+        if (ultrasoundDate != null)
+          return ultrasoundDate!.difference(now).inDays;
         return null;
       case BreedingStage.gestacaoConfirmada:
         if (expectedBirth != null) return expectedBirth!.difference(now).inDays;
@@ -248,7 +293,8 @@ class BreedingRecord {
         return 0.0;
       case BreedingStage.aguardandoUltrassom:
         // entre separação e data de ultrassom
-        return spanProgress(separationDate ?? matingEndDate ?? breedingDate, ultrasoundDate);
+        return spanProgress(
+            separationDate ?? matingEndDate ?? breedingDate, ultrasoundDate);
       case BreedingStage.gestacaoConfirmada:
         // entre ultrassom e parto previsto
         return spanProgress(ultrasoundDate, expectedBirth);

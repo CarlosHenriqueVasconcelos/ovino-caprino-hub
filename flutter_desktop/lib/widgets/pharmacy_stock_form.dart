@@ -41,7 +41,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.stock?.medicationName ?? '');
+    _nameController =
+        TextEditingController(text: widget.stock?.medicationName ?? '');
     _quantityPerUnitController = TextEditingController(
       text: widget.stock?.quantityPerUnit?.toString() ?? '',
     );
@@ -76,11 +77,15 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
     try {
       // Garantir que quantityPerUnit seja null quando unitOfMeasure for 'unidade'
       double? quantityPerUnitValue;
-      if (_selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') {
+      if (_selectedUnit == 'ml' ||
+          _selectedUnit == 'mg' ||
+          _selectedUnit == 'g') {
         if (_quantityPerUnitController.text.isEmpty) {
-          throw Exception('Quantidade por recipiente é obrigatória para $_selectedUnit');
+          throw Exception(
+              'Quantidade por recipiente é obrigatória para $_selectedUnit');
         }
-        quantityPerUnitValue = double.tryParse(_quantityPerUnitController.text.replaceAll(',', '.'));
+        quantityPerUnitValue = double.tryParse(
+            _quantityPerUnitController.text.replaceAll(',', '.'));
       } else {
         quantityPerUnitValue = null; // Forçar null para 'unidade'
       }
@@ -91,7 +96,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         medicationType: _selectedType,
         unitOfMeasure: _selectedUnit,
         quantityPerUnit: quantityPerUnitValue,
-        totalQuantity: double.parse(_totalQuantityController.text.replaceAll(',', '.')),
+        totalQuantity:
+            double.parse(_totalQuantityController.text.replaceAll(',', '.')),
         minStockAlert: _minStockController.text.isEmpty
             ? null
             : double.tryParse(_minStockController.text.replaceAll(',', '.')),
@@ -100,7 +106,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         updatedAt: DateTime.now(),
       );
 
-      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final pharmacyService =
+          Provider.of<PharmacyService>(context, listen: false);
       if (widget.stock == null) {
         await pharmacyService.createMedication(stock);
       } else {
@@ -141,7 +148,9 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Scaffold(
           appBar: AppBar(
-            title: Text(widget.stock == null ? 'Novo Medicamento' : 'Editar Medicamento'),
+            title: Text(widget.stock == null
+                ? 'Novo Medicamento'
+                : 'Editar Medicamento'),
             leading: IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).pop(),
@@ -167,7 +176,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 Row(
                   children: [
                     Expanded(
@@ -179,7 +188,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                           prefixIcon: Icon(Icons.category),
                         ),
                         items: _types.map((type) {
-                          return DropdownMenuItem(value: type, child: Text(type));
+                          return DropdownMenuItem(
+                              value: type, child: Text(type));
                         }).toList(),
                         onChanged: (value) {
                           setState(() => _selectedType = value!);
@@ -195,7 +205,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                           border: OutlineInputBorder(),
                         ),
                         items: _units.map((unit) {
-                          return DropdownMenuItem(value: unit, child: Text(unit));
+                          return DropdownMenuItem(
+                              value: unit, child: Text(unit));
                         }).toList(),
                         onChanged: (value) {
                           setState(() => _selectedUnit = value!);
@@ -207,12 +218,15 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 const SizedBox(height: 16),
 
                 // Mostrar campo de quantidade por recipiente apenas para ml/mg/g
-                if (_selectedUnit == 'ml' || _selectedUnit == 'mg' || _selectedUnit == 'g') ...[
+                if (_selectedUnit == 'ml' ||
+                    _selectedUnit == 'mg' ||
+                    _selectedUnit == 'g') ...[
                   TextFormField(
                     controller: _quantityPerUnitController,
                     decoration: InputDecoration(
                       labelText: 'Quantidade por recipiente ($_selectedUnit) *',
-                      hintText: 'Ex: 20 $_selectedUnit por ${_selectedType.toLowerCase()}',
+                      hintText:
+                          'Ex: 20 $_selectedUnit por ${_selectedType.toLowerCase()}',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.water_drop),
                     ),
@@ -221,7 +235,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                       if (value == null || value.trim().isEmpty) {
                         return 'Quantidade por recipiente é obrigatória para $_selectedUnit';
                       }
-                      final number = double.tryParse(value.replaceAll(',', '.'));
+                      final number =
+                          double.tryParse(value.replaceAll(',', '.'));
                       if (number == null || number <= 0) {
                         return 'Quantidade deve ser maior que zero';
                       }
@@ -251,7 +266,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Quantidade é obrigatória';
                           }
-                          final number = double.tryParse(value.replaceAll(',', '.'));
+                          final number =
+                              double.tryParse(value.replaceAll(',', '.'));
                           if (number == null || number < 0) {
                             return 'Quantidade inválida';
                           }
@@ -280,7 +296,8 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                     final date = await showDatePicker(
                       context: context,
                       locale: const Locale('pt', 'BR'),
-                      initialDate: _expirationDate ?? DateTime.now().add(const Duration(days: 365)),
+                      initialDate: _expirationDate ??
+                          DateTime.now().add(const Duration(days: 365)),
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 3650)),
                     );

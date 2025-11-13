@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/local_db.dart';
+import '../data/weight_alert_repository.dart';
 import '../models/animal.dart';
 import '../models/weight_alert.dart';
 
 class WeightAlertService extends ChangeNotifier {
-  final AppDatabase db;
+  final WeightAlertRepository _repository;
 
-  WeightAlertService(this.db);
+  WeightAlertService(this._repository);
 
   /// Cria alertas de pesagem para borregos (30, 60, 90, 120 dias após nascimento)
   Future<void> createLambWeightAlerts(Animal animal) async {
@@ -15,13 +15,6 @@ class WeightAlertService extends ChangeNotifier {
 
     final birthDate = animal.birthDate;
     final animalId = animal.id;
-
-    // Remove alertas antigos do animal
-    await db.db.delete(
-      'weight_alerts',
-      where: 'animal_id = ?',
-      whereArgs: [animalId],
-    );
 
     final now = DateTime.now();
 
@@ -61,9 +54,7 @@ class WeightAlertService extends ChangeNotifier {
       ),
     ];
 
-    for (final alert in alerts) {
-      await db.db.insert('weight_alerts', alert.toMap());
-    }
+    await _repository.replaceAlerts(animalId, alerts);
 
     debugPrint('Criados alertas de pesagem para borrego ${animal.name}');
     notifyListeners();
@@ -72,20 +63,16 @@ class WeightAlertService extends ChangeNotifier {
   /// Cria próximo alerta mensal para animais adultos
   Future<void> createNextMonthlyAlert(String animalId) async {
     // Verifica quantos alertas mensais já existem
-    final existing = await db.db.query(
-      'weight_alerts',
-      where: "animal_id = ? AND alert_type = 'monthly'",
-      whereArgs: [animalId],
-    );
+    final existingCount = await _repository.countMonthlyAlerts(animalId);
 
-    if (existing.length >= 5) {
+    if (existingCount >= 5) {
       debugPrint('Limite de 5 alertas mensais atingido para $animalId');
       return;
     }
 
     // Cria próximo alerta mensal (30 dias a partir de hoje)
     final nextAlert = WeightAlert(
-      id: 'wa_${animalId}_monthly_${existing.length + 1}',
+      id: 'wa_${animalId}_monthly_${existingCount + 1}',
       animalId: animalId,
       alertType: 'monthly',
       dueDate: DateTime.now().add(const Duration(days: 30)),
@@ -93,7 +80,7 @@ class WeightAlertService extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
 
-    await db.db.insert('weight_alerts', nextAlert.toMap());
+    await _repository.insertAlert(nextAlert);
     debugPrint('Criado alerta mensal para $animalId');
     notifyListeners();
   }
@@ -105,14 +92,7 @@ class WeightAlertService extends ChangeNotifier {
     DateTime horizon,
   ) async {
     try {
-      final rows = await db.db.query(
-        'weight_alerts',
-        where: 'completed = 0 AND date(due_date) <= date(?)',
-        whereArgs: [horizon.toIso8601String().split('T').first],
-        orderBy: 'due_date ASC',
-      );
-
-      return rows.map((r) => Map<String, dynamic>.from(r)).toList();
+      return await _repository.getPendingRaw(horizon);
     } catch (e) {
       debugPrint('Erro ao buscar weight alerts pendentes: $e');
       return [];
@@ -121,50 +101,23 @@ class WeightAlertService extends ChangeNotifier {
 
   /// Marca alerta como completo
   Future<void> completeAlert(String alertId) async {
-    await db.db.update(
-      'weight_alerts',
-      {
-        'completed': 1,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [alertId],
-    );
+    await _repository.markCompleted(alertId);
     notifyListeners();
   }
 
   /// Busca alertas pendentes (não completados e dentro do horizonte)
   Future<List<WeightAlert>> getPendingAlerts({int horizonDays = 30}) async {
-    final horizon = DateTime.now().add(Duration(days: horizonDays));
-    final rows = await db.db.query(
-      'weight_alerts',
-      where: 'completed = 0 AND date(due_date) <= date(?)',
-      whereArgs: [horizon.toIso8601String().split('T').first],
-      orderBy: 'due_date ASC',
-    );
-
-    return rows.map((row) => WeightAlert.fromMap(row)).toList();
+    return _repository.getPendingAlerts(horizonDays);
   }
 
   /// Busca alertas de um animal específico
   Future<List<WeightAlert>> getAnimalAlerts(String animalId) async {
-    final rows = await db.db.query(
-      'weight_alerts',
-      where: 'animal_id = ?',
-      whereArgs: [animalId],
-      orderBy: 'due_date ASC',
-    );
-
-    return rows.map((row) => WeightAlert.fromMap(row)).toList();
+    return _repository.getAnimalAlerts(animalId);
   }
 
   /// Remove todos os alertas de um animal
   Future<void> deleteAnimalAlerts(String animalId) async {
-    await db.db.delete(
-      'weight_alerts',
-      where: 'animal_id = ?',
-      whereArgs: [animalId],
-    );
+    await _repository.deleteAnimalAlerts(animalId);
     notifyListeners();
   }
 }

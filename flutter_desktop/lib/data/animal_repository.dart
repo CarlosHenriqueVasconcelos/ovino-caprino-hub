@@ -326,42 +326,105 @@ class AnimalRepository {
     String? causeOfDeath,
     String? notes,
   }) async {
-    final animal = await _db.db.query(
-      'animals',
-      where: 'id = ?',
-      whereArgs: [animalId],
-    );
-    if (animal.isEmpty) throw Exception('Animal não encontrado');
+    await _db.db.transaction((txn) async {
+      final animal = await txn.query(
+        'animals',
+        where: 'id = ?',
+        whereArgs: [animalId],
+      );
+      if (animal.isEmpty) throw Exception('Animal não encontrado');
 
-    final animalData = animal.first;
-    await _db.db.insert('deceased_animals', {
-      'id': animalData['id'],
-      'original_animal_id': animalData['id'],
-      'code': animalData['code'],
-      'name': animalData['name'],
-      'species': animalData['species'],
-      'breed': animalData['breed'],
-      'gender': animalData['gender'],
-      'birth_date': animalData['birth_date'],
-      'weight': animalData['weight'],
-      'location': animalData['location'],
-      'name_color': animalData['name_color'],
-      'category': animalData['category'],
-      'birth_weight': animalData['birth_weight'],
-      'weight_30_days': animalData['weight_30_days'],
-      'weight_60_days': animalData['weight_60_days'],
-      'weight_90_days': animalData['weight_90_days'],
-      'weight_120_days': animalData['weight_120_days'],
-      'year': animalData['year'],
-      'lote': animalData['lote'],
-      'mother_id': animalData['mother_id'],
-      'father_id': animalData['father_id'],
-      'death_date': deathDate.toIso8601String().split('T').first,
-      'cause_of_death': causeOfDeath,
-      'death_notes': notes,
+      final animalData = animal.first;
+      await txn.insert(
+        'deceased_animals',
+        {
+          'id': animalData['id'],
+          'original_animal_id': animalData['id'],
+          'code': animalData['code'],
+          'name': animalData['name'],
+          'species': animalData['species'],
+          'breed': animalData['breed'],
+          'gender': animalData['gender'],
+          'birth_date': animalData['birth_date'],
+          'weight': animalData['weight'],
+          'location': animalData['location'],
+          'name_color': animalData['name_color'],
+          'category': animalData['category'],
+          'birth_weight': animalData['birth_weight'],
+          'weight_30_days': animalData['weight_30_days'],
+          'weight_60_days': animalData['weight_60_days'],
+          'weight_90_days': animalData['weight_90_days'],
+          'weight_120_days': animalData['weight_120_days'],
+          'year': animalData['year'],
+          'lote': animalData['lote'],
+          'mother_id': animalData['mother_id'],
+          'father_id': animalData['father_id'],
+          'death_date': deathDate.toIso8601String().split('T').first,
+          'cause_of_death': causeOfDeath,
+          'death_notes': notes,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      await txn.delete(
+        'animal_weights',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'vaccinations',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      final meds = await txn.query(
+        'medications',
+        columns: ['id'],
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+      for (final med in meds) {
+        final medId = med['id']?.toString();
+        if (medId == null || medId.isEmpty) continue;
+        await txn.delete(
+          'pharmacy_stock_movements',
+          where: 'medication_id = ?',
+          whereArgs: [medId],
+        );
+      }
+      await txn.delete(
+        'medications',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'notes',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'financial_records',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'financial_accounts',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+
+      await txn.delete(
+        'breeding_records',
+        where: 'female_animal_id = ? OR male_animal_id = ?',
+        whereArgs: [animalId, animalId],
+      );
+
+      await txn.delete('animals', where: 'id = ?', whereArgs: [animalId]);
     });
-
-    await _db.db.delete('animals', where: 'id = ?', whereArgs: [animalId]);
   }
 
   /// Busca animais vendidos

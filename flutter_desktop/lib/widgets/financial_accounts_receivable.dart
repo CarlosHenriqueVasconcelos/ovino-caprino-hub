@@ -10,10 +10,12 @@ class FinancialAccountsReceivable extends StatefulWidget {
   const FinancialAccountsReceivable({super.key, this.onUpdate});
 
   @override
-  State<FinancialAccountsReceivable> createState() => _FinancialAccountsReceivableState();
+  State<FinancialAccountsReceivable> createState() =>
+      _FinancialAccountsReceivableState();
 }
 
-class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivable> {
+class _FinancialAccountsReceivableState
+    extends State<FinancialAccountsReceivable> {
   List<FinancialAccount> accounts = [];
   String filterStatus = 'Todos';
   bool isLoading = true;
@@ -26,13 +28,11 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
 
   Future<void> _loadAccounts() async {
     setState(() => isLoading = true);
-    
+
     final allAccounts = await FinancialService.getAllAccounts();
-    final filtered = allAccounts
-        .where((a) => a.type == 'receita')
-        .toList()
+    final filtered = allAccounts.where((a) => a.type == 'receita').toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-    
+
     setState(() {
       accounts = filtered;
       isLoading = false;
@@ -48,7 +48,7 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
     await FinancialService.markAsPaid(account.id, DateTime.now());
     await _loadAccounts();
     widget.onUpdate?.call();
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Receita marcada como recebida')),
@@ -79,7 +79,7 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
       await FinancialService.deleteAccount(account.id);
       await _loadAccounts();
       widget.onUpdate?.call();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Receita excluída com sucesso')),
@@ -126,7 +126,8 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const FinancialFormScreen(type: 'receita'),
+                      builder: (context) =>
+                          const FinancialFormScreen(type: 'receita'),
                     ),
                   );
                   _loadAccounts();
@@ -146,8 +147,8 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
                       child: Text(
                         'Nenhuma receita encontrada',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.grey,
-                        ),
+                              color: Colors.grey,
+                            ),
                       ),
                     )
                   : ListView.builder(
@@ -160,13 +161,16 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Colors.green.withOpacity(0.2),
-                              child: const Icon(Icons.arrow_upward, color: Colors.green),
+                              child: const Icon(Icons.arrow_upward,
+                                  color: Colors.green),
                             ),
-                            title: Text(account.description ?? account.category),
+                            title:
+                                Text(account.description ?? account.category),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Vencimento: ${_formatDate(account.dueDate)}'),
+                                Text(
+                                    'Vencimento: ${_formatDate(account.dueDate)}'),
                                 if (account.supplierCustomer != null)
                                   Text('Cliente: ${account.supplierCustomer}'),
                               ],
@@ -183,9 +187,11 @@ class _FinancialAccountsReceivableState extends State<FinancialAccountsReceivabl
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor(account.status).withOpacity(0.2),
+                                    color: _getStatusColor(account.status)
+                                        .withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(

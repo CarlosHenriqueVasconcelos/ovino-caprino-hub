@@ -29,10 +29,14 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
   @override
   void initState() {
     super.initState();
-    _feedTypeController = TextEditingController(text: widget.schedule?.feedType ?? '');
-    _quantityController = TextEditingController(text: widget.schedule?.quantity.toString() ?? '');
-    _timesPerDayController = TextEditingController(text: widget.schedule?.timesPerDay.toString() ?? '1');
-    _notesController = TextEditingController(text: widget.schedule?.notes ?? '');
+    _feedTypeController =
+        TextEditingController(text: widget.schedule?.feedType ?? '');
+    _quantityController =
+        TextEditingController(text: widget.schedule?.quantity.toString() ?? '');
+    _timesPerDayController = TextEditingController(
+        text: widget.schedule?.timesPerDay.toString() ?? '1');
+    _notesController =
+        TextEditingController(text: widget.schedule?.notes ?? '');
 
     // Inicializar controladores de horários
     if (widget.schedule != null) {
@@ -109,7 +113,9 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
       quantity: double.parse(_quantityController.text.trim()),
       timesPerDay: int.parse(_timesPerDayController.text.trim()),
       feedingTimes: feedingTimes,
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
       createdAt: widget.schedule?.createdAt ?? DateTime.parse(now),
       updatedAt: DateTime.parse(now),
     );
@@ -223,7 +229,8 @@ class _FeedingFormDialogState extends State<FeedingFormDialog> {
                       ),
                       if (_timeControllers.length > 1)
                         IconButton(
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
+                          icon: const Icon(Icons.remove_circle,
+                              color: Colors.red),
                           onPressed: () => _removeTimeField(index),
                         ),
                     ],

@@ -295,8 +295,7 @@ class ReportsService {
         }
       }
       // ignore: avoid_print
-      print(
-          '📊 Animais adicionados com peso atual: ${byAnimal.length}');
+      print('📊 Animais adicionados com peso atual: ${byAnimal.length}');
     }
 
     final animalStats = byAnimal.entries.map((entry) {
@@ -307,12 +306,11 @@ class ReportsService {
       final weightValues =
           weighings.map((w) => (w['weight'] as num).toDouble()).toList();
 
-      weighings.sort((a, b) =>
-          (b['date'] as String).compareTo(a['date'] as String));
+      weighings
+          .sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
 
-      final double lastWeight = weighings.isEmpty
-          ? 0
-          : (weighings[0]['weight'] as num).toDouble();
+      final double lastWeight =
+          weighings.isEmpty ? 0 : (weighings[0]['weight'] as num).toDouble();
 
       return {
         'animal_id': animalId,
@@ -339,13 +337,11 @@ class ReportsService {
         .toList();
 
     // ignore: avoid_print
-    print(
-        '📊 Total de animais no relatório final: ${animalStats.length}');
+    print('📊 Total de animais no relatório final: ${animalStats.length}');
 
     return {
       'summary': {
-        'total_weighings':
-            weights.isEmpty ? byAnimal.length : weights.length,
+        'total_weighings': weights.isEmpty ? byAnimal.length : weights.length,
         'animals_weighed': byAnimal.length,
         'avg_last_weight': allLastWeights.isEmpty
             ? 0
@@ -361,9 +357,15 @@ class ReportsService {
     final appDb = await AppDatabase.open();
     final db = appDb.db;
 
-    var vaccinations = await db.query('vaccinations');
-    final animals = await _loadAnimals();
-    final animalMap = {for (var a in animals) a.id: a};
+    var vaccinations = await db.rawQuery('''
+      SELECT 
+        v.*,
+        a.name AS animal_name,
+        a.code AS animal_code,
+        a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+    ''');
 
     vaccinations = vaccinations.where((v) {
       final effectiveDate = v['applied_date'] ?? v['scheduled_date'];
@@ -383,8 +385,7 @@ class ReportsService {
 
     final scheduled =
         vaccinations.where((v) => v['status'] == 'Agendada').length;
-    final applied =
-        vaccinations.where((v) => v['status'] == 'Aplicada').length;
+    final applied = vaccinations.where((v) => v['status'] == 'Aplicada').length;
     final cancelled =
         vaccinations.where((v) => v['status'] == 'Cancelada').length;
 
@@ -396,10 +397,10 @@ class ReportsService {
         'cancelled': cancelled,
       },
       'data': vaccinations.map((v) {
-        final animal = animalMap[v['animal_id']];
         return {
-          'animal_code': animal?.code ?? 'N/A',
-          'animal_name': animal?.name ?? 'N/A',
+          'animal_code': v['animal_code'] ?? 'N/A',
+          'animal_name': v['animal_name'] ?? 'N/A',
+          'animal_color': v['animal_color'] ?? '',
           'vaccine_name': v['vaccine_name'],
           'vaccine_type': v['vaccine_type'],
           'scheduled_date': v['scheduled_date'],
@@ -418,15 +419,20 @@ class ReportsService {
     final appDb = await AppDatabase.open();
     final db = appDb.db;
 
-    var medications = await db.query('medications');
-    final animals = await _loadAnimals();
-    final animalMap = {for (var a in animals) a.id: a};
+    var medications = await db.rawQuery('''
+      SELECT 
+        m.*,
+        a.name AS animal_name,
+        a.code AS animal_code,
+        a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+    ''');
 
     medications = medications.where((m) {
-      final eventDate =
-          (m['status'] == 'Aplicado' && m['applied_date'] != null)
-              ? m['applied_date']
-              : m['date'];
+      final eventDate = (m['status'] == 'Aplicado' && m['applied_date'] != null)
+          ? m['applied_date']
+          : m['date'];
       final d = _toDate(eventDate);
       return _between(d, filters.startDate, filters.endDate);
     }).toList();
@@ -440,8 +446,7 @@ class ReportsService {
 
     final scheduled =
         medications.where((m) => m['status'] == 'Agendado').length;
-    final applied =
-        medications.where((m) => m['status'] == 'Aplicado').length;
+    final applied = medications.where((m) => m['status'] == 'Aplicado').length;
     final cancelled =
         medications.where((m) => m['status'] == 'Cancelado').length;
 
@@ -453,10 +458,10 @@ class ReportsService {
         'cancelled': cancelled,
       },
       'data': medications.map((m) {
-        final animal = animalMap[m['animal_id']];
         return {
-          'animal_code': animal?.code ?? 'N/A',
-          'animal_name': animal?.name ?? 'N/A',
+          'animal_code': m['animal_code'] ?? 'N/A',
+          'animal_name': m['animal_name'] ?? 'N/A',
+          'animal_color': m['animal_color'] ?? '',
           'medication_name': m['medication_name'],
           'date': m['date'],
           'next_date': m['next_date'] ?? '',
@@ -497,8 +502,7 @@ class ReportsService {
     // ignore: avoid_print
     print('📊 Registros após filtro de data: ${breeding.length}');
 
-    if (filters.breedingStage != null &&
-        filters.breedingStage != 'Todos') {
+    if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
       final expected = _slug(filters.breedingStage!);
       breeding = breeding.where((b) {
         final stage = _slug((b['stage'] ?? '').toString());
@@ -590,8 +594,7 @@ class ReportsService {
       if (type == 'expense') type = 'despesa';
 
       final status = _asLower(map['status']);
-      final category =
-          (map['category'] ?? map['categoria'] ?? '').toString();
+      final category = (map['category'] ?? map['categoria'] ?? '').toString();
 
       // datas
       final rawDate = _firstNonEmpty(map, [
@@ -631,15 +634,12 @@ class ReportsService {
 
     // Filtra por período
     norm = norm
-        .where((m) => _between(
-            m['effective_date'] as DateTime?,
-            filters.startDate,
-            filters.endDate))
+        .where((m) => _between(m['effective_date'] as DateTime?,
+            filters.startDate, filters.endDate))
         .toList();
 
     // Filtros tipo/categoria
-    if (filters.financialType != null &&
-        filters.financialType != 'Todos') {
+    if (filters.financialType != null && filters.financialType != 'Todos') {
       final ft = _asLower(filters.financialType);
       norm = norm.where((m) => m['type'] == ft).toList();
     }
@@ -712,11 +712,9 @@ class ReportsService {
           .where((n) => (n['is_read'] == 1) == filters.notesIsRead!)
           .toList();
     }
-    if (filters.notesPriority != null &&
-        filters.notesPriority != 'Todos') {
-      notes = notes
-          .where((n) => n['priority'] == filters.notesPriority)
-          .toList();
+    if (filters.notesPriority != null && filters.notesPriority != 'Todos') {
+      notes =
+          notes.where((n) => n['priority'] == filters.notesPriority).toList();
     }
 
     final read = notes.where((n) => n['is_read'] == 1).length;

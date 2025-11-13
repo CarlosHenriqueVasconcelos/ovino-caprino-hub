@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../services/weight_service.dart';
 import '../models/animal.dart';
+import '../utils/animal_record_display.dart';
 
 class AdultWeightTracking extends StatefulWidget {
   const AdultWeightTracking({super.key});
@@ -146,7 +147,6 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                           ],
                         ),
                         const SizedBox(height: 24),
-
                         if (adults.isEmpty)
                           _buildEmptyState(theme)
                         else
@@ -183,9 +183,11 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       final colorB = b.nameColor ?? '';
       final colorCompare = colorA.compareTo(colorB);
       if (colorCompare != 0) return colorCompare;
-      
-      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
-      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
+
+      final numA =
+          int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
+      final numB =
+          int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
       return numA.compareTo(numB);
     });
 
@@ -244,7 +246,6 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             return _buildAdultCard(theme, adult);
           },
         ),
-        
         if (totalPages > 1) ...[
           const SizedBox(height: 24),
           Row(
@@ -358,8 +359,10 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                           child: Column(
                             children: List.generate(5, (rowIndex) {
                               final monthIndex = colIndex * 5 + rowIndex;
-                              if (monthIndex >= 24) return const SizedBox.shrink();
-                              return _buildMonthField(theme, monthIndex + 1, weights);
+                              if (monthIndex >= 24)
+                                return const SizedBox.shrink();
+                              return _buildMonthField(
+                                  theme, monthIndex + 1, weights);
                             }),
                           ),
                         );
@@ -442,7 +445,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 weight != null ? '${weight.toStringAsFixed(1)}kg' : '-',
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: weight != null ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      weight != null ? FontWeight.bold : FontWeight.normal,
                   color: weight != null
                       ? theme.colorScheme.onSurface
                       : theme.colorScheme.onSurface.withOpacity(0.4),
@@ -494,7 +498,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   ? '${weight.toStringAsFixed(1)} kg'
                   : 'Não registrado',
               style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: weight != null ? FontWeight.bold : FontWeight.normal,
+                fontWeight:
+                    weight != null ? FontWeight.bold : FontWeight.normal,
                 color: weight != null
                     ? theme.colorScheme.onSurface
                     : theme.colorScheme.onSurface.withOpacity(0.5),
@@ -514,18 +519,18 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   void _showMonthlyWeightDialog(Animal animal) async {
     final theme = Theme.of(context);
     final weightController = TextEditingController();
-    
+
     // Buscar pesos mensais existentes para determinar o próximo mês
     final existingWeights = await _getMonthlyWeights(animal.id);
     final existingMonths = existingWeights
-        .where((w) => w['milestone']?.toString().startsWith('monthly_') ?? false)
+        .where(
+            (w) => w['milestone']?.toString().startsWith('monthly_') ?? false)
         .map((w) {
-          final milestone = w['milestone']?.toString() ?? '';
-          final monthStr = milestone.replaceFirst('monthly_', '');
-          return int.tryParse(monthStr) ?? 0;
-        })
-        .toList();
-    
+      final milestone = w['milestone']?.toString() ?? '';
+      final monthStr = milestone.replaceFirst('monthly_', '');
+      return int.tryParse(monthStr) ?? 0;
+    }).toList();
+
     // Determinar próximo mês disponível
     int? selectedMonth;
     if (existingMonths.isEmpty) {
@@ -539,7 +544,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
         selectedMonth = null; // Todos os 24 meses já foram registrados
       }
     }
-    
+
     if (!mounted) return;
 
     showDialog(
@@ -575,7 +580,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   labelText: 'Peso (kg)',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
@@ -602,12 +608,20 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 if (weight == null) return;
 
                 try {
-                  final weightService = Provider.of<WeightService>(context, listen: false);
+                  final weightService =
+                      Provider.of<WeightService>(context, listen: false);
                   await weightService.addWeight(
                     animal.id,
                     DateTime.now(),
                     weight,
                     milestone: 'monthly_$selectedMonth',
+                  );
+                  await Provider.of<AnimalService>(context, listen: false)
+                      .updateAnimal(
+                    animal.copyWith(
+                      weight: weight,
+                      updatedAt: DateTime.now(),
+                    ),
                   );
 
                   if (context.mounted) {
@@ -636,54 +650,20 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   }
 
   Widget _buildAnimalNameText(Animal animal, ThemeData theme) {
-    final colorKey = animal.nameColor ?? '';
-    final colorName = _getColorName(colorKey);
-    final colorValue = _getColorValue(colorKey);
-    
-    return RichText(
-      text: TextSpan(
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        children: [
-          TextSpan(text: '$colorName - ', style: const TextStyle(color: Colors.black)),
-          TextSpan(
-            text: animal.name,
-            style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
-          ),
-          TextSpan(text: ' (${animal.code})', style: const TextStyle(color: Colors.black)),
-        ],
+    final record = {
+      'animal_name': animal.name,
+      'animal_code': animal.code,
+      'animal_color': animal.nameColor ?? '',
+    };
+    final label = AnimalRecordDisplay.labelFromRecord(record);
+    final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);
+
+    return Text(
+      label,
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: accent ?? theme.colorScheme.onSurface,
       ),
     );
-  }
-
-  String _getColorName(String colorKey) {
-    const colorNames = {
-      'blue': 'Azul',
-      'red': 'Vermelho',
-      'green': 'Verde',
-      'yellow': 'Amarelo',
-      'orange': 'Laranja',
-      'purple': 'Roxo',
-      'pink': 'Rosa',
-      'grey': 'Cinza',
-      'white': 'Branca',
-      'black': 'Preto',
-    };
-    return colorNames[colorKey] ?? 'Sem cor';
-  }
-
-  Color _getColorValue(String colorKey) {
-    const colorValues = {
-      'blue': Colors.blue,
-      'red': Colors.red,
-      'green': Colors.green,
-      'yellow': Colors.yellow,
-      'orange': Colors.orange,
-      'purple': Colors.purple,
-      'pink': Colors.pink,
-      'grey': Colors.grey,
-      'white': Colors.white,
-      'black': Colors.black,
-    };
-    return colorValues[colorKey] ?? Colors.grey;
   }
 }

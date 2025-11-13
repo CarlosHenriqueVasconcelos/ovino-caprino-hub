@@ -11,10 +11,16 @@ class NoteRepository {
 
   /// Retorna todas as notas, ordenadas da mais recente para a mais antiga.
   Future<List<Map<String, dynamic>>> getAll() async {
-    final rows = await _db.db.query(
-      'notes',
-      orderBy: 'date DESC',
-    );
+    final rows = await _db.db.rawQuery('''
+      SELECT 
+        n.*,
+        a.name AS animal_name,
+        a.code AS animal_code,
+        a.name_color AS animal_color
+      FROM notes n
+      LEFT JOIN animals a ON a.id = n.animal_id
+      ORDER BY n.date DESC, n.created_at DESC
+    ''');
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 

@@ -41,8 +41,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
     dynamic linkedAnimal;
     if (widget.animalId != null) {
       try {
-        linkedAnimal =
-            animals.firstWhere((a) => a.id == widget.animalId);
+        linkedAnimal = animals.firstWhere((a) => a.id == widget.animalId);
       } on StateError {
         linkedAnimal = null;
       }

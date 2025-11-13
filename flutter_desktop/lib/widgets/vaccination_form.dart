@@ -8,7 +8,7 @@ import '../utils/animal_display_utils.dart';
 
 class VaccinationFormDialog extends StatefulWidget {
   final String? animalId;
-  
+
   const VaccinationFormDialog({super.key, this.animalId});
 
   @override
@@ -20,7 +20,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
   final _vaccineNameController = TextEditingController();
   final _veterinarianController = TextEditingController();
   final _notesController = TextEditingController();
-  
+
   String _vaccineType = 'Obrigatória';
   String _status = 'Agendada';
   DateTime _scheduledDate = DateTime.now();
@@ -41,11 +41,11 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
-    
+
     // Ordenar animais
     final sortedAnimals = [...animalService.animals];
     AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
-    
+
     return AlertDialog(
       title: const Text('Nova Vacinação'),
       content: SizedBox(
@@ -67,13 +67,14 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                       return sortedAnimals.where((animal) {
                         final searchText = textEditingValue.text.toLowerCase();
                         return animal.code.toLowerCase().contains(searchText) ||
-                               animal.name.toLowerCase().contains(searchText);
+                            animal.name.toLowerCase().contains(searchText);
                       });
                     },
                     onSelected: (Animal animal) {
                       setState(() => _selectedAnimalId = animal.id);
                     },
-                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
@@ -92,7 +93,9 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                 )
                               : null,
                         ),
-                        validator: (value) => _selectedAnimalId == null ? 'Selecione um animal' : null,
+                        validator: (value) => _selectedAnimalId == null
+                            ? 'Selecione um animal'
+                            : null,
                       );
                     },
                     optionsViewBuilder: (context, onSelected, options) {
@@ -111,8 +114,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                 return InkWell(
                                   onTap: () => onSelected(animal),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    child: AnimalDisplayUtils.buildDropdownItem(
+                                        animal),
                                   ),
                                 );
                               },
@@ -122,9 +127,9 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                       );
                     },
                   ),
-                
+
                 if (widget.animalId == null) const SizedBox(height: 16),
-                
+
                 // Vaccine Info
                 Row(
                   children: [
@@ -151,8 +156,12 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                           labelText: 'Tipo',
                           border: OutlineInputBorder(),
                         ),
-                        items: ['Obrigatória', 'Preventiva', 'Tratamento', 'Emergencial']
-                            .map((type) {
+                        items: [
+                          'Obrigatória',
+                          'Preventiva',
+                          'Tratamento',
+                          'Emergencial'
+                        ].map((type) {
                           return DropdownMenuItem(
                             value: type,
                             child: Text(type),
@@ -168,7 +177,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Dates
                 Row(
                   children: [
@@ -179,8 +188,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                             context: context,
                             locale: const Locale('pt', 'BR'),
                             initialDate: _scheduledDate,
-                            firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            firstDate: DateTime.now()
+                                .subtract(const Duration(days: 365)),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 365)),
                           );
                           if (date != null) {
                             setState(() {
@@ -208,7 +219,8 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                           labelText: 'Status',
                           border: OutlineInputBorder(),
                         ),
-                        items: ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
+                        items:
+                            ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
                           return DropdownMenuItem(
                             value: status,
                             child: Text(status),
@@ -229,7 +241,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Applied Date (if status is Applied)
                 if (_status == 'Aplicada') ...[
                   InkWell(
@@ -238,7 +250,8 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                         context: context,
                         locale: const Locale('pt', 'BR'),
                         initialDate: _appliedDate ?? DateTime.now(),
-                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        firstDate:
+                            DateTime.now().subtract(const Duration(days: 365)),
                         lastDate: DateTime.now(),
                       );
                       if (date != null) {
@@ -262,7 +275,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                
+
                 // Veterinarian
                 TextFormField(
                   controller: _veterinarianController,
@@ -272,7 +285,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Notes
                 TextFormField(
                   controller: _notesController,
@@ -304,8 +317,9 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
     try {
-      final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
-      
+      final vaccinationService =
+          Provider.of<VaccinationService>(context, listen: false);
+
       final vaccination = {
         'id': const Uuid().v4(),
         'animal_id': _selectedAnimalId!,
@@ -313,14 +327,16 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
         'vaccine_type': _vaccineType,
         'scheduled_date': _scheduledDate.toIso8601String().split('T')[0],
         'applied_date': _appliedDate?.toIso8601String().split('T')[0],
-        'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
+        'veterinarian': _veterinarianController.text.isEmpty
+            ? null
+            : _veterinarianController.text,
         'notes': _notesController.text.isEmpty ? null : _notesController.text,
         'status': _status,
         'created_at': DateTime.now().toIso8601String(),
       };
 
       await vaccinationService.createVaccination(vaccination);
-      
+
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(

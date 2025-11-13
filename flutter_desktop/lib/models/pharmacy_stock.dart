@@ -64,12 +64,16 @@ class PharmacyStock {
       medicationName: map['medication_name'] ?? map['medicationName'] ?? '',
       medicationType: map['medication_type'] ?? map['medicationType'] ?? '',
       unitOfMeasure: map['unit_of_measure'] ?? map['unitOfMeasure'] ?? '',
-      quantityPerUnit: _toDouble(map['quantity_per_unit'] ?? map['quantityPerUnit']),
-      totalQuantity: _toDouble(map['total_quantity'] ?? map['totalQuantity']) ?? 0.0,
+      quantityPerUnit:
+          _toDouble(map['quantity_per_unit'] ?? map['quantityPerUnit']),
+      totalQuantity:
+          _toDouble(map['total_quantity'] ?? map['totalQuantity']) ?? 0.0,
       minStockAlert: _toDouble(map['min_stock_alert'] ?? map['minStockAlert']),
-      expirationDate: _toDateOrNull(map['expiration_date'] ?? map['expirationDate']),
+      expirationDate:
+          _toDateOrNull(map['expiration_date'] ?? map['expirationDate']),
       isOpened: _toBool(map['is_opened'] ?? map['isOpened'] ?? false),
-      openedQuantity: _toDouble(map['opened_quantity'] ?? map['openedQuantity']) ?? 0.0,
+      openedQuantity:
+          _toDouble(map['opened_quantity'] ?? map['openedQuantity']) ?? 0.0,
       notes: map['notes']?.toString(),
       createdAt: _toDate(map['created_at'] ?? map['createdAt']),
       updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
@@ -86,7 +90,7 @@ class PharmacyStock {
       'medication_type': medicationType,
       'unit_of_measure': unitOfMeasure,
       'total_quantity': totalQuantity,
-      'is_opened': isOpened ? 1 : 0,  // SQLite precisa de int, não bool
+      'is_opened': isOpened ? 1 : 0, // SQLite precisa de int, não bool
       'opened_quantity': openedQuantity,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -145,7 +149,8 @@ class PharmacyStock {
 
   bool get isExpiringSoon {
     if (expirationDate == null) return false;
-    final daysUntilExpiration = expirationDate!.difference(DateTime.now()).inDays;
+    final daysUntilExpiration =
+        expirationDate!.difference(DateTime.now()).inDays;
     return daysUntilExpiration >= 0 && daysUntilExpiration <= 30;
   }
 

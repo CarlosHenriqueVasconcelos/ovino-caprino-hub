@@ -54,7 +54,7 @@ String ptBrHeader(String key) {
     // Financeiro
     'type': 'Tipo',
     'category_fin': 'Categoria',
-    'amount': 'Valor (R\$)',            // <- escapar $ em strings
+    'amount': 'Valor (R\$)', // <- escapar $ em strings
     'revenue': 'Receita (R\$)',
     'expense': 'Despesa (R\$)',
     'balance': 'Saldo (R\$)',

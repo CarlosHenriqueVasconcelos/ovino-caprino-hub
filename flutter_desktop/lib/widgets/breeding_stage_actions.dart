@@ -109,8 +109,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       if (femaleId != null && femaleId.isNotEmpty) {
         Animal? female;
         try {
-          female =
-              animalService.animals.firstWhere((a) => a.id == femaleId);
+          female = animalService.animals.firstWhere((a) => a.id == femaleId);
         } catch (_) {
           female = null;
         }
@@ -129,9 +128,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              isConfirmed
-                  ? 'Gestação confirmada!'
-                  : 'Gestação não confirmada.',
+              isConfirmed ? 'Gestação confirmada!' : 'Gestação não confirmada.',
             ),
           ),
         );
@@ -192,8 +189,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       if (femaleId != null && femaleId.isNotEmpty) {
         Animal? mother;
         try {
-          mother =
-              animalService.animals.firstWhere((a) => a.id == femaleId);
+          mother = animalService.animals.firstWhere((a) => a.id == femaleId);
         } catch (_) {
           mother = null;
         }
@@ -223,8 +219,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
         if (femaleId != null && femaleId.isNotEmpty) {
           try {
-            mother =
-                animalService.animals.firstWhere((a) => a.id == femaleId);
+            mother = animalService.animals.firstWhere((a) => a.id == femaleId);
           } catch (_) {
             mother = null;
           }
@@ -232,8 +227,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
         if (maleId != null && maleId.isNotEmpty) {
           try {
-            father =
-                animalService.animals.firstWhere((a) => a.id == maleId);
+            father = animalService.animals.firstWhere((a) => a.id == maleId);
           } catch (_) {
             father = null;
           }
@@ -255,6 +249,8 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
               motherCode: mother?.code,
               motherBreed: mother?.breed,
               fatherId: father?.id,
+              fatherName: father?.name,
+              fatherColor: father?.nameColor,
               fatherCode: father?.code,
               fatherBreed: father?.breed,
               presetCategory: 'Borrego',

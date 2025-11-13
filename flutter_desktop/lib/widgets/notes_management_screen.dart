@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../services/animal_service.dart';
 import '../services/note_service.dart';
 import 'notes_form.dart';
+import '../utils/animal_record_display.dart';
 
 /// Formata uma data do formato yyyy-MM-dd para dd/MM/yyyy
 String _formatDateFromDb(String? dateStr) {
@@ -79,10 +79,10 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
 
   List<Map<String, dynamic>> get _filteredNotes {
     return _notes.where((note) {
-      final categoryMatch = _selectedCategory == 'Todas' ||
-          note['category'] == _selectedCategory;
-      final priorityMatch = _selectedPriority == 'Todas' ||
-          note['priority'] == _selectedPriority;
+      final categoryMatch =
+          _selectedCategory == 'Todas' || note['category'] == _selectedCategory;
+      final priorityMatch =
+          _selectedPriority == 'Todas' || note['priority'] == _selectedPriority;
       final readMatch =
           !_showOnlyUnread || (note['is_read'] == 0 || note['is_read'] == null);
 
@@ -260,49 +260,32 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   }
 
   Widget _buildNotesList(ThemeData theme) {
-    final sortedNotes = [..._filteredNotes]
-      ..sort((a, b) {
+    final sortedNotes = [..._filteredNotes]..sort((a, b) {
         final dateA = a['date'] ?? '';
         final dateB = b['date'] ?? '';
         return dateB.compareTo(dateA);
       });
 
-    return Consumer<AnimalService>(
-      builder: (context, animalService, _) {
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemCount: sortedNotes.length,
-          itemBuilder: (context, index) {
-            final note = sortedNotes[index];
-            final animalService =
-                Provider.of<AnimalService>(context, listen: false);
-
-            // Find associated animal if exists
-            final noteAnimalId = note['animal_id'];
-            dynamic animal;
-            if (noteAnimalId != null) {
-              try {
-                // se não encontrar, firstWhere lança StateError e cai no catch
-                animal = animalService.animals.firstWhere((a) => a.id == noteAnimalId);
-              } on StateError {
-                animal = null;
-              }
-            }
-
-
-            return _buildNoteCard(theme, note, animal);
-          },
-        );
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemCount: sortedNotes.length,
+      itemBuilder: (context, index) {
+        final note = sortedNotes[index];
+        return _buildNoteCard(theme, note);
       },
     );
   }
 
-  Widget _buildNoteCard(
-      ThemeData theme, Map<String, dynamic> note, dynamic animal) {
+  Widget _buildNoteCard(ThemeData theme, Map<String, dynamic> note) {
     final isRead = note['is_read'] == 1;
     final dateStr = _formatDateFromDb(note['date']);
     final contentPreview = _formatContentPreview(note['content']);
+    final hasLinkedAnimal = note['animal_id'] != null;
+    final animalLabel =
+        hasLinkedAnimal ? AnimalRecordDisplay.labelFromRecord(note) : null;
+    final animalColor =
+        hasLinkedAnimal ? AnimalRecordDisplay.colorFromRecord(note) : null;
 
     Color priorityColor;
     IconData priorityIcon;
@@ -366,7 +349,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _showNoteDetails(note, animal),
+        onTap: () => _showNoteDetails(note),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -438,7 +421,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                     const SizedBox(height: 4),
 
                     // Animal vinculado (se houver)
-                    if (animal != null)
+                    if (hasLinkedAnimal)
                       Row(
                         children: [
                           Icon(
@@ -449,9 +432,9 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
-                              '${animal.code} - ${animal.name}',
+                              animalLabel!,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.primary,
+                                color: animalColor ?? theme.colorScheme.primary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -459,7 +442,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                         ],
                       ),
 
-                    if (animal != null) const SizedBox(height: 4),
+                    if (hasLinkedAnimal) const SizedBox(height: 4),
 
                     // Prévia do conteúdo
                     Text(
@@ -553,9 +536,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     }
   }
 
-  void _showNoteDetails(Map<String, dynamic> note, dynamic animal) {
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-
+  void _showNoteDetails(Map<String, dynamic> note) {
     Color priorityColor;
     switch (note['priority']) {
       case 'Alta':
@@ -571,6 +552,12 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     final dateStr = _formatDateFromDb(note['date']);
     final content = (note['content'] ?? 'Sem descrição').toString();
     final createdBy = (note['created_by'] ?? '').toString().trim();
+
+    final hasLinkedAnimal = note['animal_id'] != null;
+    final animalLabel =
+        hasLinkedAnimal ? AnimalRecordDisplay.labelFromRecord(note) : null;
+    final animalColor =
+        hasLinkedAnimal ? AnimalRecordDisplay.colorFromRecord(note) : null;
 
     showDialog(
       context: context,
@@ -624,14 +611,15 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                   const SizedBox(height: 8),
 
                   // Animal vinculado
-                  if (animal != null)
+                  if (hasLinkedAnimal)
                     _buildDetailSection(
                       icon: Icons.pets,
                       title: 'Animal vinculado',
-                      content: '${animal.code} - ${animal.name}',
-                      color: Theme.of(context).colorScheme.secondary,
+                      content: animalLabel!,
+                      color: animalColor ??
+                          Theme.of(context).colorScheme.secondary,
                     ),
-                  if (animal == null)
+                  if (!hasLinkedAnimal)
                     _buildDetailSection(
                       icon: Icons.pets_outlined,
                       title: 'Animal vinculado',
@@ -646,16 +634,20 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                       icon: Icons.person_outline,
                       title: 'Criado por',
                       content: createdBy,
-                      color:
-                          Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.8),
                     ),
                   if (createdBy.isEmpty)
                     _buildDetailSection(
                       icon: Icons.person_outline,
                       title: 'Criado por',
                       content: 'Autor não informado',
-                      color:
-                          Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.6),
                     ),
                   const SizedBox(height: 16),
 
@@ -679,9 +671,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                 await _markAsRead(note['id'].toString());
               },
               child: Text(
-                note['is_read'] == 1
-                    ? 'Fechar'
-                    : 'Marcar como lida e fechar',
+                note['is_read'] == 1 ? 'Fechar' : 'Marcar como lida e fechar',
               ),
             ),
           ],

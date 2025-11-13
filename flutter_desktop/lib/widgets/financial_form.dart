@@ -84,15 +84,19 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
 
   void _initializeControllers() {
     final account = widget.account;
-    
-    _descriptionController = TextEditingController(text: account?.description ?? '');
+
+    _descriptionController =
+        TextEditingController(text: account?.description ?? '');
     _amountController = TextEditingController(
       text: account?.amount.toStringAsFixed(2).replaceAll('.', ',') ?? '',
     );
     _dueDateController = TextEditingController(
-      text: account != null ? DateFormat('dd/MM/yyyy').format(account.dueDate) : '',
+      text: account != null
+          ? DateFormat('dd/MM/yyyy').format(account.dueDate)
+          : '',
     );
-    _supplierCustomerController = TextEditingController(text: account?.supplierCustomer ?? '');
+    _supplierCustomerController =
+        TextEditingController(text: account?.supplierCustomer ?? '');
     _notesController = TextEditingController(text: account?.notes ?? '');
 
     _selectedCategory = account?.category;
@@ -119,7 +123,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    
+
     if (picked != null) {
       setState(() {
         _selectedDueDate = picked;
@@ -141,7 +145,9 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
     }
 
     // Validar animal se for venda de animais
-    if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais' && _selectedAnimalId == null) {
+    if (widget.type == 'receita' &&
+        _selectedCategory == 'Venda de Animais' &&
+        _selectedAnimalId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione o animal para a venda')),
       );
@@ -160,13 +166,17 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       id: widget.account?.id ?? const Uuid().v4(),
       type: widget.type,
       category: _selectedCategory ?? '',
-      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+      description: _descriptionController.text.isEmpty
+          ? null
+          : _descriptionController.text,
       amount: amount,
       dueDate: _selectedDueDate!,
       status: widget.account?.status ?? 'Pendente',
       paymentMethod: _selectedPaymentMethod,
       animalId: _selectedAnimalId,
-      supplierCustomer: _supplierCustomerController.text.isEmpty ? null : _supplierCustomerController.text,
+      supplierCustomer: _supplierCustomerController.text.isEmpty
+          ? null
+          : _supplierCustomerController.text,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
       createdAt: widget.account?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
@@ -204,7 +214,8 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.account != null;
-    final categories = widget.type == 'receita' ? _revenueCategories : _expenseCategories;
+    final categories =
+        widget.type == 'receita' ? _revenueCategories : _expenseCategories;
 
     return Scaffold(
       appBar: AppBar(
@@ -236,11 +247,12 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
                   }
                 });
               },
-              validator: (value) => value == null ? 'Selecione uma categoria' : null,
+              validator: (value) =>
+                  value == null ? 'Selecione uma categoria' : null,
             ),
             const SizedBox(height: 16),
-
-            if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais')
+            if (widget.type == 'receita' &&
+                _selectedCategory == 'Venda de Animais')
               DropdownButtonFormField<String>(
                 value: _selectedAnimalId,
                 decoration: const InputDecoration(
@@ -259,11 +271,12 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
                     _selectedAnimalId = value;
                   });
                 },
-                validator: (value) => value == null ? 'Selecione o animal' : null,
+                validator: (value) =>
+                    value == null ? 'Selecione o animal' : null,
               ),
-            if (widget.type == 'receita' && _selectedCategory == 'Venda de Animais')
+            if (widget.type == 'receita' &&
+                _selectedCategory == 'Venda de Animais')
               const SizedBox(height: 16),
-
             TextFormField(
               controller: _descriptionController,
               decoration: const InputDecoration(
@@ -273,7 +286,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               maxLines: 2,
             ),
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(
@@ -281,7 +293,8 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
                 border: OutlineInputBorder(),
                 prefixText: 'R\$ ',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
               ],
@@ -293,7 +306,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _dueDateController,
               decoration: const InputDecoration(
@@ -303,10 +315,10 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               ),
               readOnly: true,
               onTap: () => _selectDate(context),
-              validator: (value) => value == null || value.isEmpty ? 'Selecione a data' : null,
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Selecione a data' : null,
             ),
             const SizedBox(height: 16),
-
             DropdownButtonFormField<String>(
               value: _selectedPaymentMethod,
               decoration: const InputDecoration(
@@ -323,7 +335,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               },
             ),
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _supplierCustomerController,
               decoration: InputDecoration(
@@ -332,7 +343,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextFormField(
               controller: _notesController,
               decoration: const InputDecoration(
@@ -342,7 +352,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-
             Row(
               children: [
                 Expanded(

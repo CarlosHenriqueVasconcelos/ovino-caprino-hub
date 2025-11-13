@@ -4,7 +4,6 @@ import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
 import '../data/pharmacy_repository.dart';
 
-
 class PharmacyService extends ChangeNotifier {
   final PharmacyRepository _repository;
   static final _uuid = Uuid();
@@ -50,7 +49,7 @@ class PharmacyService extends ChangeNotifier {
           ),
         );
       }
-      
+
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao criar medicamento: $e');
@@ -62,7 +61,7 @@ class PharmacyService extends ChangeNotifier {
   Future<void> updateMedication(String id, PharmacyStock stock) async {
     try {
       await _repository.updateStock(stock);
-      
+
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao atualizar medicamento: $e');
@@ -87,7 +86,7 @@ class PharmacyService extends ChangeNotifier {
   Future<void> recordMovement(PharmacyStockMovement movement) async {
     try {
       await _repository.recordMovement(movement);
-      
+
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
       print('Erro ao registrar movimentação: $e');
@@ -126,20 +125,25 @@ class PharmacyService extends ChangeNotifier {
   }
 
   // Deduzir do estoque (ao aplicar medicação)
-  Future<void> deductFromStock(String stockId, double quantity, String? medicationId, {bool isAmpoule = false}) async {
+  Future<void> deductFromStock(
+      String stockId, double quantity, String? medicationId,
+      {bool isAmpoule = false}) async {
     try {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');
 
       final unit = stock.unitOfMeasure.toLowerCase();
-      
+
       // Determinar qual lógica usar baseado na unidade de medida
-      final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && stock.quantityPerUnit != null && stock.quantityPerUnit! > 0;
-      
+      final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+          stock.quantityPerUnit != null &&
+          stock.quantityPerUnit! > 0;
+
       if (medicationId == null) {
         // Remoção manual - sempre trabalhar com unidades (ampolas/frascos/comprimidos)
         final newQuantity = stock.totalQuantity - quantity;
-        if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
+        if (newQuantity < 0)
+          throw Exception('Quantidade insuficiente em estoque');
 
         final updated = stock.copyWith(
           totalQuantity: newQuantity,
@@ -164,7 +168,8 @@ class PharmacyService extends ChangeNotifier {
       } else {
         // Aplicação com "Unidade" - descontar diretamente da quantidade total
         final newQuantity = stock.totalQuantity - quantity;
-        if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
+        if (newQuantity < 0)
+          throw Exception('Quantidade insuficiente em estoque');
 
         final updated = stock.copyWith(
           totalQuantity: newQuantity,
@@ -179,7 +184,8 @@ class PharmacyService extends ChangeNotifier {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantity,
-            reason: 'Aplicação de medicamento (${quantity.toStringAsFixed(1)} unidade${quantity > 1 ? 's' : ''})',
+            reason:
+                'Aplicação de medicamento (${quantity.toStringAsFixed(1)} unidade${quantity > 1 ? 's' : ''})',
             createdAt: DateTime.now(),
           ),
         );
@@ -191,7 +197,8 @@ class PharmacyService extends ChangeNotifier {
   }
 
   // Lógica de desconto por volume (ml/mg/g) com recipientes parciais
-  Future<void> _handleVolumeDeduction(PharmacyStock stock, double quantityUsed, String? medicationId) async {
+  Future<void> _handleVolumeDeduction(
+      PharmacyStock stock, double quantityUsed, String? medicationId) async {
     final type = stock.medicationType.toLowerCase();
     String container;
     if (type == 'frasco') {
@@ -207,16 +214,18 @@ class PharmacyService extends ChangeNotifier {
     } else {
       container = 'Recipiente';
     }
-    
+
     final unitSize = stock.quantityPerUnit!;
     final unit = stock.unitOfMeasure;
-    
+
     // Validar estoque total disponível antes de aplicar
-    final totalAvailable = (stock.totalQuantity * unitSize) + stock.openedQuantity;
+    final totalAvailable =
+        (stock.totalQuantity * unitSize) + stock.openedQuantity;
     if (quantityUsed > totalAvailable) {
-      throw Exception('Quantidade insuficiente em estoque. Disponível: ${totalAvailable.toStringAsFixed(2)} $unit');
+      throw Exception(
+          'Quantidade insuficiente em estoque. Disponível: ${totalAvailable.toStringAsFixed(2)} $unit');
     }
-    
+
     // Primeiro verifica se há frasco aberto
     if (stock.openedQuantity > 0) {
       if (quantityUsed <= stock.openedQuantity) {
@@ -228,7 +237,7 @@ class PharmacyService extends ChangeNotifier {
           updatedAt: DateTime.now(),
         );
         await updateMedication(stock.id, updated);
-        
+
         await recordMovement(
           PharmacyStockMovement(
             id: _uuid.v4(),
@@ -236,7 +245,8 @@ class PharmacyService extends ChangeNotifier {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantityUsed,
-            reason: 'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit do $container aberto)',
+            reason:
+                'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit do $container aberto)',
             createdAt: DateTime.now(),
           ),
         );
@@ -245,11 +255,11 @@ class PharmacyService extends ChangeNotifier {
         // Usa todo o frasco aberto e precisa de mais
         final remaining = quantityUsed - stock.openedQuantity;
         final frascosFechados = (remaining / unitSize).ceil();
-        
+
         if (stock.totalQuantity < frascosFechados) {
           throw Exception('Quantidade insuficiente em estoque');
         }
-        
+
         final newOpenedQty = (frascosFechados * unitSize) - remaining;
         final updated = stock.copyWith(
           totalQuantity: stock.totalQuantity - frascosFechados,
@@ -258,7 +268,7 @@ class PharmacyService extends ChangeNotifier {
           updatedAt: DateTime.now(),
         );
         await updateMedication(stock.id, updated);
-        
+
         await recordMovement(
           PharmacyStockMovement(
             id: _uuid.v4(),
@@ -266,19 +276,21 @@ class PharmacyService extends ChangeNotifier {
             medicationId: medicationId,
             movementType: 'saida',
             quantity: quantityUsed,
-            reason: 'Aplicação de medicamento (${stock.openedQuantity.toStringAsFixed(2)} $unit do aberto + ${remaining.toStringAsFixed(2)} $unit de $frascosFechados novo${frascosFechados > 1 ? 's' : ''})',
+            reason:
+                'Aplicação de medicamento (${stock.openedQuantity.toStringAsFixed(2)} $unit do aberto + ${remaining.toStringAsFixed(2)} $unit de $frascosFechados novo${frascosFechados > 1 ? 's' : ''})',
             createdAt: DateTime.now(),
           ),
         );
         return;
       }
     }
-    
+
     // Não há frasco aberto
     if (quantityUsed == unitSize) {
       // Usa um frasco completo
       final newQuantity = stock.totalQuantity - 1;
-      if (newQuantity < 0) throw Exception('Quantidade insuficiente em estoque');
+      if (newQuantity < 0)
+        throw Exception('Quantidade insuficiente em estoque');
 
       final updated = stock.copyWith(
         totalQuantity: newQuantity,
@@ -300,9 +312,12 @@ class PharmacyService extends ChangeNotifier {
     } else {
       // Uso parcial - abre um novo frasco
       final remaining = unitSize - quantityUsed;
-      if (remaining < 0) throw Exception('Quantidade usada maior que a capacidade do $container');
-      
-      if (stock.totalQuantity < 1) throw Exception('Quantidade insuficiente em estoque');
+      if (remaining < 0)
+        throw Exception(
+            'Quantidade usada maior que a capacidade do $container');
+
+      if (stock.totalQuantity < 1)
+        throw Exception('Quantidade insuficiente em estoque');
 
       final updated = stock.copyWith(
         totalQuantity: stock.totalQuantity - 1,
@@ -319,7 +334,8 @@ class PharmacyService extends ChangeNotifier {
           medicationId: medicationId,
           movementType: 'saida',
           quantity: quantityUsed,
-          reason: 'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit usados, ${remaining.toStringAsFixed(2)} $unit restantes no $container aberto)',
+          reason:
+              'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit usados, ${remaining.toStringAsFixed(2)} $unit restantes no $container aberto)',
           createdAt: DateTime.now(),
         ),
       );
@@ -327,7 +343,8 @@ class PharmacyService extends ChangeNotifier {
   }
 
   // Adicionar ao estoque (ao cancelar medicação ou comprar)
-  Future<void> addToStock(String stockId, double quantity, {String? reason}) async {
+  Future<void> addToStock(String stockId, double quantity,
+      {String? reason}) async {
     try {
       final stock = await getStockById(stockId);
       if (stock == null) throw Exception('Medicamento não encontrado');

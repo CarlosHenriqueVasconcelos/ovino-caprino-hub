@@ -9,7 +9,8 @@ class PharmacyManagementScreen extends StatefulWidget {
   const PharmacyManagementScreen({super.key});
 
   @override
-  State<PharmacyManagementScreen> createState() => _PharmacyManagementScreenState();
+  State<PharmacyManagementScreen> createState() =>
+      _PharmacyManagementScreenState();
 }
 
 class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
@@ -19,7 +20,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   String _searchQuery = '';
   String _sortBy = 'name'; // name, quantity, expiration
   bool _sortAscending = true;
-  
+
   // Paginação
   int _currentPage = 0;
   final int _itemsPerPage = 20;
@@ -33,7 +34,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   Future<void> _loadStock() async {
     setState(() => _isLoading = true);
     try {
-      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final pharmacyService =
+          Provider.of<PharmacyService>(context, listen: false);
       final stock = await pharmacyService.getPharmacyStock();
       setState(() {
         _stock = stock;
@@ -56,21 +58,24 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   List<PharmacyStock> _filterStockWithoutPagination() {
     var filtered = _stock.toList();
-    
+
     // Aplicar busca
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((s) => 
-        s.medicationName.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      filtered = filtered
+          .where((s) => s.medicationName
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()))
+          .toList();
     }
-    
+
     // Aplicar filtro
     switch (_filter) {
       case 'Estoque Baixo':
         filtered = filtered.where((s) => s.isLowStock && !s.isExpired).toList();
         break;
       case 'Vencendo':
-        filtered = filtered.where((s) => s.isExpiringSoon && !s.isExpired).toList();
+        filtered =
+            filtered.where((s) => s.isExpiringSoon && !s.isExpired).toList();
         break;
       case 'Vencidos':
         filtered = filtered.where((s) => s.isExpired).toList();
@@ -79,7 +84,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         filtered = filtered.where((s) => !s.isExpired).toList();
         break;
     }
-    
+
     // Aplicar ordenação
     switch (_sortBy) {
       case 'name':
@@ -103,21 +108,21 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         });
         break;
     }
-    
+
     return filtered;
   }
 
   List<PharmacyStock> _filterStock() {
     final allFiltered = _filterStockWithoutPagination();
-    
+
     // Aplica paginação
     final start = _currentPage * _itemsPerPage;
     final end = (start + _itemsPerPage).clamp(0, allFiltered.length);
-    
+
     if (start >= allFiltered.length) {
       return [];
     }
-    
+
     return allFiltered.sublist(start, end);
   }
 
@@ -154,8 +159,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               const SizedBox(height: 12),
 
               // Paginação
-              if (!_isLoading && _stock.isNotEmpty)
-                _buildPagination(),
+              if (!_isLoading && _stock.isNotEmpty) _buildPagination(),
 
               const SizedBox(height: 12),
 
@@ -188,8 +192,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                             builder: (context, constraints) {
                               final width = constraints.maxWidth;
                               int crossAxisCount = 2;
-                              if (width >= 1500) crossAxisCount = 4;
-                              else if (width >= 1100) crossAxisCount = 3;
+                              if (width >= 1500)
+                                crossAxisCount = 4;
+                              else if (width >= 1100)
+                                crossAxisCount = 3;
                               else if (width <= 700) crossAxisCount = 1;
 
                               final aspect = crossAxisCount == 1 ? 3.0 : 1.9;
@@ -197,7 +203,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                               return GridView.builder(
                                 padding: const EdgeInsets.only(bottom: 96),
                                 itemCount: filteredStock.length,
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
                                   childAspectRatio: aspect,
                                   crossAxisSpacing: 16,
@@ -233,7 +240,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
             color: Colors.teal.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.medical_services_outlined, color: Colors.teal),
+          child:
+              const Icon(Icons.medical_services_outlined, color: Colors.teal),
         ),
         const SizedBox(width: 10),
         Text(
@@ -266,7 +274,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   Widget _buildPagination() {
     if (_totalPages <= 1) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -308,10 +316,10 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         SizedBox(
           width: 360,
           child: TextField(
-          onChanged: (value) => setState(() {
-            _searchQuery = value;
-            _currentPage = 0; // Reset para primeira página
-          }),
+            onChanged: (value) => setState(() {
+              _searchQuery = value;
+              _currentPage = 0; // Reset para primeira página
+            }),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               hintText: 'Buscar por nome ou apresentação…',
@@ -378,15 +386,19 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                   items: const [
                     DropdownMenuItem(value: 'name', child: Text('Nome')),
                     DropdownMenuItem(value: 'quantity', child: Text('Estoque')),
-                    DropdownMenuItem(value: 'expiration', child: Text('Validade')),
+                    DropdownMenuItem(
+                        value: 'expiration', child: Text('Validade')),
                   ],
-                  onChanged: (v) => v == null ? null : setState(() => _sortBy = v),
+                  onChanged: (v) =>
+                      v == null ? null : setState(() => _sortBy = v),
                 ),
               ),
               IconButton(
                 tooltip: _sortAscending ? 'Crescente' : 'Decrescente',
-                onPressed: () => setState(() => _sortAscending = !_sortAscending),
-                icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+                onPressed: () =>
+                    setState(() => _sortAscending = !_sortAscending),
+                icon: Icon(
+                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
               ),
             ],
           ),
@@ -397,7 +409,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   Widget _buildStockCard(PharmacyStock stock, ThemeData theme) {
     final tags = <Widget>[];
-    
+
     if (stock.isExpired) {
       tags.add(_buildBadge('Vencido', Colors.red));
     }
@@ -420,15 +432,16 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
 
     final unit = stock.unitOfMeasure.toLowerCase();
-    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                           stock.quantityPerUnit != null && 
-                           stock.quantityPerUnit! > 0;
-    
+    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+        stock.quantityPerUnit != null &&
+        stock.quantityPerUnit! > 0;
+
     final totalVolume = useVolumeLogic
-        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity 
+        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity
         : stock.totalQuantity;
-    
-    final percent = (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2)).clamp(0.0, 1.0);
+
+    final percent = (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2))
+        .clamp(0.0, 1.0);
     final percentLabel = '${(percent * 100).round()}%';
 
     return Card(
@@ -543,11 +556,13 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _showRemoveQuantityDialog(stock),
                       icon: const Icon(Icons.remove, size: 16),
-                      label: const Text('Remover', style: TextStyle(fontSize: 13)),
+                      label:
+                          const Text('Remover', style: TextStyle(fontSize: 13)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
                         minimumSize: const Size(0, 34),
                       ),
                     ),
@@ -557,10 +572,12 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                     child: FilledButton.icon(
                       onPressed: () => _showAddQuantityDialog(stock),
                       icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Adicionar', style: TextStyle(fontSize: 13)),
+                      label: const Text('Adicionar',
+                          style: TextStyle(fontSize: 13)),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.teal,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
                         minimumSize: const Size(0, 34),
                       ),
                     ),
@@ -620,7 +637,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final reasonController = TextEditingController();
 
     final typeName = stock.medicationType.toLowerCase();
-    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') &&
+        stock.quantityPerUnit != null;
     final unitLabel = isLiquid ? typeName : stock.unitOfMeasure;
 
     final result = await showDialog<bool>(
@@ -651,7 +669,9 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 hintText: 'Digite a quantidade',
                 border: const OutlineInputBorder(),
                 suffixText: unitLabel,
-                helperText: isLiquid ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel' : null,
+                helperText: isLiquid
+                    ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel'
+                    : null,
               ),
               autofocus: true,
             ),
@@ -684,22 +704,30 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
               try {
                 // Enviar apenas o número de unidades, não multiplicar por ML
-                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+                final pharmacyService =
+                    Provider.of<PharmacyService>(context, listen: false);
                 await pharmacyService.addToStock(
                   stock.id,
                   units.toDouble(),
-                  reason: reasonController.text.isEmpty ? null : reasonController.text,
+                  reason: reasonController.text.isEmpty
+                      ? null
+                      : reasonController.text,
                 );
                 if (context.mounted) {
                   Navigator.pop(context, true);
                   if (isLiquid) {
-                    final totalMl = (units * stock.quantityPerUnit!).toStringAsFixed(0);
+                    final totalMl =
+                        (units * stock.quantityPerUnit!).toStringAsFixed(0);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Adicionado: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
+                      SnackBar(
+                          content: Text(
+                              'Adicionado: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
                     );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Adicionado: $units ${stock.unitOfMeasure}')),
+                      SnackBar(
+                          content: Text(
+                              'Adicionado: $units ${stock.unitOfMeasure}')),
                     );
                   }
                 }
@@ -728,7 +756,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     final reasonController = TextEditingController();
 
     final typeName = stock.medicationType.toLowerCase();
-    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') && stock.quantityPerUnit != null;
+    final isLiquid = (typeName == 'ampola' || typeName == 'frasco') &&
+        stock.quantityPerUnit != null;
     final unitLabel = isLiquid ? typeName : stock.unitOfMeasure;
 
     final result = await showDialog<bool>(
@@ -757,7 +786,9 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 hintText: 'Digite a quantidade',
                 border: const OutlineInputBorder(),
                 suffixText: unitLabel,
-                helperText: isLiquid ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel' : null,
+                helperText: isLiquid
+                    ? '${stock.quantityPerUnit!.toStringAsFixed(1)} ml por $unitLabel'
+                    : null,
               ),
               autofocus: true,
             ),
@@ -791,7 +822,9 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               // Verificar se tem unidades suficientes
               if (units > stock.totalQuantity) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Quantidade maior que o estoque disponível (${stock.totalQuantity.toInt()} $unitLabel${stock.totalQuantity != 1 ? 's' : ''})')),
+                  SnackBar(
+                      content: Text(
+                          'Quantidade maior que o estoque disponível (${stock.totalQuantity.toInt()} $unitLabel${stock.totalQuantity != 1 ? 's' : ''})')),
                 );
                 return;
               }
@@ -799,7 +832,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               try {
                 // Enviar apenas o número de unidades, não multiplicar por ML
                 // medication_id deve ser null quando não está associado a uma aplicação
-                final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+                final pharmacyService =
+                    Provider.of<PharmacyService>(context, listen: false);
                 await pharmacyService.deductFromStock(
                   stock.id,
                   units.toDouble(),
@@ -808,13 +842,18 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 if (context.mounted) {
                   Navigator.pop(context, true);
                   if (isLiquid) {
-                    final totalMl = (units * stock.quantityPerUnit!).toStringAsFixed(0);
+                    final totalMl =
+                        (units * stock.quantityPerUnit!).toStringAsFixed(0);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Removido: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
+                      SnackBar(
+                          content: Text(
+                              'Removido: $units $unitLabel${units != 1 ? 's' : ''} ($totalMl ml)')),
                     );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Removido: $units ${stock.unitOfMeasure}')),
+                      SnackBar(
+                          content:
+                              Text('Removido: $units ${stock.unitOfMeasure}')),
                     );
                   }
                 }
@@ -837,5 +876,4 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       _loadStock();
     }
   }
-
 }

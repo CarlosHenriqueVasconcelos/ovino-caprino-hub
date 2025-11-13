@@ -334,10 +334,8 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                         context: context,
                         locale: const Locale('pt', 'BR'),
                         initialDate: _expectedBirth!,
-                        firstDate:
-                            _breedingDate.add(const Duration(days: 120)),
-                        lastDate:
-                            _breedingDate.add(const Duration(days: 180)),
+                        firstDate: _breedingDate.add(const Duration(days: 120)),
+                        lastDate: _breedingDate.add(const Duration(days: 180)),
                       );
                       if (date != null) {
                         setState(() {
@@ -430,8 +428,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
     try {
       final breedingService = context.read<BreedingService>();
-      final animalService =
-          Provider.of<AnimalService>(context, listen: false);
+      final animalService = Provider.of<AnimalService>(context, listen: false);
 
       final stageEnum = _mapStatusToStage(_status);
       final notes = _notesController.text.trim();
@@ -448,8 +445,8 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
       // Se o estágio representar gestação confirmada, marcamos a fêmea como gestante
       if (stageEnum == BreedingStage.gestacaoConfirmada) {
-        final female = animalService.animals
-            .firstWhere((a) => a.id == _femaleAnimalId);
+        final female =
+            animalService.animals.firstWhere((a) => a.id == _femaleAnimalId);
 
         final updatedFemale = female.copyWith(
           pregnant: true,

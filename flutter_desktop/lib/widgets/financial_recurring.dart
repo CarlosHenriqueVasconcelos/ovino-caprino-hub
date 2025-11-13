@@ -8,7 +8,8 @@ class FinancialRecurringScreen extends StatefulWidget {
   const FinancialRecurringScreen({super.key});
 
   @override
-  State<FinancialRecurringScreen> createState() => _FinancialRecurringScreenState();
+  State<FinancialRecurringScreen> createState() =>
+      _FinancialRecurringScreenState();
 }
 
 class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
@@ -70,12 +71,15 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
 
       // prioridade: quem tem createdAt mais recente pós startedAt
       final created = a.createdAt ?? a.updatedAt ?? a.dueDate;
-      final afterStart = created.isAfter(startedAt.subtract(const Duration(seconds: 1)));
+      final afterStart =
+          created.isAfter(startedAt.subtract(const Duration(seconds: 1)));
 
       if (candidate == null) {
         if (afterStart) candidate = a;
       } else {
-        final candCreated = (candidate!.createdAt ?? candidate!.updatedAt ?? candidate!.dueDate);
+        final candCreated = (candidate!.createdAt ??
+            candidate!.updatedAt ??
+            candidate!.dueDate);
         if (created.isAfter(candCreated)) {
           candidate = a;
         }
@@ -109,8 +113,12 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
           'Todas as ocorrências geradas (filhas) também serão removidas.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Excluir')),
         ],
       ),
     );
@@ -124,8 +132,10 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
   String _money(num v) => 'R\$ ${v.toStringAsFixed(2).replaceAll('.', ',')}';
   String _date(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
-  Color _typeColor(String type) => type == 'receita' ? Colors.green : Colors.red;
-  IconData _typeIcon(String type) => type == 'receita' ? Icons.arrow_upward : Icons.arrow_downward;
+  Color _typeColor(String type) =>
+      type == 'receita' ? Colors.green : Colors.red;
+  IconData _typeIcon(String type) =>
+      type == 'receita' ? Icons.arrow_upward : Icons.arrow_downward;
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +153,10 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
             children: [
               Text(
                 'Recorrentes',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               ElevatedButton.icon(
@@ -154,7 +167,6 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
           if (_recurringAccounts.isEmpty)
             Card(
               child: Padding(
@@ -165,7 +177,10 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
                     const SizedBox(height: 12),
                     Text(
                       'Nenhuma despesa recorrente cadastrada',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -205,7 +220,8 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
                     children: [
                       Text(
                         _money(account.amount),
-                        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: color, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       IconButton(

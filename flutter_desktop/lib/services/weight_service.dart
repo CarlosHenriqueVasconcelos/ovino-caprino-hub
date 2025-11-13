@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../data/animal_repository.dart';
 
-
 /// Service para gerenciar registros de peso dos animais
 class WeightService extends ChangeNotifier {
   final AnimalRepository _repository;

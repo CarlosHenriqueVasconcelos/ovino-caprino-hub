@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../models/animal.dart';
 import '../utils/animal_display_utils.dart';
+import '../utils/animal_record_display.dart';
 import 'lamb_weight_tracking.dart';
 import 'adult_weight_tracking.dart';
 
@@ -26,7 +27,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     'Adultos',
     'Reprodutores'
   ];
-  
+
   int _currentPage = 0;
   static const int _itemsPerPage = 50;
 
@@ -55,8 +56,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           child: TabBar(
             controller: _tabController,
             labelColor: theme.colorScheme.primary,
-            unselectedLabelColor:
-                theme.colorScheme.onSurface.withOpacity(0.6),
+            unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
             indicatorColor: theme.colorScheme.primary,
             tabs: const [
               Tab(icon: Icon(Icons.monitor_weight), text: 'Geral'),
@@ -123,8 +123,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                       'Monitore o desenvolvimento dos animais através do controle de peso. '
                       'Acompanhe o crescimento por categoria de idade e identifique animais com peso inadequado.',
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -199,8 +198,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                   });
                                 },
                                 backgroundColor: theme.colorScheme.surface,
-                                selectedColor: theme.colorScheme.primary
-                                    .withOpacity(0.2),
+                                selectedColor:
+                                    theme.colorScheme.primary.withOpacity(0.2),
                                 checkmarkColor: theme.colorScheme.primary,
                               );
                             }).toList(),
@@ -217,7 +216,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                             .toSet()
                             .toList()
                           ..sort();
-                        
+
                         return Row(
                           children: [
                             Text(
@@ -247,7 +246,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                   ),
                                   ...availableColors.map((color) {
                                     final isSelected = color == _selectedColor;
-                                    final colorName = AnimalDisplayUtils.getColorName(color);
+                                    final colorName =
+                                        AnimalDisplayUtils.getColorName(color);
                                     return FilterChip(
                                       label: Text(colorName),
                                       selected: isSelected,
@@ -257,7 +257,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                           _currentPage = 0;
                                         });
                                       },
-                                      backgroundColor: theme.colorScheme.surface,
+                                      backgroundColor:
+                                          theme.colorScheme.surface,
                                       selectedColor: theme.colorScheme.primary
                                           .withOpacity(0.2),
                                       checkmarkColor: theme.colorScheme.primary,
@@ -280,14 +281,16 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             Consumer<AnimalService>(
               builder: (context, animalService, _) {
                 // ⚠️ SEMPRE trabalhar com cópia mutável, nunca diretamente com animalService.animals
-                final filteredAnimals =
-                    _getFilteredAnimals(animalService.animals);
+                final filteredAnimals = animalService.weightTrackingQuery(
+                  category: _selectedCategoryFilter(),
+                  colorFilter: _selectedColor,
+                  searchQuery: _searchQuery,
+                );
 
                 return Column(
                   children: [
                     _buildWeightStats(theme, filteredAnimals),
                     const SizedBox(height: 24),
-
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
@@ -306,13 +309,13 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                   Text(
                                     'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filteredAnimals.length)} de ${filteredAnimals.length}',
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                      color: theme.colorScheme.onSurface
+                                          .withOpacity(0.7),
                                     ),
                                   ),
                               ],
                             ),
                             const SizedBox(height: 24),
-
                             if (filteredAnimals.isEmpty)
                               _buildEmptyState(theme)
                             else ...[
@@ -328,10 +331,13 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                           ? () => setState(() => _currentPage--)
                                           : null,
                                     ),
-                                    Text('Página ${_currentPage + 1} de ${((filteredAnimals.length - 1) ~/ _itemsPerPage) + 1}'),
+                                    Text(
+                                        'Página ${_currentPage + 1} de ${((filteredAnimals.length - 1) ~/ _itemsPerPage) + 1}'),
                                     IconButton(
                                       icon: const Icon(Icons.chevron_right),
-                                      onPressed: (_currentPage + 1) * _itemsPerPage < filteredAnimals.length
+                                      onPressed: (_currentPage + 1) *
+                                                  _itemsPerPage <
+                                              filteredAnimals.length
                                           ? () => setState(() => _currentPage++)
                                           : null,
                                     ),
@@ -353,52 +359,6 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     );
   }
 
-  List<Animal> _getFilteredAnimals(List<Animal> animals) {
-    // Ponto crítico: comece de uma CÓPIA mutável
-    var filtered = animals.toList(growable: true);
-
-    // Aplicar filtro de categoria
-    switch (_selectedCategory) {
-      case 'Jovens (< 12 meses)':
-        filtered = filtered
-            .where((a) => _getAgeInMonths(a.birthDate) < 12)
-            .toList();
-        break;
-      case 'Adultos':
-        filtered = filtered
-            .where((a) =>
-                _getAgeInMonths(a.birthDate) >= 12 &&
-                !(a.category).contains('Reprodutor'))
-            .toList();
-        break;
-      case 'Reprodutores':
-        filtered = filtered
-            .where((a) => (a.category).contains('Reprodutor'))
-            .toList();
-        break;
-      default:
-        // 'Todos' - mantém a lista filtrada
-        break;
-    }
-    
-    // Aplicar filtro de cor
-    if (_selectedColor != null) {
-      filtered = filtered.where((animal) {
-        return animal.nameColor == _selectedColor;
-      }).toList();
-    }
-
-    // Aplicar filtro de pesquisa
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((animal) {
-        return animal.name.toLowerCase().contains(_searchQuery) ||
-               animal.code.toLowerCase().contains(_searchQuery);
-      }).toList();
-    }
-
-    return filtered;
-  }
-
   int _getAgeInMonths(DateTime birthDate) {
     final now = DateTime.now();
     return (now.year - birthDate.year) * 12 + (now.month - birthDate.month);
@@ -408,17 +368,14 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     if (animals.isEmpty) return const SizedBox.shrink();
 
     final weights = animals.map((a) => a.weight).toList();
-    final avgWeight =
-        weights.reduce((a, b) => a + b) / weights.length;
+    final avgWeight = weights.reduce((a, b) => a + b) / weights.length;
     final minWeight = weights.reduce((a, b) => a < b ? a : b);
     final maxWeight = weights.reduce((a, b) => a > b ? a : b);
 
-    final underweight = animals
-        .where((a) => a.weight < _getIdealWeightRange(a)['min']!)
-        .length;
-    final overweight = animals
-        .where((a) => a.weight > _getIdealWeightRange(a)['max']!)
-        .length;
+    final underweight =
+        animals.where((a) => a.weight < _getIdealWeightRange(a)['min']!).length;
+    final overweight =
+        animals.where((a) => a.weight > _getIdealWeightRange(a)['max']!).length;
     final normalWeight = animals.length - underweight - overweight;
 
     return GridView.count(
@@ -523,25 +480,9 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   }
 
   Widget _buildAnimalWeightList(ThemeData theme, List<Animal> animals) {
-    // NUNCA ordene a lista recebida diretamente — crie uma cópia
-    final sorted = [...animals];
-    // Importar o utilitário no topo do arquivo
-    // Ordenar por cor e depois por código numérico
-    sorted.sort((a, b) {
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
-      final colorCompare = colorA.compareTo(colorB);
-      if (colorCompare != 0) return colorCompare;
-      
-      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
-      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
-      return numA.compareTo(numB);
-    });
-    
-    // Aplicar paginação
     final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage).clamp(0, sorted.length);
-    final paginatedList = sorted.sublist(startIndex, endIndex);
+    final endIndex = (startIndex + _itemsPerPage).clamp(0, animals.length);
+    final paginatedList = animals.sublist(startIndex, endIndex);
 
     return ListView.separated(
       shrinkWrap: true,
@@ -598,12 +539,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimalDisplayUtils.buildColoredNameText(
-                      animal, 
-                      baseStyle: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    _buildAnimalLabel(theme, animal),
                     Text('${animal.breed} • ${animal.gender}'),
                     Text('Idade: ${ageInMonths} meses'),
                     Text(
@@ -636,13 +572,12 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: statusColor.withOpacity(0.3)),
+                      border: Border.all(color: statusColor.withOpacity(0.3)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -666,6 +601,37 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           ),
         );
       },
+    );
+  }
+
+  WeightCategoryFilter _selectedCategoryFilter() {
+    switch (_selectedCategory) {
+      case 'Jovens (< 12 meses)':
+        return WeightCategoryFilter.juveniles;
+      case 'Adultos':
+        return WeightCategoryFilter.adults;
+      case 'Reprodutores':
+        return WeightCategoryFilter.reproducers;
+      default:
+        return WeightCategoryFilter.all;
+    }
+  }
+
+  Widget _buildAnimalLabel(ThemeData theme, Animal animal) {
+    final record = {
+      'animal_name': animal.name,
+      'animal_code': animal.code,
+      'animal_color': animal.nameColor ?? '',
+    };
+    final label = AnimalRecordDisplay.labelFromRecord(record);
+    final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);
+
+    return Text(
+      label,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: accent ?? theme.colorScheme.onSurface,
+      ),
     );
   }
 
@@ -715,7 +681,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                 border: OutlineInputBorder(),
                 suffixText: 'kg',
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
         ),
@@ -735,11 +702,12 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
 
                 await Provider.of<AnimalService>(context, listen: false)
                     .updateAnimal(updatedAnimal);
-                
+
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Peso atualizado com sucesso!')),
+                    const SnackBar(
+                        content: Text('Peso atualizado com sucesso!')),
                   );
                 }
               } else {

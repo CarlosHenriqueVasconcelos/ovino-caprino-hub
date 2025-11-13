@@ -60,7 +60,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final feedingService = Provider.of<FeedingService>(context, listen: false);
+      final feedingService =
+          Provider.of<FeedingService>(context, listen: false);
       await feedingService.deleteSchedule(schedule.id, widget.pen.id);
     }
   }
@@ -90,7 +91,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.agriculture, size: 40, color: Colors.green),
+                    const Icon(Icons.agriculture,
+                        size: 40, color: Colors.green),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -103,7 +105,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (widget.pen.number != null && widget.pen.number!.isNotEmpty)
+                          if (widget.pen.number != null &&
+                              widget.pen.number!.isNotEmpty)
                             Text(
                               'Número: ${widget.pen.number}',
                               style: TextStyle(
@@ -116,7 +119,8 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
                     ),
                   ],
                 ),
-                if (widget.pen.notes != null && widget.pen.notes!.isNotEmpty) ...[
+                if (widget.pen.notes != null &&
+                    widget.pen.notes!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Observações:',
@@ -138,9 +142,10 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
                 if (feedingService.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
-                final schedules = feedingService.getSchedulesForPen(widget.pen.id);
-                
+
+                final schedules =
+                    feedingService.getSchedulesForPen(widget.pen.id);
+
                 if (schedules.isEmpty) {
                   return Center(
                     child: Column(
@@ -169,7 +174,7 @@ class _PenDetailsScreenState extends State<PenDetailsScreen> {
                     ),
                   );
                 }
-                
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: schedules.length,

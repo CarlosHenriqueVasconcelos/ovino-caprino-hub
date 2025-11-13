@@ -19,7 +19,8 @@ class ReproAlertsCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: FutureBuilder<ReproBoardData>(
-          future: context.read<BreedingService>().getBoard(daysAhead: daysAhead),
+          future:
+              context.read<BreedingService>().getBoard(daysAhead: daysAhead),
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
               return _Header(
@@ -28,7 +29,9 @@ class ReproAlertsCard extends StatelessWidget {
                 icon: Icons.pets,
                 color: theme.colorScheme.primary,
                 trailing: const SizedBox(
-                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               );
             }
@@ -55,11 +58,12 @@ class ReproAlertsCard extends StatelessWidget {
                   icon: Icons.pets,
                   color: theme.colorScheme.primary,
                   trailing: data.overdueTotal > 0
-                      ? _Badge(text: '${data.overdueTotal} atrasado(s)', color: theme.colorScheme.error)
+                      ? _Badge(
+                          text: '${data.overdueTotal} atrasado(s)',
+                          color: theme.colorScheme.error)
                       : null,
                 ),
                 const SizedBox(height: 12),
-
                 if (none)
                   _Empty(text: 'Nenhum alerta de reprodução no período.')
                 else ...[
@@ -111,7 +115,9 @@ class _Section extends StatelessWidget {
     final theme = Theme.of(context);
     if (events.isEmpty) {
       return _SubHeader(
-        icon: icon, color: color, title: title,
+        icon: icon,
+        color: color,
+        title: title,
         trailing: const Text('—'),
       );
     }
@@ -123,7 +129,10 @@ class _Section extends StatelessWidget {
           icon: icon,
           color: color,
           title: title,
-          trailing: _Badge(text: '${events.length}', color: color.withOpacity(.15), textColor: color),
+          trailing: _Badge(
+              text: '${events.length}',
+              color: color.withOpacity(.15),
+              textColor: color),
         ),
         const SizedBox(height: 6),
         ...events.take(5).map((e) => _EventRow(evt: e)).toList(),
@@ -132,7 +141,8 @@ class _Section extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               '+ ${events.length - 5} mais…',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.primary),
             ),
           ),
       ],
@@ -150,7 +160,8 @@ class _EventRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = evt.overdue ? theme.colorScheme.error : theme.colorScheme.primary;
+    final color =
+        evt.overdue ? theme.colorScheme.error : theme.colorScheme.primary;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -169,7 +180,9 @@ class _EventRow extends StatelessWidget {
             _fmt(evt.date),
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: evt.overdue ? theme.colorScheme.error : theme.colorScheme.onSurfaceVariant,
+              color: evt.overdue
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -212,7 +225,8 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
               if (subtitle != null)
                 Text(
                   subtitle!,
@@ -282,7 +296,9 @@ class _Badge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withOpacity(.35)),
       ),
-      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+      child: Text(text,
+          style:
+              TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }
@@ -297,7 +313,9 @@ class _Empty extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24),
       alignment: Alignment.center,
-      child: Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      child: Text(text,
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     );
   }
 }

@@ -153,8 +153,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
         // tenta achar a fêmea no service, se não achar usa a selecionada (_female)
         Animal? female;
         try {
-          female =
-              animalService.animals.firstWhere((a) => a.id == femaleId);
+          female = animalService.animals.firstWhere((a) => a.id == femaleId);
         } catch (_) {
           female = _female;
         }

@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../services/reports_service.dart';
+import '../utils/animal_record_display.dart';
 import '../utils/labels_ptbr.dart';
 
 class ReportsHubScreen extends StatefulWidget {
@@ -256,8 +257,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                         Navigator.pop(ctx, true);
                       } else {
                         setState(
-                          () => error =
-                              'Senha incorreta. Tente novamente.',
+                          () => error = 'Senha incorreta. Tente novamente.',
                         );
                       }
                     },
@@ -275,8 +275,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                       Navigator.pop(ctx, true);
                     } else {
                       setState(
-                        () => error =
-                            'Senha incorreta. Tente novamente.',
+                        () => error = 'Senha incorreta. Tente novamente.',
                       );
                     }
                   },
@@ -317,8 +316,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         return;
       }
 
-      final keys =
-          (data.first as Map<String, dynamic>).keys.toList();
+      final keys = (data.first as Map<String, dynamic>).keys.toList();
       final headers = keys
           .map(ptBrHeader)
           .map((h) => h.contains(',') ? '"$h"' : h)
@@ -334,14 +332,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       }).join('\n');
 
       final csv = '$headers\n$rows';
-      final timestamp =
-          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final reportType =
-          _reportTypes[_tabController.index].toLowerCase();
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final reportType = _reportTypes[_tabController.index].toLowerCase();
       final filename = '${reportType}_$timestamp.csv';
 
-      final directory =
-          await getApplicationDocumentsDirectory();
+      final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/$filename');
       await file.writeAsString(csv);
 
@@ -405,8 +400,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Relatório salvo com sucesso!')),
+        const SnackBar(content: Text('Relatório salvo com sucesso!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -420,8 +414,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     if (_reportData == null || _reportData!['data'] == null) {
       return [];
     }
-    final data =
-        List<Map<String, dynamic>>.from(_reportData!['data']);
+    final data = List<Map<String, dynamic>>.from(_reportData!['data']);
 
     if (_sortKey.isNotEmpty) {
       data.sort((a, b) {
@@ -432,16 +425,12 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         if (bVal == null) return _sortAsc ? -1 : 1;
 
         if (aVal is num && bVal is num) {
-          return _sortAsc
-              ? aVal.compareTo(bVal)
-              : bVal.compareTo(aVal);
+          return _sortAsc ? aVal.compareTo(bVal) : bVal.compareTo(aVal);
         }
 
         final aStr = aVal.toString();
         final bStr = bVal.toString();
-        return _sortAsc
-            ? aStr.compareTo(bStr)
-            : bStr.compareTo(aStr);
+        return _sortAsc ? aStr.compareTo(bStr) : bStr.compareTo(aStr);
       });
     }
 
@@ -451,10 +440,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   List<dynamic> _getPaginatedData() {
     final sorted = _getSortedData();
     final start = _currentPage * _pageSize;
-    final end =
-        (start + _pageSize).clamp(0, sorted.length);
-    return sorted.sublist(
-        start.clamp(0, sorted.length), end);
+    final end = (start + _pageSize).clamp(0, sorted.length);
+    return sorted.sublist(start.clamp(0, sorted.length), end);
   }
 
   void _handleSort(String key) {
@@ -495,8 +482,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             controller: _tabController,
             isScrollable: true,
             onTap: (index) async {
-              if (index == _financeTabIndex &&
-                  !_financialUnlocked) {
+              if (index == _financeTabIndex && !_financialUnlocked) {
                 _tabController.index = _lastTabIndex;
                 final ok = await _showFinancePinDialog();
                 if (ok == true) {
@@ -512,9 +498,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 _lastTabIndex = index;
               }
             },
-            tabs: _reportTypes
-                .map((type) => Tab(text: type))
-                .toList(),
+            tabs: _reportTypes.map((type) => Tab(text: type)).toList(),
           ),
 
           // Filters
@@ -557,8 +541,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                   decoration: const InputDecoration(
                     labelText: 'Período',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(
@@ -600,34 +584,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 Expanded(
                   child: InkWell(
                     onTap: () async {
-                      final date =
-                          await showDatePicker(
+                      final date = await showDatePicker(
                         context: context,
-                        locale:
-                            const Locale('pt', 'BR'),
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _customStart,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
                       );
                       if (date != null) {
-                        setState(
-                            () => _customStart = date);
+                        setState(() => _customStart = date);
                         _loadReport();
                       }
                     },
                     child: InputDecorator(
-                      decoration:
-                          const InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Data Inicial',
                         border: OutlineInputBorder(),
                         contentPadding:
-                            EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8),
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       child: Text(
-                        DateFormat('dd/MM/yyyy')
-                            .format(_customStart),
+                        DateFormat('dd/MM/yyyy').format(_customStart),
                       ),
                     ),
                   ),
@@ -636,34 +613,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 Expanded(
                   child: InkWell(
                     onTap: () async {
-                      final date =
-                          await showDatePicker(
+                      final date = await showDatePicker(
                         context: context,
-                        locale:
-                            const Locale('pt', 'BR'),
+                        locale: const Locale('pt', 'BR'),
                         initialDate: _customEnd,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
                       );
                       if (date != null) {
-                        setState(
-                            () => _customEnd = date);
+                        setState(() => _customEnd = date);
                         _loadReport();
                       }
                     },
                     child: InputDecorator(
-                      decoration:
-                          const InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Data Final',
                         border: OutlineInputBorder(),
                         contentPadding:
-                            EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8),
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       child: Text(
-                        DateFormat('dd/MM/yyyy')
-                            .format(_customEnd),
+                        DateFormat('dd/MM/yyyy').format(_customEnd),
                       ),
                     ),
                   ),
@@ -682,8 +652,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   }
 
   Widget _buildContextualFilters(ThemeData theme) {
-    final currentReport =
-        _reportTypes[_tabController.index];
+    final currentReport = _reportTypes[_tabController.index];
 
     return Wrap(
       spacing: 12,
@@ -697,19 +666,13 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Espécie',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Ovino',
-                    child: Text('Ovino')),
-                DropdownMenuItem(
-                    value: 'Caprino',
-                    child: Text('Caprino')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Ovino', child: Text('Ovino')),
+                DropdownMenuItem(value: 'Caprino', child: Text('Caprino')),
               ],
               onChanged: (v) {
                 setState(() => _speciesFilter = v!);
@@ -724,19 +687,13 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Gênero',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Macho',
-                    child: Text('Macho')),
-                DropdownMenuItem(
-                    value: 'Fêmea',
-                    child: Text('Fêmea')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Macho', child: Text('Macho')),
+                DropdownMenuItem(value: 'Fêmea', child: Text('Fêmea')),
               ],
               onChanged: (v) {
                 setState(() => _genderFilter = v!);
@@ -751,13 +708,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                 DropdownMenuItem(
                   value: 'Saudável',
                   child: Text('Saudável'),
@@ -786,22 +741,14 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Agendada',
-                    child: Text('Agendada')),
-                DropdownMenuItem(
-                    value: 'Aplicada',
-                    child: Text('Aplicada')),
-                DropdownMenuItem(
-                    value: 'Cancelada',
-                    child: Text('Cancelada')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Agendada', child: Text('Agendada')),
+                DropdownMenuItem(value: 'Aplicada', child: Text('Aplicada')),
+                DropdownMenuItem(value: 'Cancelada', child: Text('Cancelada')),
               ],
               onChanged: (v) {
                 setState(() => _statusFilter = v!);
@@ -818,26 +765,17 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Agendado',
-                    child: Text('Agendado')),
-                DropdownMenuItem(
-                    value: 'Aplicado',
-                    child: Text('Aplicado')),
-                DropdownMenuItem(
-                    value: 'Cancelado',
-                    child: Text('Cancelado')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Agendado', child: Text('Agendado')),
+                DropdownMenuItem(value: 'Aplicado', child: Text('Aplicado')),
+                DropdownMenuItem(value: 'Cancelado', child: Text('Cancelado')),
               ],
               onChanged: (v) {
-                setState(
-                    () => _medicationStatusFilter = v!);
+                setState(() => _medicationStatusFilter = v!);
                 _loadReport();
               },
             ),
@@ -852,13 +790,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Estágio',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                 DropdownMenuItem(
                   value: 'encabritamento',
                   child: Text('Encabritamento'),
@@ -879,13 +815,10 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                   value: 'parto_realizado',
                   child: Text('Parto Realizado'),
                 ),
-                DropdownMenuItem(
-                    value: 'falhou',
-                    child: Text('Falhou')),
+                DropdownMenuItem(value: 'falhou', child: Text('Falhou')),
               ],
               onChanged: (v) {
-                setState(
-                    () => _breedingStageFilter = v!);
+                setState(() => _breedingStageFilter = v!);
                 _loadReport();
               },
             ),
@@ -899,23 +832,16 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Tipo',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'receita',
-                    child: Text('Receita')),
-                DropdownMenuItem(
-                    value: 'despesa',
-                    child: Text('Despesa')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'receita', child: Text('Receita')),
+                DropdownMenuItem(value: 'despesa', child: Text('Despesa')),
               ],
               onChanged: (v) {
-                setState(
-                    () => _financialTypeFilter = v!);
+                setState(() => _financialTypeFilter = v!);
                 _loadReport();
               },
             ),
@@ -929,24 +855,19 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Leitura',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Lidas',
-                    child: Text('Lidas')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Lidas', child: Text('Lidas')),
                 DropdownMenuItem(
                   value: 'Não lidas',
                   child: Text('Não lidas'),
                 ),
               ],
               onChanged: (v) {
-                setState(
-                    () => _notesIsReadFilter = v!);
+                setState(() => _notesIsReadFilter = v!);
                 _loadReport();
               },
             ),
@@ -958,26 +879,17 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               decoration: const InputDecoration(
                 labelText: 'Prioridade',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
               items: const [
-                DropdownMenuItem(
-                    value: 'Todos',
-                    child: Text('Todos')),
-                DropdownMenuItem(
-                    value: 'Alta',
-                    child: Text('Alta')),
-                DropdownMenuItem(
-                    value: 'Média',
-                    child: Text('Média')),
-                DropdownMenuItem(
-                    value: 'Baixa',
-                    child: Text('Baixa')),
+                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                DropdownMenuItem(value: 'Alta', child: Text('Alta')),
+                DropdownMenuItem(value: 'Média', child: Text('Média')),
+                DropdownMenuItem(value: 'Baixa', child: Text('Baixa')),
               ],
               onChanged: (v) {
-                setState(
-                    () => _notesPriorityFilter = v!);
+                setState(() => _notesPriorityFilter = v!);
                 _loadReport();
               },
             ),
@@ -994,16 +906,14 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.lock,
-                size: 64, color: theme.colorScheme.primary),
+            Icon(Icons.lock, size: 64, color: theme.colorScheme.primary),
             const SizedBox(height: 16),
             Text(
               'Relatórios Financeiros Bloqueados',
               style: theme.textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
-            const Text(
-                'Clique na aba novamente para inserir a senha'),
+            const Text('Clique na aba novamente para inserir a senha'),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _showFinancePinDialog,
@@ -1016,8 +926,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     }
 
     if (_reportData == null) {
-      return const Center(
-          child: Text('Nenhum dado disponível'));
+      return const Center(child: Text('Nenhum dado disponível'));
     }
 
     return Column(
@@ -1031,13 +940,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   }
 
   Widget _buildKPIs(ThemeData theme) {
-    if (_reportData == null ||
-        _reportData!['summary'] == null) {
+    if (_reportData == null || _reportData!['summary'] == null) {
       return const SizedBox.shrink();
     }
 
-    final summary = Map<String, dynamic>.from(
-        _reportData!['summary'] as Map);
+    final summary = Map<String, dynamic>.from(_reportData!['summary'] as Map);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1053,8 +960,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                   entry.key.contains('expense') ||
                   entry.key.contains('balance') ||
                   entry.key.contains('amount'))) {
-            displayValue =
-                'R\$ ${value.toStringAsFixed(2)}';
+            displayValue = 'R\$ ${value.toStringAsFixed(2)}';
           } else if (value is double) {
             displayValue = value.toStringAsFixed(2);
           } else {
@@ -1076,8 +982,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                   Text(
                     displayValue,
                     style: theme.textTheme.headlineSmall
-                        ?.copyWith(
-                            fontWeight: FontWeight.bold),
+                        ?.copyWith(fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -1100,18 +1005,16 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       );
     }
 
-    final columns = (paginatedData.first
-            as Map<String, dynamic>)
+    final columns = (paginatedData.first as Map<String, dynamic>)
         .keys
+        .where((k) => k != 'animal_color')
         .toList();
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          sortColumnIndex: _sortKey.isEmpty
-              ? null
-              : columns.indexOf(_sortKey),
+          sortColumnIndex: _sortKey.isEmpty ? null : columns.indexOf(_sortKey),
           sortAscending: _sortAsc,
           columns: columns
               .map(
@@ -1124,12 +1027,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
           rows: paginatedData.map((row) {
             final r = row as Map<String, dynamic>;
             return DataRow(
-              cells: columns.map((col) {
-                final value = r[col];
-                final display =
-                    _cellValue(value, key: col);
-                return DataCell(Text(display));
-              }).toList(),
+              cells:
+                  columns.map((col) => _buildDataCell(r, col, theme)).toList(),
             );
           }).toList(),
         ),
@@ -1137,14 +1036,34 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     );
   }
 
+  DataCell _buildDataCell(
+    Map<String, dynamic> row,
+    String key,
+    ThemeData theme,
+  ) {
+    if (key == 'animal_name') {
+      final label = AnimalRecordDisplay.labelFromRecord(row);
+      final color = AnimalRecordDisplay.colorFromRecord(row);
+      return DataCell(
+        Text(
+          label,
+          style: color != null
+              ? TextStyle(color: color, fontWeight: FontWeight.w600)
+              : null,
+        ),
+      );
+    }
+
+    final display = _cellValue(row[key], key: key);
+    return DataCell(Text(display));
+  }
+
   String _cellValue(dynamic value, {required String key}) {
     if (value == null) return '';
     if (value is bool) return value ? 'Sim' : 'Não';
 
     // Datas
-    if (key.contains('date') ||
-        key.endsWith('_at') ||
-        key == 'birth_date') {
+    if (key.contains('date') || key.endsWith('_at') || key == 'birth_date') {
       final s = value.toString();
       if (s.isEmpty) return '';
       try {
@@ -1173,9 +1092,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     if (value is bool) return value ? 'Sim' : 'Não';
 
     // Datas no CSV como dd/MM/yyyy
-    if (key.contains('date') ||
-        key.endsWith('_at') ||
-        key == 'birth_date') {
+    if (key.contains('date') || key.endsWith('_at') || key == 'birth_date') {
       final s = value.toString();
       if (s.isEmpty) return '';
       try {
@@ -1200,8 +1117,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
   Widget _buildPagination(ThemeData theme) {
     final totalItems = _getSortedData().length;
-    final totalPages =
-        (totalItems / _pageSize).ceil();
+    final totalPages = (totalItems / _pageSize).ceil();
 
     if (totalPages <= 1) {
       return const SizedBox.shrink();
@@ -1210,8 +1126,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             'Mostrando ${_currentPage * _pageSize + 1} '
@@ -1224,18 +1139,14 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 onPressed: _currentPage > 0
-                    ? () => setState(
-                        () => _currentPage--)
+                    ? () => setState(() => _currentPage--)
                     : null,
               ),
               Text('Página ${_currentPage + 1} de $totalPages'),
               IconButton(
-                icon:
-                    const Icon(Icons.chevron_right),
-                onPressed: _currentPage <
-                        totalPages - 1
-                    ? () => setState(
-                        () => _currentPage++)
+                icon: const Icon(Icons.chevron_right),
+                onPressed: _currentPage < totalPages - 1
+                    ? () => setState(() => _currentPage++)
                     : null,
               ),
             ],

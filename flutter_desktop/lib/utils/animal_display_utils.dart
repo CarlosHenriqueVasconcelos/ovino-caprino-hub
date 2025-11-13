@@ -55,9 +55,9 @@ class AnimalDisplayUtils {
       final colorA = a.nameColor ?? '';
       final colorB = b.nameColor ?? '';
       final colorCompare = colorA.compareTo(colorB);
-      
+
       if (colorCompare != 0) return colorCompare;
-      
+
       // Depois ordenar por código numérico
       final numA = extractNumber(a.code);
       final numB = extractNumber(b.code);
@@ -72,10 +72,13 @@ class AnimalDisplayUtils {
   }
 
   /// Constrói um widget para dropdown com círculo de cor e texto formatado
+  static Iterable<MapEntry<String, Color>> get colorEntries =>
+      _colorValues.entries;
+
   static Widget buildDropdownItem(Animal animal, {TextStyle? textStyle}) {
     final colorName = getColorName(animal.nameColor);
     final colorValue = getColorValue(animal.nameColor);
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -86,7 +89,7 @@ class AnimalDisplayUtils {
           decoration: BoxDecoration(
             color: colorValue,
             shape: BoxShape.circle,
-            border: animal.nameColor == 'white' 
+            border: animal.nameColor == 'white'
                 ? Border.all(color: Colors.grey, width: 1)
                 : null,
           ),
@@ -97,12 +100,14 @@ class AnimalDisplayUtils {
           child: RichText(
             overflow: TextOverflow.ellipsis,
             text: TextSpan(
-              style: textStyle ?? const TextStyle(color: Colors.black, fontSize: 14),
+              style: textStyle ??
+                  const TextStyle(color: Colors.black, fontSize: 14),
               children: [
                 TextSpan(text: '$colorName - '),
                 TextSpan(
                   text: animal.name,
-                  style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
+                  style:
+                      TextStyle(color: colorValue, fontWeight: FontWeight.bold),
                 ),
                 TextSpan(text: ' (${animal.code})'),
               ],
@@ -117,7 +122,7 @@ class AnimalDisplayUtils {
   static Widget buildColoredNameText(Animal animal, {TextStyle? baseStyle}) {
     final colorName = getColorName(animal.nameColor);
     final colorValue = getColorValue(animal.nameColor);
-    
+
     return RichText(
       text: TextSpan(
         style: baseStyle ?? const TextStyle(color: Colors.black, fontSize: 14),

@@ -114,8 +114,51 @@ class MedicationRepository {
     ''');
   }
 
+  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status = 'Agendado'
+        AND date(COALESCE(m.date, m.next_date)) < date('now')
+      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status = 'Agendado'
+        AND date(COALESCE(m.date, m.next_date)) >= date('now')
+      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status = 'Aplicado'
+      ORDER BY date(COALESCE(m.applied_date, m.date)) DESC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status = 'Cancelado'
+      ORDER BY date(COALESCE(m.date, m.next_date)) DESC
+    ''');
+  }
+
   /// Retorna medicações relacionadas a um item do estoque
-  Future<List<Map<String, dynamic>>> getByPharmacyStockId(String stockId) async {
+  Future<List<Map<String, dynamic>>> getByPharmacyStockId(
+      String stockId) async {
     return await _db.db.query(
       'medications',
       where: 'pharmacy_stock_id = ?',

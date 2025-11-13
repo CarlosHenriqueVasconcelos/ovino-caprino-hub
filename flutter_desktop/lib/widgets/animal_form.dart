@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/animal.dart';
 import '../services/animal_service.dart';
+import '../utils/animal_display_utils.dart';
 
 class AnimalFormDialog extends StatefulWidget {
   final Animal? animal;
@@ -12,10 +13,12 @@ class AnimalFormDialog extends StatefulWidget {
   final String? motherCode;
   final String? motherBreed;
   final String? fatherId;
+  final String? fatherName;
+  final String? fatherColor;
   final String? fatherCode;
   final String? fatherBreed;
   final String? presetCategory;
-  
+
   const AnimalFormDialog({
     super.key,
     this.animal,
@@ -25,6 +28,8 @@ class AnimalFormDialog extends StatefulWidget {
     this.motherCode,
     this.motherBreed,
     this.fatherId,
+    this.fatherName,
+    this.fatherColor,
     this.fatherCode,
     this.fatherBreed,
     this.presetCategory,
@@ -43,7 +48,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   final _locationController = TextEditingController();
   final _yearController = TextEditingController();
   final _loteController = TextEditingController();
-  
+
   String _species = 'Ovino';
   String _gender = 'Fêmea';
   String _status = 'Saudável';
@@ -55,6 +60,10 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   DateTime? _lastVaccination;
   String? _motherId;
   String? _fatherId;
+  bool _motherFieldInitialized = false;
+  bool _fatherFieldInitialized = false;
+  String? _motherPrefillLabel;
+  String? _fatherPrefillLabel;
   List<Animal> _availableMothers = [];
   List<Animal> _availableFathers = [];
 
@@ -81,43 +90,24 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     'Outra',
   ];
 
-  final Map<String, Color> _colorOptions = {
-    'blue': Colors.blue,
-    'red': Colors.red,
-    'green': Colors.green,
-    'yellow': Colors.yellow,
-    'orange': Colors.orange,
-    'purple': Colors.purple,
-    'pink': Colors.pink,
-    'grey': Colors.grey,
-    'white': Colors.white,
-    'black': Colors.black,
-  };
-
-  final Map<String, String> _colorNames = {
-    'blue': 'Azul',
-    'red': 'Vermelho',
-    'green': 'Verde',
-    'yellow': 'Amarelo',
-    'orange': 'Laranja',
-    'purple': 'Roxo',
-    'pink': 'Rosa',
-    'grey': 'Cinza',
-    'white': 'Branca',
-    'black': 'Preto',
-  };
 
   @override
   void initState() {
     super.initState();
-    print('🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherName: ${widget.motherName}, motherColor: ${widget.motherColor}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
-    
+    print(
+        '🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherName: ${widget.motherName}, motherColor: ${widget.motherColor}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
+
     if (widget.animal != null) {
       _loadAnimalData();
     } else {
       // Pré-preencher campos quando vem do registro de nascimento
       if (widget.motherName != null) {
         _nameController.text = widget.motherName!;
+        _motherPrefillLabel = _formatParentLabel(
+          name: widget.motherName!,
+          code: widget.motherCode,
+          color: widget.motherColor,
+        );
         print('🐑 DEBUG: Name preenchido com ${widget.motherName}');
       }
       if (widget.motherColor != null) {
@@ -140,6 +130,11 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       }
       if (widget.fatherId != null) {
         _fatherId = widget.fatherId;
+        _fatherPrefillLabel = _formatParentLabel(
+          name: widget.fatherName,
+          code: widget.fatherCode,
+          color: widget.fatherColor,
+        );
         print('🐑 DEBUG: Father ID definido como ${widget.fatherId}');
       }
       if (widget.presetCategory != null) {
@@ -153,17 +148,30 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   void _loadAvailableMothers() async {
     final animalService = Provider.of<AnimalService>(context, listen: false);
     final animals = await animalService.getAllAnimals();
+    bool _isEligible(
+      Animal a, {
+      required bool expectFemale,
+    }) {
+      final gender = (a.gender ?? '').toLowerCase();
+      final category = (a.category ?? '').toLowerCase();
+      final isBorrego = category.contains('borreg');
+      if (isBorrego) return false;
+      return expectFemale
+          ? gender.contains('fêmea') || gender.contains('femea') || gender == 'f'
+          : gender.contains('macho') || gender == 'm';
+    }
+
+    final mothers = animals.where((a) => _isEligible(a, expectFemale: true)).toList();
+    final fathers = animals.where((a) => _isEligible(a, expectFemale: false)).toList();
+
+    AnimalDisplayUtils.sortAnimalsList(mothers);
+    AnimalDisplayUtils.sortAnimalsList(fathers);
+
     setState(() {
-      _availableMothers = animals.where((a) => 
-        a.gender == 'Fêmea' && 
-        a.category != 'Borrego' &&
-        a.category != 'Venda'
-      ).toList();
-      _availableFathers = animals.where((a) => 
-        a.gender == 'Macho' && 
-        a.category != 'Borrego' &&
-        a.category != 'Venda'
-      ).toList();
+      _availableMothers = mothers;
+      _availableFathers = fathers;
+      _motherPrefillLabel ??= _labelFromParents(_motherId, mothers);
+      _fatherPrefillLabel ??= _labelFromParents(_fatherId, fathers);
     });
   }
 
@@ -174,7 +182,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _breedController.text = animal.breed;
     _weightController.text = animal.weight.toString();
     _locationController.text = animal.location;
-    _yearController.text = animal.year?.toString() ?? animal.birthDate.year.toString();
+    _yearController.text =
+        animal.year?.toString() ?? animal.birthDate.year.toString();
     _loteController.text = animal.lote ?? '';
     _species = animal.species;
     _gender = animal.gender;
@@ -189,10 +198,66 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _fatherId = animal.fatherId;
   }
 
+  String? _formatParentLabel({
+    String? name,
+    String? code,
+    String? color,
+  }) {
+    final hasName = name != null && name.trim().isNotEmpty;
+    final hasCode = code != null && code.trim().isNotEmpty;
+
+    if (!hasName && !hasCode) return null;
+
+    final resolvedName = hasName ? name!.trim() : 'Sem nome';
+    final resolvedCode = hasCode ? code!.trim() : 'Sem código';
+    final colorName = AnimalDisplayUtils.getColorName(color);
+
+    return '$colorName - $resolvedName ($resolvedCode)';
+  }
+
+  String? _labelFromParents(String? parentId, List<Animal> parents) {
+    if (parentId == null) return null;
+    try {
+      final parent = parents.firstWhere((animal) => animal.id == parentId);
+      return _formatParentLabel(
+        name: parent.name,
+        code: parent.code,
+        color: parent.nameColor,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _seedParentField(
+    TextEditingController controller, {
+    required bool isMother,
+  }) {
+    final alreadyInitialized =
+        isMother ? _motherFieldInitialized : _fatherFieldInitialized;
+    final label =
+        isMother ? _motherPrefillLabel : _fatherPrefillLabel;
+
+    if (alreadyInitialized || label == null || label.isEmpty) {
+      return;
+    }
+
+    controller.text = label;
+    controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: controller.text.length),
+    );
+
+    if (isMother) {
+      _motherFieldInitialized = true;
+    } else {
+      _fatherFieldInitialized = true;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return AlertDialog(
       title: Text(widget.animal == null ? 'Novo Animal' : 'Editar Animal'),
       content: SizedBox(
@@ -232,7 +297,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           labelText: 'Cor *',
                           border: OutlineInputBorder(),
                         ),
-                        items: _colorOptions.entries.map((entry) {
+                        items: AnimalDisplayUtils.colorEntries.map((entry) {
                           return DropdownMenuItem(
                             value: entry.key,
                             child: Row(
@@ -244,15 +309,16 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                                   decoration: BoxDecoration(
                                     color: entry.value,
                                     borderRadius: BorderRadius.circular(4),
-                                    border: entry.key == 'white' 
-                                        ? Border.all(color: Colors.grey, width: 1)
+                                    border: entry.key == 'white'
+                                        ? Border.all(
+                                            color: Colors.grey, width: 1)
                                         : null,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
-                                    _colorNames[entry.key] ?? entry.key,
+                                    AnimalDisplayUtils.getColorName(entry.key),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -307,7 +373,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                     Expanded(
                       child: TextFormField(
                         controller: _loteController,
-                        decoration: const InputDecoration(labelText: 'Lote *', hintText: 'Ex: LT01'),
+                        decoration: const InputDecoration(
+                            labelText: 'Lote *', hintText: 'Ex: LT01'),
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
                             return 'Campo obrigatório';
@@ -319,16 +386,19 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Seleção de mãe e pai (se for borrego)
                 if (_category == 'Borrego')
                   Column(
                     children: [
                       Autocomplete<Animal>(
                         initialValue: TextEditingValue(
-                          text: _motherId != null && _availableMothers.any((m) => m.id == _motherId)
-                              ? _availableMothers.firstWhere((m) => m.id == _motherId).name
-                              : '',
+                          text: _motherPrefillLabel ??
+                              _labelFromParents(
+                                _motherId,
+                                _availableMothers,
+                              ) ??
+                              '',
                         ),
                         optionsBuilder: (TextEditingValue textEditingValue) {
                           if (textEditingValue.text.isEmpty) {
@@ -338,12 +408,29 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           return _availableMothers.where((mother) {
                             final name = mother.name.toLowerCase();
                             final code = mother.code.toLowerCase();
-                            final colorName = _colorNames[mother.nameColor]?.toLowerCase() ?? '';
-                            return name.contains(query) || code.contains(query) || colorName.contains(query);
+                            final colorName =
+                                AnimalDisplayUtils.getColorName(
+                                      mother.nameColor,
+                                    ).toLowerCase() ??
+                                    '';
+                            return name.contains(query) ||
+                                code.contains(query) ||
+                                colorName.contains(query);
                           });
                         },
-                        displayStringForOption: (Animal option) => '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
-                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        displayStringForOption: (Animal option) =>
+                            _formatParentLabel(
+                              name: option.name,
+                              code: option.code,
+                              color: option.nameColor,
+                            ) ??
+                            option.name,
+                        fieldViewBuilder: (context, textEditingController,
+                            focusNode, onFieldSubmitted) {
+                          _seedParentField(
+                            textEditingController,
+                            isMother: true,
+                          );
                           return TextFormField(
                             controller: textEditingController,
                             focusNode: focusNode,
@@ -361,39 +448,25 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                             child: Material(
                               elevation: 4.0,
                               child: Container(
-                                constraints: const BoxConstraints(maxHeight: 200),
+                                constraints:
+                                    const BoxConstraints(maxHeight: 260),
                                 color: Colors.white,
                                 child: ListView.builder(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0),
                                   itemCount: options.length,
                                   itemBuilder: (context, index) {
-                                    final Animal option = options.elementAt(index);
+                                    final Animal option =
+                                        options.elementAt(index);
                                     return InkWell(
                                       onTap: () => onSelected(option),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 16,
-                                              height: 16,
-                                              decoration: BoxDecoration(
-                                                color: _colorOptions[option.nameColor],
-                                                shape: BoxShape.circle,
-                                                border: option.nameColor == 'white' 
-                                                    ? Border.all(color: Colors.grey, width: 1)
-                                                    : null,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
-                                                style: const TextStyle(fontSize: 14),
-                                              ),
-                                            ),
-                                          ],
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 6.0,
+                                          horizontal: 12.0,
                                         ),
+                                        child: AnimalDisplayUtils
+                                            .buildDropdownItem(option),
                                       ),
                                     );
                                   },
@@ -407,15 +480,24 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                             _motherId = mother.id;
                             _nameController.text = mother.name;
                             _nameColor = mother.nameColor;
+                            _motherPrefillLabel = _formatParentLabel(
+                              name: mother.name,
+                              code: mother.code,
+                              color: mother.nameColor,
+                            );
+                            _motherFieldInitialized = true;
                           });
                         },
                       ),
                       const SizedBox(height: 16),
                       Autocomplete<Animal>(
                         initialValue: TextEditingValue(
-                          text: _fatherId != null && _availableFathers.any((f) => f.id == _fatherId)
-                              ? _availableFathers.firstWhere((f) => f.id == _fatherId).name
-                              : '',
+                          text: _fatherPrefillLabel ??
+                              _labelFromParents(
+                                _fatherId,
+                                _availableFathers,
+                              ) ??
+                              '',
                         ),
                         optionsBuilder: (TextEditingValue textEditingValue) {
                           if (textEditingValue.text.isEmpty) {
@@ -425,12 +507,29 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           return _availableFathers.where((father) {
                             final name = father.name.toLowerCase();
                             final code = father.code.toLowerCase();
-                            final colorName = _colorNames[father.nameColor]?.toLowerCase() ?? '';
-                            return name.contains(query) || code.contains(query) || colorName.contains(query);
+                            final colorName =
+                                AnimalDisplayUtils.getColorName(
+                                      father.nameColor,
+                                    ).toLowerCase() ??
+                                    '';
+                            return name.contains(query) ||
+                                code.contains(query) ||
+                                colorName.contains(query);
                           });
                         },
-                        displayStringForOption: (Animal option) => '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
-                        fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                        displayStringForOption: (Animal option) =>
+                            _formatParentLabel(
+                              name: option.name,
+                              code: option.code,
+                              color: option.nameColor,
+                            ) ??
+                            option.name,
+                        fieldViewBuilder: (context, textEditingController,
+                            focusNode, onFieldSubmitted) {
+                          _seedParentField(
+                            textEditingController,
+                            isMother: false,
+                          );
                           return TextFormField(
                             controller: textEditingController,
                             focusNode: focusNode,
@@ -448,39 +547,25 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                             child: Material(
                               elevation: 4.0,
                               child: Container(
-                                constraints: const BoxConstraints(maxHeight: 200),
+                                constraints:
+                                    const BoxConstraints(maxHeight: 260),
                                 color: Colors.white,
                                 child: ListView.builder(
-                                  padding: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0),
                                   itemCount: options.length,
                                   itemBuilder: (context, index) {
-                                    final Animal option = options.elementAt(index);
+                                    final Animal option =
+                                        options.elementAt(index);
                                     return InkWell(
                                       onTap: () => onSelected(option),
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 16,
-                                              height: 16,
-                                              decoration: BoxDecoration(
-                                                color: _colorOptions[option.nameColor],
-                                                shape: BoxShape.circle,
-                                                border: option.nameColor == 'white' 
-                                                    ? Border.all(color: Colors.grey, width: 1)
-                                                    : null,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: Text(
-                                                '${_colorNames[option.nameColor]} - ${option.name} (${option.code})',
-                                                style: const TextStyle(fontSize: 14),
-                                              ),
-                                            ),
-                                          ],
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 6.0,
+                                          horizontal: 12.0,
                                         ),
+                                        child: AnimalDisplayUtils
+                                            .buildDropdownItem(option),
                                       ),
                                     );
                                   },
@@ -492,13 +577,19 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                         onSelected: (Animal father) {
                           setState(() {
                             _fatherId = father.id;
+                            _fatherPrefillLabel = _formatParentLabel(
+                              name: father.name,
+                              code: father.code,
+                              color: father.nameColor,
+                            );
+                            _fatherFieldInitialized = true;
                           });
                         },
                       ),
                       const SizedBox(height: 16),
                     ],
                   ),
-                
+
                 // Categoria
                 DropdownButtonFormField<String>(
                   value: _category,
@@ -519,7 +610,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Espécie e Sexo
                 Row(
                   children: [
@@ -567,15 +658,15 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Raça
                 Row(
                   children: [
                     Expanded(
                       flex: 2,
                       child: DropdownButtonFormField<String>(
-                        value: _breeds.contains(_breedController.text) 
-                            ? _breedController.text 
+                        value: _breeds.contains(_breedController.text)
+                            ? _breedController.text
                             : 'Hampshire Down',
                         decoration: const InputDecoration(
                           labelText: 'Raça *',
@@ -622,9 +713,10 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Campo de texto para raça personalizada
-                if (!_breeds.contains(_breedController.text) || _breedController.text.isEmpty)
+                if (!_breeds.contains(_breedController.text) ||
+                    _breedController.text.isEmpty)
                   TextFormField(
                     controller: _breedController,
                     decoration: const InputDecoration(
@@ -640,7 +732,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                     },
                   ),
                 const SizedBox(height: 16),
-                
+
                 // Data de Nascimento
                 InkWell(
                   onTap: () async {
@@ -669,7 +761,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Localização e Status
                 Row(
                   children: [
@@ -690,8 +782,13 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           labelText: 'Status',
                           border: OutlineInputBorder(),
                         ),
-                        items: ['Saudável', 'Em tratamento', 'Reprodutor', 'Vendido', 'Gestante']
-                            .map((status) {
+                        items: [
+                          'Saudável',
+                          'Em tratamento',
+                          'Reprodutor',
+                          'Vendido',
+                          'Gestante'
+                        ].map((status) {
                           return DropdownMenuItem(
                             value: status,
                             child: Text(status),
@@ -707,7 +804,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Gestação
                 if (_gender == 'Fêmea') ...[
                   CheckboxListTile(
@@ -729,9 +826,11 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                         final date = await showDatePicker(
                           context: context,
                           locale: const Locale('pt', 'BR'),
-                          initialDate: _expectedDelivery ?? DateTime.now().add(const Duration(days: 150)),
+                          initialDate: _expectedDelivery ??
+                              DateTime.now().add(const Duration(days: 150)),
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate:
+                              DateTime.now().add(const Duration(days: 365)),
                         );
                         if (date != null) {
                           setState(() {
@@ -776,7 +875,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final animalService = Provider.of<AnimalService>(context, listen: false);
-    
+
     final animal = Animal(
       id: widget.animal?.id ?? const Uuid().v4(),
       code: _codeController.text,
@@ -807,13 +906,13 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       } else {
         await animalService.updateAnimal(animal);
       }
-      
+
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              widget.animal == null 
+              widget.animal == null
                   ? 'Animal criado com sucesso!'
                   : 'Animal atualizado com sucesso!',
             ),

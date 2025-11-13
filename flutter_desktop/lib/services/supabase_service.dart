@@ -3,7 +3,7 @@ import '../models/animal.dart';
 
 class SupabaseService {
   static final _client = Supabase.instance.client;
-  
+
   // Propriedades para compatibilidade
   static SupabaseClient get supabase => _client;
   static bool get isConfigured => true; // Sempre configurado neste projeto
@@ -47,7 +47,8 @@ class SupabaseService {
     await _client.from('vaccinations').insert(vaccination);
   }
 
-  static Future<void> updateVaccination(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateVaccination(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('vaccinations').update(updates).eq('id', id);
   }
 
@@ -65,7 +66,8 @@ class SupabaseService {
     await _client.from('medications').insert(medication);
   }
 
-  static Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateMedication(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('medications').update(updates).eq('id', id);
   }
 
@@ -83,7 +85,8 @@ class SupabaseService {
     await _client.from('animal_weights').insert(weight);
   }
 
-  static Future<void> updateAnimalWeight(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateAnimalWeight(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('animal_weights').update(updates).eq('id', id);
   }
 
@@ -101,7 +104,8 @@ class SupabaseService {
     await _client.from('breeding_records').insert(record);
   }
 
-  static Future<void> updateBreedingRecord(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateBreedingRecord(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('breeding_records').update(updates).eq('id', id);
   }
 
@@ -119,7 +123,8 @@ class SupabaseService {
     await _client.from('notes').insert(note);
   }
 
-  static Future<void> updateNote(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateNote(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('notes').update(updates).eq('id', id);
   }
 
@@ -133,12 +138,12 @@ class SupabaseService {
     return response.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> createFinancialRecord(
-      Map<String, dynamic> record) async {
+  static Future<void> createFinancialRecord(Map<String, dynamic> record) async {
     await _client.from('financial_records').insert(record);
   }
 
-  static Future<void> updateFinancialRecord(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateFinancialRecord(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('financial_records').update(updates).eq('id', id);
   }
 
@@ -152,11 +157,13 @@ class SupabaseService {
     return response.map((e) => e as Map<String, dynamic>).toList();
   }
 
-  static Future<void> createFinancialAccount(Map<String, dynamic> account) async {
+  static Future<void> createFinancialAccount(
+      Map<String, dynamic> account) async {
     await _client.from('financial_accounts').insert(account);
   }
 
-  static Future<void> updateFinancialAccount(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateFinancialAccount(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('financial_accounts').update(updates).eq('id', id);
   }
 
@@ -208,8 +215,10 @@ class SupabaseService {
       'revenue': revenue,
     };
   }
+
   // -------------------- Backup (Upsert) --------------------
-  static Future<void> upsertRows(String table, List<Map<String, dynamic>> rows) async {
+  static Future<void> upsertRows(
+      String table, List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     await _client.from(table).upsert(rows);
   }
@@ -224,7 +233,8 @@ class SupabaseService {
     await _client.from('sold_animals').insert(animal);
   }
 
-  static Future<void> updateSoldAnimal(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateSoldAnimal(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('sold_animals').update(updates).eq('id', id);
   }
 
@@ -242,7 +252,8 @@ class SupabaseService {
     await _client.from('deceased_animals').insert(animal);
   }
 
-  static Future<void> updateDeceasedAnimal(String id, Map<String, dynamic> updates) async {
+  static Future<void> updateDeceasedAnimal(
+      String id, Map<String, dynamic> updates) async {
     await _client.from('deceased_animals').update(updates).eq('id', id);
   }
 

@@ -92,14 +92,22 @@ class AppDatabase {
         father_id TEXT
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE);');
 
     // -------- animal_weights
     await db.execute('''
@@ -114,8 +122,10 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);');
 
     // -------- breeding_records
     await db.execute('''
@@ -142,10 +152,14 @@ class AppDatabase {
       );
     ''');
 
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);');
 
     // === Trigger: traduz stage -> status na inserção ===
     await db.execute('''
@@ -253,13 +267,20 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_due_date ON financial_accounts(due_date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_status ON financial_accounts(status);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_type ON financial_accounts(type);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_category ON financial_accounts(category);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_animal_id ON financial_accounts(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_parent_id ON financial_accounts(parent_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_finacc_is_recurring ON financial_accounts(is_recurring);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_due_date ON financial_accounts(due_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_status ON financial_accounts(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_type ON financial_accounts(type);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_category ON financial_accounts(category);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_animal_id ON financial_accounts(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_parent_id ON financial_accounts(parent_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_is_recurring ON financial_accounts(is_recurring);');
 
     // -------- financial_records
     await db.execute('''
@@ -276,7 +297,8 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
 
     // -------- pharmacy_stock
     await db.execute('''
@@ -296,9 +318,12 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration ON pharmacy_stock(expiration_date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type ON pharmacy_stock(medication_type);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration ON pharmacy_stock(expiration_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type ON pharmacy_stock(medication_type);');
 
     // -------- pharmacy_stock_movements
     await db.execute('''
@@ -314,8 +339,10 @@ class AppDatabase {
         FOREIGN KEY (medication_id) REFERENCES medications(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_movements_medication_id ON pharmacy_stock_movements(medication_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movements_medication_id ON pharmacy_stock_movements(medication_id);');
 
     // -------- medications
     await db.execute('''
@@ -338,12 +365,18 @@ class AppDatabase {
         FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_pharmacy_stock ON medications(pharmacy_stock_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_pharmacy_stock ON medications(pharmacy_stock_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);');
 
     // -------- notes
     await db.execute('''
@@ -362,10 +395,14 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);');
+    await db
+        .execute('CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);');
 
     // -------- reports
     await db.execute('''
@@ -417,7 +454,8 @@ class AppDatabase {
         FOREIGN KEY (pen_id) REFERENCES feeding_pens(id) ON DELETE CASCADE
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_feeding_schedules_pen ON feeding_schedules(pen_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_feeding_schedules_pen ON feeding_schedules(pen_id);');
 
     // -------- vaccinations
     await db.execute('''
@@ -436,10 +474,14 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);');
 
     // -------- sold_animals (animais vendidos)
     await db.execute('''
@@ -473,8 +515,10 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name, name_color);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name, name_color);');
 
     // -------- deceased_animals (animais falecidos)
     await db.execute('''
@@ -507,8 +551,10 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name, name_color);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name, name_color);');
 
     // -------- weight_alerts (alertas de pesagem)
     await db.execute('''
@@ -523,9 +569,12 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
       );
     ''');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date);');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);');
 
     // ==========================
     // ====== TRIGGERS ==========

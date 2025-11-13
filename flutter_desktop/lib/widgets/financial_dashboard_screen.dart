@@ -7,7 +7,8 @@ class FinancialDashboardScreen extends StatefulWidget {
   const FinancialDashboardScreen({super.key});
 
   @override
-  FinancialDashboardScreenState createState() => FinancialDashboardScreenState();
+  FinancialDashboardScreenState createState() =>
+      FinancialDashboardScreenState();
 }
 
 class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
@@ -198,8 +199,8 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color:
-                                _getStatusColor(account.status).withOpacity(0.2),
+                            color: _getStatusColor(account.status)
+                                .withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(

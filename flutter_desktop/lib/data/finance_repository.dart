@@ -1,3 +1,5 @@
+import 'package:sqflite_common/sqlite_api.dart' show Database;
+
 import '../models/financial_account.dart';
 import 'local_db.dart';
 
@@ -6,6 +8,8 @@ class FinanceRepository {
   final AppDatabase _db;
 
   FinanceRepository(this._db);
+
+  Database get database => _db.db;
 
   // ==================== FINANCIAL RECORDS ====================
 
@@ -67,7 +71,7 @@ class FinanceRepository {
     final maps = await _db.db.query(
       'financial_accounts',
       where: 'type = ?',
-      whereArgs: ['Despesa'],
+      whereArgs: ['despesa'],
       orderBy: 'due_date ASC',
     );
     return maps.map((m) => FinancialAccount.fromMap(m)).toList();
@@ -78,7 +82,7 @@ class FinanceRepository {
     final maps = await _db.db.query(
       'financial_accounts',
       where: 'type = ?',
-      whereArgs: ['Receita'],
+      whereArgs: ['receita'],
       orderBy: 'due_date ASC',
     );
     return maps.map((m) => FinancialAccount.fromMap(m)).toList();
@@ -126,7 +130,7 @@ class FinanceRepository {
     final result = await _db.db.rawQuery('''
       SELECT COALESCE(SUM(amount), 0) as total
       FROM financial_records
-      WHERE type = 'Receita'
+      WHERE type = 'receita'
     ''');
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }
@@ -136,7 +140,7 @@ class FinanceRepository {
     final result = await _db.db.rawQuery('''
       SELECT COALESCE(SUM(amount), 0) as total
       FROM financial_records
-      WHERE type = 'Despesa'
+      WHERE type = 'despesa'
     ''');
     return (result.first['total'] as num?)?.toDouble() ?? 0.0;
   }

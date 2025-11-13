@@ -8,19 +8,32 @@ import '../services/pharmacy_service.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/animal.dart';
 import '../utils/animal_display_utils.dart';
+import '../utils/animal_record_display.dart';
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
 
   @override
-  State<MedicationManagementScreen> createState() => _MedicationManagementScreenState();
+  State<MedicationManagementScreen> createState() =>
+      _MedicationManagementScreenState();
 }
 
-class _MedicationManagementScreenState extends State<MedicationManagementScreen> {
-  List<Map<String, dynamic>> _vaccinations = [];
-  List<Map<String, dynamic>> _medications = [];
+class _MedicationManagementScreenState
+    extends State<MedicationManagementScreen> {
+  Map<String, List<Map<String, dynamic>>> _vaccinationGroups = {
+    'Atrasadas': [],
+    'Agendadas': [],
+    'Aplicadas': [],
+    'Canceladas': [],
+  };
+  Map<String, List<Map<String, dynamic>>> _medicationGroups = {
+    'Atrasados': [],
+    'Agendados': [],
+    'Aplicados': [],
+    'Cancelados': [],
+  };
   bool _isLoading = true;
-  
+
   // Filtros de status
   String _vaccinationFilter = 'Atrasadas';
   String _medicationFilter = 'Atrasados';
@@ -34,140 +47,61 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
-      final medicationService = Provider.of<MedicationService>(context, listen: false);
-      
-      final vaccinations = await vaccinationService.getVaccinations();
-      final medications = await medicationService.getMedications();
-      
+      final vaccinationService =
+          Provider.of<VaccinationService>(context, listen: false);
+      final medicationService =
+          Provider.of<MedicationService>(context, listen: false);
+
+      final results = await Future.wait<List<Map<String, dynamic>>>([
+        vaccinationService.getOverdueVaccinationsWithAnimalInfo(),
+        vaccinationService.getScheduledVaccinationsWithAnimalInfo(),
+        vaccinationService.getAppliedVaccinationsWithAnimalInfo(),
+        vaccinationService.getCancelledVaccinationsWithAnimalInfo(),
+        medicationService.getOverdueMedicationsWithAnimalInfo(),
+        medicationService.getScheduledMedicationsWithAnimalInfo(),
+        medicationService.getAppliedMedicationsWithAnimalInfo(),
+        medicationService.getCancelledMedicationsWithAnimalInfo(),
+      ]);
+
+      if (!mounted) return;
+
       setState(() {
-        _vaccinations = List<Map<String, dynamic>>.from(vaccinations);
-        _medications = List<Map<String, dynamic>>.from(medications);
+        _vaccinationGroups = {
+          'Atrasadas': List<Map<String, dynamic>>.from(results[0]),
+          'Agendadas': List<Map<String, dynamic>>.from(results[1]),
+          'Aplicadas': List<Map<String, dynamic>>.from(results[2]),
+          'Canceladas': List<Map<String, dynamic>>.from(results[3]),
+        };
+        _medicationGroups = {
+          'Atrasados': List<Map<String, dynamic>>.from(results[4]),
+          'Agendados': List<Map<String, dynamic>>.from(results[5]),
+          'Aplicados': List<Map<String, dynamic>>.from(results[6]),
+          'Cancelados': List<Map<String, dynamic>>.from(results[7]),
+        };
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
   List<Map<String, dynamic>> _filterVaccinations() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (_vaccinationFilter) {
-      case 'Atrasadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return scheduledDate.isBefore(today);
-        }).toList();
-      case 'Agendadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return !scheduledDate.isBefore(today);
-        }).toList();
-      case 'Aplicadas':
-        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
-      case 'Canceladas':
-        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
-      default:
-        return _vaccinations;
-    }
+    return _vaccinationGroups[_vaccinationFilter] ??
+        const <Map<String, dynamic>>[];
   }
 
   List<Map<String, dynamic>> _filterMedications() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (_medicationFilter) {
-      case 'Atrasados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return date.isBefore(today);
-        }).toList();
-      case 'Agendados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return !date.isBefore(today);
-        }).toList();
-      case 'Aplicados':
-        return _medications.where((m) => m['status'] == 'Aplicado').toList();
-      case 'Cancelados':
-        return _medications.where((m) => m['status'] == 'Cancelado').toList();
-      default:
-        return _medications;
-    }
+    return _medicationGroups[_medicationFilter] ??
+        const <Map<String, dynamic>>[];
   }
 
   int _countVaccinationsByStatus(String status) {
-    return _filterVaccinationsForCount(status).length;
-  }
-
-  List<Map<String, dynamic>> _filterVaccinationsForCount(String status) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (status) {
-      case 'Atrasadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return scheduledDate.isBefore(today);
-        }).toList();
-      case 'Agendadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return !scheduledDate.isBefore(today);
-        }).toList();
-      case 'Aplicadas':
-        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
-      case 'Canceladas':
-        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
-      default:
-        return _vaccinations;
-    }
+    return _vaccinationGroups[status]?.length ?? 0;
   }
 
   int _countMedicationsByStatus(String status) {
-    return _filterMedicationsForCount(status).length;
-  }
-
-  List<Map<String, dynamic>> _filterMedicationsForCount(String status) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (status) {
-      case 'Atrasados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return date.isBefore(today);
-        }).toList();
-      case 'Agendados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return !date.isBefore(today);
-        }).toList();
-      case 'Aplicados':
-        return _medications.where((m) => m['status'] == 'Aplicado').toList();
-      case 'Cancelados':
-        return _medications.where((m) => m['status'] == 'Cancelado').toList();
-      default:
-        return _medications;
-    }
+    return _medicationGroups[status]?.length ?? 0;
   }
 
   @override
@@ -216,37 +150,42 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
             child: Row(
               children: [
                 _buildFilterChip(
-                  label: 'Atrasadas (${_countVaccinationsByStatus('Atrasadas')})',
+                  label:
+                      'Atrasadas (${_countVaccinationsByStatus('Atrasadas')})',
                   isSelected: _vaccinationFilter == 'Atrasadas',
                   color: Colors.red,
                   onTap: () => setState(() => _vaccinationFilter = 'Atrasadas'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Agendadas (${_countVaccinationsByStatus('Agendadas')})',
+                  label:
+                      'Agendadas (${_countVaccinationsByStatus('Agendadas')})',
                   isSelected: _vaccinationFilter == 'Agendadas',
                   color: Colors.orange,
                   onTap: () => setState(() => _vaccinationFilter = 'Agendadas'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Aplicadas (${_countVaccinationsByStatus('Aplicadas')})',
+                  label:
+                      'Aplicadas (${_countVaccinationsByStatus('Aplicadas')})',
                   isSelected: _vaccinationFilter == 'Aplicadas',
                   color: Colors.green,
                   onTap: () => setState(() => _vaccinationFilter = 'Aplicadas'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Canceladas (${_countVaccinationsByStatus('Canceladas')})',
+                  label:
+                      'Canceladas (${_countVaccinationsByStatus('Canceladas')})',
                   isSelected: _vaccinationFilter == 'Canceladas',
                   color: Colors.grey,
-                  onTap: () => setState(() => _vaccinationFilter = 'Canceladas'),
+                  onTap: () =>
+                      setState(() => _vaccinationFilter = 'Canceladas'),
                 ),
               ],
             ),
           ),
         ),
-        
+
         // Lista filtrada
         Expanded(
           child: filteredVaccinations.isEmpty
@@ -300,28 +239,32 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
             child: Row(
               children: [
                 _buildFilterChip(
-                  label: 'Atrasados (${_countMedicationsByStatus('Atrasados')})',
+                  label:
+                      'Atrasados (${_countMedicationsByStatus('Atrasados')})',
                   isSelected: _medicationFilter == 'Atrasados',
                   color: Colors.red,
                   onTap: () => setState(() => _medicationFilter = 'Atrasados'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Agendados (${_countMedicationsByStatus('Agendados')})',
+                  label:
+                      'Agendados (${_countMedicationsByStatus('Agendados')})',
                   isSelected: _medicationFilter == 'Agendados',
                   color: Colors.orange,
                   onTap: () => setState(() => _medicationFilter = 'Agendados'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Aplicados (${_countMedicationsByStatus('Aplicados')})',
+                  label:
+                      'Aplicados (${_countMedicationsByStatus('Aplicados')})',
                   isSelected: _medicationFilter == 'Aplicados',
                   color: Colors.green,
                   onTap: () => setState(() => _medicationFilter = 'Aplicados'),
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  label: 'Cancelados (${_countMedicationsByStatus('Cancelados')})',
+                  label:
+                      'Cancelados (${_countMedicationsByStatus('Cancelados')})',
                   isSelected: _medicationFilter == 'Cancelados',
                   color: Colors.grey,
                   onTap: () => setState(() => _medicationFilter = 'Cancelados'),
@@ -330,7 +273,7 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
             ),
           ),
         ),
-        
+
         // Lista filtrada
         Expanded(
           child: filteredMedications.isEmpty
@@ -436,66 +379,44 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FutureBuilder<Animal?>(
-                      future: _getAnimalById(vaccination['animal_id']),
-                      builder: (context, snapshot) {
-                        final animal = snapshot.data;
-                        final animalDisplay = animal != null
-                            ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
-                            : 'Animal não encontrado';
-                        
-                        // Converter cor do texto para Color
-                        Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty) return null;
-                          final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco')) return Colors.grey[700];
-                          if (colorLower.contains('preto')) return Colors.black;
-                          if (colorLower.contains('marrom')) return Colors.brown;
-                          if (colorLower.contains('vermelho')) return Colors.red[700];
-                          if (colorLower.contains('amarelo')) return Colors.amber[800];
-                          if (colorLower.contains('cinza')) return Colors.grey[600];
-                          if (colorLower.contains('azul')) return Colors.blue[700];
-                          if (colorLower.contains('verde')) return Colors.green[700];
-                          return null;
-                        }
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AnimalRecordDisplay.labelFromRecord(vaccination),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AnimalRecordDisplay.colorFromRecord(
+                                  vaccination,
+                                ) ??
+                                Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
                           children: [
+                            Icon(statusIcon, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
                             Text(
-                              animalDisplay,
+                              status,
                               style: TextStyle(
-                                fontSize: 14,
+                                color: statusColor,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: getColorFromName(animal?.nameColor),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(statusIcon, size: 14, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -507,7 +428,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
               const Divider(height: 24),
               Row(
                 children: [
-                  const Icon(Icons.category_outlined, size: 16, color: Colors.grey),
+                  const Icon(Icons.category_outlined,
+                      size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
                     'Tipo: ${vaccination['vaccine_type'] ?? 'N/A'}',
@@ -518,7 +440,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                  const Icon(Icons.calendar_today,
+                      size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
                     'Data: ${_formatDate(vaccination['scheduled_date'])}',
@@ -527,14 +450,15 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ],
               ),
               const SizedBox(height: 16),
-              
+
               // Botões de ação
               if (status == 'Agendada') ...[
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _markAsApplied(vaccination['id'], isVaccination: true),
+                        onPressed: () => _markAsApplied(vaccination['id'],
+                            isVaccination: true),
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Aplicar'),
                         style: ElevatedButton.styleFrom(
@@ -547,7 +471,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _cancelItem(vaccination['id'], isVaccination: true),
+                        onPressed: () =>
+                            _cancelItem(vaccination['id'], isVaccination: true),
                         icon: const Icon(Icons.cancel, size: 18),
                         label: const Text('Cancelar'),
                         style: ElevatedButton.styleFrom(
@@ -561,11 +486,12 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ),
                 const SizedBox(height: 8),
               ],
-              
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _showDetails(vaccination, isVaccination: true),
+                  onPressed: () =>
+                      _showDetails(vaccination, isVaccination: true),
                   icon: const Icon(Icons.visibility, size: 18),
                   label: const Text('Ver Detalhes'),
                   style: OutlinedButton.styleFrom(
@@ -619,66 +545,44 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FutureBuilder<Animal?>(
-                      future: _getAnimalById(medication['animal_id']),
-                      builder: (context, snapshot) {
-                        final animal = snapshot.data;
-                        final animalDisplay = animal != null
-                            ? '${animal.nameColor ?? ''} - ${animal.name}(${animal.code})'
-                            : 'Animal não encontrado';
-                        
-                        // Converter cor do texto para Color
-                        Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty) return null;
-                          final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco')) return Colors.grey[700];
-                          if (colorLower.contains('preto')) return Colors.black;
-                          if (colorLower.contains('marrom')) return Colors.brown;
-                          if (colorLower.contains('vermelho')) return Colors.red[700];
-                          if (colorLower.contains('amarelo')) return Colors.amber[800];
-                          if (colorLower.contains('cinza')) return Colors.grey[600];
-                          if (colorLower.contains('azul')) return Colors.blue[700];
-                          if (colorLower.contains('verde')) return Colors.green[700];
-                          return null;
-                        }
-                        
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AnimalRecordDisplay.labelFromRecord(medication),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AnimalRecordDisplay.colorFromRecord(
+                                  medication,
+                                ) ??
+                                Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Medicamento: ${medication['medication_name'] ?? 'Sem nome'}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
                           children: [
+                            Icon(statusIcon, size: 14, color: statusColor),
+                            const SizedBox(width: 4),
                             Text(
-                              animalDisplay,
+                              status,
                               style: TextStyle(
-                                fontSize: 14,
+                                color: statusColor,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: getColorFromName(animal?.nameColor),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Medicação: ${medication['medication_name'] ?? 'Sem nome'}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(statusIcon, size: 14, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
                             ),
                           ],
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -690,7 +594,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
               const Divider(height: 24),
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                  const Icon(Icons.calendar_today,
+                      size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
                     'Data: ${_formatDate(medication['date'])}',
@@ -702,7 +607,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.event_repeat, size: 16, color: Colors.grey),
+                    const Icon(Icons.event_repeat,
+                        size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
                       'Próxima: ${_formatDate(medication['next_date'])}',
@@ -712,14 +618,15 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ),
               ],
               const SizedBox(height: 16),
-              
+
               // Botões de ação
               if (status == 'Agendado') ...[
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _markAsApplied(medication['id'], isVaccination: false),
+                        onPressed: () => _markAsApplied(medication['id'],
+                            isVaccination: false),
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Aplicar'),
                         style: ElevatedButton.styleFrom(
@@ -732,7 +639,8 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => _cancelItem(medication['id'], isVaccination: false),
+                        onPressed: () =>
+                            _cancelItem(medication['id'], isVaccination: false),
                         icon: const Icon(Icons.cancel, size: 18),
                         label: const Text('Cancelar'),
                         style: ElevatedButton.styleFrom(
@@ -746,11 +654,12 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
                 ),
                 const SizedBox(height: 8),
               ],
-              
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _showDetails(medication, isVaccination: false),
+                  onPressed: () =>
+                      _showDetails(medication, isVaccination: false),
                   icon: const Icon(Icons.visibility, size: 18),
                   label: const Text('Ver Detalhes'),
                   style: OutlinedButton.styleFrom(
@@ -765,16 +674,6 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
     );
   }
 
-  Future<Animal?> _getAnimalById(String? animalId) async {
-    if (animalId == null) return null;
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    try {
-      return animalService.animals.firstWhere((a) => a.id == animalId);
-    } catch (e) {
-      return null;
-    }
-  }
-
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
@@ -785,19 +684,13 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
     }
   }
 
-  void _showDetails(Map<String, dynamic> data, {required bool isVaccination}) async {
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    final animalId = data['animal_id'];
-    final animal = animalService.animals.firstWhere(
-      (a) => a.id == animalId,
-      orElse: () => animalService.animals.first,
-    );
-
+  void _showDetails(Map<String, dynamic> data,
+      {required bool isVaccination}) async {
     showDialog(
       context: context,
       builder: (context) => _DetailsDialog(
         data: data,
-        animal: animal,
+        animalLabel: AnimalRecordDisplay.labelFromRecord(data),
         isVaccination: isVaccination,
       ),
     );
@@ -818,18 +711,20 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
     try {
       final now = DateTime.now();
       final today = now.toIso8601String().split('T')[0];
-      
+
       if (isVaccination) {
-        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+        final vaccinationService =
+            Provider.of<VaccinationService>(context, listen: false);
         await vaccinationService.updateVaccination(id, {
           'status': 'Aplicada',
           'applied_date': today,
         });
       } else {
         // MEDICAMENTO - DEDUZIR DO ESTOQUE DA FARMÁCIA
-        final medicationService = Provider.of<MedicationService>(context, listen: false);
+        final medicationService =
+            Provider.of<MedicationService>(context, listen: false);
         final medication = await medicationService.getMedicationById(id);
-        
+
         if (medication != null) {
           final pharmacyStockId = medication['pharmacy_stock_id'] as String?;
           final quantityUsed = medication['quantity_used'] as double?;
@@ -841,8 +736,11 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
           });
 
           // DEDUZIR DO ESTOQUE (a lógica agora é baseada na unidade de medida, não no tipo)
-          if (pharmacyStockId != null && quantityUsed != null && quantityUsed > 0) {
-            final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+          if (pharmacyStockId != null &&
+              quantityUsed != null &&
+              quantityUsed > 0) {
+            final pharmacyService =
+                Provider.of<PharmacyService>(context, listen: false);
             await pharmacyService.deductFromStock(
               pharmacyStockId,
               quantityUsed,
@@ -851,13 +749,15 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
           }
         }
       }
-      
+
       await _loadData();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isVaccination ? 'Vacinação aplicada com sucesso!' : 'Medicamento aplicado e estoque atualizado!'),
+            content: Text(isVaccination
+                ? 'Vacinação aplicada com sucesso!'
+                : 'Medicamento aplicado e estoque atualizado!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -877,23 +777,27 @@ class _MedicationManagementScreenState extends State<MedicationManagementScreen>
   Future<void> _cancelItem(String id, {required bool isVaccination}) async {
     try {
       if (isVaccination) {
-        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+        final vaccinationService =
+            Provider.of<VaccinationService>(context, listen: false);
         await vaccinationService.updateVaccination(id, {
           'status': 'Cancelada',
         });
       } else {
-        final medicationService = Provider.of<MedicationService>(context, listen: false);
+        final medicationService =
+            Provider.of<MedicationService>(context, listen: false);
         await medicationService.updateMedication(id, {
           'status': 'Cancelado',
         });
       }
-      
+
       await _loadData();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isVaccination ? 'Vacinação cancelada' : 'Medicamento cancelado'),
+            content: Text(isVaccination
+                ? 'Vacinação cancelada'
+                : 'Medicamento cancelado'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -1000,12 +904,12 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   final _veterinarianController = TextEditingController();
   final _notesController = TextEditingController();
   final _dosageController = TextEditingController();
-  
+
   String _type = 'Vacinação';
   String _vaccineType = 'Obrigatória';
   DateTime _scheduledDate = DateTime.now();
   String? _selectedAnimalId;
-  
+
   // INTEGRAÇÃO COM FARMÁCIA
   List<PharmacyStock> _pharmacyStock = [];
   PharmacyStock? _selectedMedication;
@@ -1020,10 +924,12 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   Future<void> _loadPharmacyStock() async {
     setState(() => _isLoadingStock = true);
     try {
-      final pharmacyService = Provider.of<PharmacyService>(context, listen: false);
+      final pharmacyService =
+          Provider.of<PharmacyService>(context, listen: false);
       final stock = await pharmacyService.getPharmacyStock();
       setState(() {
-        _pharmacyStock = stock.where((s) => !s.isExpired && s.totalQuantity > 0).toList();
+        _pharmacyStock =
+            stock.where((s) => !s.isExpired && s.totalQuantity > 0).toList();
         _isLoadingStock = false;
       });
     } catch (e) {
@@ -1040,7 +946,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     final animalService = Provider.of<AnimalService>(context);
     final sortedAnimals = [...animalService.animals];
     AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
-    
+
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
       content: SizedBox(
@@ -1066,7 +972,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Animal Selection with Search
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
@@ -1077,13 +983,14 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     return sortedAnimals.where((animal) {
                       final searchText = textEditingValue.text.toLowerCase();
                       return animal.code.toLowerCase().contains(searchText) ||
-                             animal.name.toLowerCase().contains(searchText);
+                          animal.name.toLowerCase().contains(searchText);
                     });
                   },
                   onSelected: (Animal animal) {
                     setState(() => _selectedAnimalId = animal.id);
                   },
-                  fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onSubmitted) {
                     return TextFormField(
                       controller: controller,
                       focusNode: focusNode,
@@ -1102,7 +1009,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                               )
                             : null,
                       ),
-                      validator: (value) => _selectedAnimalId == null ? 'Selecione um animal' : null,
+                      validator: (value) => _selectedAnimalId == null
+                          ? 'Selecione um animal'
+                          : null,
                     );
                   },
                   optionsViewBuilder: (context, onSelected, options) {
@@ -1121,8 +1030,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                               return InkWell(
                                 onTap: () => onSelected(animal),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(animal),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 12),
+                                  child: AnimalDisplayUtils.buildDropdownItem(
+                                      animal),
                                 ),
                               );
                             },
@@ -1133,7 +1044,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   },
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Nome (Vacinação) ou Dropdown de Medicamentos da Farmácia
                 if (_type == 'Vacinação')
                   TextFormField(
@@ -1152,12 +1063,15 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   Autocomplete<PharmacyStock>(
                     displayStringForOption: (stock) {
                       final unit = stock.unitOfMeasure.toLowerCase();
-                      final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                                             stock.quantityPerUnit != null && 
-                                             stock.quantityPerUnit! > 0;
-                      
+                      final useVolumeLogic =
+                          (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+                              stock.quantityPerUnit != null &&
+                              stock.quantityPerUnit! > 0;
+
                       if (useVolumeLogic) {
-                        final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                        final totalVolume =
+                            (stock.totalQuantity * stock.quantityPerUnit!) +
+                                stock.openedQuantity;
                         // Mostrar apenas se há volume disponível
                         if (totalVolume <= 0) return '';
                         return '${stock.medicationName} (${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure})';
@@ -1168,23 +1082,28 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       // Filtrar medicamentos que têm estoque disponível
                       final availableStock = _pharmacyStock.where((stock) {
                         final unit = stock.unitOfMeasure.toLowerCase();
-                        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                                               stock.quantityPerUnit != null && 
-                                               stock.quantityPerUnit! > 0;
-                        
+                        final useVolumeLogic =
+                            (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+                                stock.quantityPerUnit != null &&
+                                stock.quantityPerUnit! > 0;
+
                         if (useVolumeLogic) {
-                          final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+                          final totalVolume =
+                              (stock.totalQuantity * stock.quantityPerUnit!) +
+                                  stock.openedQuantity;
                           return totalVolume > 0;
                         }
                         return stock.totalQuantity > 0;
                       }).toList();
-                      
+
                       if (textEditingValue.text.isEmpty) {
                         return availableStock;
                       }
                       return availableStock.where((stock) {
                         final searchText = textEditingValue.text.toLowerCase();
-                        return stock.medicationName.toLowerCase().contains(searchText);
+                        return stock.medicationName
+                            .toLowerCase()
+                            .contains(searchText);
                       });
                     },
                     onSelected: (PharmacyStock stock) {
@@ -1193,13 +1112,15 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                         _nameController.text = stock.medicationName;
                       });
                     },
-                    fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
                         decoration: InputDecoration(
                           labelText: 'Medicamento da Farmácia *',
-                          hintText: 'Digite para buscar (${_pharmacyStock.length} disponíveis)',
+                          hintText:
+                              'Digite para buscar (${_pharmacyStock.length} disponíveis)',
                           prefixIcon: const Icon(Icons.local_pharmacy),
                           border: const OutlineInputBorder(),
                           suffixIcon: _selectedMedication != null
@@ -1215,7 +1136,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                                 )
                               : null,
                         ),
-                        validator: (value) => _selectedMedication == null ? 'Selecione um medicamento' : null,
+                        validator: (value) => _selectedMedication == null
+                            ? 'Selecione um medicamento'
+                            : null,
                       );
                     },
                     optionsViewBuilder: (context, onSelected, options) {
@@ -1232,25 +1155,35 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                               itemBuilder: (BuildContext context, int index) {
                                 final stock = options.elementAt(index);
                                 final unit = stock.unitOfMeasure.toLowerCase();
-                                final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                                                       stock.quantityPerUnit != null && 
-                                                       stock.quantityPerUnit! > 0;
-                                
+                                final useVolumeLogic = (unit == 'ml' ||
+                                        unit == 'mg' ||
+                                        unit == 'g') &&
+                                    stock.quantityPerUnit != null &&
+                                    stock.quantityPerUnit! > 0;
+
                                 String subtitle;
                                 if (useVolumeLogic) {
-                                  final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
-                                  final openedInfo = stock.openedQuantity > 0 ? ' (${stock.openedQuantity.toStringAsFixed(1)}${stock.unitOfMeasure} aberto)' : '';
-                                  subtitle = '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)$openedInfo';
+                                  final totalVolume = (stock.totalQuantity *
+                                          stock.quantityPerUnit!) +
+                                      stock.openedQuantity;
+                                  final openedInfo = stock.openedQuantity > 0
+                                      ? ' (${stock.openedQuantity.toStringAsFixed(1)}${stock.unitOfMeasure} aberto)'
+                                      : '';
+                                  subtitle =
+                                      '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)$openedInfo';
                                 } else {
-                                  subtitle = '${stock.totalQuantity.toInt()} unidades disponíveis';
+                                  subtitle =
+                                      '${stock.totalQuantity.toInt()} unidades disponíveis';
                                 }
-                                
+
                                 return InkWell(
                                   onTap: () => onSelected(stock),
                                   child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           stock.medicationName,
@@ -1269,7 +1202,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                                         ),
                                         if (stock.isLowStock)
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 4),
+                                            padding:
+                                                const EdgeInsets.only(top: 4),
                                             child: Text(
                                               'Estoque baixo!',
                                               style: TextStyle(
@@ -1290,7 +1224,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       );
                     },
                   ),
-                  if (_selectedMedication != null && _selectedMedication!.isLowStock)
+                  if (_selectedMedication != null &&
+                      _selectedMedication!.isLowStock)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Container(
@@ -1302,7 +1237,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning, color: Colors.orange, size: 16),
+                            const Icon(Icons.warning,
+                                color: Colors.orange, size: 16),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -1316,7 +1252,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     ),
                 ],
                 const SizedBox(height: 16),
-                
+
                 // Tipo de vacina ou dosagem
                 if (_type == 'Vacinação')
                   DropdownButtonFormField<String>(
@@ -1325,8 +1261,14 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       labelText: 'Tipo de Vacina',
                       border: OutlineInputBorder(),
                     ),
-                    items: ['Obrigatória', 'Preventiva', 'Tratamento', 'Emergencial']
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    items: [
+                      'Obrigatória',
+                      'Preventiva',
+                      'Tratamento',
+                      'Emergencial'
+                    ]
+                        .map((type) =>
+                            DropdownMenuItem(value: type, child: Text(type)))
                         .toList(),
                     onChanged: (value) {
                       setState(() => _vaccineType = value!);
@@ -1342,7 +1284,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     ),
                   ),
                 const SizedBox(height: 16),
-                
+
                 // Data
                 InkWell(
                   onTap: () async {
@@ -1369,7 +1311,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Veterinário
                 TextFormField(
                   controller: _veterinarianController,
@@ -1379,7 +1321,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Observações
                 TextFormField(
                   controller: _notesController,
@@ -1409,15 +1351,16 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   String _buildLowStockMessage(PharmacyStock stock) {
     final unit = stock.unitOfMeasure.toLowerCase();
-    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                           stock.quantityPerUnit != null && 
-                           stock.quantityPerUnit! > 0;
-    
+    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+        stock.quantityPerUnit != null &&
+        stock.quantityPerUnit! > 0;
+
     if (useVolumeLogic) {
-      final totalVolume = (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+      final totalVolume =
+          (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
       return 'Estoque baixo! Apenas ${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''})';
     }
-    
+
     return 'Estoque baixo! Apenas ${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''} disponível';
   }
 
@@ -1440,18 +1383,21 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       final dosageText = _dosageController.text.trim();
       final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
       if (quantityMatch != null) {
-        final quantityUsed = double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
-        
+        final quantityUsed =
+            double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
+
         // Calcular estoque disponível baseado na unidade de medida
         final unit = _selectedMedication!.unitOfMeasure.toLowerCase();
-        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') && 
-                               _selectedMedication!.quantityPerUnit != null && 
-                               _selectedMedication!.quantityPerUnit! > 0;
-        
-        final availableStock = useVolumeLogic 
-            ? (_selectedMedication!.totalQuantity * _selectedMedication!.quantityPerUnit!) + _selectedMedication!.openedQuantity
+        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+            _selectedMedication!.quantityPerUnit != null &&
+            _selectedMedication!.quantityPerUnit! > 0;
+
+        final availableStock = useVolumeLogic
+            ? (_selectedMedication!.totalQuantity *
+                    _selectedMedication!.quantityPerUnit!) +
+                _selectedMedication!.openedQuantity
             : _selectedMedication!.totalQuantity;
-        
+
         if (quantityUsed > availableStock) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1468,16 +1414,19 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
     try {
       final now = DateTime.now().toIso8601String();
-      
+
       if (_type == 'Vacinação') {
-        final vaccinationService = Provider.of<VaccinationService>(context, listen: false);
+        final vaccinationService =
+            Provider.of<VaccinationService>(context, listen: false);
         final vaccination = {
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
           'vaccine_name': _nameController.text,
           'vaccine_type': _vaccineType,
           'scheduled_date': _scheduledDate.toIso8601String().split('T')[0],
-          'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
+          'veterinarian': _veterinarianController.text.isEmpty
+              ? null
+              : _veterinarianController.text,
           'notes': _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendada',
           'created_at': now,
@@ -1486,11 +1435,12 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
         await vaccinationService.createVaccination(vaccination);
       } else {
         // Medicamento - INCLUIR REFERÊNCIA DA FARMÁCIA
-        final medicationService = Provider.of<MedicationService>(context, listen: false);
+        final medicationService =
+            Provider.of<MedicationService>(context, listen: false);
         final dosageText = _dosageController.text.trim();
         final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
-        final quantityUsed = quantityMatch != null 
-            ? double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) 
+        final quantityUsed = quantityMatch != null
+            ? double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.'))
             : null;
 
         final medication = {
@@ -1498,9 +1448,15 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'animal_id': _selectedAnimalId!,
           'medication_name': _nameController.text,
           'date': _scheduledDate.toIso8601String().split('T')[0],
-          'next_date': _scheduledDate.add(const Duration(days: 30)).toIso8601String().split('T')[0],
-          'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
-          'veterinarian': _veterinarianController.text.isEmpty ? null : _veterinarianController.text,
+          'next_date': _scheduledDate
+              .add(const Duration(days: 30))
+              .toIso8601String()
+              .split('T')[0],
+          'dosage':
+              _dosageController.text.isEmpty ? null : _dosageController.text,
+          'veterinarian': _veterinarianController.text.isEmpty
+              ? null
+              : _veterinarianController.text,
           'notes': _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendado',
           'pharmacy_stock_id': _selectedMedication?.id,
@@ -1509,7 +1465,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
         };
         await medicationService.createMedication(medication);
       }
-      
+
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();
@@ -1544,12 +1500,12 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
 class _DetailsDialog extends StatelessWidget {
   final Map<String, dynamic> data;
-  final dynamic animal;
+  final String animalLabel;
   final bool isVaccination;
 
   const _DetailsDialog({
     required this.data,
-    required this.animal,
+    required this.animalLabel,
     required this.isVaccination,
   });
 
@@ -1600,7 +1556,9 @@ class _DetailsDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isVaccination ? 'Detalhes da Vacinação' : 'Detalhes do Medicamento',
+                          isVaccination
+                              ? 'Detalhes da Vacinação'
+                              : 'Detalhes do Medicamento',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -1638,7 +1596,7 @@ class _DetailsDialog extends StatelessWidget {
                     _buildDetailSection(
                       icon: Icons.pets,
                       title: 'Animal',
-                      content: '${animal.name} (${animal.code})',
+                      content: animalLabel,
                       color: accentColor,
                     ),
                     const SizedBox(height: 16),
@@ -1646,7 +1604,9 @@ class _DetailsDialog extends StatelessWidget {
                     // Nome
                     _buildDetailSection(
                       icon: isVaccination ? Icons.vaccines : Icons.medication,
-                      title: isVaccination ? 'Nome da Vacina' : 'Nome do Medicamento',
+                      title: isVaccination
+                          ? 'Nome da Vacina'
+                          : 'Nome do Medicamento',
                       content: isVaccination
                           ? data['vaccine_name'] ?? 'N/A'
                           : data['medication_name'] ?? 'N/A',
@@ -1682,9 +1642,11 @@ class _DetailsDialog extends StatelessWidget {
                     // Datas
                     _buildDetailSection(
                       icon: Icons.calendar_today,
-                      title: isVaccination ? 'Data Agendada' : 'Data de Aplicação',
-                      content: _formatDate(
-                          isVaccination ? data['scheduled_date'] : data['date']),
+                      title:
+                          isVaccination ? 'Data Agendada' : 'Data de Aplicação',
+                      content: _formatDate(isVaccination
+                          ? data['scheduled_date']
+                          : data['date']),
                       color: accentColor,
                     ),
                     if (isVaccination && data['applied_date'] != null) ...[
@@ -1721,7 +1683,8 @@ class _DetailsDialog extends StatelessWidget {
                       const SizedBox(height: 16),
 
                     // Observações
-                    if (data['notes'] != null && data['notes'].toString().isNotEmpty)
+                    if (data['notes'] != null &&
+                        data['notes'].toString().isNotEmpty)
                       _buildDetailSection(
                         icon: Icons.notes,
                         title: 'Observações',
@@ -1776,7 +1739,8 @@ class _DetailsDialog extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
-        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment:
+            isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(width: 12),
@@ -1824,7 +1788,7 @@ class _DetailsDialog extends StatelessWidget {
     final colorValue = _getColorValue(colorKey);
     final name = animalData['name'] ?? 'Sem nome';
     final code = animalData['code'] ?? '';
-    
+
     return Chip(
       avatar: Container(
         width: 16,
@@ -1832,7 +1796,7 @@ class _DetailsDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorValue,
           shape: BoxShape.circle,
-          border: colorKey == 'white' 
+          border: colorKey == 'white'
               ? Border.all(color: Colors.grey, width: 1)
               : null,
         ),

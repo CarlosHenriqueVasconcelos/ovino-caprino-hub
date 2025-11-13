@@ -113,4 +113,46 @@ class VaccinationRepository {
       ORDER BY v.scheduled_date DESC
     ''');
   }
+
+  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status = 'Agendada'
+        AND date(v.scheduled_date) < date('now')
+      ORDER BY v.scheduled_date ASC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status = 'Agendada'
+        AND date(v.scheduled_date) >= date('now')
+      ORDER BY v.scheduled_date ASC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status = 'Aplicada'
+      ORDER BY date(COALESCE(v.applied_date, v.scheduled_date)) DESC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo() async {
+    return await _db.db.rawQuery('''
+      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status = 'Cancelada'
+      ORDER BY date(v.scheduled_date) DESC
+    ''');
+  }
 }

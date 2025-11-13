@@ -5,12 +5,15 @@ import '../models/animal.dart';
 import 'animal_history_dialog.dart';
 import '../data/animal_repository.dart';
 import '../services/animal_service.dart';
-
+import '../services/data_refresh_bus.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
   final Function(Animal)? onEdit;
   final AnimalRepository? repository;
+  final Animal? mother;
+  final Animal? father;
+  final List<Animal> offspring;
 
   /// Novo: callback opcional para exclusão em cascata
   final Future<void> Function(Animal)? onDeleteCascade;
@@ -21,6 +24,9 @@ class AnimalCard extends StatelessWidget {
     required this.animal,
     this.onEdit,
     this.repository,
+    this.mother,
+    this.father,
+    this.offspring = const [],
     this.onDeleteCascade,
     this.onAnimalChanged,
   });
@@ -117,6 +123,12 @@ class AnimalCard extends StatelessWidget {
     final theme = Theme.of(context);
     final statusColor = _getStatusColor(context);
     final hasHealthIssue = animal.healthIssue != null;
+    AnimalRepository? repo;
+    try {
+      repo = repository ?? context.read<AnimalRepository>();
+    } catch (_) {
+      repo = repository;
+    }
 
     return Card(
       elevation: hasHealthIssue ? 4 : 2,
@@ -165,9 +177,8 @@ class AnimalCard extends StatelessWidget {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Registrar Óbito'),
                           content: Text(
-                            'Marcar "${animal.name}" como falecido?\n\n'
-                            'O animal será movido para a lista de óbitos.'
-                          ),
+                              'Marcar "${animal.name}" como falecido?\n\n'
+                              'O animal será movido para a lista de óbitos.'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
@@ -186,17 +197,25 @@ class AnimalCard extends StatelessWidget {
                       );
                       if (ok == true) {
                         try {
-                          if (repository != null) {
-                            await repository!.markAsDeceased(
+                          if (repo != null) {
+                            await repo.markAsDeceased(
                               animalId: animal.id,
                               deathDate: DateTime.now(),
                               causeOfDeath: animal.healthIssue,
                               notes: 'Registrado manualmente pelo usuário',
                             );
+                            final svc = context.read<AnimalService>();
+                            await svc.removeFromCache(
+                              animal.id,
+                              refreshAlertsData: true,
+                            );
+                            DataRefreshBus.emit('deceased');
                           } else {
                             // Fallback: usa o AnimalService para mudar status → hook move p/ óbito
                             final svc = context.read<AnimalService>();
-                            await svc.updateAnimal(animal.copyWith(status: 'Óbito'));
+                            await svc
+                                .updateAnimal(animal.copyWith(status: 'Óbito'));
+                            DataRefreshBus.emit('deceased');
                           }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -218,15 +237,15 @@ class AnimalCard extends StatelessWidget {
                           }
                         }
                       }
-                    } else if (value == 'delete_all' && onDeleteCascade != null) {
+                    } else if (value == 'delete_all' &&
+                        onDeleteCascade != null) {
                       final ok = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Confirmar exclusão'),
                           content: Text(
-                            'Apagar TUDO relacionado a "${animal.name}"?\n\n'
-                            'Isso inclui pesos, vacinas, medicações, anotações, financeiro e reprodução.'
-                          ),
+                              'Apagar TUDO relacionado a "${animal.name}"?\n\n'
+                              'Isso inclui pesos, vacinas, medicações, anotações, financeiro e reprodução.'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx, false),
@@ -315,7 +334,8 @@ class AnimalCard extends StatelessWidget {
                 if (animal.category != null && animal.category!.isNotEmpty)
                   Chip(
                     label: Text(animal.category!),
-                    backgroundColor: theme.colorScheme.secondary.withOpacity(0.1),
+                    backgroundColor:
+                        theme.colorScheme.secondary.withOpacity(0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.secondary,
                       fontWeight: FontWeight.w500,
@@ -356,8 +376,7 @@ class AnimalCard extends StatelessWidget {
                         Text(animal.healthIssue!),
                       ],
                     ),
-                    backgroundColor:
-                        theme.colorScheme.error.withOpacity(0.1),
+                    backgroundColor: theme.colorScheme.error.withOpacity(0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.error,
                       fontWeight: FontWeight.w500,
@@ -380,8 +399,7 @@ class AnimalCard extends StatelessWidget {
                       Text(
                         'Raça',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       Text(
@@ -400,8 +418,7 @@ class AnimalCard extends StatelessWidget {
                       Text(
                         'Idade',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       Text(
@@ -466,132 +483,106 @@ class AnimalCard extends StatelessWidget {
               const SizedBox(height: 12),
 
             // Informação sobre pais (mãe e pai)
-            if (animal.motherId != null || animal.fatherId != null)
-              FutureBuilder<List<Animal?>>(
-                future: Future.wait([
-                  animal.motherId != null ? repository!.getAnimalById(animal.motherId!) : Future.value(null),
-                  animal.fatherId != null ? repository!.getAnimalById(animal.fatherId!) : Future.value(null),
-                ]),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    final mother = snapshot.data![0];
-                    final father = snapshot.data![1];
-                    
-                    if (mother == null && father == null) {
-                      return const SizedBox.shrink();
-                    }
-                    
-                    return Container(
-                      padding: const EdgeInsets.all(8),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            if (mother != null || father != null)
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (mother != null)
+                      Row(
                         children: [
-                          if (mother != null)
-                            Row(
-                              children: [
-                                const Icon(Icons.female, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Mãe: ${mother.name} (${mother.code})',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                          const Icon(Icons.female, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Mãe: ${mother!.name} (${mother!.code})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
                             ),
-                          if (mother != null && father != null) const SizedBox(height: 4),
-                          if (father != null)
-                            Row(
-                              children: [
-                                const Icon(Icons.male, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Pai: ${father.name} (${father.code})',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          ),
                         ],
                       ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+                    if (mother != null && father != null)
+                      const SizedBox(height: 4),
+                    if (father != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.male, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Pai: ${father!.name} (${father!.code})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
 
             // Lista de crias (limitar a 4 no card, com indicador se houver mais)
-            FutureBuilder<List<Animal>>(
-              future: repository?.getOffspring(animal.id),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null && snapshot.data!.isNotEmpty) {
-                  final allOffspring = snapshot.data!;
-                  final displayOffspring = allOffspring.take(4).toList();
-                  final hasMore = allOffspring.length > 4;
-                  
-                  return Container(
-                    padding: const EdgeInsets.all(8),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.tertiary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            if (offspring.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.tertiary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.child_care,
-                              size: 16,
-                              color: theme.colorScheme.tertiary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Crias (${allOffspring.length}):',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.tertiary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                        Icon(
+                          Icons.child_care,
+                          size: 16,
+                          color: theme.colorScheme.tertiary,
                         ),
-                        const SizedBox(height: 4),
-                        ...displayOffspring.map((child) => Padding(
-                          padding: const EdgeInsets.only(left: 24, top: 2),
-                          child: Text(
-                            '• ${child.name} (${child.category ?? "Sem categoria"})',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.tertiary,
-                            ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Crias (${offspring.length}):',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                            fontWeight: FontWeight.w600,
                           ),
-                        )),
-                        if (hasMore)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 24, top: 4),
-                            child: Text(
-                              'e mais ${allOffspring.length - 4} filhote(s)...',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.tertiary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
+                        ),
                       ],
                     ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
+                    const SizedBox(height: 4),
+                    ...offspring.take(4).map(
+                          (child) => Padding(
+                            padding: const EdgeInsets.only(left: 24, top: 2),
+                            child: Text(
+                              '• ${child.name} (${child.category ?? "Sem categoria"})',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                    if (offspring.length > 4)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 24, top: 4),
+                        child: Text(
+                          'e mais ${offspring.length - 4} filhote(s)...',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.tertiary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
 
             // Expected Delivery
             if (animal.pregnant && animal.expectedDelivery != null)
@@ -630,15 +621,13 @@ class AnimalCard extends StatelessWidget {
                   Icon(
                     Icons.favorite,
                     size: 14,
-                    color:
-                        theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Última vacinação: ${DateFormat('dd/MM/yyyy').format(animal.lastVaccination!)}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                 ],
@@ -662,8 +651,7 @@ class AnimalCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed:
-                        onEdit != null ? () => onEdit!(animal) : null,
+                    onPressed: onEdit != null ? () => onEdit!(animal) : null,
                     child: const Text('Editar'),
                   ),
                 ),

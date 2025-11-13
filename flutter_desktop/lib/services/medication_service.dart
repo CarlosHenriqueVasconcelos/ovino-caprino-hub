@@ -90,6 +90,46 @@ class MedicationService extends ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>>
+      getOverdueMedicationsWithAnimalInfo() async {
+    try {
+      return await _repository.getOverdueWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar medicações atrasadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getScheduledMedicationsWithAnimalInfo() async {
+    try {
+      return await _repository.getScheduledWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar medicações agendadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getAppliedMedicationsWithAnimalInfo() async {
+    try {
+      return await _repository.getAppliedWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar medicações aplicadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getCancelledMedicationsWithAnimalInfo() async {
+    try {
+      return await _repository.getCancelledWithAnimalInfo();
+    } catch (e) {
+      print('Erro ao buscar medicações canceladas com info: $e');
+      return [];
+    }
+  }
+
   /// Usado pelo AnimalService para montar o painel de alertas:
   /// retorna todas as medicações pendentes (não aplicadas/canceladas)
   /// com `next_date` até o [horizon] (inclui vencidas + próximas).
@@ -147,8 +187,7 @@ class MedicationService extends ChangeNotifier {
   }
 
   /// Atualiza uma medicação
-  Future<void> updateMedication(
-      String id, Map<String, dynamic> updates) async {
+  Future<void> updateMedication(String id, Map<String, dynamic> updates) async {
     try {
       final m = Map<String, dynamic>.from(updates);
 

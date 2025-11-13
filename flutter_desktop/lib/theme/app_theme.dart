@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Cores BEGO Agritech - Sistema rural/natureza inspirado
-  static const Color primaryGreen = Color(0xFF22C55E); // Verde pastoral/natureza HSL(142, 76%, 36%)
-  static const Color primaryGlow = Color(0xFF4ADE80); // Verde brilhante HSL(142, 86%, 46%)
-  static const Color secondaryBrown = Color(0xFFD6C7A8); // Terra/marrom HSL(25, 45%, 85%)
-  static const Color accentGold = Color(0xFFEAB308); // Dourado/cereal HSL(45, 93%, 47%)
+  static const Color primaryGreen =
+      Color(0xFF22C55E); // Verde pastoral/natureza HSL(142, 76%, 36%)
+  static const Color primaryGlow =
+      Color(0xFF4ADE80); // Verde brilhante HSL(142, 86%, 46%)
+  static const Color secondaryBrown =
+      Color(0xFFD6C7A8); // Terra/marrom HSL(25, 45%, 85%)
+  static const Color accentGold =
+      Color(0xFFEAB308); // Dourado/cereal HSL(45, 93%, 47%)
   static const Color backgroundLight = Color(0xFFFAFDF9); // HSL(120, 20%, 98%)
   static const Color backgroundDark = Color(0xFF0F172A);
   static const Color cardLight = Color(0xFFF8FBF6); // HSL(120, 15%, 97%)

@@ -9,7 +9,7 @@ import '../services/note_service.dart';
 import '../services/vaccination_service.dart';
 import '../services/medication_service.dart';
 import '../models/animal.dart';
-
+import '../utils/animal_record_display.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -47,201 +47,208 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return null;
   }
 
-Future<void> _loadHistory() async {
-  setState(() => _isLoading = true);
-
-  try {
-    final List<HistoryItem> items = [];
-
-    // 1) Animais cadastrados (via AnimalService)
-    final animalService = context.read<AnimalService>();
-    await animalService.loadData();
-    final List<Animal> animals = animalService.animals.toList();
-
-    for (final animal in animals) {
-      items.add(
-        HistoryItem(
-          id: animal.id,
-          title: 'Animal ${animal.code} cadastrado',
-          description: '${animal.name} - ${animal.species} ${animal.breed}',
-          timestamp: animal.createdAt,
-          type: HistoryType.animalAdded,
-          icon: Icons.pets,
-          color: Colors.blue,
-        ),
-      );
-    }
-
-    // Helper interno usa essa lista de animais
-    // (o _findAnimalById já existe no arquivo, não precisa mexer)
-
-    // 2) Vacinações aplicadas
-    final vaccinationService =
-        context.read<VaccinationService>();
-    final vaccinations = await vaccinationService.getVaccinations();
-
-    for (final v
-        in vaccinations.where((v) => v['status'] == 'Aplicada')) {
-      final String? animalId = v['animal_id'] as String?;
-      final animal = _findAnimalById(animals, animalId);
-      final animalName =
-          animal != null ? '${animal.name} (${animal.code})' : 'Animal desconhecido';
-
-      final dynamic appliedRaw =
-          v['applied_date'] ?? v['scheduled_date'] ?? v['created_at'];
-      DateTime appliedDate;
-      if (appliedRaw is DateTime) {
-        appliedDate = appliedRaw;
-      } else if (appliedRaw is String) {
-        appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
-      } else {
-        appliedDate = DateTime.now();
-      }
-
-      items.add(
-        HistoryItem(
-          id: v['id'] as String,
-          title: 'Vacinação aplicada',
-          description: '${v['vaccine_name']} - $animalName',
-          timestamp: appliedDate,
-          type: HistoryType.vaccination,
-          icon: Icons.vaccines,
-          color: Colors.green,
-        ),
-      );
-    }
-
-    // 3) Medicamentos aplicados
-    final medicationService =
-        context.read<MedicationService>();
-    final medications = await medicationService.getMedications();
-
-    for (final med in medications.where((m) => m['status'] == 'Aplicado')) {
-      final String? animalId = med['animal_id'] as String?;
-      final animal = _findAnimalById(animals, animalId);
-      final animalName =
-          animal != null ? '${animal.name} (${animal.code})' : 'Animal desconhecido';
-
-      final dynamic appliedRaw =
-          med['applied_date'] ?? med['scheduled_date'] ?? med['created_at'];
-      DateTime appliedDate;
-      if (appliedRaw is DateTime) {
-        appliedDate = appliedRaw;
-      } else if (appliedRaw is String) {
-        appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
-      } else {
-        appliedDate = DateTime.now();
-      }
-
-      items.add(
-        HistoryItem(
-          id: med['id'] as String,
-          title: 'Medicamento aplicado',
-          description: '${med['medication_name']} - $animalName',
-          timestamp: appliedDate,
-          type: HistoryType.medication,
-          icon: Icons.medical_services,
-          color: Colors.orange,
-        ),
-      );
-    }
-
-    // 4) Registros de reprodução (via BreedingService)
-    final breedingService = context.read<BreedingService>();
-    final breedingRecords = await breedingService.getBreedingRecords();
-
-    for (final breeding in breedingRecords) {
-      final String? femaleId = breeding['female_animal_id'] as String?;
-      final female = _findAnimalById(animals, femaleId);
-      final femaleName = female != null
-          ? '${female.name} (${female.code})'
-          : 'Fêmea desconhecida';
-
-      final String? createdStr = breeding['created_at'] as String?;
-      final createdAt =
-          createdStr != null ? DateTime.tryParse(createdStr) ?? DateTime.now() : DateTime.now();
-
-      items.add(
-        HistoryItem(
-          id: breeding['id'] as String,
-          title: 'Cobertura registrada',
-          description: 'Fêmea: $femaleName - Status: ${breeding['status']}',
-          timestamp: createdAt,
-          type: HistoryType.breeding,
-          icon: Icons.favorite,
-          color: Colors.pink,
-        ),
-      );
-    }
-
-    // 5) Registros financeiros (via FinancialService)
-    final financialService = context.read<FinancialService>();
-    final financialRecords = await financialService.getFinancialRecords();
-
-    for (final record in financialRecords) {
-      final bool isReceita = record['type'] == 'receita';
-      final String? dateStr = record['date'] as String?;
-      final DateTime date = dateStr != null
-          ? DateTime.tryParse(dateStr) ?? DateTime.now()
-          : DateTime.now();
-      final num amount = record['amount'] as num? ?? 0;
-
-      items.add(
-        HistoryItem(
-          id: record['id'] as String,
-          title: isReceita ? 'Receita registrada' : 'Despesa registrada',
-          description:
-              '${record['category']} - R\$ ${amount.toStringAsFixed(2)}',
-          timestamp: date,
-          type: HistoryType.financial,
-          icon: isReceita ? Icons.trending_up : Icons.trending_down,
-          color: isReceita ? Colors.green : Colors.red,
-        ),
-      );
-    }
-
-    // 6) Anotações (via NoteService)
-    final noteService = context.read<NoteService>();
-    final notes = await noteService.getNotes();
-
-    for (final note in notes) {
-      final String? createdStr = note['created_at'] as String?;
-      final DateTime createdAt = createdStr != null
-          ? DateTime.tryParse(createdStr) ?? DateTime.now()
-          : DateTime.now();
-
-      items.add(
-        HistoryItem(
-          id: note['id'] as String,
-          title: 'Anotação criada',
-          description: '${note['title']} - ${note['category']}',
-          timestamp: createdAt,
-          type: HistoryType.note,
-          icon: Icons.notes,
-          color: Colors.purple,
-        ),
-      );
-    }
-
-    // Ordenar por data (mais recente primeiro)
-    items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    if (!mounted) return;
-    setState(() {
-      _historyItems = items;
-      _isLoading = false;
-    });
-  } catch (e, stack) {
-    debugPrint('Erro ao carregar histórico: $e');
-    debugPrint(stack.toString());
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erro ao carregar histórico: $e')),
+  String _buildAnimalLabel(Map<String, dynamic> record, Animal? cachedAnimal) {
+    final fallback = cachedAnimal != null
+        ? '${cachedAnimal.name} (${cachedAnimal.code})'
+        : 'Animal desconhecido';
+    return AnimalRecordDisplay.labelFromRecord(
+      record,
+      fallbackName: fallback,
     );
   }
-}
 
+  Future<void> _loadHistory() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final List<HistoryItem> items = [];
+
+      // 1) Animais cadastrados (via AnimalService)
+      final animalService = context.read<AnimalService>();
+      await animalService.loadData();
+      final List<Animal> animals = animalService.animals.toList();
+
+      for (final animal in animals) {
+        items.add(
+          HistoryItem(
+            id: animal.id,
+            title: 'Animal ${animal.code} cadastrado',
+            description: '${animal.name} - ${animal.species} ${animal.breed}',
+            timestamp: animal.createdAt,
+            type: HistoryType.animalAdded,
+            icon: Icons.pets,
+            color: Colors.blue,
+          ),
+        );
+      }
+
+      // Helper interno usa essa lista de animais
+      // (o _findAnimalById já existe no arquivo, não precisa mexer)
+
+      // 2) Vacinações aplicadas
+      final vaccinationService = context.read<VaccinationService>();
+      final vaccinations =
+          await vaccinationService.getAppliedVaccinationsWithAnimalInfo();
+
+      for (final v in vaccinations) {
+        final String? animalId = v['animal_id'] as String?;
+        final animal = _findAnimalById(animals, animalId);
+        final animalName = _buildAnimalLabel(v, animal);
+
+        final dynamic appliedRaw =
+            v['applied_date'] ?? v['scheduled_date'] ?? v['created_at'];
+        DateTime appliedDate;
+        if (appliedRaw is DateTime) {
+          appliedDate = appliedRaw;
+        } else if (appliedRaw is String) {
+          appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
+        } else {
+          appliedDate = DateTime.now();
+        }
+
+        items.add(
+          HistoryItem(
+            id: v['id'] as String,
+            title: 'Vacinação aplicada',
+            description: '${v['vaccine_name'] ?? 'Vacina'} - $animalName',
+            timestamp: appliedDate,
+            type: HistoryType.vaccination,
+            icon: Icons.vaccines,
+            color: Colors.green,
+          ),
+        );
+      }
+
+      // 3) Medicamentos aplicados
+      final medicationService = context.read<MedicationService>();
+      final medications =
+          await medicationService.getAppliedMedicationsWithAnimalInfo();
+
+      for (final med in medications) {
+        final String? animalId = med['animal_id'] as String?;
+        final animal = _findAnimalById(animals, animalId);
+        final animalName = _buildAnimalLabel(med, animal);
+
+        final dynamic appliedRaw =
+            med['applied_date'] ?? med['date'] ?? med['created_at'];
+        DateTime appliedDate;
+        if (appliedRaw is DateTime) {
+          appliedDate = appliedRaw;
+        } else if (appliedRaw is String) {
+          appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
+        } else {
+          appliedDate = DateTime.now();
+        }
+
+        items.add(
+          HistoryItem(
+            id: med['id'] as String,
+            title: 'Medicamento aplicado',
+            description: '${med['medication_name']} - $animalName',
+            timestamp: appliedDate,
+            type: HistoryType.medication,
+            icon: Icons.medical_services,
+            color: Colors.orange,
+          ),
+        );
+      }
+
+      // 4) Registros de reprodução (via BreedingService)
+      final breedingService = context.read<BreedingService>();
+      final breedingRecords = await breedingService.getBreedingRecords();
+
+      for (final breeding in breedingRecords) {
+        final String? femaleId = breeding['female_animal_id'] as String?;
+        final female = _findAnimalById(animals, femaleId);
+        final femaleName = female != null
+            ? '${female.name} (${female.code})'
+            : 'Fêmea desconhecida';
+
+        final String? createdStr = breeding['created_at'] as String?;
+        final createdAt = createdStr != null
+            ? DateTime.tryParse(createdStr) ?? DateTime.now()
+            : DateTime.now();
+
+        items.add(
+          HistoryItem(
+            id: breeding['id'] as String,
+            title: 'Cobertura registrada',
+            description: 'Fêmea: $femaleName - Status: ${breeding['status']}',
+            timestamp: createdAt,
+            type: HistoryType.breeding,
+            icon: Icons.favorite,
+            color: Colors.pink,
+          ),
+        );
+      }
+
+      // 5) Registros financeiros (via FinancialService)
+      final financialService = context.read<FinancialService>();
+      final financialRecords = await financialService.getFinancialRecords();
+
+      for (final record in financialRecords) {
+        final bool isReceita = record['type'] == 'receita';
+        final String? dateStr = record['date'] as String?;
+        final DateTime date = dateStr != null
+            ? DateTime.tryParse(dateStr) ?? DateTime.now()
+            : DateTime.now();
+        final num amount = record['amount'] as num? ?? 0;
+
+        items.add(
+          HistoryItem(
+            id: record['id'] as String,
+            title: isReceita ? 'Receita registrada' : 'Despesa registrada',
+            description:
+                '${record['category']} - R\$ ${amount.toStringAsFixed(2)}',
+            timestamp: date,
+            type: HistoryType.financial,
+            icon: isReceita ? Icons.trending_up : Icons.trending_down,
+            color: isReceita ? Colors.green : Colors.red,
+          ),
+        );
+      }
+
+      // 6) Anotações (via NoteService)
+      final noteService = context.read<NoteService>();
+      final notes = await noteService.getNotes();
+
+      for (final note in notes) {
+        final String? createdStr = note['created_at'] as String?;
+        final DateTime createdAt = createdStr != null
+            ? DateTime.tryParse(createdStr) ?? DateTime.now()
+            : DateTime.now();
+
+        items.add(
+          HistoryItem(
+            id: note['id'] as String,
+            title: 'Anotação criada',
+            description: '${note['title']} - ${note['category']}',
+            timestamp: createdAt,
+            type: HistoryType.note,
+            icon: Icons.notes,
+            color: Colors.purple,
+          ),
+        );
+      }
+
+      // Ordenar por data (mais recente primeiro)
+      items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      if (!mounted) return;
+      setState(() {
+        _historyItems = items;
+        _isLoading = false;
+      });
+    } catch (e, stack) {
+      debugPrint('Erro ao carregar histórico: $e');
+      debugPrint(stack.toString());
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar histórico: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

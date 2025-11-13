@@ -7,8 +7,8 @@ class AlertItem {
   final String animalId;
   final String animalName;
   final String animalCode;
-  final AlertType type;   // vaccination | medication
-  final String title;     // ex: 'Vacina: Raiva', 'Medicação: Vermífugo'
+  final AlertType type; // vaccination | medication
+  final String title; // ex: 'Vacina: Raiva', 'Medicação: Vermífugo'
   final DateTime dueDate;
 
   AlertItem({
@@ -22,7 +22,7 @@ class AlertItem {
   });
 
   bool get isOverdue => dueDate.isBefore(DateTime.now());
-  
+
   IconData get icon {
     switch (type) {
       case AlertType.vaccination:
@@ -33,7 +33,7 @@ class AlertItem {
         return Icons.monitor_weight;
     }
   }
-  
+
   String get kindLabel {
     switch (type) {
       case AlertType.vaccination:

@@ -23,10 +23,10 @@ import 'services/backup_service.dart';
 import 'services/note_service.dart';
 import 'services/animal_history_service.dart';
 import 'services/system_maintenance_service.dart';
-import 'services/breeding_service.dart';    // Reprodução
-import 'services/financial_service.dart';  // Financeiro
+import 'services/breeding_service.dart'; // Reprodução
+import 'services/financial_service.dart'; // Financeiro
 import 'services/animal_delete_cascade.dart';
-import 'services/deceased_service.dart';   // ✅ novo service de óbitos
+import 'services/deceased_service.dart';
 import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
 
 // Data / DB
@@ -39,6 +39,9 @@ import 'data/feeding_repository.dart';
 import 'data/vaccination_repository.dart';
 import 'data/medication_repository.dart';
 import 'data/note_repository.dart';
+import 'data/deceased_repository.dart';
+import 'data/sold_animals_repository.dart';
+import 'data/weight_alert_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,6 +82,9 @@ Future<void> main() async {
     final vaccinationRepository = VaccinationRepository(appDb);
     final medicationRepository = MedicationRepository(appDb);
     final noteRepository = NoteRepository(appDb);
+    final deceasedRepository = DeceasedRepository(appDb);
+    final soldAnimalsRepository = SoldAnimalsRepository(appDb);
+    final weightAlertRepository = WeightAlertRepository(appDb);
 
     // Backup (Supabase como espelho/backup)
     final backupService = BackupService(
@@ -98,6 +104,9 @@ Future<void> main() async {
         vaccinationRepository: vaccinationRepository,
         medicationRepository: medicationRepository,
         noteRepository: noteRepository,
+        deceasedRepository: deceasedRepository,
+        soldAnimalsRepository: soldAnimalsRepository,
+        weightAlertRepository: weightAlertRepository,
         backup: backupService,
       ),
     );
@@ -118,6 +127,9 @@ class FazendaSaoPetronioApp extends StatelessWidget {
   final VaccinationRepository vaccinationRepository;
   final MedicationRepository medicationRepository;
   final NoteRepository noteRepository;
+  final DeceasedRepository deceasedRepository;
+  final SoldAnimalsRepository soldAnimalsRepository;
+  final WeightAlertRepository weightAlertRepository;
   final BackupService backup;
 
   const FazendaSaoPetronioApp({
@@ -131,6 +143,9 @@ class FazendaSaoPetronioApp extends StatelessWidget {
     required this.vaccinationRepository,
     required this.medicationRepository,
     required this.noteRepository,
+    required this.deceasedRepository,
+    required this.soldAnimalsRepository,
+    required this.weightAlertRepository,
     required this.backup,
   });
 
@@ -151,13 +166,11 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<VaccinationRepository>.value(value: vaccinationRepository),
         Provider<MedicationRepository>.value(value: medicationRepository),
         Provider<NoteRepository>.value(value: noteRepository),
+        Provider<DeceasedRepository>.value(value: deceasedRepository),
+        Provider<SoldAnimalsRepository>.value(value: soldAnimalsRepository),
+        Provider<WeightAlertRepository>.value(value: weightAlertRepository),
 
         // Services
-        ChangeNotifierProvider(
-          create: (context) => AnimalService(
-            context.read<AppDatabase>(),
-          ),
-        ),
         ChangeNotifierProvider(
           create: (context) => PharmacyService(
             context.read<PharmacyRepository>(),
@@ -169,13 +182,19 @@ class FazendaSaoPetronioApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(
-          create: (context) => WeightService(
-            context.read<AnimalRepository>(),
+          create: (context) => WeightAlertService(
+            context.read<WeightAlertRepository>(),
           ),
         ),
         ChangeNotifierProvider(
-          create: (context) => WeightAlertService(
+          create: (context) => AnimalService(
             context.read<AppDatabase>(),
+            context.read<WeightAlertService>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => WeightService(
+            context.read<AnimalRepository>(),
           ),
         ),
         ChangeNotifierProvider(
@@ -186,7 +205,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => VaccinationService(
             context.read<VaccinationRepository>(),
-            context.read<AppDatabase>(),
+            context.read<MedicationRepository>(),
           ),
         ),
         ChangeNotifierProvider(
@@ -205,7 +224,9 @@ class FazendaSaoPetronioApp extends StatelessWidget {
 
         // FinancialService: utilitário (ainda usa DB direto internamente)
         Provider<FinancialService>(
-          create: (context) => FinancialService(),
+          create: (context) => FinancialService(
+            context.read<FinanceRepository>(),
+          ),
         ),
 
         Provider<AnimalHistoryService>(
@@ -225,16 +246,16 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ),
 
         // ✅ Óbitos (deceased_animals)
-        ChangeNotifierProvider(
+        Provider<DeceasedService>(
           create: (context) => DeceasedService(
-            context.read<AppDatabase>(),
+            context.read<DeceasedRepository>(),
           ),
         ),
 
         // ✅ Vendidos (sold_animals)
         ChangeNotifierProvider(
           create: (context) => SoldAnimalsService(
-            context.read<AppDatabase>(),
+            context.read<SoldAnimalsRepository>(),
           ),
         ),
       ],

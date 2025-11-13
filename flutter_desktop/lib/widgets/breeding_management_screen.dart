@@ -365,8 +365,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
             const SizedBox(height: 16),
             Text(
               'Nenhum registro nesta etapa',
-              style:
-                  TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
             ),
           ],
         ),
@@ -501,9 +500,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        male != null
-                            ? '${male.code} - ${male.name}'
-                            : 'N/A',
+                        male != null ? '${male.code} - ${male.name}' : 'N/A',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
@@ -519,12 +516,10 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                 children: [
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               'Progresso',
@@ -538,9 +533,8 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                                   ? '$daysLeft dias restantes'
                                   : '${-daysLeft} dias atrasado',
                               style: TextStyle(
-                                color: daysLeft >= 0
-                                    ? Colors.green
-                                    : Colors.red,
+                                color:
+                                    daysLeft >= 0 ? Colors.green : Colors.red,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -551,8 +545,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                         LinearProgressIndicator(
                           value: progress,
                           backgroundColor: Colors.grey.shade200,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(stageColor),
+                          valueColor: AlwaysStoppedAnimation<Color>(stageColor),
                           minHeight: 8,
                         ),
                       ],
@@ -591,8 +584,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.note,
-                        size: 16, color: Colors.grey),
+                    const Icon(Icons.note, size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -633,8 +625,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
       ),
       child: Row(
         children: [
-          Icon(Icons.calendar_today,
-              size: 16, color: Colors.blue.shade700),
+          Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
           const SizedBox(width: 8),
           Text(
             label,

@@ -16,23 +16,23 @@ class SystemMaintenanceService {
 
     // Ordem correta: tabelas dependentes primeiro, tabelas referenciadas por último
     const wipeOrder = <String>[
-      'pharmacy_stock_movements',  // referencia medications e pharmacy_stock
-      'feeding_schedules',         // referencia feeding_pens
-      'animal_weights',            // referencia animals
-      'weight_alerts',             // referencia animals
-      'breeding_records',          // referencia animals
-      'vaccinations',              // referencia animals
-      'medications',               // referencia animals e pharmacy_stock
-      'notes',                     // referencia animals
-      'financial_records',         // referencia animals
-      'financial_accounts',        // referencia animals e parent_id
-      'feeding_pens',              // sem dependências
-      'pharmacy_stock',            // sem dependências
-      'reports',                   // sem dependências
-      'push_tokens',               // sem dependências
-      'sold_animals',              // sem dependências
-      'deceased_animals',          // sem dependências
-      'animals',                   // por último - referenciado por muitas tabelas
+      'pharmacy_stock_movements', // referencia medications e pharmacy_stock
+      'feeding_schedules', // referencia feeding_pens
+      'animal_weights', // referencia animals
+      'weight_alerts', // referencia animals
+      'breeding_records', // referencia animals
+      'vaccinations', // referencia animals
+      'medications', // referencia animals e pharmacy_stock
+      'notes', // referencia animals
+      'financial_records', // referencia animals
+      'financial_accounts', // referencia animals e parent_id
+      'feeding_pens', // sem dependências
+      'pharmacy_stock', // sem dependências
+      'reports', // sem dependências
+      'push_tokens', // sem dependências
+      'sold_animals', // sem dependências
+      'deceased_animals', // sem dependências
+      'animals', // por último - referenciado por muitas tabelas
     ];
 
     await db.transaction((txn) async {

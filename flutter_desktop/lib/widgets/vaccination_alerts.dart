@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/vaccination_service.dart';
+import '../utils/animal_record_display.dart';
 import 'vaccination_form.dart';
 
 class VaccinationAlerts extends StatefulWidget {
@@ -162,8 +163,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Vacinas Agendadas',
                 total: _vaccines.length,
                 page: _vacPage,
-                onPrev:
-                    _vacPage > 0 ? () => setState(() => _vacPage--) : null,
+                onPrev: _vacPage > 0 ? () => setState(() => _vacPage--) : null,
                 onNext: (_vacPage + 1) * _pageSize < _vaccines.length
                     ? () => setState(() => _vacPage++)
                     : null,
@@ -182,8 +182,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                 title: 'Medicações (próximas)',
                 total: _meds.length,
                 page: _medPage,
-                onPrev:
-                    _medPage > 0 ? () => setState(() => _medPage--) : null,
+                onPrev: _medPage > 0 ? () => setState(() => _medPage--) : null,
                 onNext: (_medPage + 1) * _pageSize < _meds.length
                     ? () => setState(() => _medPage++)
                     : null,
@@ -210,16 +209,14 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                       Text(
                         'Nenhum alerta no momento',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Todas as vacinações e medicações estão em dia',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
                         ),
                       ),
                     ],
@@ -336,9 +333,6 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     ThemeData theme,
     Map<String, dynamic> row,
   ) {
-    final animalName = (row['animal_name'] ?? '').toString();
-    final animalCode = (row['animal_code'] ?? '').toString();
-    final animalColor = (row['animal_color'] ?? '').toString();
     final vaccineName = (row['vaccine_name'] ?? '').toString();
 
     final scheduledStr = (row['scheduled_date'] ?? '').toString();
@@ -365,12 +359,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$animalColor - $animalName($animalCode)',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                _buildAnimalLabel(row, theme),
                 const SizedBox(height: 4),
                 Text(
                   'Vacina: $vaccineName',
@@ -405,9 +394,6 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     ThemeData theme,
     Map<String, dynamic> row,
   ) {
-    final animalName = (row['animal_name'] ?? '').toString();
-    final animalCode = (row['animal_code'] ?? '').toString();
-    final animalColor = (row['animal_color'] ?? '').toString();
     final medName = (row['medication_name'] ?? '').toString();
 
     // Usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
@@ -436,12 +422,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$animalColor - $animalName($animalCode)',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                _buildAnimalLabel(row, theme),
                 const SizedBox(height: 4),
                 Text(
                   'Medicação: $medName',
@@ -477,6 +458,26 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
             label: const Text('Ver medicações'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAnimalLabel(Map<String, dynamic> row, ThemeData theme) {
+    final label = AnimalRecordDisplay.labelFromRecord(row);
+    final color = AnimalRecordDisplay.colorFromRecord(row);
+    final translated = AnimalRecordDisplay.translateColor(row['animal_color']);
+    final parts = label.split(' - ');
+    String text;
+    if (parts.length >= 2) {
+      text = '$translated - ${parts.sublist(1).join(' - ')}';
+    } else {
+      text = label;
+    }
+    return Text(
+      text,
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: color ?? theme.colorScheme.onSurface,
       ),
     );
   }

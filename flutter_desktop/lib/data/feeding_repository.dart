@@ -54,7 +54,7 @@ class FeedingRepository {
       where: 'pen_id = ?',
       whereArgs: [id],
     );
-    
+
     await _db.db.delete(
       'feeding_pens',
       where: 'id = ?',

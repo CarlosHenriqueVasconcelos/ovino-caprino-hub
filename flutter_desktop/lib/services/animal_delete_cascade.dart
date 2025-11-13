@@ -19,6 +19,20 @@ class AnimalDeleteCascade {
     final db = _appDatabase.db;
 
     await db.transaction((txn) async {
+      // Limpa vínculos de parentesco antes da exclusão para não violar FKs
+      await txn.update(
+        'animals',
+        {'mother_id': null},
+        where: 'mother_id = ?',
+        whereArgs: [animalId],
+      );
+      await txn.update(
+        'animals',
+        {'father_id': null},
+        where: 'father_id = ?',
+        whereArgs: [animalId],
+      );
+
       await txn.delete(
         'animal_weights',
         where: 'animal_id = ?',
@@ -31,6 +45,21 @@ class AnimalDeleteCascade {
         whereArgs: [animalId],
       );
 
+      final meds = await txn.query(
+        'medications',
+        columns: ['id'],
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+      for (final med in meds) {
+        final medId = med['id']?.toString();
+        if (medId == null || medId.isEmpty) continue;
+        await txn.delete(
+          'pharmacy_stock_movements',
+          where: 'medication_id = ?',
+          whereArgs: [medId],
+        );
+      }
       await txn.delete(
         'medications',
         where: 'animal_id = ?',
