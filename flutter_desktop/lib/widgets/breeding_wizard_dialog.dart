@@ -96,10 +96,11 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
 
     _formKey.currentState!.save();
 
+    final breedingService = context.read<BreedingService>();
+    final animalService = context.read<AnimalService>();
+
     try {
       // ✅ Usa o service de reprodução, que centraliza a regra
-      final breedingService = context.read<BreedingService>();
-
       await breedingService.novaCobertura(
         femaleId: _selectedFemale!.id,
         maleId: _selectedMale!.id,
@@ -109,7 +110,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
         notes: _notes.isNotEmpty ? _notes : null,
       );
       // Opcional: atualizar KPIs/listas de animais
-      await context.read<AnimalService>().loadData();
+      await animalService.loadData();
 
       if (!mounted) return;
       Navigator.of(context).pop();

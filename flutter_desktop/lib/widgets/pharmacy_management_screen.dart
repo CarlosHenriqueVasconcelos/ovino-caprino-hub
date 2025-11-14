@@ -126,19 +126,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     return allFiltered.sublist(start, end);
   }
 
-  int _countByFilter(String filter) {
-    switch (filter) {
-      case 'Estoque Baixo':
-        return _stock.where((s) => s.isLowStock && !s.isExpired).length;
-      case 'Vencendo':
-        return _stock.where((s) => s.isExpiringSoon && !s.isExpired).length;
-      case 'Vencidos':
-        return _stock.where((s) => s.isExpired).length;
-      default:
-        return _stock.where((s) => !s.isExpired).length;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final filteredStock = _filterStock();
@@ -192,11 +179,13 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                             builder: (context, constraints) {
                               final width = constraints.maxWidth;
                               int crossAxisCount = 2;
-                              if (width >= 1500)
+                              if (width >= 1500) {
                                 crossAxisCount = 4;
-                              else if (width >= 1100)
+                              } else if (width >= 1100) {
                                 crossAxisCount = 3;
-                              else if (width <= 700) crossAxisCount = 1;
+                              } else if (width <= 700) {
+                                crossAxisCount = 1;
+                              }
 
                               final aspect = crossAxisCount == 1 ? 3.0 : 1.9;
 
@@ -511,7 +500,8 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                     value: percent,
                     minHeight: 6,
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation(Colors.teal),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(Colors.teal),
                   ),
                 ),
               ),

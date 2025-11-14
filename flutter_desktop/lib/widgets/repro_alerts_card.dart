@@ -65,7 +65,7 @@ class ReproAlertsCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 if (none)
-                  _Empty(text: 'Nenhum alerta de reprodução no período.')
+                  const _Empty(text: 'Nenhum alerta de reprodução no período.')
                 else ...[
                   _Section(
                     title: 'Separações',
@@ -135,7 +135,7 @@ class _Section extends StatelessWidget {
               textColor: color),
         ),
         const SizedBox(height: 6),
-        ...events.take(5).map((e) => _EventRow(evt: e)).toList(),
+        ...events.take(5).map((e) => _EventRow(evt: e)),
         if (events.length > 5)
           Padding(
             padding: const EdgeInsets.only(top: 4),

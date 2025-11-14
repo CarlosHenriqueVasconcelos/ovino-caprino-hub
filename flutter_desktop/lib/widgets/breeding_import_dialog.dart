@@ -51,7 +51,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   bool _isFemaleAllowed(Animal a) {
-    final c = (a.category ?? '').toLowerCase();
+    final c = a.category.toLowerCase();
     return (c.contains('fêmea') || c.contains('femea')) &&
         (c.contains('reprodutor') ||
             c.contains('reprodutra') ||
@@ -60,7 +60,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   bool _isMaleAllowed(Animal a) {
-    final c = (a.category ?? '').toLowerCase();
+    final c = a.category.toLowerCase();
     return c.contains('macho') &&
         (c.contains('reprodutor') || c.contains('adulto'));
   }
@@ -70,8 +70,8 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     return _allAnimals.where((a) {
       if (!_isFemaleAllowed(a)) return false;
       if (q.isEmpty) return true;
-      final code = (a.code ?? '').toLowerCase();
-      final name = (a.name ?? '').toLowerCase();
+      final code = a.code.toLowerCase();
+      final name = a.name.toLowerCase();
       return code.contains(q) || name.contains(q);
     }).toList();
   }
@@ -81,13 +81,13 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     return _allAnimals.where((a) {
       if (!_isMaleAllowed(a)) return false;
       if (q.isEmpty) return true;
-      final code = (a.code ?? '').toLowerCase();
-      final name = (a.name ?? '').toLowerCase();
+      final code = a.code.toLowerCase();
+      final name = a.name.toLowerCase();
       return code.contains(q) || name.contains(q);
     }).toList();
   }
 
-  String _labelOf(Animal a) => '${a.code ?? '-'} — ${a.name ?? '-'}';
+  String _labelOf(Animal a) => '${a.code} — ${a.name}';
 
   // ----------- salvar (com cálculo de stage) -----------
   Future<void> _save() async {
@@ -100,6 +100,9 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     }
 
     setState(() => _saving = true);
+
+    final breedingService = context.read<BreedingService>();
+    final animalService = context.read<AnimalService>();
 
     try {
       // 1) Determinar stage coerente com os dados informados
@@ -129,8 +132,6 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
               : null;
 
       // 3) Criar registro via BreedingService (gatilhos cuidam de status)
-      final breedingService = context.read<BreedingService>();
-
       await breedingService.createRecord(
         femaleId: _female!.id,
         maleId: _male?.id,
@@ -147,7 +148,6 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
       // 4) Se for gestação confirmada, marcar a fêmea como gestante via AnimalService
       if (stage == 'gestacao_confirmada') {
-        final animalService = context.read<AnimalService>();
         final femaleId = _female!.id;
 
         // tenta achar a fêmea no service, se não achar usa a selecionada (_female)
@@ -169,14 +169,13 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
       }
 
       // Atualizar provider/UI (cards e lista)
-      await context.read<AnimalService>().loadData();
+      await animalService.loadData();
 
-      if (mounted) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro importado com sucesso.')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registro importado com sucesso.')),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

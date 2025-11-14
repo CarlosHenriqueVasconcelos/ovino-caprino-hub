@@ -579,7 +579,7 @@ class AppDatabase {
     // ==========================
     // ====== TRIGGERS ==========
     // ==========================
-    Future<void> _makeUpdatedAtTrigger(String table) async {
+    Future<void> makeUpdatedAtTrigger(String table) async {
       // Evita recursão: só roda se updated_at não foi alterado pelo UPDATE original.
       await db.execute('''
         CREATE TRIGGER IF NOT EXISTS ${table}_updated_at
@@ -607,7 +607,7 @@ class AppDatabase {
       'feeding_schedules',
       'weight_alerts',
     ]) {
-      await _makeUpdatedAtTrigger(tbl);
+      await makeUpdatedAtTrigger(tbl);
     }
   }
 }

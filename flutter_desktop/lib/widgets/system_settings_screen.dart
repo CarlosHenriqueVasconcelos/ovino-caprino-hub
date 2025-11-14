@@ -562,6 +562,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   Future<void> _clearAllData() async {
     final maintenance = context.read<SystemMaintenanceService>();
+    final animalService = context.read<AnimalService>();
 
     try {
       await maintenance.clearAllData();
@@ -569,7 +570,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       if (!mounted) return;
 
       // Atualiza a UI (recarrega animais, KPIs, etc.)
-      await context.read<AnimalService>().loadData();
+      await animalService.loadData();
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

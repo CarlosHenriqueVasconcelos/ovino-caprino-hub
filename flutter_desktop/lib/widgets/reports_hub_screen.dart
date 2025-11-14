@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 
 import '../services/reports_service.dart';
 import '../utils/animal_record_display.dart';
@@ -37,15 +36,15 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   String _speciesFilter = 'Todos';
   String _genderFilter = 'Todos';
   String _statusFilter = 'Todos';
-  String _categoryFilter = 'Todos';
-  String _vaccineTypeFilter = 'Todos';
+  final String _categoryFilter = 'Todos';
+  final String _vaccineTypeFilter = 'Todos';
   String _medicationStatusFilter = 'Todos';
 
   /// Valores iguais aos salvos no DB
   String _breedingStageFilter = 'Todos';
 
   String _financialTypeFilter = 'Todos';
-  String _financialCategoryFilter = 'Todos';
+  final String _financialCategoryFilter = 'Todos';
   String _notesPriorityFilter = 'Todos';
   String _notesIsReadFilter = 'Todos';
 

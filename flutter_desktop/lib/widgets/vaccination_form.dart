@@ -39,7 +39,6 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
 
     // Ordenar animais

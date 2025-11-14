@@ -93,7 +93,7 @@ class AnimalService extends ChangeNotifier {
     map['updated_at'] = nowIso;
 
     // Preencher year com o ano da data de nascimento se não foi especificado
-    if (map['year'] == null && a.birthDate != null) {
+    if (map['year'] == null) {
       map['year'] = a.birthDate.year;
     }
 
@@ -296,7 +296,7 @@ class AnimalService extends ChangeNotifier {
 
     filtered = filtered.where((animal) {
       final ageInMonths = _ageInMonths(animal.birthDate, reference);
-      final categoryLabel = (animal.category ?? '').toLowerCase();
+      final categoryLabel = (animal.category).toLowerCase();
       switch (category) {
         case WeightCategoryFilter.juveniles:
           return ageInMonths < 12;
@@ -564,7 +564,7 @@ class AnimalService extends ChangeNotifier {
   // ----------------- Estatísticas -----------------
   Future<void> _refreshStatsSafe() async {
     try {
-      Future<int> _count(String sql, [List<Object?>? args]) async {
+      Future<int> countRows(String sql, [List<Object?>? args]) async {
         final r = await _appDb.db.rawQuery(sql, args);
         if (r.isEmpty) return 0;
         final v = r.first.values.first;
@@ -574,7 +574,7 @@ class AnimalService extends ChangeNotifier {
         return int.tryParse(v.toString()) ?? 0;
       }
 
-      Future<double> _scalarDouble(String sql, [List<Object?>? args]) async {
+      Future<double> scalarDouble(String sql, [List<Object?>? args]) async {
         final r = await _appDb.db.rawQuery(sql, args);
         if (r.isEmpty) return 0.0;
         final v = r.first.values.first;
@@ -584,41 +584,41 @@ class AnimalService extends ChangeNotifier {
         return double.tryParse(v.toString()) ?? 0.0;
       }
 
-      final totalAnimals = await _count('SELECT COUNT(*) FROM animals');
-      final healthy = await _count(
+      final totalAnimals = await countRows('SELECT COUNT(*) FROM animals');
+      final healthy = await countRows(
         'SELECT COUNT(*) FROM animals WHERE status = ?',
         ['Saudável'],
       );
-      final pregnant = await _count(
+      final pregnant = await countRows(
         'SELECT COUNT(*) FROM animals WHERE pregnant = 1',
       );
-      final underTreatment = await _count(
+      final underTreatment = await countRows(
         'SELECT COUNT(*) FROM animals WHERE status = ?',
         ['Em tratamento'],
       );
-      final maleReproducers = await _count(
+      final maleReproducers = await countRows(
         'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
         ['Reprodutor', 'Macho'],
       );
-      final maleLambs = await _count(
+      final maleLambs = await countRows(
         'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
         ['Borrego', 'Macho'],
       );
-      final femaleLambs = await _count(
+      final femaleLambs = await countRows(
         'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
         ['Borrego', 'Fêmea'],
       );
-      final femaleReproducers = await _count(
+      final femaleReproducers = await countRows(
         'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
         ['Reprodutor', 'Fêmea'],
       );
 
-      final revenue = await _scalarDouble(
+      final revenue = await scalarDouble(
         'SELECT SUM(amount) FROM financial_records WHERE type = ?',
         ['receita'],
       );
 
-      final avgWeight = await _scalarDouble(
+      final avgWeight = await scalarDouble(
         'SELECT AVG(weight) FROM animals',
       );
 
@@ -627,13 +627,13 @@ class AnimalService extends ChangeNotifier {
       final ym =
           '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
 
-      final vaccinesThisMonth = await _count(
+      final vaccinesThisMonth = await countRows(
         "SELECT COUNT(*) FROM vaccinations "
         "WHERE substr(COALESCE(applied_date, scheduled_date),1,7) = ?",
         [ym],
       );
 
-      final birthsThisMonth = await _count(
+      final birthsThisMonth = await countRows(
         "SELECT COUNT(*) FROM animals "
         "WHERE expected_delivery IS NOT NULL AND substr(expected_delivery,1,7) = ?",
         [ym],

@@ -26,29 +26,38 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   }
 
   Future<void> _loadMovements() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final pharmacyService =
           Provider.of<PharmacyService>(context, listen: false);
       final movements = await pharmacyService.getMovements(widget.stock.id);
+      if (!mounted) return;
       setState(() {
         _movements = movements;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _showAddMovementDialog() async {
-    final typeController = TextEditingController();
+    final parentContext = context;
+    final messenger = ScaffoldMessenger.of(parentContext);
+    final navigatorRoot = Navigator.of(parentContext);
+    final pharmacyService =
+        Provider.of<PharmacyService>(parentContext, listen: false);
     final quantityController = TextEditingController();
     final reasonController = TextEditingController();
     String selectedType = 'entrada';
 
     final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: parentContext,
+      builder: (dialogContext) {
+        final navigator = Navigator.of(dialogContext);
+        return AlertDialog(
         title: const Text('Registrar Movimentação'),
         content: SingleChildScrollView(
           child: Column(
@@ -95,7 +104,7 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => navigator.pop(false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
@@ -103,15 +112,13 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
               final quantity =
                   double.tryParse(quantityController.text.replaceAll(',', '.'));
               if (quantity == null || quantity <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('Quantidade inválida')),
                 );
                 return;
               }
 
               try {
-                final pharmacyService =
-                    Provider.of<PharmacyService>(context, listen: false);
                 if (selectedType == 'entrada') {
                   await pharmacyService.addToStock(
                     widget.stock.id,
@@ -120,18 +127,20 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                         ? null
                         : reasonController.text,
                   );
-                } else if (selectedType == 'saida' ||
-                    selectedType == 'vencimento' ||
-                    selectedType == 'ajuste') {
+                } else {
                   await pharmacyService.deductFromStock(
                     widget.stock.id,
                     quantity,
-                    null, // Passar null pois não está associado a uma aplicação em animal
+                    null,
                   );
                 }
-                Navigator.of(context).pop(true);
+                navigator.pop(true);
+                messenger.showSnackBar(
+                  const SnackBar(
+                      content: Text('Movimentação registrada com sucesso!')),
+                );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(content: Text('Erro: $e')),
                 );
               }
@@ -139,12 +148,16 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
             child: const Text('Salvar'),
           ),
         ],
-      ),
+      );
+      },
     );
 
+    if (!mounted) return;
+
     if (result == true) {
-      _loadMovements();
-      Navigator.of(context).pop(true);
+      await _loadMovements();
+      if (!mounted) return;
+      navigatorRoot.pop(true);
     }
   }
 
@@ -153,6 +166,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       context: context,
       builder: (context) => PharmacyStockForm(stock: widget.stock),
     );
+
+    if (!mounted) return;
 
     if (result == true) {
       Navigator.of(context).pop(true);
@@ -166,6 +181,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       );
       return;
     }
+    final pharmacyService =
+        Provider.of<PharmacyService>(context, listen: false);
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -188,6 +205,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       ),
     );
 
+    if (!mounted) return;
+
     if (confirm == true) {
       try {
         final updated = widget.stock.copyWith(
@@ -195,8 +214,6 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
           isOpened: false,
           updatedAt: DateTime.now(),
         );
-        final pharmacyService =
-            Provider.of<PharmacyService>(context, listen: false);
         await pharmacyService.updateMedication(widget.stock.id, updated);
 
         // Registrar movimentação de descarte
@@ -234,6 +251,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   }
 
   Future<void> _deleteStock() async {
+    final pharmacyService =
+        Provider.of<PharmacyService>(context, listen: false);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -254,10 +273,10 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
       ),
     );
 
+    if (!mounted) return;
+
     if (confirm == true) {
       try {
-        final pharmacyService =
-            Provider.of<PharmacyService>(context, listen: false);
         await pharmacyService.deleteMedication(widget.stock.id);
         if (mounted) {
           Navigator.of(context).pop(true);

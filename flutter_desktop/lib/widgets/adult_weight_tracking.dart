@@ -179,8 +179,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
 
     // Ordenar por cor e depois por código numérico
     adults.sort((a, b) {
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
+      final colorA = a.nameColor;
+      final colorB = b.nameColor;
       final colorCompare = colorA.compareTo(colorB);
       if (colorCompare != 0) return colorCompare;
 
@@ -331,7 +331,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -359,8 +359,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                           child: Column(
                             children: List.generate(5, (rowIndex) {
                               final monthIndex = colIndex * 5 + rowIndex;
-                              if (monthIndex >= 24)
+                              if (monthIndex >= 24) {
                                 return const SizedBox.shrink();
+                              }
                               return _buildMonthField(
                                   theme, monthIndex + 1, weights);
                             }),
@@ -390,72 +391,6 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMonthsGrid(ThemeData theme, List<Map<String, dynamic>> weights) {
-    // Grid de 5 colunas x 5 linhas = 25 células (usaremos 24 meses)
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 2.0,
-      ),
-      itemCount: 24,
-      itemBuilder: (context, index) {
-        final month = index + 1;
-        final monthWeight = weights.where((w) {
-          final milestone = w['milestone']?.toString();
-          return milestone == 'monthly_$month';
-        }).toList();
-
-        final weight = monthWeight.isNotEmpty
-            ? (monthWeight.first['weight'] as num).toDouble()
-            : null;
-
-        return Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: weight != null
-                ? theme.colorScheme.primary.withOpacity(0.1)
-                : theme.colorScheme.surfaceVariant.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: weight != null
-                  ? theme.colorScheme.primary.withOpacity(0.3)
-                  : theme.colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'M$month',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                weight != null ? '${weight.toStringAsFixed(1)}kg' : '-',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight:
-                      weight != null ? FontWeight.bold : FontWeight.normal,
-                  color: weight != null
-                      ? theme.colorScheme.onSurface
-                      : theme.colorScheme.onSurface.withOpacity(0.4),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -517,8 +452,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   }
 
   void _showMonthlyWeightDialog(Animal animal) async {
-    final theme = Theme.of(context);
     final weightController = TextEditingController();
+    final weightService = Provider.of<WeightService>(context, listen: false);
+    final animalService = Provider.of<AnimalService>(context, listen: false);
 
     // Buscar pesos mensais existentes para determinar o próximo mês
     final existingWeights = await _getMonthlyWeights(animal.id);
@@ -608,16 +544,13 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 if (weight == null) return;
 
                 try {
-                  final weightService =
-                      Provider.of<WeightService>(context, listen: false);
                   await weightService.addWeight(
                     animal.id,
                     DateTime.now(),
                     weight,
                     milestone: 'monthly_$selectedMonth',
                   );
-                  await Provider.of<AnimalService>(context, listen: false)
-                      .updateAnimal(
+                  await animalService.updateAnimal(
                     animal.copyWith(
                       weight: weight,
                       updatedAt: DateTime.now(),
@@ -653,7 +586,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
     final record = {
       'animal_name': animal.name,
       'animal_code': animal.code,
-      'animal_color': animal.nameColor ?? '',
+      'animal_color': animal.nameColor,
     };
     final label = AnimalRecordDisplay.labelFromRecord(record);
     final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);

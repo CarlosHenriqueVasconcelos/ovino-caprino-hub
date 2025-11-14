@@ -94,9 +94,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   @override
   void initState() {
     super.initState();
-    print(
-        '🐑 DEBUG AnimalForm initState - motherId: ${widget.motherId}, motherName: ${widget.motherName}, motherColor: ${widget.motherColor}, motherCode: ${widget.motherCode}, motherBreed: ${widget.motherBreed}, fatherId: ${widget.fatherId}, fatherCode: ${widget.fatherCode}, fatherBreed: ${widget.fatherBreed}, presetCategory: ${widget.presetCategory}');
-
     if (widget.animal != null) {
       _loadAnimalData();
     } else {
@@ -108,25 +105,20 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
           code: widget.motherCode,
           color: widget.motherColor,
         );
-        print('🐑 DEBUG: Name preenchido com ${widget.motherName}');
       }
       if (widget.motherColor != null) {
         _nameColor = widget.motherColor!;
-        print('🐑 DEBUG: Color definida como ${widget.motherColor}');
       }
       if (widget.motherCode != null) {
         _codeController.text = widget.motherCode!;
-        print('🐑 DEBUG: Code preenchido com ${widget.motherCode}');
       }
       if (widget.motherBreed != null) {
         _breedController.text = widget.motherBreed!;
-        print('🐑 DEBUG: Breed preenchido com ${widget.motherBreed}');
       } else {
         _breedController.text = 'Hampshire Down'; // fallback
       }
       if (widget.motherId != null) {
         _motherId = widget.motherId;
-        print('🐑 DEBUG: Mother ID definido como ${widget.motherId}');
       }
       if (widget.fatherId != null) {
         _fatherId = widget.fatherId;
@@ -135,11 +127,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
           code: widget.fatherCode,
           color: widget.fatherColor,
         );
-        print('🐑 DEBUG: Father ID definido como ${widget.fatherId}');
       }
       if (widget.presetCategory != null) {
         _category = widget.presetCategory!;
-        print('🐑 DEBUG: Category definida como ${widget.presetCategory}');
       }
     }
     _loadAvailableMothers();
@@ -148,12 +138,12 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   void _loadAvailableMothers() async {
     final animalService = Provider.of<AnimalService>(context, listen: false);
     final animals = await animalService.getAllAnimals();
-    bool _isEligible(
+    bool isEligible(
       Animal a, {
       required bool expectFemale,
     }) {
-      final gender = (a.gender ?? '').toLowerCase();
-      final category = (a.category ?? '').toLowerCase();
+      final gender = a.gender.toLowerCase();
+      final category = a.category.toLowerCase();
       final isBorrego = category.contains('borreg');
       if (isBorrego) return false;
       return expectFemale
@@ -161,8 +151,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
           : gender.contains('macho') || gender == 'm';
     }
 
-    final mothers = animals.where((a) => _isEligible(a, expectFemale: true)).toList();
-    final fathers = animals.where((a) => _isEligible(a, expectFemale: false)).toList();
+    final mothers = animals.where((a) => isEligible(a, expectFemale: true)).toList();
+    final fathers =
+        animals.where((a) => isEligible(a, expectFemale: false)).toList();
 
     AnimalDisplayUtils.sortAnimalsList(mothers);
     AnimalDisplayUtils.sortAnimalsList(fathers);
@@ -203,13 +194,17 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     String? code,
     String? color,
   }) {
-    final hasName = name != null && name.trim().isNotEmpty;
-    final hasCode = code != null && code.trim().isNotEmpty;
+    final normalizedName = name?.trim() ?? '';
+    final normalizedCode = code?.trim() ?? '';
 
-    if (!hasName && !hasCode) return null;
+    if (normalizedName.isEmpty && normalizedCode.isEmpty) {
+      return null;
+    }
 
-    final resolvedName = hasName ? name!.trim() : 'Sem nome';
-    final resolvedCode = hasCode ? code!.trim() : 'Sem código';
+    final resolvedName =
+        normalizedName.isEmpty ? 'Sem nome' : normalizedName;
+    final resolvedCode =
+        normalizedCode.isEmpty ? 'Sem código' : normalizedCode;
     final colorName = AnimalDisplayUtils.getColorName(color);
 
     return '$colorName - $resolvedName ($resolvedCode)';
@@ -256,8 +251,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return AlertDialog(
       title: Text(widget.animal == null ? 'Novo Animal' : 'Editar Animal'),
       content: SizedBox(
@@ -408,11 +401,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           return _availableMothers.where((mother) {
                             final name = mother.name.toLowerCase();
                             final code = mother.code.toLowerCase();
-                            final colorName =
-                                AnimalDisplayUtils.getColorName(
-                                      mother.nameColor,
-                                    ).toLowerCase() ??
-                                    '';
+                            final colorName = AnimalDisplayUtils.getColorName(
+                              mother.nameColor,
+                            ).toLowerCase();
                             return name.contains(query) ||
                                 code.contains(query) ||
                                 colorName.contains(query);
@@ -507,11 +498,9 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                           return _availableFathers.where((father) {
                             final name = father.name.toLowerCase();
                             final code = father.code.toLowerCase();
-                            final colorName =
-                                AnimalDisplayUtils.getColorName(
-                                      father.nameColor,
-                                    ).toLowerCase() ??
-                                    '';
+                            final colorName = AnimalDisplayUtils.getColorName(
+                              father.nameColor,
+                            ).toLowerCase();
                             return name.contains(query) ||
                                 code.contains(query) ||
                                 colorName.contains(query);

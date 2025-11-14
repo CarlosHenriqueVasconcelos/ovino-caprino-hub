@@ -22,16 +22,14 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: primaryGreen,
         secondary: secondaryBrown,
         tertiary: accentGold,
         surface: backgroundLight,
-        background: backgroundLight,
         onPrimary: Colors.white,
-        onSecondary: const Color(0xFF78716C),
+        onSecondary: Color(0xFF78716C),
         onSurface: textPrimary,
-        onBackground: textPrimary,
         error: destructive,
       ),
       scaffoldBackgroundColor: backgroundLight,
@@ -69,7 +67,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryGreen,
-          side: BorderSide(color: borderLight),
+          side: const BorderSide(color: borderLight),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
@@ -114,16 +112,14 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: primaryGlow,
-        secondary: const Color(0xFF64748B),
+        secondary: Color(0xFF64748B),
         tertiary: accentGold,
         surface: backgroundDark,
-        background: backgroundDark,
         onPrimary: backgroundDark,
         onSecondary: Colors.white70,
         onSurface: Colors.white,
-        onBackground: Colors.white,
         error: destructive,
       ),
       scaffoldBackgroundColor: backgroundDark,

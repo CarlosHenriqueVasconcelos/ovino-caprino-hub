@@ -30,26 +30,26 @@ class PharmacyStock {
   });
 
   factory PharmacyStock.fromMap(Map<String, dynamic> map) {
-    double? _toDouble(dynamic v) {
+    double? toDoubleValue(dynamic v) {
       if (v == null) return null;
       if (v is num) return v.toDouble();
       if (v is String) return double.tryParse(v.replaceAll(',', '.'));
       return null;
     }
 
-    DateTime _toDate(dynamic v, {DateTime? fallback}) {
+    DateTime parseDate(dynamic v, {DateTime? fallback}) {
       if (v == null) return fallback ?? DateTime.now();
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString()) ?? (fallback ?? DateTime.now());
     }
 
-    DateTime? _toDateOrNull(dynamic v) {
+    DateTime? parseDateOrNull(dynamic v) {
       if (v == null) return null;
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString());
     }
 
-    bool _toBool(dynamic v) {
+    bool toBoolValue(dynamic v) {
       if (v is bool) return v;
       if (v is num) return v != 0;
       if (v is String) {
@@ -65,23 +65,24 @@ class PharmacyStock {
       medicationType: map['medication_type'] ?? map['medicationType'] ?? '',
       unitOfMeasure: map['unit_of_measure'] ?? map['unitOfMeasure'] ?? '',
       quantityPerUnit:
-          _toDouble(map['quantity_per_unit'] ?? map['quantityPerUnit']),
+          toDoubleValue(map['quantity_per_unit'] ?? map['quantityPerUnit']),
       totalQuantity:
-          _toDouble(map['total_quantity'] ?? map['totalQuantity']) ?? 0.0,
-      minStockAlert: _toDouble(map['min_stock_alert'] ?? map['minStockAlert']),
+          toDoubleValue(map['total_quantity'] ?? map['totalQuantity']) ?? 0.0,
+      minStockAlert:
+          toDoubleValue(map['min_stock_alert'] ?? map['minStockAlert']),
       expirationDate:
-          _toDateOrNull(map['expiration_date'] ?? map['expirationDate']),
-      isOpened: _toBool(map['is_opened'] ?? map['isOpened'] ?? false),
+          parseDateOrNull(map['expiration_date'] ?? map['expirationDate']),
+      isOpened: toBoolValue(map['is_opened'] ?? map['isOpened'] ?? false),
       openedQuantity:
-          _toDouble(map['opened_quantity'] ?? map['openedQuantity']) ?? 0.0,
+          toDoubleValue(map['opened_quantity'] ?? map['openedQuantity']) ?? 0.0,
       notes: map['notes']?.toString(),
-      createdAt: _toDate(map['created_at'] ?? map['createdAt']),
-      updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
+      createdAt: parseDate(map['created_at'] ?? map['createdAt']),
+      updatedAt: parseDate(map['updated_at'] ?? map['updatedAt']),
     );
   }
 
   Map<String, dynamic> toMap() {
-    String? _dateOnlyOrNull(DateTime? d) =>
+    String? dateOnlyOrNull(DateTime? d) =>
         d == null ? null : d.toIso8601String().split('T')[0];
 
     final map = <String, dynamic>{
@@ -104,7 +105,7 @@ class PharmacyStock {
 
     put('quantity_per_unit', quantityPerUnit);
     put('min_stock_alert', minStockAlert);
-    put('expiration_date', _dateOnlyOrNull(expirationDate));
+    put('expiration_date', dateOnlyOrNull(expirationDate));
     put('notes', notes);
 
     return map;

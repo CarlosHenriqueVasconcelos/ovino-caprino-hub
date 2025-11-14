@@ -29,20 +29,18 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
     try {
       final breedingService = context.read<BreedingService>();
+      final animalService = context.read<AnimalService>();
 
       await breedingService.separarAnimais(widget.record.id);
+      await animalService.loadData();
 
-      // Mantém o comportamento antigo de atualizar painel/KPIs
-      await context.read<AnimalService>().loadData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Animais separados! Aguardando ultrassom.'),
-          ),
-        );
-        widget.onUpdate?.call();
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Animais separados! Aguardando ultrassom.'),
+        ),
+      );
+      widget.onUpdate?.call();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -55,6 +53,9 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
   }
 
   Future<void> _registerUltrasound() async {
+    final breedingService = context.read<BreedingService>();
+    final animalService = context.read<AnimalService>();
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -83,7 +84,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       ),
     );
 
-    if (result == null) return;
+    if (!mounted || result == null) return;
 
     setState(() => _isProcessing = true);
 
@@ -92,9 +93,6 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       final now = DateTime.now();
       // mesmo comportamento antigo: parto previsto 150 dias a partir de HOJE
       final birthEta = now.add(const Duration(days: 150));
-
-      final breedingService = context.read<BreedingService>();
-      final animalService = context.read<AnimalService>();
 
       await breedingService.registrarUltrassom(
         breedingId: widget.record.id,
@@ -124,16 +122,15 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         }
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isConfirmed ? 'Gestação confirmada!' : 'Gestação não confirmada.',
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isConfirmed ? 'Gestação confirmada!' : 'Gestação não confirmada.',
           ),
-        );
-        widget.onUpdate?.call();
-      }
+        ),
+      );
+      widget.onUpdate?.call();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,6 +143,9 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
   }
 
   Future<void> _registerBirth() async {
+    final breedingService = context.read<BreedingService>();
+    final animalService = context.read<AnimalService>();
+
     // Primeiro, perguntar quantas crias nasceram
     final numberOfOffspring = await showDialog<int>(
       context: context,
@@ -169,14 +169,12 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       ),
     );
 
-    if (numberOfOffspring == null) return;
+    if (!mounted || numberOfOffspring == null) return;
 
     setState(() => _isProcessing = true);
 
     try {
       final now = DateTime.now();
-      final breedingService = context.read<BreedingService>();
-      final animalService = context.read<AnimalService>();
 
       // Atualiza registro de reprodução (parto realizado)
       await breedingService.registrarParto(
@@ -273,6 +271,9 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
   }
 
   Future<void> _cancelBreeding() async {
+    final breedingService = context.read<BreedingService>();
+    final animalService = context.read<AnimalService>();
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -291,23 +292,19 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (!mounted || confirmed != true) return;
 
     setState(() => _isProcessing = true);
     try {
-      final breedingService = context.read<BreedingService>();
 
       await breedingService.cancelarRegistro(widget.record.id);
+      await animalService.loadData();
 
-      // Mantém comportamento antigo de atualizar painel / KPIs
-      await context.read<AnimalService>().loadData();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Encabritamento cancelado.')),
-        );
-        widget.onUpdate?.call();
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Encabritamento cancelado.')),
+      );
+      widget.onUpdate?.call();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

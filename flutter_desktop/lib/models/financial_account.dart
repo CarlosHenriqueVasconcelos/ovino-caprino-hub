@@ -50,8 +50,8 @@ class FinancialAccount {
       'category': category,
       'description': description,
       'amount': amount,
-      'due_date': _date(dueDate),
-      'payment_date': _date(paymentDate),
+      'due_date': dateOnlyString(dueDate),
+      'payment_date': dateOnlyString(paymentDate),
       'status': status,
       'payment_method': paymentMethod,
       'installments': installments,
@@ -62,40 +62,40 @@ class FinancialAccount {
       'notes': notes,
       'is_recurring': isRecurring ? 1 : 0, // bool -> INTEGER
       'recurrence_frequency': recurrenceFrequency,
-      'recurrence_end_date': _date(recurrenceEndDate),
+      'recurrence_end_date': dateOnlyString(recurrenceEndDate),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
   }
 
   factory FinancialAccount.fromMap(Map<String, dynamic> map) {
-    String? _str(dynamic v) => v == null ? null : v as String;
-    double _toDouble(dynamic v) =>
+    String? stringOrNull(dynamic v) => v == null ? null : v as String;
+    double doubleValue(dynamic v) =>
         v is num ? v.toDouble() : double.parse(v.toString());
-    int? _toInt(dynamic v) =>
+    int? intValue(dynamic v) =>
         v == null ? null : (v is num ? v.toInt() : int.parse(v.toString()));
-    bool _toBool(dynamic v) =>
+    bool boolValue(dynamic v) =>
         (v is int ? v == 1 : (v is bool ? v : v.toString() == '1'));
 
     return FinancialAccount(
       id: map['id'] as String,
       type: map['type'] as String,
       category: map['category'] as String,
-      description: _str(map['description']),
-      amount: _toDouble(map['amount']),
-      dueDate: _parseDate(map['due_date'])!,
-      paymentDate: _parseDate(map['payment_date']),
+      description: stringOrNull(map['description']),
+      amount: doubleValue(map['amount']),
+      dueDate: parseDateOrNull(map['due_date'])!,
+      paymentDate: parseDateOrNull(map['payment_date']),
       status: map['status'] as String,
-      paymentMethod: _str(map['payment_method']),
-      installments: _toInt(map['installments']),
-      installmentNumber: _toInt(map['installment_number']),
-      parentId: _str(map['parent_id']),
-      animalId: _str(map['animal_id']),
-      supplierCustomer: _str(map['supplier_customer']),
-      notes: _str(map['notes']),
-      isRecurring: _toBool(map['is_recurring'] ?? 0),
-      recurrenceFrequency: _str(map['recurrence_frequency']),
-      recurrenceEndDate: _parseDate(map['recurrence_end_date']),
+      paymentMethod: stringOrNull(map['payment_method']),
+      installments: intValue(map['installments']),
+      installmentNumber: intValue(map['installment_number']),
+      parentId: stringOrNull(map['parent_id']),
+      animalId: stringOrNull(map['animal_id']),
+      supplierCustomer: stringOrNull(map['supplier_customer']),
+      notes: stringOrNull(map['notes']),
+      isRecurring: boolValue(map['is_recurring'] ?? 0),
+      recurrenceFrequency: stringOrNull(map['recurrence_frequency']),
+      recurrenceEndDate: parseDateOrNull(map['recurrence_end_date']),
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );
@@ -147,10 +147,10 @@ class FinancialAccount {
     );
   }
 
-  static String? _date(DateTime? d) =>
+  static String? dateOnlyString(DateTime? d) =>
       d == null ? null : d.toIso8601String().split('T')[0];
 
-  static DateTime? _parseDate(dynamic v) {
+  static DateTime? parseDateOrNull(dynamic v) {
     if (v == null) return null;
     final s = v is String ? v : v.toString();
     if (s.length == 10 && s[4] == '-' && s[7] == '-') return DateTime.parse(s);

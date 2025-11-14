@@ -369,9 +369,6 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
 
     final weights = animals.map((a) => a.weight).toList();
     final avgWeight = weights.reduce((a, b) => a + b) / weights.length;
-    final minWeight = weights.reduce((a, b) => a < b ? a : b);
-    final maxWeight = weights.reduce((a, b) => a > b ? a : b);
-
     final underweight =
         animals.where((a) => a.weight < _getIdealWeightRange(a)['min']!).length;
     final overweight =
@@ -541,7 +538,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   children: [
                     _buildAnimalLabel(theme, animal),
                     Text('${animal.breed} • ${animal.gender}'),
-                    Text('Idade: ${ageInMonths} meses'),
+                    Text('Idade: $ageInMonths meses'),
                     Text(
                       'Faixa ideal: ${weightRange['min']!.toStringAsFixed(1)} - ${weightRange['max']!.toStringAsFixed(1)} kg',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -621,7 +618,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     final record = {
       'animal_name': animal.name,
       'animal_code': animal.code,
-      'animal_color': animal.nameColor ?? '',
+      'animal_color': animal.nameColor,
     };
     final label = AnimalRecordDisplay.labelFromRecord(record);
     final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);
@@ -663,6 +660,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   }
 
   void _showWeightEditDialog(Animal animal) {
+    final animalService = Provider.of<AnimalService>(context, listen: false);
     final weightController = TextEditingController(
       text: animal.weight.toStringAsFixed(1),
     );
@@ -700,8 +698,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   updatedAt: DateTime.now(),
                 );
 
-                await Provider.of<AnimalService>(context, listen: false)
-                    .updateAnimal(updatedAnimal);
+                await animalService.updateAnimal(updatedAnimal);
 
                 if (context.mounted) {
                   Navigator.pop(context);

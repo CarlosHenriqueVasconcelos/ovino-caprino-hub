@@ -262,8 +262,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     // Ordenar por cor e depois por código numérico
     lambs.sort((a, b) {
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
+      final colorA = a.nameColor;
+      final colorB = b.nameColor;
       final colorCompare = colorA.compareTo(colorB);
       if (colorCompare != 0) return colorCompare;
 
@@ -424,7 +424,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -713,7 +713,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     final record = {
       'animal_name': lamb.name,
       'animal_code': lamb.code,
-      'animal_color': lamb.nameColor ?? '',
+      'animal_color': lamb.nameColor,
     };
     final label = AnimalRecordDisplay.labelFromRecord(record);
     final accent = AnimalRecordDisplay.colorFromDescriptor(lamb.nameColor);
@@ -728,11 +728,13 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   void _showWeightEditDialog(Animal lamb) async {
+    final weightService = Provider.of<WeightService>(context, listen: false);
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+
     // Buscar peso de nascimento do histórico se não houver no animal
     double? initialBirthWeight = lamb.birthWeight;
     if (initialBirthWeight == null || initialBirthWeight == 0) {
       // Tentar buscar do histórico de pesos
-      final weightService = Provider.of<WeightService>(context, listen: false);
       final weightHistory = await weightService.getWeightHistory(lamb.id);
 
       // Procurar por peso de nascimento ou o primeiro peso registrado
@@ -773,9 +775,12 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     if (!mounted) return;
 
+    final messenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) {
+        final navigator = Navigator.of(dialogContext);
+        return AlertDialog(
         title: Text('Editar Pesos - ${lamb.name}'),
         content: SingleChildScrollView(
           child: Column(
@@ -845,13 +850,10 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 fatherId: lamb.fatherId,
               );
 
-              await Provider.of<AnimalService>(context, listen: false)
-                  .updateAnimal(updatedLamb);
+              await animalService.updateAnimal(updatedLamb);
 
               bool shouldShowEditDialog = false;
               if (weight120Value != null && weight120Value > 0) {
-                final weightService =
-                    Provider.of<WeightService>(context, listen: false);
                 await weightService.addWeight(
                   lamb.id,
                   DateTime.now(),
@@ -861,33 +863,31 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 shouldShowEditDialog = true;
               }
 
-              if (!mounted) return;
-              Navigator.pop(dialogContext);
+              navigator.pop();
 
-              ScaffoldMessenger.of(context).showSnackBar(
+              if (!mounted) return;
+              messenger.showSnackBar(
                 const SnackBar(content: Text('Pesos atualizados com sucesso!')),
               );
 
               // Se salvou peso de 120 dias, abrir tela de edição com categoria Adulto pré-selecionada
-              if (shouldShowEditDialog && mounted) {
+              if (shouldShowEditDialog) {
                 await Future.delayed(const Duration(milliseconds: 300));
-                if (mounted) {
-                  // Criar cópia do animal com categoria Adulto APENAS para passar ao formulário
-                  // (não persiste ainda, só será salvo quando o usuário clicar em Salvar no card)
-                  final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
+                if (!mounted) return;
 
-                  // Abrir o dialog de edição
-                  showDialog(
-                    context: context,
-                    builder: (context) => AnimalFormDialog(animal: adultAnimal),
-                  );
-                }
+                final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
+
+                showDialog(
+                  context: context,
+                  builder: (context) => AnimalFormDialog(animal: adultAnimal),
+                );
               }
             },
             child: const Text('Salvar'),
           ),
         ],
-      ),
+      );
+      },
     );
   }
 

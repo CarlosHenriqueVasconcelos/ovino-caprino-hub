@@ -130,7 +130,7 @@ class _StatsOverview extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final targetWidth = 220.0;
+        const targetWidth = 220.0;
         final crossAxis = availableWidth.isFinite && availableWidth > 0
             ? (availableWidth / targetWidth).floor().clamp(1, 5)
             : 5;
@@ -302,7 +302,7 @@ class _QuickActions extends StatelessWidget {
                 ];
 
                 final width = constraints.maxWidth;
-                final desiredWidth = 200.0;
+                const desiredWidth = 200.0;
                 final crossAxisCount = width.isFinite && width > 0
                     ? (width / desiredWidth).floor().clamp(1, 5)
                     : 5;
@@ -623,8 +623,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
 
   Widget _buildMedicationSelector(ThemeData theme) {
     if (_loadingStock) {
-      return Row(
-        children: const [
+      return const Row(
+        children: [
           SizedBox(width: 24, height: 24, child: CircularProgressIndicator()),
           SizedBox(width: 12),
           Expanded(child: Text('Carregando estoque da farmácia...')),
@@ -637,7 +637,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3)),
         ),
@@ -828,7 +828,9 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     };
 
     try {
-      await context.read<MedicationService>().createMedication(medication);
+      final medicationService =
+          context.read<MedicationService>();
+      await medicationService.createMedication(medication);
       if (!mounted) return;
       Navigator.pop(context);
       widget.onSaved();

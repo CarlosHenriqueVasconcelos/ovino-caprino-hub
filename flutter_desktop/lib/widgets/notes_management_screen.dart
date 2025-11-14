@@ -336,8 +336,9 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
 
     return Card(
       elevation: isRead ? 1 : 3,
-      color:
-          isRead ? theme.colorScheme.surface : theme.colorScheme.surfaceVariant,
+      color: isRead
+          ? theme.colorScheme.surface
+          : theme.colorScheme.surfaceContainerHighest,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(

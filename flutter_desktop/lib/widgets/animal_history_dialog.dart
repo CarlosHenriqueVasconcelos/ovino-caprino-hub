@@ -158,22 +158,26 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                       dense: true,
                       leading: const Icon(Icons.female),
                       title: Text('Mãe: ${_mother!.name}'),
-                      subtitle: Text(
-                        'Código: ${_mother!.code}'
-                        '${_mother!.nameColor != null ? ' • Cor: ${_mother!.nameColor}' : ''}'
-                        '${_mother!.lote != null ? ' • Lote: ${_mother!.lote}' : ''}',
-                      ),
+                      subtitle: Text([
+                        'Código: ${_mother!.code}',
+                        if (_mother!.nameColor.isNotEmpty)
+                          'Cor: ${_mother!.nameColor}',
+                        if ((_mother!.lote ?? '').isNotEmpty)
+                          'Lote: ${_mother!.lote}',
+                      ].join(' • ')),
                     ),
                   if (_father != null)
                     ListTile(
                       dense: true,
                       leading: const Icon(Icons.male),
                       title: Text('Pai: ${_father!.name}'),
-                      subtitle: Text(
-                        'Código: ${_father!.code}'
-                        '${_father!.nameColor != null ? ' • Cor: ${_father!.nameColor}' : ''}'
-                        '${_father!.lote != null ? ' • Lote: ${_father!.lote}' : ''}',
-                      ),
+                      subtitle: Text([
+                        'Código: ${_father!.code}',
+                        if (_father!.nameColor.isNotEmpty)
+                          'Cor: ${_father!.nameColor}',
+                        if ((_father!.lote ?? '').isNotEmpty)
+                          'Lote: ${_father!.lote}',
+                      ].join(' • ')),
                     ),
                 ],
               ),

@@ -6,7 +6,7 @@ import '../data/pharmacy_repository.dart';
 
 class PharmacyService extends ChangeNotifier {
   final PharmacyRepository _repository;
-  static final _uuid = Uuid();
+  static const _uuid = Uuid();
 
   PharmacyService(this._repository);
 
@@ -15,7 +15,7 @@ class PharmacyService extends ChangeNotifier {
     try {
       return await _repository.getAllStock();
     } catch (e) {
-      print('Erro ao buscar estoque da farmácia: $e');
+      debugPrint('Erro ao buscar estoque da farmácia: $e');
       return [];
     }
   }
@@ -25,7 +25,7 @@ class PharmacyService extends ChangeNotifier {
     try {
       return await _repository.getStockById(id);
     } catch (e) {
-      print('Erro ao buscar medicamento: $e');
+      debugPrint('Erro ao buscar medicamento: $e');
       return null;
     }
   }
@@ -52,7 +52,7 @@ class PharmacyService extends ChangeNotifier {
 
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
-      print('Erro ao criar medicamento: $e');
+      debugPrint('Erro ao criar medicamento: $e');
       rethrow;
     }
   }
@@ -64,7 +64,7 @@ class PharmacyService extends ChangeNotifier {
 
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
-      print('Erro ao atualizar medicamento: $e');
+      debugPrint('Erro ao atualizar medicamento: $e');
       rethrow;
     }
   }
@@ -77,7 +77,7 @@ class PharmacyService extends ChangeNotifier {
 
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
-      print('Erro ao deletar medicamento: $e');
+      debugPrint('Erro ao deletar medicamento: $e');
       rethrow;
     }
   }
@@ -89,7 +89,7 @@ class PharmacyService extends ChangeNotifier {
 
       // Nota: Sincronização com Supabase é feita apenas via backup manual
     } catch (e) {
-      print('Erro ao registrar movimentação: $e');
+      debugPrint('Erro ao registrar movimentação: $e');
       rethrow;
     }
   }
@@ -99,7 +99,7 @@ class PharmacyService extends ChangeNotifier {
     try {
       return await _repository.getMovementsByStockId(stockId);
     } catch (e) {
-      print('Erro ao buscar movimentações: $e');
+      debugPrint('Erro ao buscar movimentações: $e');
       return [];
     }
   }
@@ -109,7 +109,7 @@ class PharmacyService extends ChangeNotifier {
     try {
       return await _repository.getLowStockItems();
     } catch (e) {
-      print('Erro ao buscar itens com estoque baixo: $e');
+      debugPrint('Erro ao buscar itens com estoque baixo: $e');
       return [];
     }
   }
@@ -119,7 +119,7 @@ class PharmacyService extends ChangeNotifier {
     try {
       return await _repository.getExpiringItems(daysThreshold);
     } catch (e) {
-      print('Erro ao buscar itens vencendo: $e');
+      debugPrint('Erro ao buscar itens vencendo: $e');
       return [];
     }
   }
@@ -130,7 +130,9 @@ class PharmacyService extends ChangeNotifier {
       {bool isAmpoule = false}) async {
     try {
       final stock = await getStockById(stockId);
-      if (stock == null) throw Exception('Medicamento não encontrado');
+      if (stock == null) {
+        throw Exception('Medicamento não encontrado');
+      }
 
       final unit = stock.unitOfMeasure.toLowerCase();
 
@@ -142,8 +144,9 @@ class PharmacyService extends ChangeNotifier {
       if (medicationId == null) {
         // Remoção manual - sempre trabalhar com unidades (ampolas/frascos/comprimidos)
         final newQuantity = stock.totalQuantity - quantity;
-        if (newQuantity < 0)
+        if (newQuantity < 0) {
           throw Exception('Quantidade insuficiente em estoque');
+        }
 
         final updated = stock.copyWith(
           totalQuantity: newQuantity,
@@ -168,8 +171,9 @@ class PharmacyService extends ChangeNotifier {
       } else {
         // Aplicação com "Unidade" - descontar diretamente da quantidade total
         final newQuantity = stock.totalQuantity - quantity;
-        if (newQuantity < 0)
+        if (newQuantity < 0) {
           throw Exception('Quantidade insuficiente em estoque');
+        }
 
         final updated = stock.copyWith(
           totalQuantity: newQuantity,
@@ -191,7 +195,7 @@ class PharmacyService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      print('Erro ao deduzir do estoque: $e');
+      debugPrint('Erro ao deduzir do estoque: $e');
       rethrow;
     }
   }
@@ -289,8 +293,9 @@ class PharmacyService extends ChangeNotifier {
     if (quantityUsed == unitSize) {
       // Usa um frasco completo
       final newQuantity = stock.totalQuantity - 1;
-      if (newQuantity < 0)
+      if (newQuantity < 0) {
         throw Exception('Quantidade insuficiente em estoque');
+      }
 
       final updated = stock.copyWith(
         totalQuantity: newQuantity,
@@ -312,12 +317,14 @@ class PharmacyService extends ChangeNotifier {
     } else {
       // Uso parcial - abre um novo frasco
       final remaining = unitSize - quantityUsed;
-      if (remaining < 0)
+      if (remaining < 0) {
         throw Exception(
             'Quantidade usada maior que a capacidade do $container');
+      }
 
-      if (stock.totalQuantity < 1)
+      if (stock.totalQuantity < 1) {
         throw Exception('Quantidade insuficiente em estoque');
+      }
 
       final updated = stock.copyWith(
         totalQuantity: stock.totalQuantity - 1,
@@ -347,7 +354,9 @@ class PharmacyService extends ChangeNotifier {
       {String? reason}) async {
     try {
       final stock = await getStockById(stockId);
-      if (stock == null) throw Exception('Medicamento não encontrado');
+      if (stock == null) {
+        throw Exception('Medicamento não encontrado');
+      }
 
       final newQuantity = stock.totalQuantity + quantity;
       final updated = stock.copyWith(
@@ -368,7 +377,7 @@ class PharmacyService extends ChangeNotifier {
         ),
       );
     } catch (e) {
-      print('Erro ao adicionar ao estoque: $e');
+      debugPrint('Erro ao adicionar ao estoque: $e');
       rethrow;
     }
   }

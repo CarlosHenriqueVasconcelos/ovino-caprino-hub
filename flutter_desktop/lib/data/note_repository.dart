@@ -2,7 +2,7 @@ import 'local_db.dart';
 
 /// Repository para gerenciar notas
 ///
-/// Camada responsável por fazer TODO acesso à tabela `notes` no SQLite.
+/// Camada responsável por fazer
 /// Widgets e Services devem falar com esse repositório, não direto com o banco.
 class NoteRepository {
   final AppDatabase _db;

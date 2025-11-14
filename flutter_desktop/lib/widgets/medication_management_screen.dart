@@ -708,21 +708,24 @@ class _MedicationManagementScreenState
   }
 
   Future<void> _markAsApplied(String id, {required bool isVaccination}) async {
+    final vaccinationService =
+        Provider.of<VaccinationService>(context, listen: false);
+    final medicationService =
+        Provider.of<MedicationService>(context, listen: false);
+    final pharmacyService =
+        Provider.of<PharmacyService>(context, listen: false);
+
     try {
       final now = DateTime.now();
       final today = now.toIso8601String().split('T')[0];
 
       if (isVaccination) {
-        final vaccinationService =
-            Provider.of<VaccinationService>(context, listen: false);
         await vaccinationService.updateVaccination(id, {
           'status': 'Aplicada',
           'applied_date': today,
         });
       } else {
         // MEDICAMENTO - DEDUZIR DO ESTOQUE DA FARMÁCIA
-        final medicationService =
-            Provider.of<MedicationService>(context, listen: false);
         final medication = await medicationService.getMedicationById(id);
 
         if (medication != null) {
@@ -739,8 +742,6 @@ class _MedicationManagementScreenState
           if (pharmacyStockId != null &&
               quantityUsed != null &&
               quantityUsed > 0) {
-            final pharmacyService =
-                Provider.of<PharmacyService>(context, listen: false);
             await pharmacyService.deductFromStock(
               pharmacyStockId,
               quantityUsed,
@@ -775,16 +776,17 @@ class _MedicationManagementScreenState
   }
 
   Future<void> _cancelItem(String id, {required bool isVaccination}) async {
+    final vaccinationService =
+        Provider.of<VaccinationService>(context, listen: false);
+    final medicationService =
+        Provider.of<MedicationService>(context, listen: false);
+
     try {
       if (isVaccination) {
-        final vaccinationService =
-            Provider.of<VaccinationService>(context, listen: false);
         await vaccinationService.updateVaccination(id, {
           'status': 'Cancelada',
         });
       } else {
-        final medicationService =
-            Provider.of<MedicationService>(context, listen: false);
         await medicationService.updateMedication(id, {
           'status': 'Cancelado',
         });
@@ -1057,6 +1059,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       if (value?.isEmpty ?? true) return 'Campo obrigatório';
                       return null;
                     },
+                  )
+                else if (_isLoadingStock)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: CircularProgressIndicator(),
+                    ),
                   )
                 else ...[
                   // AUTOCOMPLETE DE MEDICAMENTOS DA FARMÁCIA
@@ -1471,7 +1480,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
         widget.onSaved();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${_type} agendada com sucesso!'),
+            content: Text('$_type agendada com sucesso!'),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
@@ -1782,71 +1791,5 @@ class _DetailsDialog extends StatelessWidget {
     }
   }
 
-  Widget _buildAnimalChip(Map<String, dynamic> animalData) {
-    final colorKey = animalData['name_color'] ?? '';
-    final colorName = _getColorName(colorKey);
-    final colorValue = _getColorValue(colorKey);
-    final name = animalData['name'] ?? 'Sem nome';
-    final code = animalData['code'] ?? '';
 
-    return Chip(
-      avatar: Container(
-        width: 16,
-        height: 16,
-        decoration: BoxDecoration(
-          color: colorValue,
-          shape: BoxShape.circle,
-          border: colorKey == 'white'
-              ? Border.all(color: Colors.grey, width: 1)
-              : null,
-        ),
-      ),
-      label: RichText(
-        text: TextSpan(
-          style: const TextStyle(fontSize: 12, color: Colors.black),
-          children: [
-            TextSpan(text: '$colorName - '),
-            TextSpan(
-              text: name,
-              style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
-            ),
-            TextSpan(text: ' ($code)'),
-          ],
-        ),
-      ),
-      backgroundColor: Colors.blue.shade50,
-    );
-  }
-
-  String _getColorName(String colorKey) {
-    const colorNames = {
-      'blue': 'Azul',
-      'red': 'Vermelho',
-      'green': 'Verde',
-      'yellow': 'Amarelo',
-      'orange': 'Laranja',
-      'purple': 'Roxo',
-      'pink': 'Rosa',
-      'grey': 'Cinza',
-      'white': 'Branca',
-      'black': 'Preto',
-    };
-    return colorNames[colorKey] ?? 'Sem cor';
-  }
-
-  Color _getColorValue(String colorKey) {
-    const colorValues = {
-      'blue': Colors.blue,
-      'red': Colors.red,
-      'green': Colors.green,
-      'yellow': Colors.yellow,
-      'orange': Colors.orange,
-      'purple': Colors.purple,
-      'pink': Colors.pink,
-      'grey': Colors.grey,
-      'white': Colors.white,
-      'black': Colors.black,
-    };
-    return colorValues[colorKey] ?? Colors.grey;
-  }
 }

@@ -52,8 +52,8 @@ class AnimalDisplayUtils {
   static void sortAnimalsList(List<Animal> animals) {
     animals.sort((a, b) {
       // Primeiro ordenar por cor
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
+      final colorA = a.nameColor;
+      final colorB = b.nameColor;
       final colorCompare = colorA.compareTo(colorB);
 
       if (colorCompare != 0) return colorCompare;

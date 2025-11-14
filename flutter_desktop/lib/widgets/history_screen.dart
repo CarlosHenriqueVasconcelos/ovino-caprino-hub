@@ -62,9 +62,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     try {
       final List<HistoryItem> items = [];
+      final animalService = context.read<AnimalService>();
+      final vaccinationService = context.read<VaccinationService>();
+      final medicationService = context.read<MedicationService>();
+      final breedingService = context.read<BreedingService>();
+      final financialService = context.read<FinancialService>();
+      final noteService = context.read<NoteService>();
 
       // 1) Animais cadastrados (via AnimalService)
-      final animalService = context.read<AnimalService>();
       await animalService.loadData();
       final List<Animal> animals = animalService.animals.toList();
 
@@ -86,7 +91,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // (o _findAnimalById já existe no arquivo, não precisa mexer)
 
       // 2) Vacinações aplicadas
-      final vaccinationService = context.read<VaccinationService>();
       final vaccinations =
           await vaccinationService.getAppliedVaccinationsWithAnimalInfo();
 
@@ -120,7 +124,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       // 3) Medicamentos aplicados
-      final medicationService = context.read<MedicationService>();
       final medications =
           await medicationService.getAppliedMedicationsWithAnimalInfo();
 
@@ -154,7 +157,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       // 4) Registros de reprodução (via BreedingService)
-      final breedingService = context.read<BreedingService>();
       final breedingRecords = await breedingService.getBreedingRecords();
 
       for (final breeding in breedingRecords) {
@@ -183,7 +185,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       // 5) Registros financeiros (via FinancialService)
-      final financialService = context.read<FinancialService>();
       final financialRecords = await financialService.getFinancialRecords();
 
       for (final record in financialRecords) {
@@ -209,7 +210,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       // 6) Anotações (via NoteService)
-      final noteService = context.read<NoteService>();
       final notes = await noteService.getNotes();
 
       for (final note in notes) {
@@ -673,24 +673,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  void _showClearHistoryDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Informação'),
-        content: const Text(
-          'O histórico é gerado automaticamente a partir dos registros do sistema. '
-          'Para limpar o histórico, você precisa excluir os registros originais nos módulos correspondentes.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Entendi'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class HistoryItem {

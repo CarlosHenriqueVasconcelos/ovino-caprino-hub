@@ -1,4 +1,5 @@
 // lib/services/migration_service.dart
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_common/sqlite_api.dart' show Database;
 
 /// Serviço para executar migrações do banco de dados
@@ -31,28 +32,24 @@ class MigrationService {
     if (currentVersion < 1) {
       await _runMigrationV1(db);
       await db.insert('schema_migrations', {'version': 1});
-      // ignore: avoid_print
-      print('✓ Migração v1 aplicada: Categorias de animais atualizadas');
+      debugPrint('✓ Migração v1 aplicada: Categorias de animais atualizadas');
     }
 
     // Migração v5: Adicionar campo father_id
     if (currentVersion < 5) {
       await _runMigrationV5(db);
       await db.insert('schema_migrations', {'version': 5});
-      // ignore: avoid_print
-      print('✓ Migração v5 aplicada: Campo father_id adicionado');
+      debugPrint('✓ Migração v5 aplicada: Campo father_id adicionado');
     }
 
     // Migração v7: Adicionar campo opened_quantity na tabela pharmacy_stock
     if (currentVersion < 7) {
       await _runMigrationV7(db);
       await db.insert('schema_migrations', {'version': 7});
-      // ignore: avoid_print
-      print('✓ Migração v7 aplicada: Campo opened_quantity adicionado');
+      debugPrint('✓ Migração v7 aplicada: Campo opened_quantity adicionado');
     }
 
-    // ignore: avoid_print
-    print('✓ Todas as migrações foram aplicadas com sucesso');
+    debugPrint('✓ Todas as migrações foram aplicadas com sucesso');
   }
 
   /// Migração v1: Simplificar categorias de animais

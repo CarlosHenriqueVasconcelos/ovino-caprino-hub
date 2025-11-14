@@ -12,7 +12,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getAll();
     } catch (e) {
-      print('Erro ao buscar medicações: $e');
+      debugPrint('Erro ao buscar medicações: $e');
       return [];
     }
   }
@@ -22,7 +22,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getById(id);
     } catch (e) {
-      print('Erro ao buscar medicação: $e');
+      debugPrint('Erro ao buscar medicação: $e');
       return null;
     }
   }
@@ -33,7 +33,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getByAnimalId(animalId);
     } catch (e) {
-      print('Erro ao buscar medicações do animal: $e');
+      debugPrint('Erro ao buscar medicações do animal: $e');
       return [];
     }
   }
@@ -43,7 +43,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getScheduled();
     } catch (e) {
-      print('Erro ao buscar medicações agendadas: $e');
+      debugPrint('Erro ao buscar medicações agendadas: $e');
       return [];
     }
   }
@@ -54,7 +54,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getByStatus(status);
     } catch (e) {
-      print('Erro ao buscar medicações por status: $e');
+      debugPrint('Erro ao buscar medicações por status: $e');
       return [];
     }
   }
@@ -64,7 +64,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getOverdue();
     } catch (e) {
-      print('Erro ao buscar medicações vencidas: $e');
+      debugPrint('Erro ao buscar medicações vencidas: $e');
       return [];
     }
   }
@@ -75,7 +75,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getUpcoming(daysThreshold);
     } catch (e) {
-      print('Erro ao buscar medicações próximas: $e');
+      debugPrint('Erro ao buscar medicações próximas: $e');
       return [];
     }
   }
@@ -85,7 +85,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getAllWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar medicações com info do animal: $e');
+      debugPrint('Erro ao buscar medicações com info do animal: $e');
       return [];
     }
   }
@@ -95,7 +95,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getOverdueWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar medicações atrasadas com info: $e');
+      debugPrint('Erro ao buscar medicações atrasadas com info: $e');
       return [];
     }
   }
@@ -105,7 +105,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getScheduledWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar medicações agendadas com info: $e');
+      debugPrint('Erro ao buscar medicações agendadas com info: $e');
       return [];
     }
   }
@@ -115,7 +115,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getAppliedWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar medicações aplicadas com info: $e');
+      debugPrint('Erro ao buscar medicações aplicadas com info: $e');
       return [];
     }
   }
@@ -125,7 +125,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getCancelledWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar medicações canceladas com info: $e');
+      debugPrint('Erro ao buscar medicações canceladas com info: $e');
       return [];
     }
   }
@@ -158,7 +158,7 @@ class MedicationService extends ChangeNotifier {
       // Se quiser garantir, daria pra remover duplicados por 'id'.
       return [...overdue, ...upcoming];
     } catch (e) {
-      print('Erro ao buscar medicações pendentes: $e');
+      debugPrint('Erro ao buscar medicações pendentes: $e');
       return [];
     }
   }
@@ -181,7 +181,7 @@ class MedicationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao criar medicação: $e');
+      debugPrint('Erro ao criar medicação: $e');
       rethrow;
     }
   }
@@ -209,7 +209,7 @@ class MedicationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao atualizar medicação: $e');
+      debugPrint('Erro ao atualizar medicação: $e');
       rethrow;
     }
   }
@@ -223,7 +223,7 @@ class MedicationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao deletar medicação: $e');
+      debugPrint('Erro ao deletar medicação: $e');
       rethrow;
     }
   }
@@ -234,7 +234,7 @@ class MedicationService extends ChangeNotifier {
     try {
       return await _repository.getByPharmacyStockId(stockId);
     } catch (e) {
-      print('Erro ao buscar medicações por estoque: $e');
+      debugPrint('Erro ao buscar medicações por estoque: $e');
       return [];
     }
   }

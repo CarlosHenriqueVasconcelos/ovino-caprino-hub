@@ -15,7 +15,7 @@ import '../../widgets/animal_form.dart';
 import '../../data/animal_repository.dart';
 
 class HerdTab extends StatelessWidget {
-  const HerdTab();
+  const HerdTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class HerdTab extends StatelessWidget {
 }
 
 class HerdSection extends StatefulWidget {
-  const HerdSection();
+  const HerdSection({super.key});
 
   @override
   State<HerdSection> createState() => HerdSectionState();
@@ -96,6 +96,7 @@ class HerdSectionState extends State<HerdSection> {
         return Consumer<AnimalService>(
           builder: (context, animalService, _) {
         final animalRepo = context.read<AnimalRepository>();
+        final deleteCascade = context.read<AnimalDeleteCascade>();
         final all = animalService.animals;
         final baseList = (() {
           if (_statusFilter == 'Vendido') {
@@ -111,19 +112,17 @@ class HerdSectionState extends State<HerdSection> {
             // Sem status específico: volta a valer o toggle "Incluir vendidos"
             return _includeSold
                 ? all
-                : all
-                    .where((a) => a.status == null || a.status != 'Vendido')
-                    .toList();
+                : all.where((a) => a.status != 'Vendido').toList();
           }
         })();
 
         // Aplicar filtros de cor e categoria
         var filtered = baseList.where((a) {
-          final color = a.nameColor ?? '';
+          final color = a.nameColor;
           if (_colorFilter != null && color != _colorFilter) {
             return false;
           }
-          final category = a.category ?? '';
+          final category = a.category;
           if (_categoryFilter != null && category != _categoryFilter) {
             return false;
           }
@@ -135,8 +134,8 @@ class HerdSectionState extends State<HerdSection> {
 
         // Ordenar por cor e depois por número
         filtered.sort((a, b) {
-          final colorA = a.nameColor ?? '';
-          final colorB = b.nameColor ?? '';
+          final colorA = a.nameColor;
+          final colorB = b.nameColor;
           final colorCompare = colorA.compareTo(colorB);
           if (colorCompare != 0) return colorCompare;
 
@@ -496,11 +495,9 @@ class HerdSectionState extends State<HerdSection> {
                               onEdit: (animal) =>
                                   _showAnimalForm(context, animal: animal),
                               onDeleteCascade: (animal) async {
-                                await context
-                                    .read<AnimalDeleteCascade>()
-                                    .delete(animal.id);
-                                final svc = context.read<AnimalService>();
-                                await svc.removeFromCache(animal.id);
+                                await deleteCascade.delete(animal.id);
+                                if (!mounted) return;
+                                await animalService.removeFromCache(animal.id);
                               },
                               mother: relations.parentOf(animal.motherId),
                               father: relations.parentOf(animal.fatherId),
@@ -524,10 +521,10 @@ class HerdSectionState extends State<HerdSection> {
   List<Animal> _filter(List<Animal> animals, String q) {
     if (q.isEmpty) return animals;
     return animals.where((animal) {
-      final name = (animal.name).toLowerCase();
-      final code = (animal.code).toLowerCase();
-      final category = (animal.category ?? '').toLowerCase();
-      final breed = (animal.breed ?? '').toLowerCase();
+      final name = animal.name.toLowerCase();
+      final code = animal.code.toLowerCase();
+      final category = animal.category.toLowerCase();
+      final breed = animal.breed.toLowerCase();
       // Busca exata - retorna apenas se algum campo for exatamente igual ao termo buscado
       return name == q || code == q || category == q || breed == q;
     }).toList();

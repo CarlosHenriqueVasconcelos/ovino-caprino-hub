@@ -64,26 +64,26 @@ class Animal {
   });
 
   factory Animal.fromMap(Map<String, dynamic> map) {
-    double? _toDouble(dynamic v) {
+    double? toDoubleValue(dynamic v) {
       if (v == null) return null;
       if (v is num) return v.toDouble();
       if (v is String) return double.tryParse(v.replaceAll(',', '.'));
       return null;
     }
 
-    DateTime _toDate(dynamic v, {DateTime? fallback}) {
+    DateTime parseDate(dynamic v, {DateTime? fallback}) {
       if (v == null) return fallback ?? DateTime.now();
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString()) ?? (fallback ?? DateTime.now());
     }
 
-    DateTime? _toDateOrNull(dynamic v) {
+    DateTime? parseDateOrNull(dynamic v) {
       if (v == null) return null;
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString());
     }
 
-    bool _toBool(dynamic v) {
+    bool toBoolValue(dynamic v) {
       if (v is bool) return v;
       if (v is num) return v != 0;
       if (v is String) {
@@ -93,31 +93,31 @@ class Animal {
       return false;
     }
 
-    double? _readBirthWeight() =>
-        _toDouble(map['birthWeight'] ?? map['birth_weight']);
+    double? readBirthWeight() =>
+        toDoubleValue(map['birthWeight'] ?? map['birth_weight']);
 
-    double? _read30d() => _toDouble(
+    double? read30d() => toDoubleValue(
           map['weight30Days'] ??
               map['weight_30_days'] ??
               map['weight30'] ??
               map['weight_30d'],
         );
 
-    double? _read60d() => _toDouble(
+    double? read60d() => toDoubleValue(
           map['weight60Days'] ??
               map['weight_60_days'] ??
               map['weight60'] ??
               map['weight_60d'],
         );
 
-    double? _read90d() => _toDouble(
+    double? read90d() => toDoubleValue(
           map['weight90Days'] ??
               map['weight_90_days'] ??
               map['weight90'] ??
               map['weight_90d'],
         );
 
-    double? _read120d() => _toDouble(
+    double? read120d() => toDoubleValue(
           map['weight120Days'] ??
               map['weight_120_days'] ??
               map['weight120'] ??
@@ -133,23 +133,23 @@ class Animal {
       species: map['species'] ?? '',
       breed: map['breed'] ?? '',
       gender: map['gender'] ?? '',
-      birthDate: _toDate(map['birth_date'] ?? map['birthDate']),
-      weight: (_toDouble(map['weight']) ?? 0.0),
+      birthDate: parseDate(map['birth_date'] ?? map['birthDate']),
+      weight: (toDoubleValue(map['weight']) ?? 0.0),
       status: map['status'] ?? 'Saudável',
       location: map['location'] ?? '',
       lastVaccination:
-          _toDateOrNull(map['last_vaccination'] ?? map['lastVaccination']),
-      pregnant: _toBool(map['pregnant']),
+          parseDateOrNull(map['last_vaccination'] ?? map['lastVaccination']),
+      pregnant: toBoolValue(map['pregnant']),
       expectedDelivery:
-          _toDateOrNull(map['expected_delivery'] ?? map['expectedDelivery']),
+          parseDateOrNull(map['expected_delivery'] ?? map['expectedDelivery']),
       healthIssue: map['health_issue'] ?? map['healthIssue'],
-      createdAt: _toDate(map['created_at'] ?? map['createdAt']),
-      updatedAt: _toDate(map['updated_at'] ?? map['updatedAt']),
-      birthWeight: _readBirthWeight(),
-      weight30Days: _read30d(),
-      weight60Days: _read60d(),
-      weight90Days: _read90d(),
-      weight120Days: _read120d(),
+      createdAt: parseDate(map['created_at'] ?? map['createdAt']),
+      updatedAt: parseDate(map['updated_at'] ?? map['updatedAt']),
+      birthWeight: readBirthWeight(),
+      weight30Days: read30d(),
+      weight60Days: read60d(),
+      weight90Days: read90d(),
+      weight120Days: read120d(),
       year: map['year'] is int
           ? map['year']
           : (map['year'] != null ? int.tryParse(map['year'].toString()) : null),
@@ -162,7 +162,7 @@ class Animal {
   factory Animal.fromJson(Map<String, dynamic> json) => Animal.fromMap(json);
 
   Map<String, dynamic> toMap() {
-    String? _dateOnlyOrNull(DateTime? d) =>
+    String? dateOnlyOrNull(DateTime? d) =>
         d == null ? null : d.toIso8601String().split('T')[0];
 
     // mapa base com obrigatórios e opcionais mais comuns
@@ -175,7 +175,7 @@ class Animal {
       'species': species,
       'breed': breed,
       'gender': gender,
-      'birth_date': _dateOnlyOrNull(birthDate), // nunca null aqui
+      'birth_date': dateOnlyOrNull(birthDate), // nunca null aqui
       'weight': weight,
       'status': status,
       'location': location,
@@ -191,8 +191,8 @@ class Animal {
       map[key] = value;
     }
 
-    put('last_vaccination', _dateOnlyOrNull(lastVaccination));
-    put('expected_delivery', _dateOnlyOrNull(expectedDelivery));
+    put('last_vaccination', dateOnlyOrNull(lastVaccination));
+    put('expected_delivery', dateOnlyOrNull(expectedDelivery));
     put('health_issue', healthIssue);
     put('birth_weight', birthWeight);
     put('weight_30_days', weight30Days);
@@ -257,26 +257,26 @@ class AnimalStats {
   });
 
   factory AnimalStats.fromMap(Map<String, dynamic> map) {
-    double _d(dynamic v) => v == null
+    double toDouble(dynamic v) => v == null
         ? 0.0
         : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
-    int _i(dynamic v) => v == null
+    int toInt(dynamic v) => v == null
         ? 0
         : (v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0);
 
     return AnimalStats(
-      totalAnimals: _i(map['totalAnimals']),
-      healthy: _i(map['healthy']),
-      pregnant: _i(map['pregnant']),
-      revenue: _d(map['revenue']),
-      underTreatment: _i(map['underTreatment']),
-      vaccinesThisMonth: _i(map['vaccinesThisMonth']),
-      birthsThisMonth: _i(map['birthsThisMonth']),
-      avgWeight: _d(map['avgWeight']),
-      maleReproducers: _i(map['maleReproducers']),
-      maleLambs: _i(map['maleLambs']),
-      femaleLambs: _i(map['femaleLambs']),
-      femaleReproducers: _i(map['femaleReproducers']),
+      totalAnimals: toInt(map['totalAnimals']),
+      healthy: toInt(map['healthy']),
+      pregnant: toInt(map['pregnant']),
+      revenue: toDouble(map['revenue']),
+      underTreatment: toInt(map['underTreatment']),
+      vaccinesThisMonth: toInt(map['vaccinesThisMonth']),
+      birthsThisMonth: toInt(map['birthsThisMonth']),
+      avgWeight: toDouble(map['avgWeight']),
+      maleReproducers: toInt(map['maleReproducers']),
+      maleLambs: toInt(map['maleLambs']),
+      femaleLambs: toInt(map['femaleLambs']),
+      femaleReproducers: toInt(map['femaleReproducers']),
     );
   }
 }

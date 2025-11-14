@@ -18,14 +18,14 @@ class PharmacyStockMovement {
   });
 
   factory PharmacyStockMovement.fromMap(Map<String, dynamic> map) {
-    double _toDouble(dynamic v) {
+    double toDoubleValue(dynamic v) {
       if (v == null) return 0.0;
       if (v is num) return v.toDouble();
       if (v is String) return double.tryParse(v.replaceAll(',', '.')) ?? 0.0;
       return 0.0;
     }
 
-    DateTime _toDate(dynamic v, {DateTime? fallback}) {
+    DateTime parseDate(dynamic v, {DateTime? fallback}) {
       if (v == null) return fallback ?? DateTime.now();
       if (v is DateTime) return v;
       return DateTime.tryParse(v.toString()) ?? (fallback ?? DateTime.now());
@@ -37,9 +37,9 @@ class PharmacyStockMovement {
       medicationId:
           map['medication_id']?.toString() ?? map['medicationId']?.toString(),
       movementType: map['movement_type'] ?? map['movementType'] ?? '',
-      quantity: _toDouble(map['quantity']),
+      quantity: toDoubleValue(map['quantity']),
       reason: map['reason']?.toString(),
-      createdAt: _toDate(map['created_at'] ?? map['createdAt']),
+      createdAt: parseDate(map['created_at'] ?? map['createdAt']),
     );
   }
 

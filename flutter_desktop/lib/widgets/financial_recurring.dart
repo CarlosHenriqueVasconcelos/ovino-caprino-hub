@@ -66,20 +66,18 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
     FinancialAccount? candidate;
     for (final a in all) {
       // só candidatas que ainda NÃO são recorrentes e não são filhas
-      final isMotherCandidate = (a.parentId == null) && (a.isRecurring != true);
+      final isMotherCandidate = (a.parentId == null) && !a.isRecurring;
       if (!isMotherCandidate) continue;
 
       // prioridade: quem tem createdAt mais recente pós startedAt
-      final created = a.createdAt ?? a.updatedAt ?? a.dueDate;
+      final created = a.createdAt;
       final afterStart =
           created.isAfter(startedAt.subtract(const Duration(seconds: 1)));
 
       if (candidate == null) {
         if (afterStart) candidate = a;
       } else {
-        final candCreated = (candidate!.createdAt ??
-            candidate!.updatedAt ??
-            candidate!.dueDate);
+        final candCreated = candidate.createdAt;
         if (created.isAfter(candCreated)) {
           candidate = a;
         }
@@ -87,10 +85,10 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
     }
 
     if (candidate != null) {
-      final mother = candidate!.copyWith(
+      final mother = candidate.copyWith(
         isRecurring: true,
         // Se o form não gravou frequência, definimos um padrão seguro
-        recurrenceFrequency: candidate!.recurrenceFrequency ?? 'Mensal',
+        recurrenceFrequency: candidate.recurrenceFrequency ?? 'Mensal',
         parentId: null,
         updatedAt: DateTime.now(),
       );

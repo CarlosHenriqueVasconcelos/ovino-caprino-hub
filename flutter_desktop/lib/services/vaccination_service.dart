@@ -26,15 +26,15 @@ class VaccinationService extends ChangeNotifier {
     final vacs = await _repository.getScheduledWithAnimalInfo();
     final medsRaw = await _medicationRepository.getScheduledWithAnimalInfo();
 
-    DateTime? _parse(dynamic v) {
+    DateTime? parseDate(dynamic v) {
       if (v == null) return null;
       final s = v.toString().trim();
       if (s.isEmpty) return null;
       return DateTime.tryParse(s);
     }
 
-    bool _notApplied(Map<String, dynamic> m) {
-      final ad = _parse(m['applied_date']);
+    bool isNotApplied(Map<String, dynamic> m) {
+      final ad = parseDate(m['applied_date']);
       return ad == null; // só consideramos agendadas e não aplicadas
     }
 
@@ -43,11 +43,11 @@ class VaccinationService extends ChangeNotifier {
     final cut = baseToday.add(const Duration(days: 30));
 
     final onlyUpcomingMeds = medsRaw.where((m) {
-      final when = _parse(m['date']) ?? _parse(m['next_date']);
+      final when = parseDate(m['date']) ?? parseDate(m['next_date']);
       if (when == null) return false;
       final day = DateTime(when.year, when.month, when.day);
       if (day.isAfter(cut)) return false;
-      if (!_notApplied(m)) return false;
+      if (!isNotApplied(m)) return false;
       return true;
     }).toList();
 
@@ -64,7 +64,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getAll();
     } catch (e) {
-      print('Erro ao buscar vacinações: $e');
+      debugPrint('Erro ao buscar vacinações: $e');
       return [];
     }
   }
@@ -74,7 +74,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getOverdueWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar vacinações atrasadas com info: $e');
+      debugPrint('Erro ao buscar vacinações atrasadas com info: $e');
       return [];
     }
   }
@@ -84,7 +84,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getScheduledWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar vacinações agendadas com info: $e');
+      debugPrint('Erro ao buscar vacinações agendadas com info: $e');
       return [];
     }
   }
@@ -94,7 +94,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getAppliedWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar vacinações aplicadas com info: $e');
+      debugPrint('Erro ao buscar vacinações aplicadas com info: $e');
       return [];
     }
   }
@@ -104,7 +104,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getCancelledWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar vacinações canceladas com info: $e');
+      debugPrint('Erro ao buscar vacinações canceladas com info: $e');
       return [];
     }
   }
@@ -114,7 +114,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getById(id);
     } catch (e) {
-      print('Erro ao buscar vacinação: $e');
+      debugPrint('Erro ao buscar vacinação: $e');
       return null;
     }
   }
@@ -125,7 +125,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getByAnimalId(animalId);
     } catch (e) {
-      print('Erro ao buscar vacinações do animal: $e');
+      debugPrint('Erro ao buscar vacinações do animal: $e');
       return [];
     }
   }
@@ -135,7 +135,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getScheduled();
     } catch (e) {
-      print('Erro ao buscar vacinações agendadas: $e');
+      debugPrint('Erro ao buscar vacinações agendadas: $e');
       return [];
     }
   }
@@ -146,7 +146,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getByStatus(status);
     } catch (e) {
-      print('Erro ao buscar vacinações por status: $e');
+      debugPrint('Erro ao buscar vacinações por status: $e');
       return [];
     }
   }
@@ -156,7 +156,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getOverdue();
     } catch (e) {
-      print('Erro ao buscar vacinações vencidas: $e');
+      debugPrint('Erro ao buscar vacinações vencidas: $e');
       return [];
     }
   }
@@ -167,7 +167,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getUpcoming(daysThreshold);
     } catch (e) {
-      print('Erro ao buscar vacinações próximas: $e');
+      debugPrint('Erro ao buscar vacinações próximas: $e');
       return [];
     }
   }
@@ -177,7 +177,7 @@ class VaccinationService extends ChangeNotifier {
     try {
       return await _repository.getAllWithAnimalInfo();
     } catch (e) {
-      print('Erro ao buscar vacinações com info do animal: $e');
+      debugPrint('Erro ao buscar vacinações com info do animal: $e');
       return [];
     }
   }
@@ -199,7 +199,7 @@ class VaccinationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao criar vacinação: $e');
+      debugPrint('Erro ao criar vacinação: $e');
       rethrow;
     }
   }
@@ -211,10 +211,12 @@ class VaccinationService extends ChangeNotifier {
       final v = Map<String, dynamic>.from(updates);
 
       // Normalizar datas
-      if (v.containsKey('scheduled_date'))
+      if (v.containsKey('scheduled_date')) {
         v['scheduled_date'] = _toIsoDate(v['scheduled_date']);
-      if (v.containsKey('applied_date'))
+      }
+      if (v.containsKey('applied_date')) {
         v['applied_date'] = _toIsoDate(v['applied_date']);
+      }
       v['updated_at'] = DateTime.now().toIso8601String();
 
       // Atualizar no banco local
@@ -223,7 +225,7 @@ class VaccinationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao atualizar vacinação: $e');
+      debugPrint('Erro ao atualizar vacinação: $e');
       rethrow;
     }
   }
@@ -237,7 +239,7 @@ class VaccinationService extends ChangeNotifier {
       // Nota: Sincronização com Supabase é feita apenas via backup manual
       notifyListeners();
     } catch (e) {
-      print('Erro ao deletar vacinação: $e');
+      debugPrint('Erro ao deletar vacinação: $e');
       rethrow;
     }
   }

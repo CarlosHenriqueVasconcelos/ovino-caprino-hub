@@ -8,7 +8,7 @@ class FeedingService extends ChangeNotifier {
   final FeedingRepository _repository;
 
   List<FeedingPen> _pens = [];
-  Map<String, List<FeedingSchedule>> _schedulesByPen = {};
+  final Map<String, List<FeedingSchedule>> _schedulesByPen = {};
   bool _isLoading = false;
   String? _error;
 

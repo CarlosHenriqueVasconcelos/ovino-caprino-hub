@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/vaccination_service.dart';
 import '../utils/animal_record_display.dart';
-import 'vaccination_form.dart';
 
 class VaccinationAlerts extends StatefulWidget {
   final VoidCallback onGoToVaccinations;
@@ -483,14 +482,6 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   }
 
   // ---------- Ações ----------
-
-  void _openVaccineForm(BuildContext context, Map<String, dynamic> row) {
-    final animalId = row['animal_id']?.toString();
-    showDialog(
-      context: context,
-      builder: (context) => VaccinationFormDialog(animalId: animalId),
-    ).then((_) => _loadAlerts());
-  }
 
   // ---------- Helpers de data ----------
 

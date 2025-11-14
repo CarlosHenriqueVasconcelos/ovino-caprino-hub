@@ -324,8 +324,8 @@ class BreedingService extends ChangeNotifier {
         case BreedingStage.separacao:
         case BreedingStage.aguardandoUltrassom:
           final sep = r.separationDate;
-          final ult = r.ultrasoundDate ??
-              (sep != null ? sep.add(const Duration(days: 30)) : null);
+          final ult =
+              r.ultrasoundDate ?? sep?.add(const Duration(days: 30));
           eventDate = ult;
           label = 'Ultrassom';
           break;
@@ -348,8 +348,7 @@ class BreedingService extends ChangeNotifier {
       final isSoon = !baseEventDate.isAfter(limit);
 
       if (isOverdue || isSoon) {
-        final Animal? female =
-            r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
+        final Animal? female = animalMap[r.femaleAnimalId];
         events.add(
           BreedingEvent(
             label: label ?? 'Evento',
@@ -428,8 +427,7 @@ class BreedingService extends ChangeNotifier {
       if (st == BreedingStage.separacao ||
           st == BreedingStage.aguardandoUltrassom) {
         final base = separation ?? matingEnd;
-        final target = ultrasound ??
-            (base != null ? base.add(const Duration(days: 30)) : null);
+        final target = ultrasound ?? base?.add(const Duration(days: 30));
         if (target != null) {
           final d = DateTime(target.year, target.month, target.day);
           final inWindow = !d.isAfter(limit);
@@ -455,8 +453,7 @@ class BreedingService extends ChangeNotifier {
         final inWindow = !d.isAfter(limit);
         final overdue = d.isBefore(today);
         if (overdue || inWindow) {
-          final female =
-              r.femaleAnimalId != null ? animalMap[r.femaleAnimalId] : null;
+          final female = animalMap[r.femaleAnimalId];
           partos.add(BreedingEvent(
             label: 'Parto previsto',
             date: d,
@@ -469,14 +466,14 @@ class BreedingService extends ChangeNotifier {
       }
     }
 
-    int _cmp(BreedingEvent a, BreedingEvent b) {
+    int compareEvents(BreedingEvent a, BreedingEvent b) {
       if (a.overdue != b.overdue) return a.overdue ? -1 : 1;
       return a.date.compareTo(b.date);
     }
 
-    separacoes.sort(_cmp);
-    ultrassons.sort(_cmp);
-    partos.sort(_cmp);
+    separacoes.sort(compareEvents);
+    ultrassons.sort(compareEvents);
+    partos.sort(compareEvents);
 
     return ReproBoardData(
       separacoes: separacoes,
@@ -555,4 +552,3 @@ class BreedingService extends ChangeNotifier {
 }
 
 /// Label amigável de estágio (se você usa em algum lugar da UI).
-String _toUiStageLabel(String? raw) => BreedingStage.fromString(raw).uiTabLabel;

@@ -60,9 +60,8 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
       // Busca os registros de reprodução pelo BreedingService
       final breedingData = await breedingService.getBreedingRecords();
 
-      final records = breedingData
-          .map((e) => BreedingRecord.fromMap(e as Map<String, dynamic>))
-          .toList();
+      final records =
+          breedingData.map((e) => BreedingRecord.fromMap(e)).toList();
 
       if (!mounted) return;
       setState(() {
@@ -90,8 +89,8 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
         if (female == null) return false;
 
         final searchLower = _searchQuery.toLowerCase();
-        final code = (female.code ?? '').toLowerCase();
-        final name = (female.name ?? '').toLowerCase();
+        final code = female.code.toLowerCase();
+        final name = female.name.toLowerCase();
 
         return code.contains(searchLower) || name.contains(searchLower);
       }).toList();
@@ -510,7 +509,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
             ),
 
             // Progress and Days
-            if (progress != null && daysLeft != null) ...[
+    if (daysLeft != null) ...[
               const SizedBox(height: 16),
               Row(
                 children: [

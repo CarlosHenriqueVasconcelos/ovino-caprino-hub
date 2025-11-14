@@ -1,9 +1,14 @@
 // lib/services/reports_service.dart
 // Service for generating comprehensive reports with filters and KPIs
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import '../data/local_db.dart';
 import '../models/animal.dart';
+
+void _log(String message) {
+  developer.log(message, name: 'ReportsService');
+}
 
 class DateRange {
   final DateTime startDate;
@@ -190,13 +195,11 @@ class ReportsService {
                 'species': a.species,
                 'breed': a.breed,
                 'gender': a.gender,
-                'birth_date': a.birthDate is DateTime
-                    ? _yyyyMmDd(a.birthDate as DateTime)
-                    : a.birthDate,
+                'birth_date': _yyyyMmDd(a.birthDate),
                 'weight': a.weight,
                 'status': a.status,
                 'location': a.location,
-                'category': a.category ?? '',
+                'category': a.category,
                 'pregnant': a.pregnant,
                 'expected_delivery': a.expectedDelivery ?? '',
               })
@@ -221,12 +224,10 @@ class ReportsService {
           WHERE $dcol >= ? AND $dcol <= ?
           ORDER BY $dcol ASC
         ''', [s, e]);
-        // ignore: avoid_print
-        print('✅ Encontrados ${rows.length} registros de peso em $table');
+        _log('✅ Encontrados ${rows.length} registros de peso em $table');
         return rows;
       } catch (err) {
-        // ignore: avoid_print
-        print('⚠️ Erro ao buscar pesos em $table: $err');
+        _log('⚠️ Erro ao buscar pesos em $table: $err');
         return [];
       }
     }
@@ -266,16 +267,14 @@ class ReportsService {
       byAnimal[animalId]!.add(w);
     }
 
-    // ignore: avoid_print
-    print('📊 Histórico de pesagens encontrado: ${weights.length}');
-    // ignore: avoid_print
-    print('📊 Animais com histórico: ${byAnimal.length}');
+    _log('📊 Histórico de pesagens encontrado: ${weights.length}');
+    _log('📊 Animais com histórico: ${byAnimal.length}');
 
     // Se não houver histórico, usa os pesos atuais da tabela animals
     if (weights.isEmpty) {
-      // ignore: avoid_print
-      print(
-          '⚠️ Nenhum histórico de pesagens encontrado, usando pesos atuais dos animais');
+      _log(
+        '⚠️ Nenhum histórico de pesagens encontrado, usando pesos atuais dos animais',
+      );
 
       for (var animal in animals) {
         final createdAt = _toDate(animal.createdAt);
@@ -287,15 +286,12 @@ class ReportsService {
           byAnimal.putIfAbsent(animal.id, () => []);
           byAnimal[animal.id]!.add({
             'animal_id': animal.id,
-            'date': animal.createdAt is DateTime
-                ? _yyyyMmDd(animal.createdAt as DateTime)
-                : animal.createdAt.toString().split('T')[0],
+            'date': _yyyyMmDd(animal.createdAt),
             'weight': animal.weight,
           });
         }
       }
-      // ignore: avoid_print
-      print('📊 Animais adicionados com peso atual: ${byAnimal.length}');
+    _log('📊 Animais adicionados com peso atual: ${byAnimal.length}');
     }
 
     final animalStats = byAnimal.entries.map((entry) {
@@ -336,8 +332,7 @@ class ReportsService {
         .where((w) => w > 0)
         .toList();
 
-    // ignore: avoid_print
-    print('📊 Total de animais no relatório final: ${animalStats.length}');
+    _log('📊 Total de animais no relatório final: ${animalStats.length}');
 
     return {
       'summary': {
@@ -485,22 +480,20 @@ class ReportsService {
     final animals = await _loadAnimals();
     final animalMap = {for (var a in animals) a.id: a};
 
-    // ignore: avoid_print
-    print(
-        '📊 Total de registros de reprodução encontrados: ${breeding.length}');
+    _log(
+      '📊 Total de registros de reprodução encontrados: ${breeding.length}',
+    );
 
     breeding = breeding.where((b) {
       final d = _toDate(b['breeding_date']);
       final inRange = _between(d, filters.startDate, filters.endDate);
       if (!inRange) {
-        // ignore: avoid_print
-        print('⏭️ Registro fora do período: ${b['breeding_date']}');
+        _log('⏭️ Registro fora do período: ${b['breeding_date']}');
       }
       return inRange;
     }).toList();
 
-    // ignore: avoid_print
-    print('📊 Registros após filtro de data: ${breeding.length}');
+    _log('📊 Registros após filtro de data: ${breeding.length}');
 
     if (filters.breedingStage != null && filters.breedingStage != 'Todos') {
       final expected = _slug(filters.breedingStage!);
@@ -508,8 +501,7 @@ class ReportsService {
         final stage = _slug((b['stage'] ?? '').toString());
         return stage == expected;
       }).toList();
-      // ignore: avoid_print
-      print('📊 Registros após filtro de estágio: ${breeding.length}');
+      _log('📊 Registros após filtro de estágio: ${breeding.length}');
     }
 
     final byStage = <String, int>{};

@@ -188,7 +188,7 @@ class BreedingRecord {
   });
 
   factory BreedingRecord.fromMap(Map<String, dynamic> map) {
-    DateTime? _parse(dynamic v) {
+    DateTime? parseDate(dynamic v) {
       if (v == null) return null;
       if (v is String && v.isNotEmpty) {
         try {
@@ -206,19 +206,19 @@ class BreedingRecord {
       id: (map['id'] as String?) ?? '',
       femaleAnimalId: map['female_animal_id'] as String?,
       maleAnimalId: map['male_animal_id'] as String?,
-      breedingDate: _parse(map['breeding_date']) ?? DateTime.now(),
-      matingStartDate: _parse(map['mating_start_date']),
-      matingEndDate: _parse(map['mating_end_date']),
-      separationDate: _parse(map['separation_date']),
-      ultrasoundDate: _parse(map['ultrasound_date']),
+      breedingDate: parseDate(map['breeding_date']) ?? DateTime.now(),
+      matingStartDate: parseDate(map['mating_start_date']),
+      matingEndDate: parseDate(map['mating_end_date']),
+      separationDate: parseDate(map['separation_date']),
+      ultrasoundDate: parseDate(map['ultrasound_date']),
       ultrasoundResult: map['ultrasound_result'] as String?,
-      expectedBirth: _parse(map['expected_birth']),
-      birthDate: _parse(map['birth_date']),
+      expectedBirth: parseDate(map['expected_birth']),
+      birthDate: parseDate(map['birth_date']),
       stage: st,
       status: status,
       notes: map['notes'] as String?,
-      createdAt: _parse(map['created_at']) ?? DateTime.now(),
-      updatedAt: _parse(map['updated_at']) ?? DateTime.now(),
+      createdAt: parseDate(map['created_at']) ?? DateTime.now(),
+      updatedAt: parseDate(map['updated_at']) ?? DateTime.now(),
     );
   }
 
@@ -249,15 +249,20 @@ class BreedingRecord {
     final now = DateTime.now();
     switch (stage) {
       case BreedingStage.encabritamento:
-        if (matingEndDate != null) return matingEndDate!.difference(now).inDays;
+        if (matingEndDate != null) {
+          return matingEndDate!.difference(now).inDays;
+        }
         return null;
       case BreedingStage.separacao:
       case BreedingStage.aguardandoUltrassom:
-        if (ultrasoundDate != null)
+        if (ultrasoundDate != null) {
           return ultrasoundDate!.difference(now).inDays;
+        }
         return null;
       case BreedingStage.gestacaoConfirmada:
-        if (expectedBirth != null) return expectedBirth!.difference(now).inDays;
+        if (expectedBirth != null) {
+          return expectedBirth!.difference(now).inDays;
+        }
         return null;
       case BreedingStage.partoRealizado:
       case BreedingStage.falhou:

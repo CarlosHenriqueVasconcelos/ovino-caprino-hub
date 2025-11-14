@@ -56,7 +56,7 @@ class BackupService {
   // ---------- Mapa de FKs que apontam para cada tabela (p/ corrigir IDs inválidos) ----------
   // parentTable -> [ (childTable, childColumn) ... ]
   static final Map<String, List<_FkRef>> _fkMap = {
-    'animals': [
+    'animals': const [
       _FkRef('animal_weights', 'animal_id'),
       _FkRef('breeding_records', 'female_animal_id'),
       _FkRef('breeding_records', 'male_animal_id'),
@@ -67,7 +67,7 @@ class BackupService {
       _FkRef('notes', 'animal_id'),
     ],
     // self-ref em financial_accounts
-    'financial_accounts': [
+    'financial_accounts': const [
       _FkRef('financial_accounts', 'parent_id'),
     ],
   };

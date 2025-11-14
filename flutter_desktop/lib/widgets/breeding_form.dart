@@ -83,7 +83,6 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final animalService = Provider.of<AnimalService>(context);
 
     if (_loadingRecords) {

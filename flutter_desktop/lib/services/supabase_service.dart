@@ -8,6 +8,13 @@ class SupabaseService {
   static SupabaseClient get supabase => _client;
   static bool get isConfigured => true; // Sempre configurado neste projeto
 
+  static List<Map<String, dynamic>> _asMapList(dynamic response) {
+    if (response is List) {
+      return response.cast<Map<String, dynamic>>();
+    }
+    return const [];
+  }
+
   // -------------------- Animais --------------------
   static Future<List<Animal>> getAnimals() async {
     final response = await _client.from('animals').select();
@@ -39,7 +46,7 @@ class SupabaseService {
   // -------------------- Vacinações --------------------
   static Future<List<Map<String, dynamic>>> getVaccinations() async {
     final response = await _client.from('vaccinations').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createVaccination(
@@ -59,7 +66,7 @@ class SupabaseService {
   // -------------------- Medicamentos --------------------
   static Future<List<Map<String, dynamic>>> getMedications() async {
     final response = await _client.from('medications').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createMedication(Map<String, dynamic> medication) async {
@@ -78,7 +85,7 @@ class SupabaseService {
   // -------------------- Pesos dos Animais --------------------
   static Future<List<Map<String, dynamic>>> getAnimalWeights() async {
     final response = await _client.from('animal_weights').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createAnimalWeight(Map<String, dynamic> weight) async {
@@ -97,7 +104,7 @@ class SupabaseService {
   // -------------------- Reprodução --------------------
   static Future<List<Map<String, dynamic>>> getBreedingRecords() async {
     final response = await _client.from('breeding_records').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createBreedingRecord(Map<String, dynamic> record) async {
@@ -116,7 +123,7 @@ class SupabaseService {
   // -------------------- Anotações --------------------
   static Future<List<Map<String, dynamic>>> getNotes() async {
     final response = await _client.from('notes').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createNote(Map<String, dynamic> note) async {
@@ -135,7 +142,7 @@ class SupabaseService {
   // -------------------- Financeiro --------------------
   static Future<List<Map<String, dynamic>>> getFinancialRecords() async {
     final response = await _client.from('financial_records').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createFinancialRecord(Map<String, dynamic> record) async {
@@ -154,7 +161,7 @@ class SupabaseService {
   // -------------------- Contas Financeiras --------------------
   static Future<List<Map<String, dynamic>>> getFinancialAccounts() async {
     final response = await _client.from('financial_accounts').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createFinancialAccount(
@@ -174,7 +181,7 @@ class SupabaseService {
   // -------------------- Relatórios --------------------
   static Future<List<Map<String, dynamic>>> getReports() async {
     final response = await _client.from('reports').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createReport(Map<String, dynamic> report) async {
@@ -184,7 +191,7 @@ class SupabaseService {
   // -------------------- Push Tokens --------------------
   static Future<List<Map<String, dynamic>>> getPushTokens() async {
     final response = await _client.from('push_tokens').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createPushToken(Map<String, dynamic> token) async {
@@ -226,7 +233,7 @@ class SupabaseService {
   // -------------------- Animais Vendidos --------------------
   static Future<List<Map<String, dynamic>>> getSoldAnimals() async {
     final response = await _client.from('sold_animals').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createSoldAnimal(Map<String, dynamic> animal) async {
@@ -245,7 +252,7 @@ class SupabaseService {
   // -------------------- Animais Falecidos --------------------
   static Future<List<Map<String, dynamic>>> getDeceasedAnimals() async {
     final response = await _client.from('deceased_animals').select();
-    return response.map((e) => e as Map<String, dynamic>).toList();
+    return _asMapList(response);
   }
 
   static Future<void> createDeceasedAnimal(Map<String, dynamic> animal) async {
