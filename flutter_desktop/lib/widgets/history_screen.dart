@@ -210,7 +210,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
 
       // 6) Anotações (via NoteService)
-      final notes = await noteService.getNotes();
+      final notes = await noteService.getNotes(
+        options: const NoteQueryOptions(limit: 250),
+      );
 
       for (final note in notes) {
         final String? createdStr = note['created_at'] as String?;

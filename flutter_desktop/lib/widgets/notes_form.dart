@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/animal.dart';
 import '../services/animal_service.dart';
 import '../services/note_service.dart';
+import '../utils/animal_display_utils.dart';
 
 class NotesFormDialog extends StatefulWidget {
   final String? animalId;
@@ -20,6 +22,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _createdByController = TextEditingController();
+  String _animalFieldText = '';
 
   String? _selectedAnimalId;
   String _category = 'Geral';
@@ -38,13 +41,17 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
     final animals = animalService.animals;
 
     // Se veio um animalId fixo, tenta achar o animal pra exibir o nome/código
-    dynamic linkedAnimal;
+    Animal? linkedAnimal;
     if (widget.animalId != null) {
       try {
         linkedAnimal = animals.firstWhere((a) => a.id == widget.animalId);
       } on StateError {
         linkedAnimal = null;
       }
+    }
+
+    if (linkedAnimal != null && _animalFieldText.isEmpty) {
+      _animalFieldText = '${linkedAnimal.code} - ${linkedAnimal.name}';
     }
 
     return AlertDialog(
@@ -59,27 +66,55 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
               children: [
                 // Seleção de animal (quando não vier fixo)
                 if (widget.animalId == null) ...[
-                  DropdownButtonFormField<String>(
-                    value: _selectedAnimalId,
-                    decoration: const InputDecoration(
-                      labelText: 'Animal (opcional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Anotação geral'),
-                      ),
-                      ...animals.map((animal) {
-                        return DropdownMenuItem<String>(
-                          value: animal.id,
-                          child: Text('${animal.code} - ${animal.name}'),
+                  Autocomplete<Animal>(
+                    optionsBuilder: (textEditingValue) {
+                      final query = textEditingValue.text.toLowerCase();
+                      return animals.where((animal) {
+                        final name = animal.name.toLowerCase();
+                        final code = animal.code.toLowerCase();
+                        return name.contains(query) ||
+                            code.contains(query) ||
+                            AnimalDisplayUtils.getColorName(animal.nameColor)
+                                .toLowerCase()
+                                .contains(query);
+                      });
+                    },
+                    displayStringForOption: (Animal option) =>
+                        '${option.code} - ${option.name}',
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
+                      if (controller.text != _animalFieldText) {
+                        controller.text = _animalFieldText;
+                        controller.selection = TextSelection.collapsed(
+                          offset: controller.text.length,
                         );
-                      }),
-                    ],
-                    onChanged: (value) {
+                      }
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Animal (opcional)',
+                          border: const OutlineInputBorder(),
+                          hintText: 'Digite nome ou código',
+                          suffixIcon: _selectedAnimalId != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedAnimalId = null;
+                                      _animalFieldText = '';
+                                    });
+                                    controller.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                      );
+                    },
+                    onSelected: (Animal animal) {
                       setState(() {
-                        _selectedAnimalId = value;
+                        _selectedAnimalId = animal.id;
+                        _animalFieldText = '${animal.code} - ${animal.name}';
                       });
                     },
                   ),

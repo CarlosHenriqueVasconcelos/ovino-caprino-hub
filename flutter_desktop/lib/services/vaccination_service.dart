@@ -69,40 +69,68 @@ class VaccinationService extends ChangeNotifier {
     }
   }
 
-  Future<List<Map<String, dynamic>>>
-      getOverdueVaccinationsWithAnimalInfo() async {
+  Future<List<Map<String, dynamic>>> getOverdueVaccinationsWithAnimalInfo({
+    VaccinationQueryOptions options = const VaccinationQueryOptions(),
+  }) async {
     try {
-      return await _repository.getOverdueWithAnimalInfo();
+      return await _repository.getOverdueWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+      );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações atrasadas com info: $e');
       return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>>
-      getScheduledVaccinationsWithAnimalInfo() async {
+  Future<List<Map<String, dynamic>>> getScheduledVaccinationsWithAnimalInfo({
+    VaccinationQueryOptions options = const VaccinationQueryOptions(),
+  }) async {
     try {
-      return await _repository.getScheduledWithAnimalInfo();
+      return await _repository.getScheduledWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+      );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações agendadas com info: $e');
       return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>>
-      getAppliedVaccinationsWithAnimalInfo() async {
+  Future<List<Map<String, dynamic>>> getAppliedVaccinationsWithAnimalInfo({
+    VaccinationQueryOptions options = const VaccinationQueryOptions(),
+  }) async {
     try {
-      return await _repository.getAppliedWithAnimalInfo();
+      return await _repository.getAppliedWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+      );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações aplicadas com info: $e');
       return [];
     }
   }
 
-  Future<List<Map<String, dynamic>>>
-      getCancelledVaccinationsWithAnimalInfo() async {
+  Future<List<Map<String, dynamic>>> getCancelledVaccinationsWithAnimalInfo({
+    VaccinationQueryOptions options = const VaccinationQueryOptions(),
+  }) async {
     try {
-      return await _repository.getCancelledWithAnimalInfo();
+      return await _repository.getCancelledWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+      );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações canceladas com info: $e');
       return [];
@@ -258,4 +286,20 @@ class VaccinationService extends ChangeNotifier {
     }
     return null;
   }
+}
+
+class VaccinationQueryOptions {
+  final String? species;
+  final String? category;
+  final String? searchTerm;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  const VaccinationQueryOptions({
+    this.species,
+    this.category,
+    this.searchTerm,
+    this.startDate,
+    this.endDate,
+  });
 }

@@ -6,6 +6,9 @@ import '../utils/animal_display_utils.dart';
 import '../utils/animal_record_display.dart';
 import 'lamb_weight_tracking.dart';
 import 'adult_weight_tracking.dart';
+import 'weight_tracking/weight_tracking_filters_bar.dart';
+import 'weight_tracking/weight_tracking_table.dart';
+import 'weight_tracking/weight_tracking_pagination_bar.dart';
 
 class WeightTrackingScreen extends StatefulWidget {
   const WeightTrackingScreen({super.key});
@@ -47,6 +50,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final animalService = context.watch<AnimalService>();
 
     return Column(
       children: [
@@ -71,7 +75,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildGeneralWeightTracking(theme),
+              _buildGeneralWeightTracking(theme, animalService),
               const LambWeightTracking(),
               const AdultWeightTracking(),
             ],
@@ -81,7 +85,23 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     );
   }
 
-  Widget _buildGeneralWeightTracking(ThemeData theme) {
+  Widget _buildGeneralWeightTracking(
+    ThemeData theme,
+    AnimalService animalService,
+  ) {
+    final availableColors = animalService.animals
+        .map((a) => a.nameColor)
+        .toSet()
+        .toList()
+      ..sort();
+    final filteredAnimals = animalService.weightTrackingQuery(
+      category: _selectedCategoryFilter(),
+      colorFilter: _selectedColor,
+      searchQuery: _searchQuery,
+    );
+    final paginatedAnimals = _paginatedAnimals(filteredAnimals);
+    final totalPages =
+        (filteredAnimals.length / _itemsPerPage).ceil().clamp(1, 9999);
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -132,42 +152,105 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             ),
             const SizedBox(height: 24),
 
-            // Search Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar animal',
-                    hintText: 'Digite o nome ou código do animal...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
+            WeightTrackingFiltersBar(
+              searchController: _searchController,
+              searchLabel: 'Pesquisar animal',
+              searchHint: 'Digite o nome ou código do animal...',
+              onSearchChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                  _currentPage = 0;
+                });
+              },
+              onClearSearch: () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _currentPage = 0;
+                });
+              },
+              dropdowns: const [],
+              extraFilters: [
+                Row(
+                  children: [
+                    Text(
+                      'Filtrar por categoria:',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        children: _categories.map((category) {
+                          final isSelected = category == _selectedCategory;
+                          return FilterChip(
+                            label: Text(category),
+                            selected: isSelected,
+                            onSelected: (_) {
                               setState(() {
-                                _searchController.clear();
-                                _searchQuery = '';
+                                _selectedCategory = category;
+                                _currentPage = 0;
                               });
                             },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                    });
-                  },
+                  ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Filtrar por cor:',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        children: [
+                          FilterChip(
+                            label: const Text('Todas'),
+                            selected: _selectedColor == null,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedColor = null;
+                                _currentPage = 0;
+                              });
+                            },
+                          ),
+                          ...availableColors.map((color) {
+                            final isSelected = color == _selectedColor;
+                            final colorName =
+                                AnimalDisplayUtils.getColorName(color);
+                            return FilterChip(
+                              label: Text(colorName),
+                              selected: isSelected,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedColor = color;
+                                  _currentPage = 0;
+                                });
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
-            // Filters Card
+            // Weight Statistics + List
+            _buildWeightStats(theme, filteredAnimals),
+            const SizedBox(height: 24),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -175,183 +258,43 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Filtrar por categoria:',
-                          style: theme.textTheme.titleMedium?.copyWith(
+                          'Peso dos Animais',
+                          style: theme.textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            children: _categories.map((category) {
-                              final isSelected = category == _selectedCategory;
-                              return FilterChip(
-                                label: Text(category),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _selectedCategory = category;
-                                    _currentPage = 0;
-                                  });
-                                },
-                                backgroundColor: theme.colorScheme.surface,
-                                selectedColor:
-                                    theme.colorScheme.primary.withOpacity(0.2),
-                                checkmarkColor: theme.colorScheme.primary,
-                              );
-                            }).toList(),
+                        Text(
+                          '${filteredAnimals.length} animais encontrados',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.primary,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Consumer<AnimalService>(
-                      builder: (context, animalService, _) {
-                        // Obter cores únicas dos animais
-                        final availableColors = animalService.animals
-                            .map((a) => a.nameColor)
-                            .toSet()
-                            .toList()
-                          ..sort();
-
-                        return Row(
-                          children: [
-                            Text(
-                              'Filtrar por cor:',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Wrap(
-                                spacing: 8,
-                                children: [
-                                  FilterChip(
-                                    label: const Text('Todas'),
-                                    selected: _selectedColor == null,
-                                    onSelected: (_) {
-                                      setState(() {
-                                        _selectedColor = null;
-                                        _currentPage = 0;
-                                      });
-                                    },
-                                    backgroundColor: theme.colorScheme.surface,
-                                    selectedColor: theme.colorScheme.primary
-                                        .withOpacity(0.2),
-                                    checkmarkColor: theme.colorScheme.primary,
-                                  ),
-                                  ...availableColors.map((color) {
-                                    final isSelected = color == _selectedColor;
-                                    final colorName =
-                                        AnimalDisplayUtils.getColorName(color);
-                                    return FilterChip(
-                                      label: Text(colorName),
-                                      selected: isSelected,
-                                      onSelected: (_) {
-                                        setState(() {
-                                          _selectedColor = color;
-                                          _currentPage = 0;
-                                        });
-                                      },
-                                      backgroundColor:
-                                          theme.colorScheme.surface,
-                                      selectedColor: theme.colorScheme.primary
-                                          .withOpacity(0.2),
-                                      checkmarkColor: theme.colorScheme.primary,
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
+                    const SizedBox(height: 24),
+                    WeightTrackingTable<Animal>(
+                      items: paginatedAnimals,
+                      mode: WeightTrackingTableMode.list,
+                      itemBuilder: (context, animal) =>
+                          _buildAnimalWeightTile(context, animal),
+                      emptyState: _buildEmptyState(theme),
+                      separatorBuilder: (context, index) => const Divider(),
+                    ),
+                    const SizedBox(height: 24),
+                    WeightTrackingPaginationBar(
+                      currentPage: _currentPage,
+                      totalPages: totalPages,
+                      itemsPerPage: _itemsPerPage,
+                      onPageChanged: (page) {
+                        setState(() => _currentPage = page);
                       },
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Weight Statistics + List
-            Consumer<AnimalService>(
-              builder: (context, animalService, _) {
-                // ⚠️ SEMPRE trabalhar com cópia mutável, nunca diretamente com animalService.animals
-                final filteredAnimals = animalService.weightTrackingQuery(
-                  category: _selectedCategoryFilter(),
-                  colorFilter: _selectedColor,
-                  searchQuery: _searchQuery,
-                );
-
-                return Column(
-                  children: [
-                    _buildWeightStats(theme, filteredAnimals),
-                    const SizedBox(height: 24),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Peso dos Animais',
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                if (filteredAnimals.isNotEmpty)
-                                  Text(
-                                    'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filteredAnimals.length)} de ${filteredAnimals.length}',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface
-                                          .withOpacity(0.7),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            if (filteredAnimals.isEmpty)
-                              _buildEmptyState(theme)
-                            else ...[
-                              _buildAnimalWeightList(theme, filteredAnimals),
-                              if (filteredAnimals.length > _itemsPerPage) ...[
-                                const SizedBox(height: 24),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left),
-                                      onPressed: _currentPage > 0
-                                          ? () => setState(() => _currentPage--)
-                                          : null,
-                                    ),
-                                    Text(
-                                        'Página ${_currentPage + 1} de ${((filteredAnimals.length - 1) ~/ _itemsPerPage) + 1}'),
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right),
-                                      onPressed: (_currentPage + 1) *
-                                                  _itemsPerPage <
-                                              filteredAnimals.length
-                                          ? () => setState(() => _currentPage++)
-                                          : null,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
             ),
           ],
         ),
@@ -476,129 +419,12 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     );
   }
 
-  Widget _buildAnimalWeightList(ThemeData theme, List<Animal> animals) {
-    final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage).clamp(0, animals.length);
-    final paginatedList = animals.sublist(startIndex, endIndex);
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: paginatedList.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final animal = paginatedList[index];
-        final weightRange = _getIdealWeightRange(animal);
-        final isUnderweight = animal.weight < weightRange['min']!;
-        final isOverweight = animal.weight > weightRange['max']!;
-        final ageInMonths = _getAgeInMonths(animal.birthDate);
-
-        Color statusColor = theme.colorScheme.tertiary;
-        IconData statusIcon = Icons.check_circle;
-        String statusText = 'Normal';
-
-        if (isUnderweight) {
-          statusColor = theme.colorScheme.error;
-          statusIcon = Icons.trending_down;
-          statusText = 'Abaixo do peso';
-        } else if (isOverweight) {
-          statusColor = theme.colorScheme.secondary;
-          statusIcon = Icons.trending_up;
-          statusText = 'Acima do peso';
-        }
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.2),
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              // Animal Icon
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  animal.speciesIcon,
-                  style: const TextStyle(fontSize: 24),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Animal Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildAnimalLabel(theme, animal),
-                    Text('${animal.breed} • ${animal.gender}'),
-                    Text('Idade: $ageInMonths meses'),
-                    Text(
-                      'Faixa ideal: ${weightRange['min']!.toStringAsFixed(1)} - ${weightRange['max']!.toStringAsFixed(1)} kg',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Edit Button
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _showWeightEditDialog(animal),
-                tooltip: 'Editar peso',
-              ),
-
-              // Weight Info
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${animal.weight} kg',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: statusColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(statusIcon, size: 14, color: statusColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          statusText,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
+  List<Animal> _paginatedAnimals(List<Animal> animals) {
+    if (animals.isEmpty) return const [];
+    final total = animals.length;
+    final start = (_currentPage * _itemsPerPage).clamp(0, total);
+    final end = (start + _itemsPerPage).clamp(0, total);
+    return animals.sublist(start.toInt(), end.toInt());
   }
 
   WeightCategoryFilter _selectedCategoryFilter() {
@@ -628,6 +454,112 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
       style: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.bold,
         color: accent ?? theme.colorScheme.onSurface,
+      ),
+    );
+  }
+
+  Widget _buildAnimalWeightTile(BuildContext context, Animal animal) {
+    final theme = Theme.of(context);
+    final weightRange = _getIdealWeightRange(animal);
+    final isUnderweight = animal.weight < weightRange['min']!;
+    final isOverweight = animal.weight > weightRange['max']!;
+    final ageInMonths = _getAgeInMonths(animal.birthDate);
+
+    Color statusColor = theme.colorScheme.tertiary;
+    IconData statusIcon = Icons.check_circle;
+    String statusText = 'Normal';
+
+    if (isUnderweight) {
+      statusColor = theme.colorScheme.error;
+      statusIcon = Icons.trending_down;
+      statusText = 'Abaixo do peso';
+    } else if (isOverweight) {
+      statusColor = theme.colorScheme.secondary;
+      statusIcon = Icons.trending_up;
+      statusText = 'Acima do peso';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              animal.speciesIcon,
+              style: const TextStyle(fontSize: 24),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildAnimalLabel(theme, animal),
+                Text('${animal.breed} • ${animal.gender}'),
+                Text('Idade: $ageInMonths meses'),
+                Text(
+                  'Faixa ideal: ${weightRange['min']!.toStringAsFixed(1)} - ${weightRange['max']!.toStringAsFixed(1)} kg',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _showWeightEditDialog(animal),
+            tooltip: 'Editar peso',
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${animal.weight} kg',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 14, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

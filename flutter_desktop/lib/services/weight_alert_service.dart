@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 
 import '../data/weight_alert_repository.dart';
@@ -7,7 +10,18 @@ import '../models/weight_alert.dart';
 class WeightAlertService extends ChangeNotifier {
   final WeightAlertRepository _repository;
 
+  final List<WeightAlert> _pendingAlerts = [];
+  bool _isLoadingPending = false;
+  bool _hasLoadedPending = false;
+  int _lastHorizonDays = 30;
+  bool _pendingReloadQueued = false;
+
   WeightAlertService(this._repository);
+
+  UnmodifiableListView<WeightAlert> get pendingAlerts =>
+      UnmodifiableListView(_pendingAlerts);
+  bool get isLoadingPending => _isLoadingPending;
+  bool get hasLoadedPending => _hasLoadedPending;
 
   /// Cria alertas de pesagem para borregos (30, 60, 90, 120 dias após nascimento)
   Future<void> createLambWeightAlerts(Animal animal) async {
@@ -57,6 +71,7 @@ class WeightAlertService extends ChangeNotifier {
     await _repository.replaceAlerts(animalId, alerts);
 
     debugPrint('Criados alertas de pesagem para borrego ${animal.name}');
+    await _refreshPendingCache();
     notifyListeners();
   }
 
@@ -82,6 +97,7 @@ class WeightAlertService extends ChangeNotifier {
 
     await _repository.insertAlert(nextAlert);
     debugPrint('Criado alerta mensal para $animalId');
+    await _refreshPendingCache();
     notifyListeners();
   }
 
@@ -102,12 +118,14 @@ class WeightAlertService extends ChangeNotifier {
   /// Marca alerta como completo
   Future<void> completeAlert(String alertId) async {
     await _repository.markCompleted(alertId);
+    await _refreshPendingCache();
     notifyListeners();
   }
 
   /// Busca alertas pendentes (não completados e dentro do horizonte)
   Future<List<WeightAlert>> getPendingAlerts({int horizonDays = 30}) async {
-    return _repository.getPendingAlerts(horizonDays);
+    await loadPending(horizonDays: horizonDays);
+    return List<WeightAlert>.unmodifiable(_pendingAlerts);
   }
 
   /// Busca alertas de um animal específico
@@ -118,6 +136,39 @@ class WeightAlertService extends ChangeNotifier {
   /// Remove todos os alertas de um animal
   Future<void> deleteAnimalAlerts(String animalId) async {
     await _repository.deleteAnimalAlerts(animalId);
+    await _refreshPendingCache();
     notifyListeners();
+  }
+
+  Future<void> loadPending({int? horizonDays}) async {
+    final target = horizonDays ?? _lastHorizonDays;
+    _lastHorizonDays = target;
+    if (_isLoadingPending) {
+      _pendingReloadQueued = true;
+      return;
+    }
+    _isLoadingPending = true;
+    notifyListeners();
+    try {
+      final data = await _repository.getPendingAlerts(target);
+      _pendingAlerts
+        ..clear()
+        ..addAll(data);
+      _hasLoadedPending = true;
+    } catch (e) {
+      debugPrint('Erro ao carregar alertas de pesagem: $e');
+    } finally {
+      _isLoadingPending = false;
+      notifyListeners();
+      if (_pendingReloadQueued) {
+        _pendingReloadQueued = false;
+        await loadPending(horizonDays: _lastHorizonDays);
+      }
+    }
+  }
+
+  Future<void> _refreshPendingCache() async {
+    if (!_hasLoadedPending) return;
+    await loadPending(horizonDays: _lastHorizonDays);
   }
 }

@@ -9,8 +9,58 @@ class NoteRepository {
 
   NoteRepository(this._db);
 
-  /// Retorna todas as notas, ordenadas da mais recente para a mais antiga.
-  Future<List<Map<String, dynamic>>> getAll() async {
+  /// Retorna notas com filtros opcionais e paginação.
+  Future<List<Map<String, dynamic>>> fetchFiltered({
+    String? category,
+    String? priority,
+    bool? unreadOnly,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    final filters = <String>[];
+    final args = <dynamic>[];
+
+    if (category != null && category.isNotEmpty) {
+      filters.add('n.category = ?');
+      args.add(category);
+    }
+
+    if (priority != null && priority.isNotEmpty) {
+      filters.add('n.priority = ?');
+      args.add(priority);
+    }
+
+    if (unreadOnly == true) {
+      filters.add('(n.is_read = 0 OR n.is_read IS NULL)');
+    }
+
+    if (startDate != null) {
+      filters.add('date(n.date) >= date(?)');
+      args.add(startDate.toIso8601String().split('T').first);
+    }
+
+    if (endDate != null) {
+      filters.add('date(n.date) <= date(?)');
+      args.add(endDate.toIso8601String().split('T').first);
+    }
+
+    if (searchTerm != null && searchTerm.trim().isNotEmpty) {
+      final like = '%${searchTerm.trim().toLowerCase()}%';
+      filters.add('('
+          'LOWER(n.title) LIKE ? OR '
+          'LOWER(n.content) LIKE ? OR '
+          'LOWER(n.created_by) LIKE ? OR '
+          'LOWER(a.name) LIKE ? OR '
+          'LOWER(a.code) LIKE ?)');
+      args.addAll([like, like, like, like, like]);
+    }
+
+    final whereClause =
+        filters.isNotEmpty ? 'WHERE ${filters.join(' AND ')}' : '';
+
     final rows = await _db.db.rawQuery('''
       SELECT 
         n.*,
@@ -19,8 +69,11 @@ class NoteRepository {
         a.name_color AS animal_color
       FROM notes n
       LEFT JOIN animals a ON a.id = n.animal_id
+      $whereClause
       ORDER BY n.date DESC, n.created_at DESC
-    ''');
+      LIMIT ? OFFSET ?
+    ''', [...args, limit, offset]);
+
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 

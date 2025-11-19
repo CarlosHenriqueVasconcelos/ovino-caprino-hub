@@ -5,9 +5,37 @@ import 'package:provider/provider.dart';
 
 import '../services/breeding_service.dart';
 
-class ReproAlertsCard extends StatelessWidget {
+class ReproAlertsCard extends StatefulWidget {
   final int daysAhead;
   const ReproAlertsCard({super.key, this.daysAhead = 30});
+
+  @override
+  State<ReproAlertsCard> createState() => _ReproAlertsCardState();
+}
+
+class _ReproAlertsCardState extends State<ReproAlertsCard> {
+  @override
+  void initState() {
+    super.initState();
+    _scheduleLoad();
+  }
+
+  @override
+  void didUpdateWidget(covariant ReproAlertsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.daysAhead != widget.daysAhead) {
+      _scheduleLoad(force: true);
+    }
+  }
+
+  void _scheduleLoad({bool force = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<BreedingService>()
+          .loadBoardData(daysAhead: widget.daysAhead, force: force);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,11 +46,13 @@ class ReproAlertsCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: FutureBuilder<ReproBoardData>(
-          future:
-              context.read<BreedingService>().getBoard(daysAhead: daysAhead),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
+        child: Consumer<BreedingService>(
+          builder: (context, service, _) {
+            final data = service.boardData;
+            final error = service.boardError;
+            final isLoading = service.isBoardLoading && data == null;
+
+            if (isLoading) {
               return _Header(
                 title: 'Reprodução — Alertas',
                 subtitle: 'Carregando…',
@@ -35,16 +65,25 @@ class ReproAlertsCard extends StatelessWidget {
                 ),
               );
             }
-            if (snap.hasError) {
+
+            if (error != null && data == null) {
               return _Header(
                 title: 'Reprodução — Alertas',
-                subtitle: 'Erro: ${snap.error}',
+                subtitle: 'Erro: $error',
                 icon: Icons.pets,
                 color: theme.colorScheme.error,
               );
             }
 
-            final data = snap.data!;
+            if (data == null) {
+              return _Header(
+                title: 'Reprodução — Alertas',
+                subtitle: 'Sem dados disponíveis',
+                icon: Icons.pets,
+                color: theme.colorScheme.primary,
+              );
+            }
+
             final none = data.separacoes.isEmpty &&
                 data.ultrassons.isEmpty &&
                 data.partos.isEmpty;
@@ -54,7 +93,7 @@ class ReproAlertsCard extends StatelessWidget {
               children: [
                 _Header(
                   title: 'Reprodução — Alertas',
-                  subtitle: 'Próximos $daysAhead dias',
+                  subtitle: 'Próximos ${widget.daysAhead} dias',
                   icon: Icons.pets,
                   color: theme.colorScheme.primary,
                   trailing: data.overdueTotal > 0

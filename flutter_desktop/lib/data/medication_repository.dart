@@ -101,59 +101,190 @@ class MedicationRepository {
   }
 
   /// Retorna medicações com informações do animal (join)
-  Future<List<Map<String, dynamic>>> getAllWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
+  Future<List<Map<String, dynamic>>> getAllWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(m.date, m.next_date))",
+    );
+
+    final rows = await _db.db.rawQuery('''
       SELECT 
         m.*,
         a.name as animal_name,
         a.code as animal_code,
-        a.name_color as animal_color
+        a.name_color as animal_color,
+        a.species as animal_species,
+        a.category as animal_category
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
+      ${filters.isNotEmpty ? 'WHERE ${filters.join(' AND ')}' : ''}
       ORDER BY m.date DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(m.date, m.next_date))",
+    );
+    final whereClause = StringBuffer(
+      "m.status = 'Agendado' AND date(COALESCE(m.date, m.next_date)) < date('now')",
+    );
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT m.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
-      WHERE m.status = 'Agendado'
-        AND date(COALESCE(m.date, m.next_date)) < date('now')
+      WHERE ${whereClause.toString()}
       ORDER BY date(COALESCE(m.date, m.next_date)) ASC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(m.date, m.next_date))",
+    );
+    final whereClause = StringBuffer(
+      "m.status = 'Agendado' AND date(COALESCE(m.date, m.next_date)) >= date('now')",
+    );
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT m.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
-      WHERE m.status = 'Agendado'
-        AND date(COALESCE(m.date, m.next_date)) >= date('now')
+      WHERE ${whereClause.toString()}
       ORDER BY date(COALESCE(m.date, m.next_date)) ASC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(m.applied_date, m.date))",
+    );
+    final whereClause = StringBuffer("m.status = 'Aplicado'");
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT m.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
-      WHERE m.status = 'Aplicado'
+      WHERE ${whereClause.toString()}
       ORDER BY date(COALESCE(m.applied_date, m.date)) DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT m.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(m.date, m.next_date))",
+    );
+    final whereClause = StringBuffer("m.status = 'Cancelado'");
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT m.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
-      WHERE m.status = 'Cancelado'
+      WHERE ${whereClause.toString()}
       ORDER BY date(COALESCE(m.date, m.next_date)) DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   /// Retorna medicações relacionadas a um item do estoque
@@ -165,5 +296,74 @@ class MedicationRepository {
       whereArgs: [stockId],
       orderBy: 'date DESC',
     );
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingAlertsWithin(
+      DateTime horizon) async {
+    final limit = horizon.toIso8601String().split('T').first;
+    return await _db.db.rawQuery('''
+      SELECT 
+        m.*, 
+        a.name AS animal_name, 
+        a.code AS animal_code, 
+        a.name_color AS animal_color,
+        COALESCE(m.next_date, m.date) AS due_date
+      FROM medications m
+      LEFT JOIN animals a ON a.id = m.animal_id
+      WHERE m.status NOT IN ('Aplicado', 'Cancelado')
+        AND date(COALESCE(m.next_date, m.date)) <= date(?)
+      ORDER BY date(COALESCE(m.next_date, m.date)) ASC
+    ''', [limit]);
+  }
+
+  List<String> _buildFilters(
+    List<dynamic> args, {
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    required String dateColumn,
+  }) {
+    final filters = <String>[];
+
+    if (species != null && species.isNotEmpty) {
+      filters.add(
+        "LOWER(COALESCE(m.species, a.species, '')) = ?",
+      );
+      args.add(species.toLowerCase());
+    }
+
+    if (category != null && category.isNotEmpty) {
+      filters.add(
+        "LOWER(COALESCE(m.category, a.category, '')) = ?",
+      );
+      args.add(category.toLowerCase());
+    }
+
+    if (searchTerm != null && searchTerm.trim().isNotEmpty) {
+      final like = '%${searchTerm.trim().toLowerCase()}%';
+      filters.add(
+        '('
+        "LOWER(COALESCE(a.name, '')) LIKE ? OR "
+        "LOWER(COALESCE(a.code, '')) LIKE ? OR "
+        "LOWER(COALESCE(m.medication_name, '')) LIKE ? OR "
+        "LOWER(COALESCE(m.notes, '')) LIKE ?"
+        ')',
+      );
+      args.addAll([like, like, like, like]);
+    }
+
+    if (startDate != null) {
+      filters.add('$dateColumn >= date(?)');
+      args.add(startDate.toIso8601String().split('T').first);
+    }
+
+    if (endDate != null) {
+      filters.add('$dateColumn <= date(?)');
+      args.add(endDate.toIso8601String().split('T').first);
+    }
+
+    return filters;
   }
 }

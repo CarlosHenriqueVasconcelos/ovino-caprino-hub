@@ -1,0 +1,115 @@
+import 'package:flutter/material.dart';
+
+class NotesFiltersBar extends StatelessWidget {
+  final TextEditingController? searchController;
+  final ValueChanged<String> onSearchChanged;
+  final List<String> categoryOptions;
+  final String selectedCategory;
+  final ValueChanged<String> onCategoryChanged;
+  final List<String> priorityOptions;
+  final String selectedPriority;
+  final ValueChanged<String> onPriorityChanged;
+  final bool showOnlyUnread;
+  final ValueChanged<bool> onShowOnlyUnreadChanged;
+
+  const NotesFiltersBar({
+    super.key,
+    this.searchController,
+    required this.onSearchChanged,
+    required this.categoryOptions,
+    required this.selectedCategory,
+    required this.onCategoryChanged,
+    required this.priorityOptions,
+    required this.selectedPriority,
+    required this.onPriorityChanged,
+    required this.showOnlyUnread,
+    required this.onShowOnlyUnreadChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      elevation: 2,
+      color: theme.colorScheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            SizedBox(
+              width: 260,
+              child: TextField(
+                controller: searchController,
+                decoration: const InputDecoration(
+                  labelText: 'Buscar anotações',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                onChanged: onSearchChanged,
+              ),
+            ),
+            SizedBox(
+              width: 180,
+              child: DropdownButtonFormField<String>(
+                value: selectedCategory,
+                isDense: true,
+                decoration: const InputDecoration(
+                  labelText: 'Categoria',
+                  border: OutlineInputBorder(),
+                ),
+                items: categoryOptions
+                    .map(
+                      (category) => DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) onCategoryChanged(value);
+                },
+              ),
+            ),
+            SizedBox(
+              width: 160,
+              child: DropdownButtonFormField<String>(
+                value: selectedPriority,
+                isDense: true,
+                decoration: const InputDecoration(
+                  labelText: 'Prioridade',
+                  border: OutlineInputBorder(),
+                ),
+                items: priorityOptions
+                    .map(
+                      (priority) => DropdownMenuItem(
+                        value: priority,
+                        child: Text(priority),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) onPriorityChanged(value);
+                },
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(
+                  value: showOnlyUnread,
+                  onChanged: onShowOnlyUnreadChanged,
+                ),
+                const Text('Mostrar apenas não lidas'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

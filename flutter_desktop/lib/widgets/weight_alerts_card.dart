@@ -1,11 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/weight_alert_service.dart';
+
 import '../models/weight_alert.dart';
+import '../services/weight_alert_service.dart';
 import '../utils/animal_record_display.dart';
 
-class WeightAlertsCard extends StatelessWidget {
+class WeightAlertsCard extends StatefulWidget {
   const WeightAlertsCard({super.key});
+
+  @override
+  State<WeightAlertsCard> createState() => _WeightAlertsCardState();
+}
+
+class _WeightAlertsCardState extends State<WeightAlertsCard> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<WeightAlertService>().loadPending();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,130 +28,133 @@ class WeightAlertsCard extends StatelessWidget {
 
     return Consumer<WeightAlertService>(
       builder: (context, weightAlertService, _) {
-        return FutureBuilder<List<WeightAlert>>(
-          future: weightAlertService.getPendingAlerts(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              );
-            }
+        final alerts = weightAlertService.pendingAlerts;
 
-            final weighingAlerts = snapshot.data!;
+        if (!weightAlertService.hasLoadedPending) {
+          return _buildLoadingCard();
+        }
 
-            if (weighingAlerts.isEmpty) {
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.monitor_weight,
-                            size: 28,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Alertas de Pesagem',
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 48,
-                              color: theme.colorScheme.tertiary,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Todas as pesagens em dia!',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.tertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
+        if (alerts.isEmpty) {
+          return _buildEmptyState(theme);
+        }
 
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.monitor_weight,
-                          size: 28,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Alertas de Pesagem',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${weighingAlerts.length} pendente${weighingAlerts.length != 1 ? 's' : ''}',
-                            style: TextStyle(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      Icons.monitor_weight,
+                      size: 28,
+                      color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(height: 16),
-                    ...weighingAlerts.take(5).map(
-                          (alert) => _buildAlertItem(theme, alert),
-                        ),
-                    if (weighingAlerts.length > 5) ...[
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          'e mais ${weighingAlerts.length - 5} alertas...',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Alertas de Pesagem',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${alerts.length} pendente${alerts.length != 1 ? 's' : ''}',
+                        style: TextStyle(
+                          color: theme.colorScheme.error,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 16),
+                ...alerts.take(5).map(
+                      (alert) => _buildAlertItem(theme, alert),
+                    ),
+                if (alerts.length > 5) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'e mais ${alerts.length - 5} alertas...',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildLoadingCard() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.monitor_weight,
+                  size: 28,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Alertas de Pesagem',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 48,
+                    color: theme.colorScheme.tertiary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Todas as pesagens em dia!',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.tertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -5,6 +5,9 @@ import '../services/animal_service.dart';
 import '../services/weight_service.dart';
 import '../models/animal.dart';
 import '../utils/animal_record_display.dart';
+import 'weight_tracking/weight_tracking_filters_bar.dart';
+import 'weight_tracking/weight_tracking_pagination_bar.dart';
+import 'weight_tracking/weight_tracking_table.dart';
 
 class AdultWeightTracking extends StatefulWidget {
   const AdultWeightTracking({super.key});
@@ -82,39 +85,24 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             ),
             const SizedBox(height: 24),
 
-            // Search Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar animal adulto',
-                    hintText: 'Digite o nome ou código do animal...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                                _searchQuery = '';
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                      _currentPage = 0; // Reset para primeira página ao buscar
-                    });
-                  },
-                ),
-              ),
+            WeightTrackingFiltersBar(
+              searchController: _searchController,
+              searchLabel: 'Pesquisar animal adulto',
+              searchHint: 'Digite o nome ou código do animal...',
+              onSearchChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                  _currentPage = 0;
+                });
+              },
+              onClearSearch: () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _currentPage = 0;
+                });
+              },
+              dropdowns: const [],
             ),
             const SizedBox(height: 24),
 
@@ -122,6 +110,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             Consumer<AnimalService>(
               builder: (context, animalService, _) {
                 final adults = _getFilteredAdults(animalService.animals);
+                final paginatedAdults = _paginatedAdults(adults);
+                final totalPages =
+                    (adults.length / _itemsPerPage).ceil().clamp(1, 9999);
 
                 return Card(
                   child: Padding(
@@ -147,10 +138,24 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        if (adults.isEmpty)
-                          _buildEmptyState(theme)
-                        else
-                          _buildAdultsList(theme, adults),
+                        WeightTrackingTable<Animal>(
+                          items: paginatedAdults,
+                          mode: WeightTrackingTableMode.list,
+                          itemBuilder: (context, adult) =>
+                              _buildAdultCard(context, adult),
+                          emptyState: _buildEmptyState(context),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 16),
+                        ),
+                        const SizedBox(height: 24),
+                        WeightTrackingPaginationBar(
+                          currentPage: _currentPage,
+                          totalPages: totalPages,
+                          itemsPerPage: _itemsPerPage,
+                          onPageChanged: (page) {
+                            setState(() => _currentPage = page);
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -194,7 +199,16 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
     return adults;
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
+  List<Animal> _paginatedAdults(List<Animal> adults) {
+    if (adults.isEmpty) return const [];
+    final total = adults.length;
+    final start = (_currentPage * _itemsPerPage).clamp(0, total);
+    final end = (start + _itemsPerPage).clamp(0, total);
+    return adults.sublist(start.toInt(), end.toInt());
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(48),
@@ -228,57 +242,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
     );
   }
 
-  Widget _buildAdultsList(ThemeData theme, List<Animal> adults) {
-    final totalPages = (adults.length / _itemsPerPage).ceil();
-    final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage).clamp(0, adults.length);
-    final paginatedAdults = adults.sublist(startIndex, endIndex);
-
-    return Column(
-      children: [
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: paginatedAdults.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 16),
-          itemBuilder: (context, index) {
-            final adult = paginatedAdults[index];
-            return _buildAdultCard(theme, adult);
-          },
-        ),
-        if (totalPages > 1) ...[
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                'Página ${_currentPage + 1} de $totalPages',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _currentPage < totalPages - 1
-                    ? () => setState(() => _currentPage++)
-                    : null,
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildAdultCard(ThemeData theme, Animal adult) {
+  Widget _buildAdultCard(BuildContext context, Animal adult) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

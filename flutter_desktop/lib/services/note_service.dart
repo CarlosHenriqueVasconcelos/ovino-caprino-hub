@@ -11,10 +11,21 @@ class NoteService extends ChangeNotifier {
 
   NoteService(this._repository);
 
-  /// Retorna todas as notas, ordenadas da mais recente para a mais antiga.
-  Future<List<Map<String, dynamic>>> getNotes() async {
+  /// Retorna notas filtradas/paginadas.
+  Future<List<Map<String, dynamic>>> getNotes({
+    NoteQueryOptions options = const NoteQueryOptions(),
+  }) async {
     try {
-      return await _repository.getAll();
+      return await _repository.fetchFiltered(
+        category: options.category,
+        priority: options.priority,
+        unreadOnly: options.unreadOnly,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
+      );
     } catch (e, stack) {
       debugPrint('Erro ao carregar anotações: $e');
       debugPrint(stack.toString());
@@ -76,4 +87,27 @@ class NoteService extends ChangeNotifier {
       rethrow;
     }
   }
+}
+
+/// Define filtros opcionais para buscas de anotações.
+class NoteQueryOptions {
+  final String? category;
+  final String? priority;
+  final bool? unreadOnly;
+  final String? searchTerm;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final int limit;
+  final int offset;
+
+  const NoteQueryOptions({
+    this.category,
+    this.priority,
+    this.unreadOnly,
+    this.searchTerm,
+    this.startDate,
+    this.endDate,
+    this.limit = 200,
+    this.offset = 0,
+  });
 }

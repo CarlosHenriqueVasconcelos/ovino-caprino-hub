@@ -11,10 +11,9 @@ class AnimalRepository {
   // ----------------- CRUD básico de animals -----------------
 
   Future<List<Animal>> all() async {
-    // Se preferir por nome/cor, pode trocar o orderBy.
     final rows = await _db.db.query(
       'animals',
-      orderBy: 'created_at DESC',
+      orderBy: 'name COLLATE NOCASE',
     );
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
@@ -440,6 +439,34 @@ class AnimalRepository {
     return await _db.db.query(
       'deceased_animals',
       orderBy: 'death_date DESC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> findIdentityConflicts({
+    required List<String> candidateNamesLower,
+    required String colorLower,
+    String? excludeId,
+  }) async {
+    if (candidateNamesLower.isEmpty) return [];
+
+    final placeholders =
+        List.filled(candidateNamesLower.length, '?').join(', ');
+    final whereBuffer = StringBuffer()
+      ..write('LOWER(name_color) = ? AND LOWER(name) IN (')
+      ..write(placeholders)
+      ..write(')');
+    final args = <dynamic>[colorLower, ...candidateNamesLower];
+
+    if (excludeId != null) {
+      whereBuffer.write(' AND id <> ?');
+      args.add(excludeId);
+    }
+
+    return await _db.db.query(
+      'animals',
+      columns: ['id', 'name', 'name_color', 'category', 'lote'],
+      where: whereBuffer.toString(),
+      whereArgs: args,
     );
   }
 }

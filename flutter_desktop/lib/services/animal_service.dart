@@ -3,10 +3,14 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 
-import '../data/local_db.dart'; // AppDatabase
+import '../data/animal_lifecycle_repository.dart';
+import '../data/animal_repository.dart';
+import '../data/medication_repository.dart';
+import '../data/vaccination_repository.dart';
 import '../models/animal.dart'; // Animal e AnimalStats
 import '../models/alert_item.dart'; // AlertItem
 import '../utils/animal_display_utils.dart';
+import 'animal/animal_stats_calculator.dart';
 import 'deceased_hooks.dart'; // handleAnimalDeathIfApplicable
 import 'weight_alert_service.dart'; // WeightAlertService
 
@@ -15,18 +19,25 @@ enum WeightCategoryFilter { all, juveniles, adults, reproducers }
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
   final List<Animal> _animals = [];
+  int _animalsVersion = 0;
   AnimalStats? _stats;
   bool _loading = false;
+  Timer? _alertsDebounceTimer;
+  Timer? _statsDebounceTimer;
 
   // Painel de alertas (vacinas + medicações + pesagens)
   final List<AlertItem> _alerts = [];
 
   // DB e serviço de alertas de peso
-  final AppDatabase _appDb;
+  final AnimalRepository _animalRepository;
+  final AnimalLifecycleRepository _animalLifecycleRepository;
+  final VaccinationRepository _vaccinationRepository;
+  final MedicationRepository _medicationRepository;
   final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
   UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
+  int get animalsVersion => _animalsVersion;
   AnimalStats? get stats => _stats;
   bool get isLoading => _loading;
 
@@ -34,11 +45,14 @@ class AnimalService extends ChangeNotifier {
   UnmodifiableListView<AlertItem> get alerts => UnmodifiableListView(_alerts);
 
   // ----------------- Construtor -----------------
-  /// Recebe o AppDatabase já aberto (injeção de dependência)
-  /// e inicializa o WeightAlertService com o mesmo DB.
-  ///
-  /// Também agenda o carregamento inicial dos dados.
-  AnimalService(this._appDb, this._weightAlertService) {
+  /// Agenda o carregamento inicial dos dados e recebe todas as dependências.
+  AnimalService(
+    this._animalRepository,
+    this._animalLifecycleRepository,
+    this._vaccinationRepository,
+    this._medicationRepository,
+    this._weightAlertService,
+  ) {
     scheduleMicrotask(() => loadData());
   }
 
@@ -48,20 +62,17 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
     try {
       // Carrega animais
-      final rows = await _appDb.db.query(
-        'animals',
-        orderBy: 'name COLLATE NOCASE',
-      );
-      final list = rows.map((m) => Animal.fromMap(m)).toList();
+      final list = await _animalRepository.all();
       _animals
         ..clear()
         ..addAll(list);
+      _markAnimalsChanged();
 
       // Estatísticas
-      await _refreshStatsSafe();
+      await _scheduleStatsRefresh(immediate: true);
 
       // Atualiza o painel de alertas (Vacinas + Medicações + Pesagens)
-      await refreshAlerts();
+      await refreshAlerts(immediate: true);
     } catch (e) {
       debugPrint('Error loading data: $e');
     } finally {
@@ -71,12 +82,15 @@ class AnimalService extends ChangeNotifier {
   }
 
   // ----------------- Métodos auxiliares -----------------
+  void _markAnimalsChanged() {
+    _animalsVersion++;
+  }
+
   Future<List<Animal>> getAllAnimals() async {
-    final rows = await _appDb.db.query(
-      'animals',
-      orderBy: 'name COLLATE NOCASE',
-    );
-    return rows.map((m) => Animal.fromMap(m)).toList();
+    if (_animals.isEmpty && !_loading) {
+      await loadData();
+    }
+    return List<Animal>.unmodifiable(_animals);
   }
 
   // ----------------- CRUD: Animal -----------------
@@ -97,20 +111,18 @@ class AnimalService extends ChangeNotifier {
       map['year'] = a.birthDate.year;
     }
 
-    // Nova regra de validação de unicidade
-    await _validateUniqueness(map, isUpdate: false);
-
-    await _appDb.db.insert('animals', map);
-
     final saved = Animal.fromMap(map);
+    await _validateUniqueness(saved, isUpdate: false);
+    await _animalRepository.upsert(saved);
     _animals.add(saved);
+    _markAnimalsChanged();
 
     // Cria alertas de pesagem se for borrego
     if (_isLambCategory(saved.category)) {
       await _weightAlertService.createLambWeightAlerts(saved);
     }
 
-    await _refreshStatsSafe();
+    await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
   }
@@ -135,44 +147,30 @@ class AnimalService extends ChangeNotifier {
 
   // Valida a unicidade de name + name_color segundo as novas regras
   Future<void> _validateUniqueness(
-    Map<String, dynamic> map, {
+    Animal animal, {
     required bool isUpdate,
   }) async {
-    final nameLc = (map['name'] ?? '').toString().toLowerCase();
+    final nameLc = animal.name.toLowerCase();
     final normalizedName = _normalizeNumber(nameLc);
-    final colorLc = (map['name_color'] ?? '').toString().toLowerCase();
-    final currentId = map['id']?.toString() ?? '';
-    final category = map['category']?.toString() ?? '';
-    final lote = map['lote']?.toString() ?? '';
+    final colorLc = animal.nameColor.toLowerCase();
+    final currentId = animal.id;
+    final category = animal.category;
+    final lote = animal.lote ?? '';
 
-    // Busca todos os animais (excluindo o próprio se for update)
-    final List<Map<String, dynamic>> allAnimals;
-    if (isUpdate) {
-      allAnimals = await _appDb.db.query(
-        'animals',
-        columns: ['id', 'name', 'name_color', 'category', 'lote'],
-        where: 'id <> ?',
-        whereArgs: [currentId],
-      );
-    } else {
-      allAnimals = await _appDb.db.query(
-        'animals',
-        columns: ['id', 'name', 'name_color', 'category', 'lote'],
-      );
-    }
-
-    // Filtrar animais que têm mesmo nome+cor (normalizados)
-    final existing = allAnimals.where((animal) {
-      final animalName = (animal['name'] ?? '').toString().toLowerCase();
-      final animalNormalized = _normalizeNumber(animalName);
-      final animalColor = (animal['name_color'] ?? '').toString().toLowerCase();
-      return animalNormalized == normalizedName && animalColor == colorLc;
-    }).toList();
+    final candidateNames = <String>{
+      nameLc,
+      normalizedName,
+    }.toList();
+    final existing =
+        await _animalRepository.findIdentityConflicts(
+      candidateNamesLower: candidateNames,
+      colorLower: colorLc,
+      excludeId: isUpdate ? currentId : null,
+    );
 
     final isLamb = _isLambCategory(category);
 
     if (isLamb) {
-      // Para borregos: permite até 2 com mesmo nome+cor no mesmo lote
       final sameNameColorLote = existing.where((e) {
         final isLambCat = _isLambCategory(e['category']?.toString());
         final sameLote = (e['lote']?.toString() ?? '') == lote;
@@ -188,18 +186,15 @@ class AnimalService extends ChangeNotifier {
         );
       }
 
-      // Verifica se existe uma mãe (adulto) com esse name + color
       final hasAdult =
           existing.any((e) => !_isLambCategory(e['category']?.toString()));
       if (!hasAdult) {
-        // Apenas loga aviso (não impede)
         debugPrint(
           '⚠️ Aviso: Registrando borrego sem mãe correspondente '
-          '(Nome: ${map['name']}, Cor: ${map['name_color']})',
+          '(Nome: ${animal.name}, Cor: ${animal.nameColor})',
         );
       }
     } else {
-      // É categoria adulta - verifica se já existe um adulto com esse name + color
       final hasAdult =
           existing.any((e) => !_isLambCategory(e['category']?.toString()));
       if (hasAdult) {
@@ -211,55 +206,47 @@ class AnimalService extends ChangeNotifier {
   Future<void> updateAnimal(Animal a) async {
     final map = a.toMap();
     map['updated_at'] = DateTime.now().toIso8601String();
+    final updated = Animal.fromMap(map);
 
-    // Nova validação de unicidade
-    await _validateUniqueness(map, isUpdate: true);
+    await _validateUniqueness(updated, isUpdate: true);
 
     // Verifica se o status foi alterado para "Óbito"
     final newStatus = map['status'] as String?;
     if (newStatus == 'Óbito') {
       // Move o animal para deceased_animals e remove da tabela principal.
       await handleAnimalDeathIfApplicable(
-        _appDb,
+        _animalLifecycleRepository,
         map['id'] as String,
         newStatus!,
       );
       // Remove da lista local
       _animals.removeWhere((x) => x.id == map['id']);
-      await _refreshStatsSafe();
+      _markAnimalsChanged();
+      await _scheduleStatsRefresh();
       await refreshAlerts();
       notifyListeners();
       return;
     }
 
-    await _appDb.db.update(
-      'animals',
-      map,
-      where: 'id = ?',
-      whereArgs: [map['id']],
-    );
-
-    final updated = Animal.fromMap(map);
+    await _animalRepository.upsert(updated);
     final i = _animals.indexWhere((x) => x.id == updated.id);
     if (i >= 0) {
       _animals[i] = updated;
+      _markAnimalsChanged();
     }
 
-    await _refreshStatsSafe();
+    await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
   }
 
   Future<void> deleteAnimal(String id) async {
-    await _appDb.db.delete(
-      'animals',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await _animalRepository.delete(id);
 
     _animals.removeWhere((x) => x.id == id);
+    _markAnimalsChanged();
 
-    await _refreshStatsSafe();
+    await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
   }
@@ -272,9 +259,10 @@ class AnimalService extends ChangeNotifier {
     final index = _animals.indexWhere((animal) => animal.id == id);
     if (index == -1) return;
     _animals.removeAt(index);
+    _markAnimalsChanged();
 
     if (refreshStats) {
-      await _refreshStatsSafe();
+      await _scheduleStatsRefresh();
     }
 
     if (refreshAlertsData) {
@@ -350,14 +338,9 @@ class AnimalService extends ChangeNotifier {
         map = Map<String, dynamic>.from(_animals[idx].toMap());
       } else {
         // fallback: busca direto no DB
-        final rows = await _appDb.db.query(
-          'animals',
-          where: 'id = ?',
-          whereArgs: [animalId],
-          limit: 1,
-        );
-        if (rows.isEmpty) return;
-        map = Map<String, dynamic>.from(rows.first);
+        final fetched = await _animalRepository.getAnimalById(animalId);
+        if (fetched == null) return;
+        map = Map<String, dynamic>.from(fetched.toMap());
       }
 
       map['pregnant'] = 1;
@@ -392,14 +375,9 @@ class AnimalService extends ChangeNotifier {
         map = Map<String, dynamic>.from(_animals[idx].toMap());
       } else {
         // fallback: busca direto no DB
-        final rows = await _appDb.db.query(
-          'animals',
-          where: 'id = ?',
-          whereArgs: [animalId],
-          limit: 1,
-        );
-        if (rows.isEmpty) return;
-        map = Map<String, dynamic>.from(rows.first);
+        final fetched = await _animalRepository.getAnimalById(animalId);
+        if (fetched == null) return;
+        map = Map<String, dynamic>.from(fetched.toMap());
       }
 
       map['pregnant'] = 0;
@@ -421,7 +399,24 @@ class AnimalService extends ChangeNotifier {
   // ----------------- Alertas (Vacinas + Medicações + Pesagens) -----------------
   /// Recalcula o painel de alertas olhando até [horizonDays] dias à frente.
   /// Inclui itens vencidos (overdue) e os que estão dentro do horizonte.
-  Future<void> refreshAlerts({int horizonDays = 14}) async {
+  Future<void> refreshAlerts({
+    int horizonDays = 14,
+    bool immediate = false,
+  }) async {
+    if (immediate) {
+      _alertsDebounceTimer?.cancel();
+      await _performAlertsRefresh(horizonDays: horizonDays);
+      return;
+    }
+
+    _alertsDebounceTimer?.cancel();
+    _alertsDebounceTimer = Timer(
+      const Duration(milliseconds: 400),
+      () => refreshAlerts(horizonDays: horizonDays, immediate: true),
+    );
+  }
+
+  Future<void> _performAlertsRefresh({int horizonDays = 14}) async {
     try {
       final now = DateTime.now();
       final horizon = now.add(Duration(days: horizonDays));
@@ -429,23 +424,16 @@ class AnimalService extends ChangeNotifier {
       final List<AlertItem> next = [];
       final animalsById = {for (final a in _animals) a.id: a};
 
-      // VACINAÇÕES (status != Aplicada/Cancelada)
       try {
-        final vacs = await _appDb.db.query('vaccinations');
+        final vacs =
+            await _vaccinationRepository.getPendingAlertsWithin(horizon);
         for (final row in vacs) {
-          final status = (row['status'] ?? 'Agendada').toString();
-          if (status == 'Aplicada' || status == 'Cancelada') continue;
-
-          final dateStr = row['scheduled_date']?.toString();
-          if (dateStr == null || dateStr.isEmpty) continue;
-
-          final due = DateTime.tryParse(dateStr);
-          if (due == null) continue;
-          if (due.isAfter(horizon)) continue; // mantemos vencidas + próximas
-
           final animalId = (row['animal_id'] ?? '').toString();
           final animal = animalsById[animalId];
           if (animal == null) continue;
+
+          final due = _parseDate(row['scheduled_date']);
+          if (due == null) continue;
 
           next.add(
             AlertItem(
@@ -463,24 +451,17 @@ class AnimalService extends ChangeNotifier {
         debugPrint('Erro carregando vacinações: $e');
       }
 
-      // MEDICAÇÕES (usa next_date como "próxima dose")
       try {
-        final meds = await _appDb.db.query('medications');
+        final meds =
+            await _medicationRepository.getPendingAlertsWithin(horizon);
         for (final row in meds) {
-          // Respeitar status se existir (Agendado/Aplicado/Cancelado)
-          final mstatus = (row['status'] ?? 'Agendado').toString();
-          if (mstatus == 'Aplicado' || mstatus == 'Cancelado') continue;
-
-          final nextStr = row['next_date']?.toString();
-          if (nextStr == null || nextStr.isEmpty) continue;
-
-          final due = DateTime.tryParse(nextStr);
-          if (due == null) continue;
-          if (due.isAfter(horizon)) continue;
-
           final animalId = (row['animal_id'] ?? '').toString();
           final animal = animalsById[animalId];
           if (animal == null) continue;
+
+          final due =
+              _parseDate(row['due_date'] ?? row['next_date'] ?? row['date']);
+          if (due == null) continue;
 
           next.add(
             AlertItem(
@@ -498,19 +479,12 @@ class AnimalService extends ChangeNotifier {
         debugPrint('Erro carregando medicações: $e');
       }
 
-      // PESAGENS (weight_alerts)
       try {
-        final weighings = await _appDb.db.query(
-          'weight_alerts',
-          where: 'completed = 0',
-        );
+        final weighings =
+            await _weightAlertService.getPendingWeightAlerts(horizon);
         for (final row in weighings) {
-          final dateStr = row['due_date']?.toString();
-          if (dateStr == null || dateStr.isEmpty) continue;
-
-          final due = DateTime.tryParse(dateStr);
-          if (due == null) continue;
-          if (due.isAfter(horizon)) continue;
+          final due = _parseDate(row['due_date']);
+          if (due == null || due.isAfter(horizon)) continue;
 
           final animalId = (row['animal_id'] ?? '').toString();
           final animal = animalsById[animalId];
@@ -549,7 +523,6 @@ class AnimalService extends ChangeNotifier {
         debugPrint('Erro carregando alertas de pesagem: $e');
       }
 
-      // Ordena por data e publica
       next.sort((a, b) => a.dueDate.compareTo(b.dueDate));
       _alerts
         ..clear()
@@ -562,97 +535,25 @@ class AnimalService extends ChangeNotifier {
   }
 
   // ----------------- Estatísticas -----------------
+  Future<void> _scheduleStatsRefresh({bool immediate = false}) async {
+    if (immediate) {
+      _statsDebounceTimer?.cancel();
+      await _refreshStatsSafe();
+      return;
+    }
+
+    _statsDebounceTimer?.cancel();
+    _statsDebounceTimer = Timer(
+      const Duration(milliseconds: 400),
+      () {
+        _scheduleStatsRefresh(immediate: true);
+      },
+    );
+  }
+
   Future<void> _refreshStatsSafe() async {
     try {
-      Future<int> countRows(String sql, [List<Object?>? args]) async {
-        final r = await _appDb.db.rawQuery(sql, args);
-        if (r.isEmpty) return 0;
-        final v = r.first.values.first;
-        if (v == null) return 0;
-        if (v is int) return v;
-        if (v is num) return v.toInt();
-        return int.tryParse(v.toString()) ?? 0;
-      }
-
-      Future<double> scalarDouble(String sql, [List<Object?>? args]) async {
-        final r = await _appDb.db.rawQuery(sql, args);
-        if (r.isEmpty) return 0.0;
-        final v = r.first.values.first;
-        if (v == null) return 0.0;
-        if (v is double) return v;
-        if (v is num) return v.toDouble();
-        return double.tryParse(v.toString()) ?? 0.0;
-      }
-
-      final totalAnimals = await countRows('SELECT COUNT(*) FROM animals');
-      final healthy = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE status = ?',
-        ['Saudável'],
-      );
-      final pregnant = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE pregnant = 1',
-      );
-      final underTreatment = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE status = ?',
-        ['Em tratamento'],
-      );
-      final maleReproducers = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
-        ['Reprodutor', 'Macho'],
-      );
-      final maleLambs = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
-        ['Borrego', 'Macho'],
-      );
-      final femaleLambs = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
-        ['Borrego', 'Fêmea'],
-      );
-      final femaleReproducers = await countRows(
-        'SELECT COUNT(*) FROM animals WHERE category = ? AND gender = ?',
-        ['Reprodutor', 'Fêmea'],
-      );
-
-      final revenue = await scalarDouble(
-        'SELECT SUM(amount) FROM financial_records WHERE type = ?',
-        ['receita'],
-      );
-
-      final avgWeight = await scalarDouble(
-        'SELECT AVG(weight) FROM animals',
-      );
-
-      // Mês atual YYYY-MM (sem dependência extra)
-      final now = DateTime.now();
-      final ym =
-          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
-
-      final vaccinesThisMonth = await countRows(
-        "SELECT COUNT(*) FROM vaccinations "
-        "WHERE substr(COALESCE(applied_date, scheduled_date),1,7) = ?",
-        [ym],
-      );
-
-      final birthsThisMonth = await countRows(
-        "SELECT COUNT(*) FROM animals "
-        "WHERE expected_delivery IS NOT NULL AND substr(expected_delivery,1,7) = ?",
-        [ym],
-      );
-
-      _stats = AnimalStats.fromMap({
-        'totalAnimals': totalAnimals,
-        'healthy': healthy,
-        'pregnant': pregnant,
-        'underTreatment': underTreatment,
-        'maleReproducers': maleReproducers,
-        'maleLambs': maleLambs,
-        'femaleLambs': femaleLambs,
-        'femaleReproducers': femaleReproducers,
-        'revenue': revenue,
-        'avgWeight': avgWeight,
-        'vaccinesThisMonth': vaccinesThisMonth,
-        'birthsThisMonth': birthsThisMonth,
-      });
+      _stats = await AnimalStatsCalculator(_animalRepository).calculate();
     } catch (e) {
       debugPrint('Erro ao atualizar stats: $e');
     }
@@ -667,5 +568,21 @@ class AnimalService extends ChangeNotifier {
   int _ageInMonths(DateTime birthDate, DateTime reference) {
     return (reference.year - birthDate.year) * 12 +
         (reference.month - birthDate.month);
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+  
+  @override
+  void dispose() {
+    _alertsDebounceTimer?.cancel();
+    _statsDebounceTimer?.cancel();
+    super.dispose();
   }
 }

@@ -4,10 +4,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 
 import '../services/reports_service.dart';
+import '../services/reports_controller.dart';
 import '../utils/animal_record_display.dart';
 import '../utils/labels_ptbr.dart';
+
+import 'reports/reports_chart_area.dart';
+import 'reports/reports_empty_state.dart';
+import 'reports/reports_export_bar.dart';
+import 'reports/reports_filter_panel.dart';
+import 'reports/reports_models.dart';
+import 'reports/reports_summary_cards_row.dart';
+import 'reports/reports_table_area.dart';
+import 'reports/reports_view_switcher.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});
@@ -51,6 +62,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   // Report data
   Map<String, dynamic>? _reportData;
   bool _isLoading = false;
+  ReportViewMode _viewMode = ReportViewMode.table;
 
   // Sorting & Pagination
   String _sortKey = '';
@@ -104,7 +116,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     });
 
     _loadReport();
-  }
+  } 
 
   @override
   void dispose() {
@@ -180,32 +192,12 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 : null,
       );
 
-      Map<String, dynamic> data;
-      switch (_reportTypes[_tabController.index]) {
-        case 'Animais':
-          data = await ReportsService.getAnimalsReport(filters);
-          break;
-        case 'Pesos':
-          data = await ReportsService.getWeightsReport(filters);
-          break;
-        case 'Vacinações':
-          data = await ReportsService.getVaccinationsReport(filters);
-          break;
-        case 'Medicações':
-          data = await ReportsService.getMedicationsReport(filters);
-          break;
-        case 'Reprodução':
-          data = await ReportsService.getBreedingReport(filters);
-          break;
-        case 'Financeiro':
-          data = await ReportsService.getFinancialReport(filters);
-          break;
-        case 'Anotações':
-          data = await ReportsService.getNotesReport(filters);
-          break;
-        default:
-          data = {'summary': {}, 'data': []};
-      }
+      final reportType = _reportTypes[_tabController.index];
+      final reportsController = context.read<ReportsController>();
+      final data = await reportsController.generateReport(
+        reportType,
+        filters,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -220,6 +212,37 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       );
     }
   }
+
+  Future<void> _selectCustomStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customStart,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _customStart = picked);
+    }
+  }
+
+  Future<void> _selectCustomEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _customEnd,
+      firstDate: _customStart,
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _customEnd = picked);
+    }
+  }
+
+  void _applyCustomRange() {
+    setState(() => _periodPreset = 'custom');
+    _loadReport();
+  }
+
+  String get _currentReportType => _reportTypes[_tabController.index];
 
   Future<bool?> _showFinancePinDialog() async {
     String input = '';
@@ -315,16 +338,15 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         return;
       }
 
-      final keys = (data.first as Map<String, dynamic>).keys.toList();
+      final keys = data.first.keys.toList();
       final headers = keys
           .map(ptBrHeader)
           .map((h) => h.contains(',') ? '"$h"' : h)
           .join(',');
 
       final rows = data.map((row) {
-        final r = row as Map<String, dynamic>;
         return keys.map((k) {
-          final v = r[k];
+          final v = row[k];
           final str = _csvCell(v, key: k);
           return str.contains(',') ? '"$str"' : str;
         }).join(',');
@@ -389,8 +411,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         },
       };
 
-      // ✅ Agora usa o ReportsService para registrar o relatório
-      await ReportsService.saveGeneratedReport(
+      final reportsController = context.read<ReportsController>();
+      await reportsController.saveReport(
         title: title,
         reportType: reportType,
         parameters: parameters,
@@ -409,7 +431,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     }
   }
 
-  List<dynamic> _getSortedData() {
+  List<Map<String, dynamic>> _getSortedData() {
     if (_reportData == null || _reportData!['data'] == null) {
       return [];
     }
@@ -436,11 +458,48 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     return data;
   }
 
-  List<dynamic> _getPaginatedData() {
+  List<Map<String, dynamic>> _getPaginatedData() {
     final sorted = _getSortedData();
-    final start = _currentPage * _pageSize;
+    if (sorted.isEmpty) return const [];
+    final start = (_currentPage * _pageSize).clamp(0, sorted.length);
     final end = (start + _pageSize).clamp(0, sorted.length);
-    return sorted.sublist(start.clamp(0, sorted.length), end);
+    final safeStart = start.toInt();
+    final safeEnd = end.toInt();
+    return sorted.sublist(safeStart, safeEnd);
+  }
+
+  List<ReportChartPoint> _buildChartPoints() {
+    final chartData = _reportData?['chart'];
+    if (chartData is List) {
+      return chartData.map((item) {
+        final map = Map<String, dynamic>.from(item as Map);
+        return ReportChartPoint(
+          label: map['label']?.toString() ?? '',
+          value: (map['value'] is num)
+              ? (map['value'] as num).toDouble()
+              : double.tryParse(map['value']?.toString() ?? '0') ?? 0,
+          date: map['date'] != null
+              ? DateTime.tryParse(map['date'].toString())
+              : null,
+        );
+      }).toList();
+    }
+
+    final summary = _reportData?['summary'];
+    if (summary is Map) {
+      return summary.entries.map((entry) {
+        final value = entry.value;
+        final doubleValue = value is num
+            ? value.toDouble()
+            : double.tryParse(value?.toString() ?? '0') ?? 0;
+        return ReportChartPoint(
+          label: ptBrHeader(entry.key),
+          value: doubleValue,
+        );
+      }).toList();
+    }
+
+    return const [];
   }
 
   void _handleSort(String key) {
@@ -454,6 +513,11 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     });
   }
 
+  void _changeViewMode(ReportViewMode mode) {
+    if (_viewMode == mode) return;
+    setState(() => _viewMode = mode);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -461,18 +525,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hub de Relatórios e Análises'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Exportar CSV',
-            onPressed: _exportCSV,
-          ),
-          IconButton(
-            icon: const Icon(Icons.save),
-            tooltip: 'Salvar Relatório',
-            onPressed: _saveReport,
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -500,8 +552,70 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             tabs: _reportTypes.map((type) => Tab(text: type)).toList(),
           ),
 
-          // Filters
-          _buildFiltersSection(theme),
+          ReportsFilterPanel(
+            theme: theme,
+            currentReport: _currentReportType,
+            periodPreset: _periodPreset,
+            customStart: _customStart,
+            customEnd: _customEnd,
+            onPeriodPresetChanged: (value) {
+              setState(() => _periodPreset = value);
+              if (value != 'custom') _loadReport();
+            },
+            onSelectCustomStart: _selectCustomStartDate,
+            onSelectCustomEnd: _selectCustomEndDate,
+            onApplyCustomRange: _applyCustomRange,
+            speciesFilter: _speciesFilter,
+            onSpeciesChanged: (value) {
+              setState(() => _speciesFilter = value);
+              _loadReport();
+            },
+            genderFilter: _genderFilter,
+            onGenderChanged: (value) {
+              setState(() => _genderFilter = value);
+              _loadReport();
+            },
+            statusFilter: _statusFilter,
+            onStatusChanged: (value) {
+              setState(() => _statusFilter = value);
+              _loadReport();
+            },
+            medicationStatusFilter: _medicationStatusFilter,
+            onMedicationStatusChanged: (value) {
+              setState(() => _medicationStatusFilter = value);
+              _loadReport();
+            },
+            breedingStageFilter: _breedingStageFilter,
+            onBreedingStageChanged: (value) {
+              setState(() => _breedingStageFilter = value);
+              _loadReport();
+            },
+            financialTypeFilter: _financialTypeFilter,
+            onFinancialTypeChanged: (value) {
+              setState(() => _financialTypeFilter = value);
+              _loadReport();
+            },
+            notesIsReadFilter: _notesIsReadFilter,
+            onNotesReadChanged: (value) {
+              setState(() => _notesIsReadFilter = value);
+              _loadReport();
+            },
+            notesPriorityFilter: _notesPriorityFilter,
+            onNotesPriorityChanged: (value) {
+              setState(() => _notesPriorityFilter = value);
+              _loadReport();
+            },
+          ),
+
+          ReportsExportBar(
+            onExportCsv: _exportCSV,
+            onSaveReport: _saveReport,
+          ),
+
+          ReportsViewSwitcher(
+            mode: _viewMode,
+            onChanged: _changeViewMode,
+          ),
 
           // Content
           Expanded(
@@ -512,7 +626,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                 : TabBarView(
                     controller: _tabController,
                     children: _reportTypes
-                        .map((_) => _buildReportContent(theme))
+                        .map((_) => _buildCurrentView(theme))
                         .toList(),
                   ),
           ),
@@ -521,517 +635,71 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     );
   }
 
-  Widget _buildFiltersSection(ThemeData theme) {
-    return Container(
-      color: theme.colorScheme.surface,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Filtros', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-
-          // Period filters
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _periodPreset,
-                  decoration: const InputDecoration(
-                    labelText: 'Período',
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'last7',
-                      child: Text('Últimos 7 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'last30',
-                      child: Text('Últimos 30 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'last90',
-                      child: Text('Últimos 90 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'currentMonth',
-                      child: Text('Mês atual'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'currentYear',
-                      child: Text('Ano atual'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'custom',
-                      child: Text('Customizado'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _periodPreset = value!;
-                      _currentPage = 0;
-                    });
-                    _loadReport();
-                  },
-                ),
-              ),
-              if (_periodPreset == 'custom') ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        locale: const Locale('pt', 'BR'),
-                        initialDate: _customStart,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() => _customStart = date);
-                        _loadReport();
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data Inicial',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      child: Text(
-                        DateFormat('dd/MM/yyyy').format(_customStart),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        locale: const Locale('pt', 'BR'),
-                        initialDate: _customEnd,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() => _customEnd = date);
-                        _loadReport();
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data Final',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      child: Text(
-                        DateFormat('dd/MM/yyyy').format(_customEnd),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Contextual filters
-          _buildContextualFilters(theme),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContextualFilters(ThemeData theme) {
-    final currentReport = _reportTypes[_tabController.index];
-
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        if (currentReport == 'Animais') ...[
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _speciesFilter,
-              decoration: const InputDecoration(
-                labelText: 'Espécie',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Ovino', child: Text('Ovino')),
-                DropdownMenuItem(value: 'Caprino', child: Text('Caprino')),
-              ],
-              onChanged: (v) {
-                setState(() => _speciesFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _genderFilter,
-              decoration: const InputDecoration(
-                labelText: 'Gênero',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Macho', child: Text('Macho')),
-                DropdownMenuItem(value: 'Fêmea', child: Text('Fêmea')),
-              ],
-              onChanged: (v) {
-                setState(() => _genderFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _statusFilter,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(
-                  value: 'Saudável',
-                  child: Text('Saudável'),
-                ),
-                DropdownMenuItem(
-                  value: 'Em tratamento',
-                  child: Text('Em tratamento'),
-                ),
-                DropdownMenuItem(
-                  value: 'Reprodutor',
-                  child: Text('Reprodutor'),
-                ),
-              ],
-              onChanged: (v) {
-                setState(() => _statusFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-        if (currentReport == 'Vacinações') ...[
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _statusFilter,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Agendada', child: Text('Agendada')),
-                DropdownMenuItem(value: 'Aplicada', child: Text('Aplicada')),
-                DropdownMenuItem(value: 'Cancelada', child: Text('Cancelada')),
-              ],
-              onChanged: (v) {
-                setState(() => _statusFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-        if (currentReport == 'Medicações') ...[
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _medicationStatusFilter,
-              decoration: const InputDecoration(
-                labelText: 'Status',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Agendado', child: Text('Agendado')),
-                DropdownMenuItem(value: 'Aplicado', child: Text('Aplicado')),
-                DropdownMenuItem(value: 'Cancelado', child: Text('Cancelado')),
-              ],
-              onChanged: (v) {
-                setState(() => _medicationStatusFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-        if (currentReport == 'Reprodução') ...[
-          SizedBox(
-            width: 220,
-            child: DropdownButtonFormField<String>(
-              value: _breedingStageFilter,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Estágio',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(
-                  value: 'encabritamento',
-                  child: Text('Encabritamento'),
-                ),
-                DropdownMenuItem(
-                  value: 'separacao',
-                  child: Text('Separação'),
-                ),
-                DropdownMenuItem(
-                  value: 'aguardando_ultrassom',
-                  child: Text('Aguardando Ultrassom'),
-                ),
-                DropdownMenuItem(
-                  value: 'gestacao_confirmada',
-                  child: Text('Gestação Confirmada'),
-                ),
-                DropdownMenuItem(
-                  value: 'parto_realizado',
-                  child: Text('Parto Realizado'),
-                ),
-                DropdownMenuItem(value: 'falhou', child: Text('Falhou')),
-              ],
-              onChanged: (v) {
-                setState(() => _breedingStageFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-        if (currentReport == 'Financeiro') ...[
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _financialTypeFilter,
-              decoration: const InputDecoration(
-                labelText: 'Tipo',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'receita', child: Text('Receita')),
-                DropdownMenuItem(value: 'despesa', child: Text('Despesa')),
-              ],
-              onChanged: (v) {
-                setState(() => _financialTypeFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-        if (currentReport == 'Anotações') ...[
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _notesIsReadFilter,
-              decoration: const InputDecoration(
-                labelText: 'Leitura',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Lidas', child: Text('Lidas')),
-                DropdownMenuItem(
-                  value: 'Não lidas',
-                  child: Text('Não lidas'),
-                ),
-              ],
-              onChanged: (v) {
-                setState(() => _notesIsReadFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 200,
-            child: DropdownButtonFormField<String>(
-              value: _notesPriorityFilter,
-              decoration: const InputDecoration(
-                labelText: 'Prioridade',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                DropdownMenuItem(value: 'Alta', child: Text('Alta')),
-                DropdownMenuItem(value: 'Média', child: Text('Média')),
-                DropdownMenuItem(value: 'Baixa', child: Text('Baixa')),
-              ],
-              onChanged: (v) {
-                setState(() => _notesPriorityFilter = v!);
-                _loadReport();
-              },
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildReportContent(ThemeData theme) {
-    if (_reportTypes[_tabController.index] == 'Financeiro' &&
-        !_financialUnlocked) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.lock, size: 64, color: theme.colorScheme.primary),
-            const SizedBox(height: 16),
-            Text(
-              'Relatórios Financeiros Bloqueados',
-              style: theme.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            const Text('Clique na aba novamente para inserir a senha'),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _showFinancePinDialog,
-              icon: const Icon(Icons.lock_open),
-              label: const Text('Desbloquear'),
-            ),
-          ],
-        ),
-      );
+  Widget _buildCurrentView(ThemeData theme) {
+    if (_currentReportType == 'Financeiro' && !_financialUnlocked) {
+      return ReportsEmptyState.locked(onUnlock: _showFinancePinDialog);
     }
 
     if (_reportData == null) {
-      return const Center(child: Text('Nenhum dado disponível'));
-    }
-
-    return Column(
-      children: [
-        _buildKPIs(theme),
-        const Divider(),
-        Expanded(child: _buildTable(theme)),
-        _buildPagination(theme),
-      ],
-    );
-  }
-
-  Widget _buildKPIs(ThemeData theme) {
-    if (_reportData == null || _reportData!['summary'] == null) {
-      return const SizedBox.shrink();
-    }
-
-    final summary = Map<String, dynamic>.from(_reportData!['summary'] as Map);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 16,
-        children: summary.entries.map((entry) {
-          final value = entry.value;
-          String displayValue;
-
-          if (value is num &&
-              (entry.key.contains('revenue') ||
-                  entry.key.contains('expense') ||
-                  entry.key.contains('balance') ||
-                  entry.key.contains('amount'))) {
-            displayValue = 'R\$ ${value.toStringAsFixed(2)}';
-          } else if (value is double) {
-            displayValue = value.toStringAsFixed(2);
-          } else {
-            displayValue = value.toString();
-          }
-
-          return Card(
-            child: Container(
-              width: 180,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Text(
-                    ptBrHeader(entry.key).toUpperCase(),
-                    style: theme.textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    displayValue,
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildTable(ThemeData theme) {
-    final paginatedData = _getPaginatedData();
-
-    if (paginatedData.isEmpty) {
-      return const Center(
-        child: Text(
-          'Nenhum dado encontrado para o período selecionado',
-        ),
+      return const ReportsEmptyState(
+        message: 'Selecione um período para visualizar os relatórios.',
       );
     }
 
-    final columns = (paginatedData.first as Map<String, dynamic>)
-        .keys
-        .where((k) => k != 'animal_color')
-        .toList();
+    final summary =
+        Map<String, dynamic>.from(_reportData?['summary'] ?? const {});
+    final rows = _getPaginatedData();
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          sortColumnIndex: _sortKey.isEmpty ? null : columns.indexOf(_sortKey),
-          sortAscending: _sortAsc,
-          columns: columns
-              .map(
-                (col) => DataColumn(
-                  label: Text(ptBrHeader(col)),
-                  onSort: (_, __) => _handleSort(col),
-                ),
-              )
-              .toList(),
-          rows: paginatedData.map((row) {
-            final r = row as Map<String, dynamic>;
-            return DataRow(
-              cells:
-                  columns.map((col) => _buildDataCell(r, col, theme)).toList(),
-            );
-          }).toList(),
+    switch (_viewMode) {
+      case ReportViewMode.summary:
+        if (summary.isEmpty) {
+          return const ReportsEmptyState(
+            message: 'Sem dados para exibir o resumo.',
+          );
+        }
+        return ReportsSummaryCardsRow(summary: summary, theme: theme);
+      case ReportViewMode.chart:
+        final points = _buildChartPoints();
+        if (points.isEmpty) {
+          return const ReportsEmptyState(
+            message: 'Sem dados suficientes para gerar gráficos.',
+          );
+        }
+        return ReportsChartArea(points: points);
+      case ReportViewMode.table:
+      default:
+        return _buildTableView(theme, rows);
+    }
+  }
+
+  Widget _buildTableView(
+    ThemeData theme,
+    List<Map<String, dynamic>> rows,
+  ) {
+    if (rows.isEmpty) {
+      return const ReportsEmptyState(
+        message: 'Nenhum dado encontrado para os filtros selecionados.',
+      );
+    }
+
+    final columns =
+        rows.first.keys.where((k) => k != 'animal_color').toList();
+
+    return Column(
+      children: [
+        Expanded(
+          child: ReportsTableArea(
+            theme: theme,
+            columns: columns,
+            rows: rows,
+            sortKey: _sortKey,
+            sortAscending: _sortAsc,
+            onSort: _handleSort,
+            cellBuilder: (row, key) => _buildDataCell(row, key, theme),
+          ),
         ),
-      ),
+        _buildPagination(theme),
+      ],
     );
   }
 
@@ -1154,11 +822,4 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       ),
     );
   }
-}
-
-// Tipo já usado no seu ReportsService
-class DateRange {
-  final DateTime startDate;
-  final DateTime endDate;
-  DateRange({required this.startDate, required this.endDate});
 }

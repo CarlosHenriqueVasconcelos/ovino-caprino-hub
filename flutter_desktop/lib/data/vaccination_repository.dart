@@ -101,58 +101,257 @@ class VaccinationRepository {
   }
 
   /// Retorna vacinações com informações do animal (join)
-  Future<List<Map<String, dynamic>>> getAllWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
+  Future<List<Map<String, dynamic>>> getAllWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: 'date(v.scheduled_date)',
+    );
+
+    final rows = await _db.db.rawQuery('''
       SELECT 
         v.*,
         a.name as animal_name,
         a.code as animal_code,
-        a.name_color as animal_color
+        a.name_color as animal_color,
+        a.species as animal_species,
+        a.category as animal_category
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
+      ${filters.isNotEmpty ? 'WHERE ${filters.join(' AND ')}' : ''}
       ORDER BY v.scheduled_date DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getOverdueWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: 'date(v.scheduled_date)',
+    );
+    final whereClause = StringBuffer(
+      "v.status = 'Agendada' AND date(v.scheduled_date) < date('now')",
+    );
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT v.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
-      WHERE v.status = 'Agendada'
-        AND date(v.scheduled_date) < date('now')
+      WHERE ${whereClause.toString()}
       ORDER BY v.scheduled_date ASC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getScheduledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: 'date(v.scheduled_date)',
+    );
+    final whereClause = StringBuffer(
+      "v.status = 'Agendada' AND date(v.scheduled_date) >= date('now')",
+    );
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT v.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
-      WHERE v.status = 'Agendada'
-        AND date(v.scheduled_date) >= date('now')
+      WHERE ${whereClause.toString()}
       ORDER BY v.scheduled_date ASC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getAppliedWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: "date(COALESCE(v.applied_date, v.scheduled_date))",
+    );
+    final whereClause = StringBuffer("v.status = 'Aplicada'");
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT v.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
-      WHERE v.status = 'Aplicada'
+      WHERE ${whereClause.toString()}
       ORDER BY date(COALESCE(v.applied_date, v.scheduled_date)) DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo() async {
-    return await _db.db.rawQuery('''
-      SELECT v.*, a.name AS animal_name, a.code AS animal_code, a.name_color AS animal_color
+  Future<List<Map<String, dynamic>>> getCancelledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final args = <dynamic>[];
+    final filters = _buildFilters(
+      args,
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      dateColumn: 'date(v.scheduled_date)',
+    );
+    final whereClause = StringBuffer("v.status = 'Cancelada'");
+    if (filters.isNotEmpty) {
+      whereClause.write(' AND ${filters.join(' AND ')}');
+    }
+
+    final rows = await _db.db.rawQuery('''
+      SELECT v.*, 
+             a.name AS animal_name, 
+             a.code AS animal_code, 
+             a.name_color AS animal_color,
+             a.species AS animal_species,
+             a.category AS animal_category
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
-      WHERE v.status = 'Cancelada'
+      WHERE ${whereClause.toString()}
       ORDER BY date(v.scheduled_date) DESC
-    ''');
+    ''', args);
+    return rows.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingAlertsWithin(
+      DateTime horizon) async {
+    final limit = horizon.toIso8601String().split('T').first;
+    return await _db.db.rawQuery('''
+      SELECT 
+        v.*, 
+        a.name AS animal_name, 
+        a.code AS animal_code, 
+        a.name_color AS animal_color
+      FROM vaccinations v
+      LEFT JOIN animals a ON a.id = v.animal_id
+      WHERE v.status NOT IN ('Aplicada', 'Cancelada')
+        AND date(v.scheduled_date) <= date(?)
+      ORDER BY v.scheduled_date ASC
+    ''', [limit]);
+  }
+
+  List<String> _buildFilters(
+    List<dynamic> args, {
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    required String dateColumn,
+  }) {
+    final filters = <String>[];
+
+    if (species != null && species.isNotEmpty) {
+      filters.add(
+        "LOWER(COALESCE(v.species, a.species, '')) = ?",
+      );
+      args.add(species.toLowerCase());
+    }
+
+    if (category != null && category.isNotEmpty) {
+      filters.add(
+        "LOWER(COALESCE(v.category, a.category, '')) = ?",
+      );
+      args.add(category.toLowerCase());
+    }
+
+    if (searchTerm != null && searchTerm.trim().isNotEmpty) {
+      final like = '%${searchTerm.trim().toLowerCase()}%';
+      filters.add(
+        '('
+        "LOWER(COALESCE(a.name, '')) LIKE ? OR "
+        "LOWER(COALESCE(a.code, '')) LIKE ? OR "
+        "LOWER(COALESCE(v.vaccine_name, '')) LIKE ? OR "
+        "LOWER(COALESCE(v.notes, '')) LIKE ?"
+        ')',
+      );
+      args.addAll([like, like, like, like]);
+    }
+
+    if (startDate != null) {
+      filters.add('$dateColumn >= date(?)');
+      args.add(startDate.toIso8601String().split('T').first);
+    }
+
+    if (endDate != null) {
+      filters.add('$dateColumn <= date(?)');
+      args.add(endDate.toIso8601String().split('T').first);
+    }
+
+    return filters;
   }
 }

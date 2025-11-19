@@ -50,6 +50,16 @@ class BreedingService extends ChangeNotifier {
 
   BreedingService(this._repository, this._animalRepository);
 
+  ReproBoardData? _boardCache;
+  bool _isBoardLoading = false;
+  int _boardDaysAhead = 30;
+  Object? _boardError;
+
+  ReproBoardData? get boardData => _boardCache;
+  bool get isBoardLoading => _isBoardLoading;
+  Object? get boardError => _boardError;
+  int get boardDaysAhead => _boardDaysAhead;
+
   // ========================
   // Helpers internos
   // ========================
@@ -109,6 +119,33 @@ class BreedingService extends ChangeNotifier {
     }).toList();
   }
 
+  Future<void> loadBoardData({int? daysAhead, bool force = false}) async {
+    final target = daysAhead ?? _boardDaysAhead;
+    final shouldSkip =
+        !force && _boardCache != null && target == _boardDaysAhead;
+    if (_isBoardLoading) return;
+    if (shouldSkip) return;
+
+    _boardDaysAhead = target;
+    _isBoardLoading = true;
+    _boardError = null;
+    notifyListeners();
+    try {
+      _boardCache = await getBoard(daysAhead: target);
+    } catch (e) {
+      _boardError = e;
+      debugPrint('Erro ao carregar quadro de reprodução: $e');
+    } finally {
+      _isBoardLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void _invalidateBoardCache() {
+    _boardCache = null;
+    _boardError = null;
+  }
+
   // ===================================
   // CRIAÇÃO / ATUALIZAÇÃO
   // ===================================
@@ -165,6 +202,7 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.insert(record);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
@@ -249,6 +287,7 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.update(updated);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
@@ -269,6 +308,7 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.update(updated);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
@@ -287,6 +327,7 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.update(updated);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
@@ -500,6 +541,7 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.update(updated);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
@@ -541,12 +583,14 @@ class BreedingService extends ChangeNotifier {
     );
 
     await _repository.update(updated);
+    _invalidateBoardCache();
     notifyListeners();
   }
 
   /// Remove completamente o registro de reprodução.
   Future<void> cancelarRegistro(String breedingId) async {
     await _repository.delete(breedingId);
+    _invalidateBoardCache();
     notifyListeners();
   }
 }
