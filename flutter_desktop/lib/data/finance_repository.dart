@@ -170,7 +170,7 @@ class FinanceRepository {
     final maps = await _db.db.rawQuery('''
       SELECT * FROM financial_accounts
       WHERE status = 'Pendente'
-      AND date(due_date) < date('now')
+      AND due_date < date('now')
       ORDER BY due_date ASC
     ''');
     return maps.map((m) => FinancialAccount.fromMap(m)).toList();
@@ -180,12 +180,12 @@ class FinanceRepository {
     final todayStr = _dateStr(today);
     await _db.db.rawUpdate(
       "UPDATE financial_accounts SET status = 'Vencido' "
-      "WHERE status = 'Pendente' AND date(due_date) < date(?)",
+      "WHERE status = 'Pendente' AND due_date < ?",
       [todayStr],
     );
     await _db.db.rawUpdate(
       "UPDATE financial_accounts SET status = 'Pendente' "
-      "WHERE status = 'Vencido' AND date(due_date) >= date(?)",
+      "WHERE status = 'Vencido' AND due_date >= ?",
       [todayStr],
     );
   }
@@ -210,13 +210,13 @@ class FinanceRepository {
 
     double totalUpcoming = await sumQuery(
       "SELECT SUM(amount) as total FROM financial_accounts "
-      "WHERE status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
+      "WHERE status = 'Pendente' AND due_date >= ? AND due_date <= ?",
       [todayStr, next7Str],
     );
 
     final countUpcomingRes = await _db.db.rawQuery(
       "SELECT COUNT(*) as c FROM financial_accounts "
-      "WHERE status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
+      "WHERE status = 'Pendente' AND due_date >= ? AND due_date <= ?",
       [todayStr, next7Str],
     );
     final countUpcoming = (countUpcomingRes.first['c'] as num?)?.toInt() ?? 0;
@@ -233,14 +233,14 @@ class FinanceRepository {
     final totalRevenue = await sumQuery(
       "SELECT SUM(amount) as total FROM financial_accounts "
       "WHERE status = 'Pago' AND type = 'receita' "
-      "AND date(payment_date) >= date(?) AND date(payment_date) <= date(?)",
+      "AND payment_date >= ? AND payment_date <= ?",
       [firstMonthStr, lastMonthStr],
     );
 
     final totalExpense = await sumQuery(
       "SELECT SUM(amount) as total FROM financial_accounts "
       "WHERE status = 'Pago' AND type = 'despesa' "
-      "AND date(payment_date) >= date(?) AND date(payment_date) <= date(?)",
+      "AND payment_date >= ? AND payment_date <= ?",
       [firstMonthStr, lastMonthStr],
     );
 
@@ -265,13 +265,12 @@ class FinanceRepository {
 
     final res = await _db.db.query(
       'financial_accounts',
-      where:
-          "status = 'Pendente' AND date(due_date) >= date(?) AND date(due_date) <= date(?)",
+      where: "status = 'Pendente' AND due_date >= ? AND due_date <= ?",
       whereArgs: [
         _dateStr(today),
         _dateStr(limit),
       ],
-      orderBy: 'date(due_date) ASC',
+      orderBy: 'due_date ASC',
     );
 
     return res.map(FinancialAccount.fromMap).toList();
@@ -281,7 +280,7 @@ class FinanceRepository {
     final res = await _db.db.query(
       'financial_accounts',
       where:
-          'is_recurring = ? AND parent_id IS NULL AND (recurrence_end_date IS NULL OR date(recurrence_end_date) >= date(?))',
+          'is_recurring = ? AND parent_id IS NULL AND (recurrence_end_date IS NULL OR recurrence_end_date >= ?)',
       whereArgs: [1, _dateStr(today)],
     );
     return res.map(FinancialAccount.fromMap).toList();
@@ -289,7 +288,7 @@ class FinanceRepository {
 
   Future<DateTime?> getLastChildDueDate(String parentId) async {
     final lastRow = await _db.db.rawQuery(
-      'SELECT MAX(date(due_date)) AS last FROM financial_accounts WHERE parent_id = ?',
+      'SELECT MAX(due_date) AS last FROM financial_accounts WHERE parent_id = ?',
       [parentId],
     );
     final String? lastStr = lastRow.first['last'] as String?;
@@ -299,7 +298,7 @@ class FinanceRepository {
   Future<bool> hasChildWithDueDate(String parentId, DateTime dueDate) async {
     final existing = await _db.db.query(
       'financial_accounts',
-      where: 'parent_id = ? AND date(due_date) = date(?)',
+      where: 'parent_id = ? AND due_date = ?',
       whereArgs: [parentId, _dateStr(dueDate)],
       limit: 1,
     );
@@ -310,7 +309,7 @@ class FinanceRepository {
     final res = await _db.db.query(
       'financial_accounts',
       where: 'is_recurring = 1 AND parent_id IS NULL',
-      orderBy: 'date(due_date) ASC',
+      orderBy: 'due_date ASC',
     );
     return res.map(FinancialAccount.fromMap).toList();
   }
@@ -335,7 +334,7 @@ class FinanceRepository {
   ) async {
     final res = await _db.db.rawQuery(
       'SELECT SUM(amount) as total FROM financial_accounts '
-      'WHERE type = ? AND date(due_date) >= date(?) AND date(due_date) < date(?)',
+      'WHERE type = ? AND due_date >= ? AND due_date < ?',
       [type, _dateStr(start), _dateStr(end)],
     );
     return (res.first['total'] as num?)?.toDouble() ?? 0.0;

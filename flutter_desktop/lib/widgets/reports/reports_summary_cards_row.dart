@@ -62,4 +62,3 @@ class ReportsSummaryCardsRow extends StatelessWidget {
     );
   }
 }
-

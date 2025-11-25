@@ -33,9 +33,13 @@ class FeedingService extends ChangeNotifier {
     try {
       _pens = await _repository.getAllPens();
 
-      // Carregar schedules para cada baia
+      final penIds = _pens.map((p) => p.id).toList();
+      final schedulesMap = await _repository.getSchedulesByPenIds(penIds);
+      _schedulesByPen
+        ..clear()
+        ..addAll(schedulesMap);
       for (final pen in _pens) {
-        _schedulesByPen[pen.id] = await _repository.getSchedulesByPenId(pen.id);
+        _schedulesByPen.putIfAbsent(pen.id, () => []);
       }
     } catch (e) {
       _error = 'Erro ao carregar baias: $e';

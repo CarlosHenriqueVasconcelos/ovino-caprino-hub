@@ -133,15 +133,20 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildMetricRow(theme, 'Nascimento', '3,5-7 kg', 'Peso inicial saudável'),
+                    _buildMetricRow(theme, 'Nascimento', '3,5-7 kg',
+                        'Peso inicial saudável'),
                     const Divider(),
-                    _buildMetricRow(theme, '30 dias', '10-15 kg', 'Ganho adequado'),
+                    _buildMetricRow(
+                        theme, '30 dias', '10-15 kg', 'Ganho adequado'),
                     const Divider(),
-                    _buildMetricRow(theme, '60 dias', '15-20 kg', 'Desenvolvimento normal'),
+                    _buildMetricRow(
+                        theme, '60 dias', '15-20 kg', 'Desenvolvimento normal'),
                     const Divider(),
-                    _buildMetricRow(theme, '90 dias', '20-40 kg', 'Crescimento ideal'),
+                    _buildMetricRow(
+                        theme, '90 dias', '20-40 kg', 'Crescimento ideal'),
                     const Divider(),
-                    _buildMetricRow(theme, '120 dias', '25-50 kg', 'Próximo à idade adulta'),
+                    _buildMetricRow(theme, '120 dias', '25-50 kg',
+                        'Próximo à idade adulta'),
                   ],
                 ),
               ),
@@ -152,7 +157,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             Consumer<AnimalService>(
               builder: (context, animalService, _) {
                 final lambs = _getFilteredLambs(animalService.animals);
-                
+
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
@@ -177,7 +182,6 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        
                         if (lambs.isEmpty)
                           _buildEmptyState(theme)
                         else
@@ -194,7 +198,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     );
   }
 
-  Widget _buildMetricRow(ThemeData theme, String period, String weight, String gain) {
+  Widget _buildMetricRow(
+      ThemeData theme, String period, String weight, String gain) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -250,19 +255,21 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     if (_searchQuery.isNotEmpty) {
       lambs = lambs.where((animal) {
         return animal.name.toLowerCase().contains(_searchQuery) ||
-               animal.code.toLowerCase().contains(_searchQuery);
+            animal.code.toLowerCase().contains(_searchQuery);
       }).toList();
     }
 
     // Ordenar por cor e depois por código numérico
     lambs.sort((a, b) {
-      final colorA = a.nameColor ?? '';
-      final colorB = b.nameColor ?? '';
+      final colorA = a.nameColor;
+      final colorB = b.nameColor;
       final colorCompare = colorA.compareTo(colorB);
       if (colorCompare != 0) return colorCompare;
-      
-      final numA = int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
-      final numB = int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
+
+      final numA =
+          int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
+      final numB =
+          int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
       return numA.compareTo(numB);
     });
 
@@ -282,7 +289,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             ),
             const SizedBox(height: 16),
             Text(
-              _searchQuery.isEmpty 
+              _searchQuery.isEmpty
                   ? 'Nenhum borrego cadastrado'
                   : 'Nenhum borrego encontrado',
               style: theme.textTheme.headlineSmall,
@@ -321,7 +328,6 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             return _buildLambCard(theme, lamb);
           },
         ),
-        
         if (totalPages > 1) ...[
           const SizedBox(height: 24),
           Row(
@@ -357,7 +363,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   Widget _buildLambCard(ThemeData theme, Animal lamb) {
     // Calcular idade em dias
     final ageInDays = DateTime.now().difference(lamb.birthDate).inDays;
-    
+
     // Verificar status do ganho de peso
     final weightStatus = _calculateWeightStatus(lamb, ageInDays);
 
@@ -412,34 +418,39 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // Weight Progress
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               children: [
-                _buildWeightField(theme, 'Nascimento', lamb.birthWeight, Colors.blue),
+                _buildWeightField(
+                    theme, 'Nascimento', lamb.birthWeight, Colors.blue),
                 const SizedBox(height: 12),
-                _buildWeightField(theme, '30 dias', lamb.weight30Days, Colors.green),
+                _buildWeightField(
+                    theme, '30 dias', lamb.weight30Days, Colors.green),
                 const SizedBox(height: 12),
-                _buildWeightField(theme, '60 dias', lamb.weight60Days, Colors.orange),
+                _buildWeightField(
+                    theme, '60 dias', lamb.weight60Days, Colors.orange),
                 const SizedBox(height: 12),
-                _buildWeightField(theme, '90 dias', lamb.weight90Days, Colors.purple),
+                _buildWeightField(
+                    theme, '90 dias', lamb.weight90Days, Colors.purple),
                 const SizedBox(height: 12),
                 FutureBuilder<double?>(
                   future: _getWeight120Days(lamb.id),
                   builder: (context, snapshot) {
-                    return _buildWeightField(theme, '120 dias', snapshot.data, Colors.teal);
+                    return _buildWeightField(
+                        theme, '120 dias', snapshot.data, Colors.teal);
                   },
                 ),
               ],
             ),
           ),
-          
+
           // Weight Status
           const SizedBox(height: 16),
           Container(
@@ -469,7 +480,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               ],
             ),
           ),
-          
+
           // Promote to Adult Button
           if (ageInDays >= 120)
             Padding(
@@ -492,7 +503,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     );
   }
 
-  Widget _buildWeightField(ThemeData theme, String period, double? weight, Color color) {
+  Widget _buildWeightField(
+      ThemeData theme, String period, double? weight, Color color) {
     return Row(
       children: [
         Container(
@@ -515,11 +527,13 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            weight != null ? '${weight.toStringAsFixed(1)} kg' : 'Não registrado',
+            weight != null
+                ? '${weight.toStringAsFixed(1)} kg'
+                : 'Não registrado',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: weight != null ? FontWeight.bold : FontWeight.normal,
-              color: weight != null 
-                  ? theme.colorScheme.onSurface 
+              color: weight != null
+                  ? theme.colorScheme.onSurface
                   : theme.colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
@@ -645,7 +659,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     if (mounted) {
       await Provider.of<AnimalService>(context, listen: false)
           .updateAnimal(updatedAnimal);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -695,20 +709,25 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Widget _buildAnimalNameText(Animal lamb, ThemeData theme) {
-    final colorKey = lamb.nameColor ?? '';
+    final colorKey = lamb.nameColor;
     final colorName = _getColorNameTranslated(colorKey);
     final colorValue = _getColorFromName(colorKey);
-    
+
     return RichText(
       text: TextSpan(
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        style:
+            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         children: [
-          TextSpan(text: '$colorName - ', style: const TextStyle(color: Colors.black)),
+          TextSpan(
+              text: '$colorName - ',
+              style: const TextStyle(color: Colors.black)),
           TextSpan(
             text: lamb.name,
             style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
           ),
-          TextSpan(text: ' (${lamb.code})', style: const TextStyle(color: Colors.black)),
+          TextSpan(
+              text: ' (${lamb.code})',
+              style: const TextStyle(color: Colors.black)),
         ],
       ),
     );
@@ -737,13 +756,14 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       // Tentar buscar do histórico de pesos
       final weightService = Provider.of<WeightService>(context, listen: false);
       final weightHistory = await weightService.getWeightHistory(lamb.id);
-      
+
       // Procurar por peso de nascimento ou o primeiro peso registrado
-      final birthRecord = weightHistory.where((w) => 
-        w['milestone']?.toString() == 'birth' || 
-        w['milestone']?.toString() == 'nascimento'
-      ).toList();
-      
+      final birthRecord = weightHistory
+          .where((w) =>
+              w['milestone']?.toString() == 'birth' ||
+              w['milestone']?.toString() == 'nascimento')
+          .toList();
+
       if (birthRecord.isNotEmpty) {
         initialBirthWeight = (birthRecord.first['weight'] as num?)?.toDouble();
       } else if (weightHistory.isNotEmpty) {
@@ -753,7 +773,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         initialBirthWeight = lamb.weight;
       }
     }
-    
+
     final birthWeightController = TextEditingController(
       text: initialBirthWeight?.toStringAsFixed(1) ?? '',
     );
@@ -766,7 +786,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     final weight90Controller = TextEditingController(
       text: lamb.weight90Days?.toStringAsFixed(1) ?? '',
     );
-    
+
     // Buscar peso de 120 dias existente
     final weight120 = await _getWeight120Days(lamb.id);
     final weight120Controller = TextEditingController(
@@ -775,6 +795,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
     if (!mounted) return;
 
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -783,7 +804,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildWeightInput('Peso ao Nascimento (kg)', birthWeightController),
+              _buildWeightInput(
+                  'Peso ao Nascimento (kg)', birthWeightController),
               const SizedBox(height: 16),
               _buildWeightInput('Peso aos 30 dias (kg)', weight30Controller),
               const SizedBox(height: 16),
@@ -802,7 +824,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final birthWeightValue = double.tryParse(birthWeightController.text);
+              final birthWeightValue =
+                  double.tryParse(birthWeightController.text);
               final weight30Value = double.tryParse(weight30Controller.text);
               final weight60Value = double.tryParse(weight60Controller.text);
               final weight90Value = double.tryParse(weight90Controller.text);
@@ -836,13 +859,14 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 updatedAt: DateTime.now(),
               );
 
-              await Provider.of<AnimalService>(context, listen: false)
-                  .updateAnimal(updatedLamb);
+              final animalService =
+                  Provider.of<AnimalService>(context, listen: false);
+              final weightService =
+                  Provider.of<WeightService>(context, listen: false);
+              await animalService.updateAnimal(updatedLamb);
 
               bool shouldShowEditDialog = false;
               if (weight120Value != null && weight120Value > 0) {
-                final weightService =
-                    Provider.of<WeightService>(context, listen: false);
                 await weightService.addWeight(
                   lamb.id,
                   DateTime.now(),
@@ -853,20 +877,20 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               }
 
               if (!mounted) return;
+              if (!dialogContext.mounted) return;
               Navigator.pop(dialogContext);
-              ScaffoldMessenger.of(context).showSnackBar(
+              scaffoldMessenger.showSnackBar(
                 const SnackBar(content: Text('Pesos atualizados com sucesso!')),
               );
 
-              if (shouldShowEditDialog && mounted) {
+              if (shouldShowEditDialog) {
                 await Future.delayed(const Duration(milliseconds: 300));
-                if (mounted) {
-                  final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
-                  showDialog(
-                    context: context,
-                    builder: (context) => AnimalFormDialog(animal: adultAnimal),
-                  );
-                }
+                if (!mounted) return;
+                final adultAnimal = updatedLamb.copyWith(category: 'Adulto');
+                showDialog(
+                  context: context,
+                  builder: (context) => AnimalFormDialog(animal: adultAnimal),
+                );
               }
             },
             child: const Text('Salvar'),

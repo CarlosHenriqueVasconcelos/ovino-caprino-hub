@@ -9,7 +9,7 @@ class SoldAnimalsRepository {
   Future<List<Animal>> fetchAll() async {
     final rows = await _db.db.query(
       'sold_animals',
-      orderBy: 'date(sale_date) DESC',
+      orderBy: 'sale_date DESC',
     );
 
     return rows.map(_mapRowToAnimal).toList();

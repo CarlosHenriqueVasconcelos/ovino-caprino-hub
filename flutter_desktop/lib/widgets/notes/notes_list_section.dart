@@ -28,8 +28,7 @@ class NotesListSection extends StatelessWidget {
         return _NoteCard(
           note: note,
           onTap: () => onViewDetails(note),
-          onMarkAsRead:
-              onMarkAsRead != null ? () => onMarkAsRead!(note) : null,
+          onMarkAsRead: onMarkAsRead != null ? () => onMarkAsRead!(note) : null,
           onDelete: onDelete,
         );
       },
@@ -193,8 +192,7 @@ class _NoteCard extends StatelessWidget {
                             child: Text(
                               animalLabel!,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: animalColor ??
-                                    theme.colorScheme.primary,
+                                color: animalColor ?? theme.colorScheme.primary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),

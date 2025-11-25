@@ -32,4 +32,3 @@ class ReportsExportBar extends StatelessWidget {
     );
   }
 }
-

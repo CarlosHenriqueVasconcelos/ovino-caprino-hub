@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../services/financial_service.dart';
 
 class FinancialCashFlowScreen extends StatefulWidget {
@@ -23,7 +24,8 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
   Future<void> _loadProjection() async {
     setState(() => _isLoading = true);
     try {
-      final projection = await FinancialService.getCashFlowProjection(6);
+      final projection =
+          await context.read<FinancialService>().getCashFlowProjection(6);
       setState(() {
         _projection = projection;
         _isLoading = false;

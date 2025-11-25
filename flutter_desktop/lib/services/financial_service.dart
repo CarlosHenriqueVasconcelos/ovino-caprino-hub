@@ -5,35 +5,32 @@ import '../models/financial_account.dart';
 import 'sale_hooks.dart';
 
 class FinancialService {
+  final FinanceRepository _repository;
+  final AnimalLifecycleRepository _lifecycleRepository;
+
   FinancialService(
-    FinanceRepository repository,
-    AnimalLifecycleRepository lifecycleRepository,
-  ) {
-    _repository = repository;
-    _lifecycleRepository = lifecycleRepository;
-  }
+    this._repository,
+    this._lifecycleRepository,
+  );
 
-  static late FinanceRepository _repository;
-  static late AnimalLifecycleRepository _lifecycleRepository;
-
-  static String _dateStr(DateTime d) => d.toIso8601String().split('T')[0];
+  String _dateStr(DateTime d) => d.toIso8601String().split('T')[0];
 
   // ========== CRUD ==========
 
-  static Future<void> createAccount(FinancialAccount account) async {
+  Future<void> createAccount(FinancialAccount account) async {
     await _repository.insertAccount(account);
     await handleAnimalSaleIfApplicable(_lifecycleRepository, account);
   }
 
-  static Future<void> updateAccount(FinancialAccount account) async {
+  Future<void> updateAccount(FinancialAccount account) async {
     await _repository.updateAccount(account);
   }
 
-  static Future<void> deleteAccount(String id) async {
+  Future<void> deleteAccount(String id) async {
     await _repository.deleteAccount(id);
   }
 
-  static Future<FinancialAccount> getById(String id) async {
+  Future<FinancialAccount> getById(String id) async {
     final result = await _repository.getAccountById(id);
     if (result == null) {
       throw Exception('FinancialAccount $id não encontrado');
@@ -41,11 +38,11 @@ class FinancialService {
     return result;
   }
 
-  static Future<List<FinancialAccount>> getAllAccounts() {
+  Future<List<FinancialAccount>> getAllAccounts() {
     return _repository.getAllAccounts();
   }
 
-  static Future<void> markAsPaid(String id, DateTime paymentDate) async {
+  Future<void> markAsPaid(String id, DateTime paymentDate) async {
     final acc = await getById(id);
     final updated = acc.copyWith(
       status: 'Pago',
@@ -57,28 +54,28 @@ class FinancialService {
 
   // ========== STATUS VENCIDO ==========
 
-  static Future<void> updateOverdueStatus() async {
+  Future<void> updateOverdueStatus() async {
     await _repository.updateOverdueStatus(DateTime.now());
   }
 
   // ========== DASHBOARD ==========
 
-  static Future<Map<String, dynamic>> getDashboardStats() async {
+  Future<Map<String, dynamic>> getDashboardStats() async {
     await updateOverdueStatus();
     return _repository.getDashboardStats(DateTime.now());
   }
 
-  static Future<List<FinancialAccount>> getUpcomingAccounts(int days) async {
+  Future<List<FinancialAccount>> getUpcomingAccounts(int days) async {
     return _repository.getUpcomingAccounts(days);
   }
 
-  static Future<List<FinancialAccount>> getOverdueAccounts() {
+  Future<List<FinancialAccount>> getOverdueAccounts() {
     return _repository.getOverdueAccounts();
   }
 
   // ========== RECORRENTES ==========
 
-  static Future<void> generateRecurringAccounts() async {
+  Future<void> generateRecurringAccounts() async {
     final candidates = await _repository.getRecurringCandidates(DateTime.now());
 
     for (final mother in candidates) {
@@ -106,8 +103,7 @@ class FinancialService {
         continue;
       }
 
-      final exists =
-          await _repository.hasChildWithDueDate(mother.id, nextDue);
+      final exists = await _repository.hasChildWithDueDate(mother.id, nextDue);
       if (exists) continue;
 
       final child = FinancialAccount(
@@ -137,17 +133,17 @@ class FinancialService {
     }
   }
 
-  static Future<List<FinancialAccount>> getRecurringMothers() async {
+  Future<List<FinancialAccount>> getRecurringMothers() async {
     return _repository.getRecurringMothers();
   }
 
-  static Future<void> deleteRecurringCascade(String motherId) async {
+  Future<void> deleteRecurringCascade(String motherId) async {
     await _repository.deleteRecurringCascade(motherId);
   }
 
   // ========== PROJEÇÃO FLUXO DE CAIXA ==========
 
-  static Future<List<Map<String, dynamic>>> getCashFlowProjection(
+  Future<List<Map<String, dynamic>>> getCashFlowProjection(
       int months) async {
     final today = DateTime.now();
     final List<Map<String, dynamic>> projection = [];
@@ -181,7 +177,7 @@ class FinancialService {
   // ========== ADAPTADOR PARA TELA ==========
 
   Future<List<Map<String, dynamic>>> getFinancialRecords() async {
-    final accounts = await FinancialService.getAllAccounts();
+    final accounts = await getAllAccounts();
 
     return accounts.map((acc) {
       final dueStr = _dateStr(acc.dueDate);

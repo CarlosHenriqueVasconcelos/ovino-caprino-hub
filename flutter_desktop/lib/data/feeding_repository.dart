@@ -84,6 +84,28 @@ class FeedingRepository {
     return maps.map((m) => FeedingSchedule.fromMap(m)).toList();
   }
 
+  /// Retorna todos os tratos das baias informadas
+  Future<Map<String, List<FeedingSchedule>>> getSchedulesByPenIds(
+    List<String> penIds,
+  ) async {
+    if (penIds.isEmpty) return {};
+
+    final placeholders = List.filled(penIds.length, '?').join(',');
+    final rows = await _db.db.query(
+      'feeding_schedules',
+      where: 'pen_id IN ($placeholders)',
+      whereArgs: penIds,
+      orderBy: 'pen_id ASC, created_at DESC',
+    );
+
+    final grouped = <String, List<FeedingSchedule>>{};
+    for (final row in rows) {
+      final schedule = FeedingSchedule.fromMap(row);
+      grouped.putIfAbsent(schedule.penId, () => []).add(schedule);
+    }
+    return grouped;
+  }
+
   /// Retorna um trato por ID
   Future<FeedingSchedule?> getScheduleById(String id) async {
     final maps = await _db.db.query(

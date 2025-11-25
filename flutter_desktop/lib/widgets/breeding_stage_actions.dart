@@ -296,7 +296,6 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
 
     setState(() => _isProcessing = true);
     try {
-
       await breedingService.cancelarRegistro(widget.record.id);
       await animalService.loadData();
 

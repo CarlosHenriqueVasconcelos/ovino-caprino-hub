@@ -92,9 +92,9 @@ class HerdSectionState extends State<HerdSection> {
       future: _deceasedFuture,
       builder: (context, deceasedSnapshot) {
         final deceasedAnimals = deceasedSnapshot.data ?? const <Animal>[];
-        final deceasedLoading = deceasedSnapshot.connectionState ==
-                ConnectionState.waiting &&
-            deceasedSnapshot.data == null;
+        final deceasedLoading =
+            deceasedSnapshot.connectionState == ConnectionState.waiting &&
+                deceasedSnapshot.data == null;
         return Selector<AnimalService, int>(
           selector: (_, service) => service.animalsVersion,
           builder: (context, _, __) {
@@ -225,126 +225,126 @@ class HerdSectionState extends State<HerdSection> {
                       },
                     ),
                     const SizedBox(height: 12),
-
-                if (all.isEmpty)
-                  _emptyState(theme)
-                else ...[
-                  // Informações de paginação (apenas quando não está em Óbito/Vendido)
-                  if (_statusFilter != 'Óbito' &&
-                      _statusFilter != 'Vendido' &&
-                      filtered.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filtered.length)} de ${filtered.length} animais',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                    if (all.isEmpty)
+                      _emptyState(theme)
+                    else ...[
+                      // Informações de paginação (apenas quando não está em Óbito/Vendido)
+                      if (_statusFilter != 'Óbito' &&
+                          _statusFilter != 'Vendido' &&
+                          filtered.isNotEmpty) ...[
+                        const SizedBox(height: 12),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.chevron_left),
-                              onPressed: _currentPage > 0
-                                  ? () => setState(
-                                        () => _currentPage--,
-                                      )
-                                  : null,
-                            ),
                             Text(
-                              'Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}',
+                              'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filtered.length)} de ${filtered.length} animais',
+                              style: theme.textTheme.bodyMedium,
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.chevron_right),
-                              onPressed: (_currentPage + 1) * _itemsPerPage <
-                                      filtered.length
-                                  ? () => setState(
-                                        () => _currentPage++,
-                                      )
-                                  : null,
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_left),
+                                  onPressed: _currentPage > 0
+                                      ? () => setState(
+                                            () => _currentPage--,
+                                          )
+                                      : null,
+                                ),
+                                Text(
+                                  'Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chevron_right),
+                                  onPressed:
+                                      (_currentPage + 1) * _itemsPerPage <
+                                              filtered.length
+                                          ? () => setState(
+                                                () => _currentPage++,
+                                              )
+                                          : null,
+                                ),
+                              ],
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  // Quando filtro = Óbito, carrega da tabela deceased_animals via service
-                if (_statusFilter == 'Óbito')
-                    Builder(
-                      builder: (context) {
-                        if (deceasedLoading) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        if (deceasedAnimals.isEmpty) {
-                          return _emptyState(theme);
-                        }
-                        final deceasedRelations =
-                            _AnimalRelations([...all], deceasedAnimals);
-                        return HerdAnimalGrid(
-                          animals: deceasedAnimals,
-                          repository: animalRepo,
-                          resolveParent: deceasedRelations.parentOf,
-                          resolveOffspring: deceasedRelations.offspringOf,
-                        );
-                      },
-                    )
-                  // Quando filtro = Vendido, carrega da tabela sold_animals
-                  else if (_statusFilter == 'Vendido')
-                    FutureBuilder<List<Animal>>(
-                      future: _loadSoldAnimals(context),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                        final list = snapshot.data!;
-                        if (list.isEmpty) {
-                          return _emptyState(theme);
-                        }
-                        final soldRelations = _AnimalRelations(
-                          [...all, ...list],
-                        );
-                        return HerdAnimalGrid(
-                          animals: list,
-                          repository: animalRepo,
-                          resolveParent: soldRelations.parentOf,
-                          resolveOffspring: soldRelations.offspringOf,
-                        );
-                      },
-                    )
-                  else
-                    Builder(
-                      builder: (context) {
-                        // Aplicar paginação
-                        final startIndex = _currentPage * _itemsPerPage;
-                        final endIndex = (startIndex + _itemsPerPage)
-                            .clamp(0, filtered.length);
-                        final paginatedList =
-                            filtered.sublist(startIndex, endIndex);
-
-                        return HerdAnimalGrid(
-                          animals: paginatedList,
-                          repository: animalRepo,
-                          resolveParent: relations.parentOf,
-                          resolveOffspring: relations.offspringOf,
-                          onEdit: (animal) =>
-                              _showAnimalForm(context, animal: animal),
-                          onDeleteCascade: (animal) async {
-                            await deleteCascade.delete(animal.id);
-                            if (!mounted) return;
-                            await animalService.removeFromCache(animal.id);
+                      // Quando filtro = Óbito, carrega da tabela deceased_animals via service
+                      if (_statusFilter == 'Óbito')
+                        Builder(
+                          builder: (context) {
+                            if (deceasedLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (deceasedAnimals.isEmpty) {
+                              return _emptyState(theme);
+                            }
+                            final deceasedRelations =
+                                _AnimalRelations([...all], deceasedAnimals);
+                            return HerdAnimalGrid(
+                              animals: deceasedAnimals,
+                              repository: animalRepo,
+                              resolveParent: deceasedRelations.parentOf,
+                              resolveOffspring: deceasedRelations.offspringOf,
+                            );
                           },
-                        );
-                      },
-                    ),
-                ],
-              ],
-            ),
-          ),
+                        )
+                      // Quando filtro = Vendido, carrega da tabela sold_animals
+                      else if (_statusFilter == 'Vendido')
+                        FutureBuilder<List<Animal>>(
+                          future: _loadSoldAnimals(context),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            final list = snapshot.data!;
+                            if (list.isEmpty) {
+                              return _emptyState(theme);
+                            }
+                            final soldRelations = _AnimalRelations(
+                              [...all, ...list],
+                            );
+                            return HerdAnimalGrid(
+                              animals: list,
+                              repository: animalRepo,
+                              resolveParent: soldRelations.parentOf,
+                              resolveOffspring: soldRelations.offspringOf,
+                            );
+                          },
+                        )
+                      else
+                        Builder(
+                          builder: (context) {
+                            // Aplicar paginação
+                            final startIndex = _currentPage * _itemsPerPage;
+                            final endIndex = (startIndex + _itemsPerPage)
+                                .clamp(0, filtered.length);
+                            final paginatedList =
+                                filtered.sublist(startIndex, endIndex);
+
+                            return HerdAnimalGrid(
+                              animals: paginatedList,
+                              repository: animalRepo,
+                              resolveParent: relations.parentOf,
+                              resolveOffspring: relations.offspringOf,
+                              onEdit: (animal) =>
+                                  _showAnimalForm(context, animal: animal),
+                              onDeleteCascade: (animal) async {
+                                await deleteCascade.delete(animal.id);
+                                if (!mounted) return;
+                                await animalService.removeFromCache(animal.id);
+                              },
+                            );
+                          },
+                        ),
+                    ],
+                  ],
+                ),
+              ),
             );
           },
         );

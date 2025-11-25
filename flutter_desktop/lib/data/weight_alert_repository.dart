@@ -45,7 +45,7 @@ class WeightAlertRepository {
       FROM weight_alerts wa
       LEFT JOIN animals a ON a.id = wa.animal_id
       WHERE wa.completed = 0
-        AND date(wa.due_date) <= date(?)
+        AND wa.due_date <= date(?)
       ORDER BY wa.due_date ASC
     ''', [horizon.toIso8601String().split('T').first]);
     return rows.map((row) => Map<String, dynamic>.from(row)).toList();

@@ -6,8 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../services/reports_service.dart';
 import '../services/reports_controller.dart';
+import '../models/report_filters.dart';
 import '../utils/animal_record_display.dart';
 import '../utils/labels_ptbr.dart';
 
@@ -116,7 +116,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     });
 
     _loadReport();
-  } 
+  }
 
   @override
   void dispose() {
@@ -682,8 +682,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       );
     }
 
-    final columns =
-        rows.first.keys.where((k) => k != 'animal_color').toList();
+    final columns = rows.first.keys.where((k) => k != 'animal_color').toList();
 
     return Column(
       children: [

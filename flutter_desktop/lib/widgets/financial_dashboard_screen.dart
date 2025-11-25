@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/financial_service.dart';
 import '../models/financial_account.dart';
 import 'package:intl/intl.dart';
@@ -28,11 +29,12 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
   Future<void> _loadData() async {
     setState(() => isLoading = true);
 
-    await FinancialService.generateRecurringAccounts();
-    await FinancialService.updateOverdueStatus();
+    final service = context.read<FinancialService>();
+    await service.generateRecurringAccounts();
+    await service.updateOverdueStatus();
 
-    final dashboardStats = await FinancialService.getDashboardStats();
-    final upcoming = await FinancialService.getUpcomingAccounts(7);
+    final dashboardStats = await service.getDashboardStats();
+    final upcoming = await service.getUpcomingAccounts(7);
 
     if (!mounted) return;
     setState(() {

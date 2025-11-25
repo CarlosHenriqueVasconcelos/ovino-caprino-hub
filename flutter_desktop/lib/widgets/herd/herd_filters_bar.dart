@@ -129,4 +129,3 @@ class HerdFiltersBar extends StatelessWidget {
     );
   }
 }
-

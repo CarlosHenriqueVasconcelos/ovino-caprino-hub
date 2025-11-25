@@ -509,7 +509,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
             ),
 
             // Progress and Days
-    if (daysLeft != null) ...[
+            if (daysLeft != null) ...[
               const SizedBox(height: 16),
               Row(
                 children: [

@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
+import 'config/app_config.dart';
 
 // Services
 import 'services/animal_service.dart';
@@ -29,6 +30,7 @@ import 'services/animal_delete_cascade.dart';
 import 'services/deceased_service.dart';
 import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
 import 'services/reports_controller.dart';
+import 'services/reports_service.dart';
 
 // Data / DB
 import 'data/local_db.dart';
@@ -48,6 +50,7 @@ import 'data/sold_animals_repository.dart';
 import 'data/weight_alert_repository.dart';
 import 'data/maintenance_repository.dart';
 import 'data/backup_repository.dart';
+import 'data/reports_repository.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,13 +70,9 @@ Future<void> main() async {
   // ============ Inicialização sob runZonedGuarded ============
   await runZonedGuarded<Future<void>>(() async {
     // Supabase (somente para backup manual)
-    const supabaseUrl = 'https://heueripmlmuvqdbwyxxs.supabase.co';
-    const supabaseAnonKey =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWVyaXBtbG11dnFkYnd5eHhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjU2NzEsImV4cCI6MjA3MzAwMTY3MX0.KWvjNAVqnjqFgjfOz95QU4gOEMxIBHD2yxaRMlgnxEw';
-
     await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
     );
 
     // Abrir banco local (AppDatabase decide a factory correta: desktop/mobile)
@@ -95,6 +94,7 @@ Future<void> main() async {
     final animalCascadeRepository = AnimalCascadeRepository(appDb);
     final animalLifecycleRepository = AnimalLifecycleRepository(appDb);
     final maintenanceRepository = MaintenanceRepository(appDb);
+    final reportsRepository = ReportsRepository(appDb);
 
     // Backup (Supabase como espelho/backup)
     final backupRepository = BackupRepository(
@@ -124,6 +124,7 @@ Future<void> main() async {
         soldAnimalsRepository: soldAnimalsRepository,
         weightAlertRepository: weightAlertRepository,
         backup: backupService,
+        reportsRepository: reportsRepository,
       ),
     );
   }, (error, stack) {
@@ -151,6 +152,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
   final SoldAnimalsRepository soldAnimalsRepository;
   final WeightAlertRepository weightAlertRepository;
   final BackupService backup;
+  final ReportsRepository reportsRepository;
 
   const FazendaSaoPetronioApp({
     super.key,
@@ -171,6 +173,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
     required this.soldAnimalsRepository,
     required this.weightAlertRepository,
     required this.backup,
+    required this.reportsRepository,
   });
 
   @override
@@ -205,6 +208,12 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<DeceasedRepository>.value(value: deceasedRepository),
         Provider<SoldAnimalsRepository>.value(value: soldAnimalsRepository),
         Provider<WeightAlertRepository>.value(value: weightAlertRepository),
+        Provider<ReportsRepository>.value(value: reportsRepository),
+        Provider<ReportsService>(
+          create: (context) => ReportsService(
+            context.read<ReportsRepository>(),
+          ),
+        ),
 
         // Services
         ChangeNotifierProvider(
@@ -275,7 +284,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ),
         Provider<ReportsController>(
           create: (context) => ReportsController(
-            context.read<AppDatabase>(),
+            context.read<ReportsService>(),
           ),
         ),
         Provider<SystemMaintenanceService>(

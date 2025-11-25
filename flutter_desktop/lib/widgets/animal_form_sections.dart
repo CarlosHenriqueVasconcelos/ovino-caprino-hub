@@ -147,8 +147,8 @@ class AnimalOriginSection extends StatelessWidget {
   final List<Animal> availableFathers;
   final String motherInitialText;
   final String fatherInitialText;
-  final void Function(TextEditingController controller, {required bool isMother})
-      seedParentField;
+  final void Function(TextEditingController controller,
+      {required bool isMother}) seedParentField;
   final ValueChanged<Animal> onMotherSelected;
   final ValueChanged<Animal> onFatherSelected;
   final String? Function({

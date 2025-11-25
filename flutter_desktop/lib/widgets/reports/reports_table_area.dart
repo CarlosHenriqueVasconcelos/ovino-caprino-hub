@@ -28,8 +28,7 @@ class ReportsTableArea extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: SingleChildScrollView(
         child: DataTable(
-          sortColumnIndex:
-              sortKey.isEmpty ? null : columns.indexOf(sortKey),
+          sortColumnIndex: sortKey.isEmpty ? null : columns.indexOf(sortKey),
           sortAscending: sortAscending,
           columns: columns
               .map(

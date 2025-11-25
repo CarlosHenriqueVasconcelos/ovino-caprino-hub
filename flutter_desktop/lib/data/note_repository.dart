@@ -38,12 +38,12 @@ class NoteRepository {
     }
 
     if (startDate != null) {
-      filters.add('date(n.date) >= date(?)');
+      filters.add('n.date >= ?');
       args.add(startDate.toIso8601String().split('T').first);
     }
 
     if (endDate != null) {
-      filters.add('date(n.date) <= date(?)');
+      filters.add('n.date <= ?');
       args.add(endDate.toIso8601String().split('T').first);
     }
 

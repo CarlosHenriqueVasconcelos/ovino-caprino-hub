@@ -632,9 +632,8 @@ class _MovementDialogState extends State<_MovementDialog> {
         await service.addToStock(
           widget.stock.id,
           quantity,
-          reason: _reasonController.text.isEmpty
-              ? null
-              : _reasonController.text,
+          reason:
+              _reasonController.text.isEmpty ? null : _reasonController.text,
         );
       } else {
         await service.deductFromStock(
@@ -683,10 +682,10 @@ class _MovementDialogState extends State<_MovementDialog> {
               labelText: 'Quantidade (${widget.stock.unitOfMeasure})',
               border: const OutlineInputBorder(),
             ),
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^[0-9]*[.,]?[0-9]{0,2}')),
+              FilteringTextInputFormatter.allow(
+                  RegExp(r'^[0-9]*[.,]?[0-9]{0,2}')),
             ],
           ),
           const SizedBox(height: 12),

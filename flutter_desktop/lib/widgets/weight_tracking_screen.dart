@@ -89,11 +89,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     ThemeData theme,
     AnimalService animalService,
   ) {
-    final availableColors = animalService.animals
-        .map((a) => a.nameColor)
-        .toSet()
-        .toList()
-      ..sort();
+    final availableColors =
+        animalService.animals.map((a) => a.nameColor).toSet().toList()..sort();
     final filteredAnimals = animalService.weightTrackingQuery(
       category: _selectedCategoryFilter(),
       colorFilter: _selectedColor,
@@ -534,8 +531,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
               ),
               const SizedBox(height: 4),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),

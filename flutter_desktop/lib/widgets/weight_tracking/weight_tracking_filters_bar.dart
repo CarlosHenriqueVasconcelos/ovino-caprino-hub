@@ -72,8 +72,9 @@ class WeightTrackingFiltersBar extends StatelessWidget {
                   SizedBox(
                     height: 48,
                     child: OutlinedButton.icon(
-                      onPressed:
-                          dateRange == null ? onSelectDateRange : onClearDateRange,
+                      onPressed: dateRange == null
+                          ? onSelectDateRange
+                          : onClearDateRange,
                       icon: const Icon(Icons.calendar_today, size: 18),
                       label: Text(
                         dateRange == null

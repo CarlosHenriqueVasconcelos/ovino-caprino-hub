@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/financial_service.dart';
 import '../models/financial_account.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +21,8 @@ class _FinancialAccountsReceivableState
   String filterStatus = 'Todos';
   bool isLoading = true;
 
+  FinancialService get _service => context.read<FinancialService>();
+
   @override
   void initState() {
     super.initState();
@@ -29,7 +32,7 @@ class _FinancialAccountsReceivableState
   Future<void> _loadAccounts() async {
     setState(() => isLoading = true);
 
-    final allAccounts = await FinancialService.getAllAccounts();
+    final allAccounts = await _service.getAllAccounts();
     final filtered = allAccounts.where((a) => a.type == 'receita').toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
@@ -45,7 +48,7 @@ class _FinancialAccountsReceivableState
   }
 
   Future<void> _markAsPaid(FinancialAccount account) async {
-    await FinancialService.markAsPaid(account.id, DateTime.now());
+    await _service.markAsPaid(account.id, DateTime.now());
     await _loadAccounts();
     widget.onUpdate?.call();
 
@@ -76,7 +79,7 @@ class _FinancialAccountsReceivableState
     );
 
     if (confirm == true) {
-      await FinancialService.deleteAccount(account.id);
+      await _service.deleteAccount(account.id);
       await _loadAccounts();
       widget.onUpdate?.call();
 

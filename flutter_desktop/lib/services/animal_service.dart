@@ -161,8 +161,7 @@ class AnimalService extends ChangeNotifier {
       nameLc,
       normalizedName,
     }.toList();
-    final existing =
-        await _animalRepository.findIdentityConflicts(
+    final existing = await _animalRepository.findIdentityConflicts(
       candidateNamesLower: candidateNames,
       colorLower: colorLc,
       excludeId: isUpdate ? currentId : null,
@@ -578,7 +577,7 @@ class AnimalService extends ChangeNotifier {
     }
     return null;
   }
-  
+
   @override
   void dispose() {
     _alertsDebounceTimer?.cancel();

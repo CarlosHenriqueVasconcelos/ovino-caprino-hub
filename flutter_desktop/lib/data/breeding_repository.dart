@@ -111,7 +111,8 @@ class BreedingRepository {
     final maps = await _db.db.rawQuery('''
       SELECT * FROM breeding_records
       WHERE expected_birth IS NOT NULL
-      AND date(expected_birth) BETWEEN date('now') AND date('now', '+$daysThreshold days')
+      AND expected_birth >= date('now')
+      AND expected_birth <= date('now', '+$daysThreshold days')
       ORDER BY expected_birth ASC
     ''');
     return maps.map((m) => BreedingRecord.fromMap(m)).toList();

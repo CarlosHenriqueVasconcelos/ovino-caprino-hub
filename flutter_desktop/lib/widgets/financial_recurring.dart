@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../services/financial_service.dart';
 import '../models/financial_account.dart';
 import 'financial_form.dart';
@@ -16,6 +17,8 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
   List<FinancialAccount> _recurringAccounts = [];
   bool _isLoading = true;
 
+  FinancialService get _service => context.read<FinancialService>();
+
   @override
   void initState() {
     super.initState();
@@ -26,11 +29,11 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
     setState(() => _isLoading = true);
     try {
       // Garante status e próxima ocorrência
-      await FinancialService.generateRecurringAccounts();
-      await FinancialService.updateOverdueStatus();
+      await _service.generateRecurringAccounts();
+      await _service.updateOverdueStatus();
 
       // Carrega SOMENTE as "mães" recorrentes (is_recurring = 1 e parent_id = null)
-      final mothers = await FinancialService.getRecurringMothers();
+      final mothers = await _service.getRecurringMothers();
 
       if (!mounted) return;
       setState(() {
@@ -61,7 +64,7 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
 
     // Ao voltar, se a conta criada não veio marcada como recorrente,
     // promovemos a última criada para MÃE recorrente (is_recurring=1).
-    final all = await FinancialService.getAllAccounts();
+    final all = await _service.getAllAccounts();
 
     FinancialAccount? candidate;
     for (final a in all) {
@@ -92,9 +95,9 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
         parentId: null,
         updatedAt: DateTime.now(),
       );
-      await FinancialService.updateAccount(mother);
+      await _service.updateAccount(mother);
       // Gera a próxima filha (idempotente)
-      await FinancialService.generateRecurringAccounts();
+      await _service.generateRecurringAccounts();
     }
 
     await _loadRecurringAccounts();
@@ -123,7 +126,7 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
 
     if (confirm != true) return;
 
-    await FinancialService.deleteRecurringCascade(account.id);
+    await _service.deleteRecurringCascade(account.id);
     await _loadRecurringAccounts();
   }
 

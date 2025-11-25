@@ -116,8 +116,7 @@ class _PharmacyMovementDialogState extends State<PharmacyMovementDialog> {
               border: const OutlineInputBorder(),
               errorText: _error,
             ),
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: 12),
           TextField(

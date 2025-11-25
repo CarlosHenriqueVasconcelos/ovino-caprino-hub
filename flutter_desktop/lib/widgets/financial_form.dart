@@ -182,16 +182,17 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       updatedAt: DateTime.now(),
     );
 
+    final service = context.read<FinancialService>();
     try {
       if (widget.account != null) {
-        await FinancialService.updateAccount(account);
+        await service.updateAccount(account);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Conta atualizada com sucesso')),
           );
         }
       } else {
-        await FinancialService.createAccount(account);
+        await service.createAccount(account);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Conta criada com sucesso')),

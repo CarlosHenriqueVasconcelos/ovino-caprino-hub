@@ -49,4 +49,3 @@ class HerdAnimalGrid extends StatelessWidget {
     );
   }
 }
-

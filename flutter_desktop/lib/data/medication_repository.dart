@@ -6,6 +6,8 @@ class MedicationRepository {
 
   MedicationRepository(this._db);
 
+  String _isoDate(DateTime value) => value.toIso8601String().split('T').first;
+
   /// Retorna todas as medicações
   Future<List<Map<String, dynamic>>> getAll() async {
     return await _db.db.query(
@@ -61,8 +63,8 @@ class MedicationRepository {
     return await _db.db.rawQuery('''
       SELECT * FROM medications
       WHERE status = 'Agendado'
-      AND date(COALESCE(date, next_date)) < date('now')
-      ORDER BY date ASC
+      AND COALESCE(date, next_date) < date('now')
+      ORDER BY COALESCE(date, next_date) ASC
     ''');
   }
 
@@ -71,8 +73,9 @@ class MedicationRepository {
     return await _db.db.rawQuery('''
       SELECT * FROM medications
       WHERE status = 'Agendado'
-      AND date(COALESCE(date, next_date)) BETWEEN date('now') AND date('now', '+$daysThreshold days')
-      ORDER BY date ASC
+      AND COALESCE(date, next_date) >= date('now')
+      AND COALESCE(date, next_date) <= date('now', '+$daysThreshold days')
+      ORDER BY COALESCE(date, next_date) ASC
     ''');
   }
 
@@ -116,7 +119,7 @@ class MedicationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(m.date, m.next_date))",
+      dateColumn: "COALESCE(m.date, m.next_date)",
     );
 
     final rows = await _db.db.rawQuery('''
@@ -150,10 +153,10 @@ class MedicationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(m.date, m.next_date))",
+      dateColumn: "COALESCE(m.date, m.next_date)",
     );
     final whereClause = StringBuffer(
-      "m.status = 'Agendado' AND date(COALESCE(m.date, m.next_date)) < date('now')",
+      "m.status = 'Agendado' AND COALESCE(m.date, m.next_date) < date('now')",
     );
     if (filters.isNotEmpty) {
       whereClause.write(' AND ${filters.join(' AND ')}');
@@ -169,7 +172,7 @@ class MedicationRepository {
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+      ORDER BY COALESCE(m.date, m.next_date) ASC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -189,10 +192,10 @@ class MedicationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(m.date, m.next_date))",
+      dateColumn: "COALESCE(m.date, m.next_date)",
     );
     final whereClause = StringBuffer(
-      "m.status = 'Agendado' AND date(COALESCE(m.date, m.next_date)) >= date('now')",
+      "m.status = 'Agendado' AND COALESCE(m.date, m.next_date) >= date('now')",
     );
     if (filters.isNotEmpty) {
       whereClause.write(' AND ${filters.join(' AND ')}');
@@ -208,7 +211,7 @@ class MedicationRepository {
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(COALESCE(m.date, m.next_date)) ASC
+      ORDER BY COALESCE(m.date, m.next_date) ASC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -228,7 +231,7 @@ class MedicationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(m.applied_date, m.date))",
+      dateColumn: "COALESCE(m.applied_date, m.date)",
     );
     final whereClause = StringBuffer("m.status = 'Aplicado'");
     if (filters.isNotEmpty) {
@@ -245,7 +248,7 @@ class MedicationRepository {
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(COALESCE(m.applied_date, m.date)) DESC
+      ORDER BY COALESCE(m.applied_date, m.date) DESC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -265,7 +268,7 @@ class MedicationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(m.date, m.next_date))",
+      dateColumn: "COALESCE(m.date, m.next_date)",
     );
     final whereClause = StringBuffer("m.status = 'Cancelado'");
     if (filters.isNotEmpty) {
@@ -282,7 +285,7 @@ class MedicationRepository {
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(COALESCE(m.date, m.next_date)) DESC
+      ORDER BY COALESCE(m.date, m.next_date) DESC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -311,8 +314,8 @@ class MedicationRepository {
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE m.status NOT IN ('Aplicado', 'Cancelado')
-        AND date(COALESCE(m.next_date, m.date)) <= date(?)
-      ORDER BY date(COALESCE(m.next_date, m.date)) ASC
+        AND COALESCE(m.next_date, m.date) <= ?
+      ORDER BY COALESCE(m.next_date, m.date) ASC
     ''', [limit]);
   }
 
@@ -355,12 +358,12 @@ class MedicationRepository {
     }
 
     if (startDate != null) {
-      filters.add('$dateColumn >= date(?)');
+      filters.add('$dateColumn >= ?');
       args.add(startDate.toIso8601String().split('T').first);
     }
 
     if (endDate != null) {
-      filters.add('$dateColumn <= date(?)');
+      filters.add('$dateColumn <= ?');
       args.add(endDate.toIso8601String().split('T').first);
     }
 

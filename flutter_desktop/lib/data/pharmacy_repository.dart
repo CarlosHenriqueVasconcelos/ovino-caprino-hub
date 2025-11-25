@@ -88,7 +88,8 @@ class PharmacyRepository {
     final maps = await _db.db.rawQuery('''
       SELECT * FROM pharmacy_stock
       WHERE expiration_date IS NOT NULL
-      AND date(expiration_date) BETWEEN date('now') AND date('now', '+$daysThreshold days')
+      AND expiration_date >= date('now')
+      AND expiration_date <= date('now', '+$daysThreshold days')
       ORDER BY expiration_date ASC
     ''');
     return maps.map((m) => PharmacyStock.fromMap(m)).toList();

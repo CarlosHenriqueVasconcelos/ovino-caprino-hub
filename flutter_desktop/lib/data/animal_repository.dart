@@ -235,22 +235,25 @@ class AnimalRepository {
 
     // Mês atual YYYY-MM
     final now = DateTime.now();
-    final ym =
-        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0);
+    String isoDate(DateTime value) => value.toIso8601String().split('T').first;
 
     // Vacinas aplicadas / agendadas neste mês
     final vaccinesThisMonth = _firstInt(await _db.db.rawQuery(
       "SELECT COUNT(*) AS c FROM vaccinations "
-      "WHERE substr(COALESCE(applied_date, scheduled_date),1,7) = ?",
-      [ym],
+      "WHERE COALESCE(applied_date, scheduled_date) >= ? "
+      "AND COALESCE(applied_date, scheduled_date) <= ?",
+      [isoDate(monthStart), isoDate(monthEnd)],
     ));
 
     // Partos previstos neste mês
     final birthsThisMonth = _firstInt(await _db.db.rawQuery(
       "SELECT COUNT(*) AS c FROM animals "
       "WHERE expected_delivery IS NOT NULL "
-      "AND substr(expected_delivery,1,7) = ?",
-      [ym],
+      "AND expected_delivery >= ? "
+      "AND expected_delivery <= ?",
+      [isoDate(monthStart), isoDate(monthEnd)],
     ));
 
     return AnimalStats(

@@ -92,8 +92,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sortedNotes = [..._notes]
-      ..sort((a, b) {
+    final sortedNotes = [..._notes]..sort((a, b) {
         final dateA = a['date'] ?? '';
         final dateB = b['date'] ?? '';
         return dateB.compareTo(dateA);
@@ -233,6 +232,8 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   }
 
   Future<void> _deleteNote(Map<String, dynamic> note) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final errorColor = Theme.of(context).colorScheme.error;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -246,28 +247,29 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Excluir'),
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
           ),
         ],
       ),
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
     try {
       final noteService = context.read<NoteService>();
       await noteService.deleteNote(note['id'].toString());
       await _loadNotes();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Anotação excluída')),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text('Erro ao excluir anotação: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
+          backgroundColor: errorColor,
         ),
       );
     }

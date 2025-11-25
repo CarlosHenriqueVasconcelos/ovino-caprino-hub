@@ -28,4 +28,3 @@ class ReportChartPoint {
 
   String get formattedValue => value.toStringAsFixed(2);
 }
-

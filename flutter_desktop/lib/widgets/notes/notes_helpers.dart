@@ -16,4 +16,3 @@ String formatNoteContentPreview(String? content) {
   if (content.length <= maxLength) return content;
   return '${content.substring(0, maxLength)}...';
 }
-

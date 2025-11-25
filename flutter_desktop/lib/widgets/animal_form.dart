@@ -158,11 +158,14 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       final isBorrego = category.contains('borreg');
       if (isBorrego) return false;
       return expectFemale
-          ? gender.contains('fêmea') || gender.contains('femea') || gender == 'f'
+          ? gender.contains('fêmea') ||
+              gender.contains('femea') ||
+              gender == 'f'
           : gender.contains('macho') || gender == 'm';
     }
 
-    final mothers = animals.where((a) => isEligible(a, expectFemale: true)).toList();
+    final mothers =
+        animals.where((a) => isEligible(a, expectFemale: true)).toList();
     final fathers =
         animals.where((a) => isEligible(a, expectFemale: false)).toList();
 
@@ -212,10 +215,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       return null;
     }
 
-    final resolvedName =
-        normalizedName.isEmpty ? 'Sem nome' : normalizedName;
-    final resolvedCode =
-        normalizedCode.isEmpty ? 'Sem código' : normalizedCode;
+    final resolvedName = normalizedName.isEmpty ? 'Sem nome' : normalizedName;
+    final resolvedCode = normalizedCode.isEmpty ? 'Sem código' : normalizedCode;
     final colorName = AnimalDisplayUtils.getColorName(color);
 
     return '$colorName - $resolvedName ($resolvedCode)';
@@ -241,8 +242,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   }) {
     final alreadyInitialized =
         isMother ? _motherFieldInitialized : _fatherFieldInitialized;
-    final label =
-        isMother ? _motherPrefillLabel : _fatherPrefillLabel;
+    final label = isMother ? _motherPrefillLabel : _fatherPrefillLabel;
 
     if (alreadyInitialized || label == null || label.isEmpty) {
       return;
@@ -299,8 +299,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     final fatherInitialText = _fatherPrefillLabel ??
         _labelFromParents(_fatherId, _availableFathers) ??
         '';
-    final showCustomBreedField =
-        !_breeds.contains(_breedController.text) || _breedController.text.isEmpty;
+    final showCustomBreedField = !_breeds.contains(_breedController.text) ||
+        _breedController.text.isEmpty;
     final breedDropdownValue = _breeds.contains(_breedController.text)
         ? _breedController.text
         : 'Hampshire Down';

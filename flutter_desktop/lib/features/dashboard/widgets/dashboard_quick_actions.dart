@@ -669,8 +669,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     };
 
     try {
-      final medicationService =
-          context.read<MedicationService>();
+      final medicationService = context.read<MedicationService>();
       await medicationService.createMedication(medication);
       if (!mounted) return;
       Navigator.pop(context);

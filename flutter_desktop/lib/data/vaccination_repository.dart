@@ -6,6 +6,8 @@ class VaccinationRepository {
 
   VaccinationRepository(this._db);
 
+  String _isoDate(DateTime value) => value.toIso8601String().split('T').first;
+
   /// Retorna todas as vacinações
   Future<List<Map<String, dynamic>>> getAll() async {
     return await _db.db.query(
@@ -61,7 +63,7 @@ class VaccinationRepository {
     return await _db.db.rawQuery('''
       SELECT * FROM vaccinations
       WHERE status = 'Agendada'
-      AND date(scheduled_date) < date('now')
+      AND scheduled_date < date('now')
       ORDER BY scheduled_date ASC
     ''');
   }
@@ -71,7 +73,8 @@ class VaccinationRepository {
     return await _db.db.rawQuery('''
       SELECT * FROM vaccinations
       WHERE status = 'Agendada'
-      AND date(scheduled_date) BETWEEN date('now') AND date('now', '+$daysThreshold days')
+      AND scheduled_date >= date('now')
+      AND scheduled_date <= date('now', '+$daysThreshold days')
       ORDER BY scheduled_date ASC
     ''');
   }
@@ -116,7 +119,7 @@ class VaccinationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: 'date(v.scheduled_date)',
+      dateColumn: 'v.scheduled_date',
     );
 
     final rows = await _db.db.rawQuery('''
@@ -150,10 +153,10 @@ class VaccinationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: 'date(v.scheduled_date)',
+      dateColumn: 'v.scheduled_date',
     );
     final whereClause = StringBuffer(
-      "v.status = 'Agendada' AND date(v.scheduled_date) < date('now')",
+      "v.status = 'Agendada' AND v.scheduled_date < date('now')",
     );
     if (filters.isNotEmpty) {
       whereClause.write(' AND ${filters.join(' AND ')}');
@@ -189,10 +192,10 @@ class VaccinationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: 'date(v.scheduled_date)',
+      dateColumn: 'v.scheduled_date',
     );
     final whereClause = StringBuffer(
-      "v.status = 'Agendada' AND date(v.scheduled_date) >= date('now')",
+      "v.status = 'Agendada' AND v.scheduled_date >= date('now')",
     );
     if (filters.isNotEmpty) {
       whereClause.write(' AND ${filters.join(' AND ')}');
@@ -228,7 +231,7 @@ class VaccinationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: "date(COALESCE(v.applied_date, v.scheduled_date))",
+      dateColumn: "COALESCE(v.applied_date, v.scheduled_date)",
     );
     final whereClause = StringBuffer("v.status = 'Aplicada'");
     if (filters.isNotEmpty) {
@@ -245,7 +248,7 @@ class VaccinationRepository {
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(COALESCE(v.applied_date, v.scheduled_date)) DESC
+      ORDER BY COALESCE(v.applied_date, v.scheduled_date) DESC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -265,7 +268,7 @@ class VaccinationRepository {
       searchTerm: searchTerm,
       startDate: startDate,
       endDate: endDate,
-      dateColumn: 'date(v.scheduled_date)',
+      dateColumn: 'v.scheduled_date',
     );
     final whereClause = StringBuffer("v.status = 'Cancelada'");
     if (filters.isNotEmpty) {
@@ -282,14 +285,14 @@ class VaccinationRepository {
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
-      ORDER BY date(v.scheduled_date) DESC
+      ORDER BY v.scheduled_date DESC
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   Future<List<Map<String, dynamic>>> getPendingAlertsWithin(
       DateTime horizon) async {
-    final limit = horizon.toIso8601String().split('T').first;
+    final limit = _isoDate(horizon);
     return await _db.db.rawQuery('''
       SELECT 
         v.*, 
@@ -299,7 +302,7 @@ class VaccinationRepository {
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE v.status NOT IN ('Aplicada', 'Cancelada')
-        AND date(v.scheduled_date) <= date(?)
+        AND v.scheduled_date <= ?
       ORDER BY v.scheduled_date ASC
     ''', [limit]);
   }
@@ -343,12 +346,12 @@ class VaccinationRepository {
     }
 
     if (startDate != null) {
-      filters.add('$dateColumn >= date(?)');
+      filters.add('$dateColumn >= ?');
       args.add(startDate.toIso8601String().split('T').first);
     }
 
     if (endDate != null) {
-      filters.add('$dateColumn <= date(?)');
+      filters.add('$dateColumn <= ?');
       args.add(endDate.toIso8601String().split('T').first);
     }
 

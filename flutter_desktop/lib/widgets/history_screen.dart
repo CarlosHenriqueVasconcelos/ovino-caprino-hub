@@ -674,7 +674,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return 'Sistema';
     }
   }
-
 }
 
 class HistoryItem {

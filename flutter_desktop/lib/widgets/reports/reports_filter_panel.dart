@@ -185,7 +185,8 @@ class ReportsFilterPanel extends StatelessWidget {
                   value: statusFilter,
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                    DropdownMenuItem(value: 'Saudável', child: Text('Saudável')),
+                    DropdownMenuItem(
+                        value: 'Saudável', child: Text('Saudável')),
                     DropdownMenuItem(
                       value: 'Em tratamento',
                       child: Text('Em tratamento'),
@@ -203,9 +204,12 @@ class ReportsFilterPanel extends StatelessWidget {
                   value: statusFilter,
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                    DropdownMenuItem(value: 'Agendada', child: Text('Agendada')),
-                    DropdownMenuItem(value: 'Aplicada', child: Text('Aplicada')),
-                    DropdownMenuItem(value: 'Cancelada', child: Text('Cancelada')),
+                    DropdownMenuItem(
+                        value: 'Agendada', child: Text('Agendada')),
+                    DropdownMenuItem(
+                        value: 'Aplicada', child: Text('Aplicada')),
+                    DropdownMenuItem(
+                        value: 'Cancelada', child: Text('Cancelada')),
                   ],
                   onChanged: onStatusChanged,
                 ),
@@ -215,9 +219,12 @@ class ReportsFilterPanel extends StatelessWidget {
                   value: medicationStatusFilter,
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                    DropdownMenuItem(value: 'Agendado', child: Text('Agendado')),
-                    DropdownMenuItem(value: 'Aplicado', child: Text('Aplicado')),
-                    DropdownMenuItem(value: 'Cancelado', child: Text('Cancelado')),
+                    DropdownMenuItem(
+                        value: 'Agendado', child: Text('Agendado')),
+                    DropdownMenuItem(
+                        value: 'Aplicado', child: Text('Aplicado')),
+                    DropdownMenuItem(
+                        value: 'Cancelado', child: Text('Cancelado')),
                   ],
                   onChanged: onMedicationStatusChanged,
                 ),
@@ -231,7 +238,8 @@ class ReportsFilterPanel extends StatelessWidget {
                       value: 'encabritamento',
                       child: Text('Encabritamento'),
                     ),
-                    DropdownMenuItem(value: 'cobertura', child: Text('Cobertura')),
+                    DropdownMenuItem(
+                        value: 'cobertura', child: Text('Cobertura')),
                     DropdownMenuItem(
                       value: 'aguardando_ultrassom',
                       child: Text('Aguardando Ultrassom'),
@@ -266,7 +274,8 @@ class ReportsFilterPanel extends StatelessWidget {
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                     DropdownMenuItem(value: 'Lidas', child: Text('Lidas')),
-                    DropdownMenuItem(value: 'Não lidas', child: Text('Não lidas')),
+                    DropdownMenuItem(
+                        value: 'Não lidas', child: Text('Não lidas')),
                   ],
                   onChanged: onNotesReadChanged,
                 ),

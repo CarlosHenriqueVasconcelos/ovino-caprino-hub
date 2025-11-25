@@ -482,43 +482,43 @@ class AnimalCard extends StatelessWidget {
               const SizedBox(height: 12),
 
             // Informação sobre pais (mãe e pai)
-                    if (motherAnimal != null || fatherAnimal != null)
-                      Container(
+            if (motherAnimal != null || fatherAnimal != null)
+              Container(
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (motherAnimal != null)
-                              Row(
-                                children: [
-                                  const Icon(Icons.female, size: 16),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Mãe: ${motherAnimal.name} (${motherAnimal.code})',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            if (motherAnimal != null && fatherAnimal != null)
-                              const SizedBox(height: 4),
-                            if (fatherAnimal != null)
-                              Row(
-                                children: [
-                                  const Icon(Icons.male, size: 16),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Pai: ${fatherAnimal.name} (${fatherAnimal.code})',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                      fontWeight: FontWeight.w500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (motherAnimal != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.female, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Mãe: ${motherAnimal.name} (${motherAnimal.code})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (motherAnimal != null && fatherAnimal != null)
+                      const SizedBox(height: 4),
+                    if (fatherAnimal != null)
+                      Row(
+                        children: [
+                          const Icon(Icons.male, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Pai: ${fatherAnimal.name} (${fatherAnimal.code})',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -558,16 +558,16 @@ class AnimalCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     ...offspring.take(4).map(
-                      (child) => Padding(
-                        padding: const EdgeInsets.only(left: 24, top: 2),
-                        child: Text(
-                          '• ${child.name} (${child.category.isEmpty ? "Sem categoria" : child.category})',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
+                          (child) => Padding(
+                            padding: const EdgeInsets.only(left: 24, top: 2),
+                            child: Text(
+                              '• ${child.name} (${child.category.isEmpty ? "Sem categoria" : child.category})',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.tertiary,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
                     if (offspring.length > 4)
                       Padding(
                         padding: const EdgeInsets.only(left: 24, top: 4),

@@ -39,4 +39,3 @@ class ReportsViewSwitcher extends StatelessWidget {
     );
   }
 }
-

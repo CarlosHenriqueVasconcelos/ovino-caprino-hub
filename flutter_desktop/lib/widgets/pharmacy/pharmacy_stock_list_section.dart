@@ -43,7 +43,8 @@ class PharmacyStockListSection extends StatelessWidget {
               DataCell(
                 Chip(
                   label: Text(row.status.label),
-                  avatar: Icon(row.status.icon, size: 16, color: row.status.color),
+                  avatar:
+                      Icon(row.status.icon, size: 16, color: row.status.color),
                   backgroundColor: row.status.color.withOpacity(0.1),
                 ),
               ),

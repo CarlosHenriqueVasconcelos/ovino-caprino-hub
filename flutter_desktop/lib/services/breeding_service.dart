@@ -365,8 +365,7 @@ class BreedingService extends ChangeNotifier {
         case BreedingStage.separacao:
         case BreedingStage.aguardandoUltrassom:
           final sep = r.separationDate;
-          final ult =
-              r.ultrasoundDate ?? sep?.add(const Duration(days: 30));
+          final ult = r.ultrasoundDate ?? sep?.add(const Duration(days: 30));
           eventDate = ult;
           label = 'Ultrassom';
           break;

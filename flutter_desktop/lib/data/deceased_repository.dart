@@ -9,7 +9,7 @@ class DeceasedRepository {
   Future<List<Animal>> fetchAll() async {
     final rows = await _db.db.query(
       'deceased_animals',
-      orderBy: 'date(death_date) DESC',
+      orderBy: 'death_date DESC',
     );
 
     return rows.map(_mapRowToAnimal).toList();
