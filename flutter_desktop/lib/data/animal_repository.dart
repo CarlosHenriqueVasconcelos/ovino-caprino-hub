@@ -38,6 +38,72 @@ class AnimalRepository {
     return maps.map((m) => Animal.fromMap(m)).toList();
   }
 
+  /// Query filtrada para weight tracking
+  Future<List<Animal>> getFilteredAnimals({
+    int? ageMinMonths,
+    int? ageMaxMonths,
+    bool? excludeReproducers,
+    String? nameColor,
+    String? searchQuery,
+  }) async {
+    final now = DateTime.now();
+    final buffer = StringBuffer();
+    final args = <dynamic>[];
+
+    // Filtro de idade por meses
+    if (ageMinMonths != null) {
+      final maxBirthDate = DateTime(
+        now.year,
+        now.month - ageMinMonths,
+        now.day,
+      );
+      buffer.write('birth_date <= ?');
+      args.add(maxBirthDate.toIso8601String().split('T').first);
+    }
+
+    if (ageMaxMonths != null) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      final minBirthDate = DateTime(
+        now.year,
+        now.month - ageMaxMonths,
+        now.day,
+      );
+      buffer.write('birth_date > ?');
+      args.add(minBirthDate.toIso8601String().split('T').first);
+    }
+
+    // Excluir reprodutores
+    if (excludeReproducers == true) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      buffer.write("LOWER(category) NOT LIKE '%reprodutor%'");
+    }
+
+    // Filtro de cor
+    if (nameColor != null && nameColor.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      buffer.write('name_color = ?');
+      args.add(nameColor);
+    }
+
+    // Busca por nome ou código
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      buffer.write('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      final query = '%${searchQuery.toLowerCase()}%';
+      args.add(query);
+      args.add(query);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: buffer.isEmpty ? null : buffer.toString(),
+      whereArgs: args.isEmpty ? null : args,
+      orderBy: 'name COLLATE NOCASE',
+    );
+
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
   Future<void> upsert(Animal a) async {
     await _db.db.insert(
       'animals',

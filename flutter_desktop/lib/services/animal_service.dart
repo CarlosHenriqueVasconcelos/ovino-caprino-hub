@@ -18,8 +18,6 @@ enum WeightCategoryFilter { all, juveniles, adults, reproducers }
 
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
-  final List<Animal> _animals = [];
-  int _animalsVersion = 0;
   AnimalStats? _stats;
   bool _loading = false;
   Timer? _alertsDebounceTimer;
@@ -36,8 +34,10 @@ class AnimalService extends ChangeNotifier {
   final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
-  UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
-  int get animalsVersion => _animalsVersion;
+  /// Deprecated: Use getAllAnimals() instead for direct DB queries
+  @Deprecated('Use getAllAnimals() para buscar animais diretamente do banco')
+  UnmodifiableListView<Animal> get animals => UnmodifiableListView([]);
+  
   AnimalStats? get stats => _stats;
   bool get isLoading => _loading;
 
@@ -61,13 +61,6 @@ class AnimalService extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      // Carrega animais
-      final list = await _animalRepository.all();
-      _animals
-        ..clear()
-        ..addAll(list);
-      _markAnimalsChanged();
-
       // Estatísticas
       await _scheduleStatsRefresh(immediate: true);
 
@@ -82,15 +75,9 @@ class AnimalService extends ChangeNotifier {
   }
 
   // ----------------- Métodos auxiliares -----------------
-  void _markAnimalsChanged() {
-    _animalsVersion++;
-  }
-
+  /// Busca todos os animais diretamente do banco
   Future<List<Animal>> getAllAnimals() async {
-    if (_animals.isEmpty && !_loading) {
-      await loadData();
-    }
-    return List<Animal>.unmodifiable(_animals);
+    return await _animalRepository.all();
   }
 
   // ----------------- CRUD: Animal -----------------
@@ -114,8 +101,6 @@ class AnimalService extends ChangeNotifier {
     final saved = Animal.fromMap(map);
     await _validateUniqueness(saved, isUpdate: false);
     await _animalRepository.upsert(saved);
-    _animals.add(saved);
-    _markAnimalsChanged();
 
     // Cria alertas de pesagem se for borrego
     if (_isLambCategory(saved.category)) {
@@ -218,9 +203,6 @@ class AnimalService extends ChangeNotifier {
         map['id'] as String,
         newStatus!,
       );
-      // Remove da lista local
-      _animals.removeWhere((x) => x.id == map['id']);
-      _markAnimalsChanged();
       await _scheduleStatsRefresh();
       await refreshAlerts();
       notifyListeners();
@@ -228,11 +210,6 @@ class AnimalService extends ChangeNotifier {
     }
 
     await _animalRepository.upsert(updated);
-    final i = _animals.indexWhere((x) => x.id == updated.id);
-    if (i >= 0) {
-      _animals[i] = updated;
-      _markAnimalsChanged();
-    }
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
@@ -242,24 +219,18 @@ class AnimalService extends ChangeNotifier {
   Future<void> deleteAnimal(String id) async {
     await _animalRepository.delete(id);
 
-    _animals.removeWhere((x) => x.id == id);
-    _markAnimalsChanged();
-
     await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
   }
 
+  /// Deprecated: Cache removido, use refreshAlerts() e _scheduleStatsRefresh() diretamente
+  @Deprecated('Cache foi removido. Use refreshAlerts() para atualizar dados.')
   Future<void> removeFromCache(
     String id, {
     bool refreshStats = true,
     bool refreshAlertsData = true,
   }) async {
-    final index = _animals.indexWhere((animal) => animal.id == id);
-    if (index == -1) return;
-    _animals.removeAt(index);
-    _markAnimalsChanged();
-
     if (refreshStats) {
       await _scheduleStatsRefresh();
     }
@@ -271,45 +242,48 @@ class AnimalService extends ChangeNotifier {
     }
   }
 
-  List<Animal> weightTrackingQuery({
+  /// Query filtrada diretamente no banco para weight tracking
+  Future<List<Animal>> weightTrackingQuery({
     WeightCategoryFilter category = WeightCategoryFilter.all,
     String? colorFilter,
     String searchQuery = '',
-  }) {
-    final reference = DateTime.now();
-    final query = searchQuery.trim().toLowerCase();
+  }) async {
+    int? ageMinMonths;
+    int? ageMaxMonths;
+    bool? excludeReproducers;
 
-    Iterable<Animal> filtered = _animals;
-
-    filtered = filtered.where((animal) {
-      final ageInMonths = _ageInMonths(animal.birthDate, reference);
-      final categoryLabel = (animal.category).toLowerCase();
-      switch (category) {
-        case WeightCategoryFilter.juveniles:
-          return ageInMonths < 12;
-        case WeightCategoryFilter.adults:
-          return ageInMonths >= 12 && !categoryLabel.contains('reprodutor');
-        case WeightCategoryFilter.reproducers:
-          return categoryLabel.contains('reprodutor');
-        case WeightCategoryFilter.all:
-        default:
-          return true;
-      }
-    });
-
-    if (colorFilter != null && colorFilter.isNotEmpty) {
-      filtered = filtered.where((animal) => animal.nameColor == colorFilter);
+    switch (category) {
+      case WeightCategoryFilter.juveniles:
+        ageMaxMonths = 12;
+        break;
+      case WeightCategoryFilter.adults:
+        ageMinMonths = 12;
+        excludeReproducers = true;
+        break;
+      case WeightCategoryFilter.reproducers:
+        // Busca direto por categoria no repository (vamos filtrar aqui)
+        final all = await _animalRepository.getFilteredAnimals(
+          nameColor: colorFilter,
+          searchQuery: searchQuery.trim(),
+        );
+        final result = all
+            .where((a) => a.category.toLowerCase().contains('reprodutor'))
+            .toList();
+        AnimalDisplayUtils.sortAnimalsList(result);
+        return result;
+      case WeightCategoryFilter.all:
+      default:
+        break;
     }
 
-    if (query.isNotEmpty) {
-      filtered = filtered.where((animal) {
-        final name = animal.name.toLowerCase();
-        final code = animal.code.toLowerCase();
-        return name.contains(query) || code.contains(query);
-      });
-    }
+    final result = await _animalRepository.getFilteredAnimals(
+      ageMinMonths: ageMinMonths,
+      ageMaxMonths: ageMaxMonths,
+      excludeReproducers: excludeReproducers,
+      nameColor: colorFilter,
+      searchQuery: searchQuery.trim(),
+    );
 
-    final result = filtered.toList();
     AnimalDisplayUtils.sortAnimalsList(result);
     return result;
   }
@@ -325,23 +299,10 @@ class AnimalService extends ChangeNotifier {
     DateTime? expectedBirth,
   ) async {
     try {
-      // Garante que temos o animal em memória
-      if (_animals.isEmpty && !_loading) {
-        await loadData();
-      }
+      final fetched = await _animalRepository.getAnimalById(animalId);
+      if (fetched == null) return;
 
-      Map<String, dynamic> map;
-
-      final idx = _animals.indexWhere((a) => a.id == animalId);
-      if (idx >= 0) {
-        map = Map<String, dynamic>.from(_animals[idx].toMap());
-      } else {
-        // fallback: busca direto no DB
-        final fetched = await _animalRepository.getAnimalById(animalId);
-        if (fetched == null) return;
-        map = Map<String, dynamic>.from(fetched.toMap());
-      }
-
+      final map = Map<String, dynamic>.from(fetched.toMap());
       map['pregnant'] = 1;
       map['expected_delivery'] = expectedBirth != null
           ? expectedBirth.toIso8601String().split('T')[0]
@@ -362,23 +323,10 @@ class AnimalService extends ChangeNotifier {
   /// padrão (Saudável) quando fizer sentido.
   Future<void> markAsNotPregnant(String animalId) async {
     try {
-      // Garante que temos o animal em memória
-      if (_animals.isEmpty && !_loading) {
-        await loadData();
-      }
+      final fetched = await _animalRepository.getAnimalById(animalId);
+      if (fetched == null) return;
 
-      Map<String, dynamic> map;
-
-      final idx = _animals.indexWhere((a) => a.id == animalId);
-      if (idx >= 0) {
-        map = Map<String, dynamic>.from(_animals[idx].toMap());
-      } else {
-        // fallback: busca direto no DB
-        final fetched = await _animalRepository.getAnimalById(animalId);
-        if (fetched == null) return;
-        map = Map<String, dynamic>.from(fetched.toMap());
-      }
-
+      final map = Map<String, dynamic>.from(fetched.toMap());
       map['pregnant'] = 0;
       map['expected_delivery'] = null;
 
@@ -421,7 +369,10 @@ class AnimalService extends ChangeNotifier {
       final horizon = now.add(Duration(days: horizonDays));
 
       final List<AlertItem> next = [];
-      final animalsById = {for (final a in _animals) a.id: a};
+      
+      // Busca todos os animais para criar mapa de IDs
+      final allAnimals = await _animalRepository.all();
+      final animalsById = {for (final a in allAnimals) a.id: a};
 
       try {
         final vacs =
