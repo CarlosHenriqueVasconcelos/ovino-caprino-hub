@@ -68,6 +68,37 @@ class FinanceRepository {
     return maps.map((m) => FinancialAccount.fromMap(m)).toList();
   }
 
+  /// Retorna contas com paginação e filtros opcionais (tipo/status)
+  Future<List<FinancialAccount>> getAccountsPaged({
+    String? type,
+    String? status,
+    int? limit,
+    int? offset,
+    bool ascending = true,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (type != null && type.isNotEmpty) {
+      where.add('type = ?');
+      args.add(type);
+    }
+    if (status != null && status.isNotEmpty && status != 'Todos') {
+      where.add('status = ?');
+      args.add(status);
+    }
+
+    final maps = await _db.db.query(
+      'financial_accounts',
+      where: where.isEmpty ? null : where.join(' AND '),
+      whereArgs: args.isEmpty ? null : args,
+      orderBy: 'due_date ${ascending ? 'ASC' : 'DESC'}',
+      limit: limit,
+      offset: offset,
+    );
+    return maps.map((m) => FinancialAccount.fromMap(m)).toList();
+  }
+
   /// Retorna contas a pagar
   Future<List<FinancialAccount>> getAccountsPayable() async {
     final maps = await _db.db.query(

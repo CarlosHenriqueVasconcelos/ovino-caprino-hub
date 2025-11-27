@@ -8,10 +8,12 @@ class BreedingRepository {
   BreedingRepository(this._db);
 
   /// Retorna todos os registros de reprodução
-  Future<List<BreedingRecord>> getAll() async {
+  Future<List<BreedingRecord>> getAll({int? limit, int? offset}) async {
     final maps = await _db.db.query(
       'breeding_records',
       orderBy: 'breeding_date DESC',
+      limit: limit,
+      offset: offset,
     );
     return maps.map((m) => BreedingRecord.fromMap(m)).toList();
   }

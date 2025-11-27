@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -258,9 +259,13 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   PharmacyStock? _selectedMedication;
   List<PharmacyStock> _pharmacyStock = [];
   bool _loadingStock = true;
+  List<Animal> _animalOptions = [];
+  bool _loadingAnimals = true;
+  Timer? _animalDebounce;
 
   @override
   void dispose() {
+    _animalDebounce?.cancel();
     _nameController.dispose();
     _dosageController.dispose();
     _veterinarianController.dispose();
@@ -272,6 +277,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   void initState() {
     super.initState();
     Future.microtask(_loadPharmacyStock);
+    Future.microtask(_loadAnimals);
   }
 
   Future<void> _loadPharmacyStock() async {
@@ -295,12 +301,35 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     }
   }
 
+  Future<void> _loadAnimals([String query = '']) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final animals = await animalService.searchAnimals(
+        searchQuery: query,
+        limit: 50,
+      );
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
+      setState(() {
+        _animalOptions = animals;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
+    }
+  }
+
+  void _scheduleAnimalSearch(String query) {
+    _animalDebounce?.cancel();
+    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
+      _loadAnimals(query);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final animalService = context.watch<AnimalService>();
     final theme = Theme.of(context);
-    final animals = [...animalService.animals];
-    AnimalDisplayUtils.sortAnimalsList(animals);
 
     return AlertDialog(
       title: const Text('Agendar Medicamento'),
@@ -315,11 +344,13 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                 Autocomplete<Animal>(
                   displayStringForOption: AnimalDisplayUtils.getDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
+                    _scheduleAnimalSearch(textEditingValue.text);
+                    if (_loadingAnimals) return const Iterable<Animal>.empty();
                     if (textEditingValue.text.isEmpty) {
-                      return animals;
+                      return _animalOptions;
                     }
                     final search = textEditingValue.text.toLowerCase();
-                    return animals.where((animal) {
+                    return _animalOptions.where((animal) {
                       return animal.code.toLowerCase().contains(search) ||
                           animal.name.toLowerCase().contains(search);
                     });

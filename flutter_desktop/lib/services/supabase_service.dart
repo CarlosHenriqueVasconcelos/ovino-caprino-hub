@@ -16,8 +16,14 @@ class SupabaseService {
   }
 
   // -------------------- Animais --------------------
-  static Future<List<Animal>> getAnimals() async {
-    final response = await _client.from('animals').select();
+  static Future<List<Animal>> getAnimals({int? limit, int? offset}) async {
+    var query = _client.from('animals').select().order('name');
+    if (limit != null) {
+      final start = offset ?? 0;
+      final end = start + limit - 1;
+      query = query.range(start, end);
+    }
+    final response = await query;
     return response.map((data) => Animal.fromMap(data)).toList();
   }
 
@@ -83,8 +89,22 @@ class SupabaseService {
   }
 
   // -------------------- Pesos dos Animais --------------------
-  static Future<List<Map<String, dynamic>>> getAnimalWeights() async {
-    final response = await _client.from('animal_weights').select();
+  static Future<List<Map<String, dynamic>>> getAnimalWeights({
+    int? limit,
+    int? offset,
+    String orderBy = 'date',
+    bool ascending = false,
+  }) async {
+    var query = _client
+        .from('animal_weights')
+        .select()
+        .order(orderBy, ascending: ascending);
+    if (limit != null) {
+      final start = offset ?? 0;
+      final end = start + limit - 1;
+      query = query.range(start, end);
+    }
+    final response = await query;
     return _asMapList(response);
   }
 
@@ -121,8 +141,20 @@ class SupabaseService {
   }
 
   // -------------------- Anotações --------------------
-  static Future<List<Map<String, dynamic>>> getNotes() async {
-    final response = await _client.from('notes').select();
+  static Future<List<Map<String, dynamic>>> getNotes({
+    int? limit,
+    int? offset,
+    String orderBy = 'date',
+    bool ascending = false,
+  }) async {
+    var query =
+        _client.from('notes').select().order(orderBy, ascending: ascending);
+    if (limit != null) {
+      final start = offset ?? 0;
+      final end = start + limit - 1;
+      query = query.range(start, end);
+    }
+    final response = await query;
     return _asMapList(response);
   }
 
@@ -140,8 +172,22 @@ class SupabaseService {
   }
 
   // -------------------- Financeiro --------------------
-  static Future<List<Map<String, dynamic>>> getFinancialRecords() async {
-    final response = await _client.from('financial_records').select();
+  static Future<List<Map<String, dynamic>>> getFinancialRecords({
+    int? limit,
+    int? offset,
+    String orderBy = 'date',
+    bool ascending = false,
+  }) async {
+    var query = _client
+        .from('financial_records')
+        .select()
+        .order(orderBy, ascending: ascending);
+    if (limit != null) {
+      final start = offset ?? 0;
+      final end = start + limit - 1;
+      query = query.range(start, end);
+    }
+    final response = await query;
     return _asMapList(response);
   }
 

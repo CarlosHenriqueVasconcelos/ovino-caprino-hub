@@ -1,4 +1,5 @@
 // lib/widgets/breeding_form.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,11 +28,17 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   List<Map<String, dynamic>> _breedingRecords = [];
   bool _loadingRecords = true;
+  bool _loadingAnimals = true;
+  List<Animal> _femaleOptions = [];
+  List<Animal> _maleOptions = [];
+  Timer? _femaleDebounce;
+  Timer? _maleDebounce;
 
   @override
   void initState() {
     super.initState();
     _loadBreedingRecords();
+    _loadInitialAnimals();
   }
 
   Future<void> _loadBreedingRecords() async {
@@ -49,6 +56,33 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
       print('Erro ao carregar registros de reprodução: $e');
       if (!mounted) return;
       setState(() => _loadingRecords = false);
+    }
+  }
+
+  Future<void> _loadInitialAnimals() async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludePregnant: true,
+        excludeCategories: const ['Borrego', 'Borrega', 'Venda'],
+        limit: 50,
+      );
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['Borrego', 'Venda'],
+        limit: 50,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _femaleOptions = females;
+        _maleOptions = males;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
     }
   }
 
@@ -81,11 +115,64 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
     });
   }
 
+  void _scheduleFemaleSearch(String query) {
+    _femaleDebounce?.cancel();
+    _femaleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchFemales(query);
+    });
+  }
+
+  void _scheduleMaleSearch(String query) {
+    _maleDebounce?.cancel();
+    _maleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchMales(query);
+    });
+  }
+
+  Future<void> _fetchFemales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludePregnant: true,
+        excludeCategories: const ['Borrego', 'Borrega', 'Venda'],
+        searchQuery: query,
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() => _femaleOptions = females
+        ..sort(
+          (a, b) => AnimalDisplayUtils.getDisplayText(a)
+              .compareTo(AnimalDisplayUtils.getDisplayText(b)),
+        ));
+    } catch (_) {
+      // mantém opções atuais em caso de erro
+    }
+  }
+
+  Future<void> _fetchMales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['Borrego', 'Venda'],
+        searchQuery: query,
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() => _maleOptions = males
+        ..sort(
+          (a, b) => AnimalDisplayUtils.getDisplayText(a)
+              .compareTo(AnimalDisplayUtils.getDisplayText(b)),
+        ));
+    } catch (_) {
+      // mantém opções atuais em caso de erro
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final animalService = Provider.of<AnimalService>(context);
-
-    if (_loadingRecords) {
+    if (_loadingRecords || _loadingAnimals) {
       return const AlertDialog(
         title: Text('Registrar Cobertura'),
         content: Center(
@@ -93,32 +180,12 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         ),
       );
     }
-
-    // Filtrar fêmeas: excluir borregas, venda, gestantes e que estão em reprodução ativa
-    final femaleAnimals = animalService.animals
-        .where((animal) =>
-            animal.gender == 'Fêmea' &&
-            animal.category != 'Borrego' &&
-            animal.category != 'Borrega' &&
-            animal.category != 'Venda' &&
-            !animal.pregnant &&
-            !_isFemaleInBreeding(animal.id))
+    final femaleAnimals = _femaleOptions
+        .where((animal) => !_isFemaleInBreeding(animal.id))
         .toList();
-
-    // Ordenar fêmeas
-    AnimalDisplayUtils.sortAnimalsList(femaleAnimals);
-
-    // Filtrar machos: excluir borregos, venda e que estão em encabritamento
-    final maleAnimals = animalService.animals
-        .where((animal) =>
-            animal.gender == 'Macho' &&
-            animal.category != 'Borrego' &&
-            animal.category != 'Venda' &&
-            !_isMaleInBreeding(animal.id))
+    final maleAnimals = _maleOptions
+        .where((animal) => !_isMaleInBreeding(animal.id))
         .toList();
-
-    // Ordenar machos
-    AnimalDisplayUtils.sortAnimalsList(maleAnimals);
 
     return AlertDialog(
       title: const Text('Registrar Cobertura'),
@@ -134,6 +201,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
+                    _scheduleFemaleSearch(textEditingValue.text);
                     if (textEditingValue.text.isEmpty) {
                       return femaleAnimals;
                     }
@@ -216,6 +284,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
+                    _scheduleMaleSearch(textEditingValue.text);
                     if (textEditingValue.text.isEmpty) {
                       return maleAnimals;
                     }
@@ -444,15 +513,24 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
       // Se o estágio representar gestação confirmada, marcamos a fêmea como gestante
       if (stageEnum == BreedingStage.gestacaoConfirmada) {
+        Animal? fallbackFemale;
+        if (_femaleOptions.isNotEmpty) {
+          fallbackFemale = _femaleOptions.firstWhere(
+            (a) => a.id == _femaleAnimalId,
+            orElse: () => _femaleOptions.first,
+          );
+        }
         final female =
-            animalService.animals.firstWhere((a) => a.id == _femaleAnimalId);
+            await animalService.getAnimalById(_femaleAnimalId!) ?? fallbackFemale;
 
-        final updatedFemale = female.copyWith(
-          pregnant: true,
-          expectedDelivery: _expectedBirth,
-        );
+        if (female != null) {
+          final updatedFemale = female.copyWith(
+            pregnant: true,
+            expectedDelivery: _expectedBirth,
+          );
 
-        await animalService.updateAnimal(updatedFemale);
+          await animalService.updateAnimal(updatedFemale);
+        }
       }
 
       if (!mounted) return;
@@ -476,6 +554,8 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   @override
   void dispose() {
+    _femaleDebounce?.cancel();
+    _maleDebounce?.cancel();
     _notesController.dispose();
     super.dispose();
   }

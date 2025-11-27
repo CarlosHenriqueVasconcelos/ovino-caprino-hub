@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import '../../models/pharmacy_stock.dart';
 
 class PharmacyStockListSection extends StatelessWidget {
+  final ScrollController? controller;
+  final bool showLoadingMore;
   final List<PharmacyStockRow> rows;
   final ValueChanged<PharmacyStock> onView;
   final void Function({PharmacyStock? stock}) onEdit;
 
   const PharmacyStockListSection({
     super.key,
+    this.controller,
+    this.showLoadingMore = false,
     required this.rows,
     required this.onView,
     required this.onEdit,
@@ -21,6 +25,7 @@ class PharmacyStockListSection extends StatelessWidget {
     }
 
     return SingleChildScrollView(
+      controller: controller,
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: const [
@@ -32,41 +37,60 @@ class PharmacyStockListSection extends StatelessWidget {
           DataColumn(label: Text('Status')),
           DataColumn(label: Text('Ações')),
         ],
-        rows: rows.map((row) {
-          return DataRow(
-            cells: [
-              DataCell(Text(row.stock.medicationName)),
-              DataCell(Text(row.stock.medicationType)),
-              DataCell(Text(row.stock.unitOfMeasure)),
-              DataCell(Text(row.stock.totalQuantity.toStringAsFixed(1))),
-              DataCell(Text(row.expirationLabel)),
-              DataCell(
-                Chip(
-                  label: Text(row.status.label),
-                  avatar:
-                      Icon(row.status.icon, size: 16, color: row.status.color),
-                  backgroundColor: row.status.color.withOpacity(0.1),
+        rows: [
+          ...rows.map((row) {
+            return DataRow(
+              cells: [
+                DataCell(Text(row.stock.medicationName)),
+                DataCell(Text(row.stock.medicationType)),
+                DataCell(Text(row.stock.unitOfMeasure)),
+                DataCell(Text(row.stock.totalQuantity.toStringAsFixed(1))),
+                DataCell(Text(row.expirationLabel)),
+                DataCell(
+                  Chip(
+                    label: Text(row.status.label),
+                    avatar:
+                        Icon(row.status.icon, size: 16, color: row.status.color),
+                    backgroundColor: row.status.color.withOpacity(0.1),
+                  ),
                 ),
-              ),
-              DataCell(
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.visibility),
-                      tooltip: 'Ver detalhes',
-                      onPressed: () => onView(row.stock),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit),
-                      tooltip: 'Editar',
-                      onPressed: () => onEdit(stock: row.stock),
-                    ),
-                  ],
+                DataCell(
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.visibility),
+                        tooltip: 'Ver detalhes',
+                        onPressed: () => onView(row.stock),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Editar',
+                        onPressed: () => onEdit(stock: row.stock),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        }).toList(),
+              ],
+            );
+          }),
+          if (showLoadingMore)
+            const DataRow(
+              cells: [
+                DataCell(SizedBox()),
+                DataCell(SizedBox()),
+                DataCell(SizedBox()),
+                DataCell(SizedBox()),
+                DataCell(SizedBox()),
+                DataCell(SizedBox()),
+                DataCell(
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }

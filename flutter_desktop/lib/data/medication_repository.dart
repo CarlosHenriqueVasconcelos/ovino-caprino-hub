@@ -6,13 +6,16 @@ class MedicationRepository {
 
   MedicationRepository(this._db);
 
-  String _isoDate(DateTime value) => value.toIso8601String().split('T').first;
-
   /// Retorna todas as medicações
-  Future<List<Map<String, dynamic>>> getAll() async {
+  Future<List<Map<String, dynamic>>> getAll({
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.query(
       'medications',
       orderBy: 'date DESC',
+      limit: limit,
+      offset: offset,
     );
   }
 
@@ -39,43 +42,65 @@ class MedicationRepository {
   }
 
   /// Retorna medicações agendadas (status = 'Agendado')
-  Future<List<Map<String, dynamic>>> getScheduled() async {
+  Future<List<Map<String, dynamic>>> getScheduled({
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.query(
       'medications',
       where: 'status = ?',
       whereArgs: ['Agendado'],
       orderBy: 'date ASC',
+      limit: limit,
+      offset: offset,
     );
   }
 
   /// Retorna medicações por status
-  Future<List<Map<String, dynamic>>> getByStatus(String status) async {
+  Future<List<Map<String, dynamic>>> getByStatus(
+    String status, {
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.query(
       'medications',
       where: 'status = ?',
       whereArgs: [status],
       orderBy: 'date DESC',
+      limit: limit,
+      offset: offset,
     );
   }
 
   /// Retorna medicações vencidas (agendadas com data passada)
-  Future<List<Map<String, dynamic>>> getOverdue() async {
+  Future<List<Map<String, dynamic>>> getOverdue({
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.rawQuery('''
       SELECT * FROM medications
       WHERE status = 'Agendado'
       AND COALESCE(date, next_date) < date('now')
       ORDER BY COALESCE(date, next_date) ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''');
   }
 
   /// Retorna medicações próximas (dentro de X dias)
-  Future<List<Map<String, dynamic>>> getUpcoming(int daysThreshold) async {
+  Future<List<Map<String, dynamic>>> getUpcoming(
+    int daysThreshold, {
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.rawQuery('''
       SELECT * FROM medications
       WHERE status = 'Agendado'
       AND COALESCE(date, next_date) >= date('now')
       AND COALESCE(date, next_date) <= date('now', '+$daysThreshold days')
       ORDER BY COALESCE(date, next_date) ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''');
   }
 
@@ -110,6 +135,8 @@ class MedicationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -134,6 +161,8 @@ class MedicationRepository {
       LEFT JOIN animals a ON a.id = m.animal_id
       ${filters.isNotEmpty ? 'WHERE ${filters.join(' AND ')}' : ''}
       ORDER BY m.date DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -144,6 +173,8 @@ class MedicationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -173,6 +204,8 @@ class MedicationRepository {
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY COALESCE(m.date, m.next_date) ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -183,6 +216,8 @@ class MedicationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -212,6 +247,8 @@ class MedicationRepository {
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY COALESCE(m.date, m.next_date) ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -222,6 +259,8 @@ class MedicationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -249,6 +288,8 @@ class MedicationRepository {
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY COALESCE(m.applied_date, m.date) DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -259,6 +300,8 @@ class MedicationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -286,6 +329,8 @@ class MedicationRepository {
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY COALESCE(m.date, m.next_date) DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }

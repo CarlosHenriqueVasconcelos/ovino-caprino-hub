@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -22,6 +23,15 @@ class _MedicationManagementScreenState
   List<Map<String, dynamic>> _vaccinations = [];
   List<Map<String, dynamic>> _medications = [];
   bool _isLoading = true;
+  bool _isLoadingMoreVacc = false;
+  bool _isLoadingMoreMed = false;
+  bool _hasMoreVacc = false;
+  bool _hasMoreMed = false;
+  int _vaccPage = 0;
+  int _medPage = 0;
+  static const int _pageSize = 50;
+  late final ScrollController _vaccScroll;
+  late final ScrollController _medScroll;
 
   // Filtros de status
   String _vaccinationFilter = 'Atrasadas';
@@ -30,7 +40,18 @@ class _MedicationManagementScreenState
   @override
   void initState() {
     super.initState();
+    _vaccScroll = ScrollController();
+    _medScroll = ScrollController();
+    _vaccScroll.addListener(_handleVaccScroll);
+    _medScroll.addListener(_handleMedScroll);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _vaccScroll.dispose();
+    _medScroll.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -41,12 +62,22 @@ class _MedicationManagementScreenState
       final medicationService =
           Provider.of<MedicationService>(context, listen: false);
 
-      final vaccinations = await vaccinationService.getVaccinations();
-      final medications = await medicationService.getMedications();
+      final vaccinations = await vaccinationService.getVaccinations(
+        limit: _pageSize,
+        offset: 0,
+      );
+      final medications = await medicationService.getMedications(
+        limit: _pageSize,
+        offset: 0,
+      );
 
       setState(() {
         _vaccinations = List<Map<String, dynamic>>.from(vaccinations);
         _medications = List<Map<String, dynamic>>.from(medications);
+        _vaccPage = 0;
+        _medPage = 0;
+        _hasMoreVacc = vaccinations.length == _pageSize;
+        _hasMoreMed = medications.length == _pageSize;
         _isLoading = false;
       });
     } catch (e) {
@@ -280,9 +311,18 @@ class _MedicationManagementScreenState
                   ),
                 )
               : ListView.builder(
+                  controller: _vaccScroll,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredVaccinations.length,
+                  itemCount: filteredVaccinations.length +
+                      ((_isLoadingMoreVacc || _hasMoreVacc) ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if ((_isLoadingMoreVacc || _hasMoreVacc) &&
+                        index >= filteredVaccinations.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
                     final vaccination = filteredVaccinations[index];
                     return _buildVaccinationCard(vaccination);
                   },
@@ -368,9 +408,18 @@ class _MedicationManagementScreenState
                   ),
                 )
               : ListView.builder(
+                  controller: _medScroll,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredMedications.length,
+                  itemCount: filteredMedications.length +
+                      ((_isLoadingMoreMed || _hasMoreMed) ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if ((_isLoadingMoreMed || _hasMoreMed) &&
+                        index >= filteredMedications.length) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
                     final medication = filteredMedications[index];
                     return _buildMedicationCard(medication);
                   },
@@ -408,6 +457,68 @@ class _MedicationManagementScreenState
         ),
       ),
     );
+  }
+
+  void _handleVaccScroll() {
+    if (!_vaccScroll.hasClients || _isLoadingMoreVacc || !_hasMoreVacc) return;
+    final position = _vaccScroll.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMoreVaccinations();
+    }
+  }
+
+  void _handleMedScroll() {
+    if (!_medScroll.hasClients || _isLoadingMoreMed || !_hasMoreMed) return;
+    final position = _medScroll.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMoreMedications();
+    }
+  }
+
+  Future<void> _loadMoreVaccinations() async {
+    setState(() => _isLoadingMoreVacc = true);
+    try {
+      final nextPage = _vaccPage + 1;
+      final service =
+          Provider.of<VaccinationService>(context, listen: false);
+      final result = await service.getVaccinations(
+        limit: _pageSize,
+        offset: nextPage * _pageSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _vaccinations.addAll(result);
+        _vaccPage = nextPage;
+        _hasMoreVacc = result.length == _pageSize;
+      });
+    } catch (_) {
+      // mantém estado atual
+    } finally {
+      if (mounted) setState(() => _isLoadingMoreVacc = false);
+    }
+  }
+
+  Future<void> _loadMoreMedications() async {
+    setState(() => _isLoadingMoreMed = true);
+    try {
+      final nextPage = _medPage + 1;
+      final service =
+          Provider.of<MedicationService>(context, listen: false);
+      final result = await service.getMedications(
+        limit: _pageSize,
+        offset: nextPage * _pageSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _medications.addAll(result);
+        _medPage = nextPage;
+        _hasMoreMed = result.length == _pageSize;
+      });
+    } catch (_) {
+      // mantém estado atual
+    } finally {
+      if (mounted) setState(() => _isLoadingMoreMed = false);
+    }
   }
 
   Widget _buildVaccinationCard(Map<String, dynamic> vaccination) {
@@ -459,24 +570,34 @@ class _MedicationManagementScreenState
 
                         // Converter cor do texto para Color
                         Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty)
+                          if (colorName == null || colorName.isEmpty) {
                             return null;
+                          }
                           final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco'))
+                          if (colorLower.contains('branco')) {
                             return Colors.grey[700];
-                          if (colorLower.contains('preto')) return Colors.black;
-                          if (colorLower.contains('marrom'))
+                          }
+                          if (colorLower.contains('preto')) {
+                            return Colors.black;
+                          }
+                          if (colorLower.contains('marrom')) {
                             return Colors.brown;
-                          if (colorLower.contains('vermelho'))
+                          }
+                          if (colorLower.contains('vermelho')) {
                             return Colors.red[700];
-                          if (colorLower.contains('amarelo'))
+                          }
+                          if (colorLower.contains('amarelo')) {
                             return Colors.amber[800];
-                          if (colorLower.contains('cinza'))
+                          }
+                          if (colorLower.contains('cinza')) {
                             return Colors.grey[600];
-                          if (colorLower.contains('azul'))
+                          }
+                          if (colorLower.contains('azul')) {
                             return Colors.blue[700];
-                          if (colorLower.contains('verde'))
+                          }
+                          if (colorLower.contains('verde')) {
                             return Colors.green[700];
+                          }
                           return null;
                         }
 
@@ -655,24 +776,34 @@ class _MedicationManagementScreenState
 
                         // Converter cor do texto para Color
                         Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty)
+                          if (colorName == null || colorName.isEmpty) {
                             return null;
+                          }
                           final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco'))
+                          if (colorLower.contains('branco')) {
                             return Colors.grey[700];
-                          if (colorLower.contains('preto')) return Colors.black;
-                          if (colorLower.contains('marrom'))
+                          }
+                          if (colorLower.contains('preto')) {
+                            return Colors.black;
+                          }
+                          if (colorLower.contains('marrom')) {
                             return Colors.brown;
-                          if (colorLower.contains('vermelho'))
+                          }
+                          if (colorLower.contains('vermelho')) {
                             return Colors.red[700];
-                          if (colorLower.contains('amarelo'))
+                          }
+                          if (colorLower.contains('amarelo')) {
                             return Colors.amber[800];
-                          if (colorLower.contains('cinza'))
+                          }
+                          if (colorLower.contains('cinza')) {
                             return Colors.grey[600];
-                          if (colorLower.contains('azul'))
+                          }
+                          if (colorLower.contains('azul')) {
                             return Colors.blue[700];
-                          if (colorLower.contains('verde'))
+                          }
+                          if (colorLower.contains('verde')) {
                             return Colors.green[700];
+                          }
                           return null;
                         }
 
@@ -807,11 +938,7 @@ class _MedicationManagementScreenState
   Future<Animal?> _getAnimalById(String? animalId) async {
     if (animalId == null) return null;
     final animalService = Provider.of<AnimalService>(context, listen: false);
-    try {
-      return animalService.animals.firstWhere((a) => a.id == animalId);
-    } catch (e) {
-      return null;
-    }
+    return animalService.getAnimalById(animalId);
   }
 
   String _formatDate(dynamic date) {
@@ -828,10 +955,15 @@ class _MedicationManagementScreenState
       {required bool isVaccination}) async {
     final animalService = Provider.of<AnimalService>(context, listen: false);
     final animalId = data['animal_id'];
-    final animal = animalService.animals.firstWhere(
-      (a) => a.id == animalId,
-      orElse: () => animalService.animals.first,
-    );
+    final animal = await animalService.getAnimalById(animalId);
+    if (animal == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Animal não encontrado.')),
+      );
+      return;
+    }
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -1053,6 +1185,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   String _vaccineType = 'Obrigatória';
   DateTime _scheduledDate = DateTime.now();
   String? _selectedAnimalId;
+  List<Animal> _animalOptions = [];
+  bool _loadingAnimals = true;
+  Timer? _animalDebounce;
 
   // INTEGRAÇÃO COM FARMÁCIA
   List<PharmacyStock> _pharmacyStock = [];
@@ -1062,6 +1197,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   void initState() {
     super.initState();
     _loadPharmacyStock();
+    _loadAnimals();
   }
 
   Future<void> _loadPharmacyStock() async {
@@ -1081,16 +1217,39 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     }
   }
 
+  Future<void> _loadAnimals([String query = '']) async {
+    try {
+      final animalService =
+          Provider.of<AnimalService>(context, listen: false);
+      final animals = await animalService.searchAnimals(
+        searchQuery: query,
+        limit: 50,
+      );
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
+      setState(() {
+        _animalOptions = animals;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
+    }
+  }
+
+  void _scheduleAnimalSearch(String query) {
+    _animalDebounce?.cancel();
+    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
+      _loadAnimals(query);
+    });
+  }
+
   String _getAnimalDisplayText(Animal animal) {
     return AnimalDisplayUtils.getDisplayText(animal);
   }
 
   @override
   Widget build(BuildContext context) {
-    final animalService = Provider.of<AnimalService>(context);
-    final sortedAnimals = [...animalService.animals];
-    AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
-
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
       content: SizedBox(
@@ -1121,10 +1280,12 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
+                    _scheduleAnimalSearch(textEditingValue.text);
+                    if (_loadingAnimals) return const Iterable<Animal>.empty();
                     if (textEditingValue.text.isEmpty) {
-                      return sortedAnimals;
+                      return _animalOptions;
                     }
-                    return sortedAnimals.where((animal) {
+                    return _animalOptions.where((animal) {
                       final searchText = textEditingValue.text.toLowerCase();
                       return animal.code.toLowerCase().contains(searchText) ||
                           animal.name.toLowerCase().contains(searchText);
@@ -1633,6 +1794,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   @override
   void dispose() {
+    _animalDebounce?.cancel();
     _nameController.dispose();
     _veterinarianController.dispose();
     _notesController.dispose();

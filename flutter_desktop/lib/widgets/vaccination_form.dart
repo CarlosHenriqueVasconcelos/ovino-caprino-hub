@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -26,25 +27,48 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
   DateTime _scheduledDate = DateTime.now();
   DateTime? _appliedDate;
   String? _selectedAnimalId;
+  List<Animal> _animalOptions = [];
+  bool _loadingAnimals = true;
+  Timer? _animalDebounce;
 
   @override
   void initState() {
     super.initState();
     _selectedAnimalId = widget.animalId;
+    _loadAnimals();
   }
 
   String _getAnimalDisplayText(Animal animal) {
     return AnimalDisplayUtils.getDisplayText(animal);
   }
 
+  Future<void> _loadAnimals([String query = '']) async {
+    try {
+      final animalService =
+          Provider.of<AnimalService>(context, listen: false);
+      final animals =
+          await animalService.searchAnimals(searchQuery: query, limit: 50);
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
+      setState(() {
+        _animalOptions = animals;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
+    }
+  }
+
+  void _scheduleAnimalSearch(String query) {
+    _animalDebounce?.cancel();
+    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
+      _loadAnimals(query);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final animalService = Provider.of<AnimalService>(context);
-
-    // Ordenar animais
-    final sortedAnimals = [...animalService.animals];
-    AnimalDisplayUtils.sortAnimalsList(sortedAnimals);
-
     return AlertDialog(
       title: const Text('Nova Vacinação'),
       content: SizedBox(
@@ -60,10 +84,12 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                   Autocomplete<Animal>(
                     displayStringForOption: _getAnimalDisplayText,
                     optionsBuilder: (TextEditingValue textEditingValue) {
+                      _scheduleAnimalSearch(textEditingValue.text);
+                      if (_loadingAnimals) return const Iterable<Animal>.empty();
                       if (textEditingValue.text.isEmpty) {
-                        return sortedAnimals;
+                        return _animalOptions;
                       }
-                      return sortedAnimals.where((animal) {
+                      return _animalOptions.where((animal) {
                         final searchText = textEditingValue.text.toLowerCase();
                         return animal.code.toLowerCase().contains(searchText) ||
                             animal.name.toLowerCase().contains(searchText);
@@ -359,6 +385,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
 
   @override
   void dispose() {
+    _animalDebounce?.cancel();
     _vaccineNameController.dispose();
     _veterinarianController.dispose();
     _notesController.dispose();

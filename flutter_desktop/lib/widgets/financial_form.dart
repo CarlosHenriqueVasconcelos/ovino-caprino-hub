@@ -4,6 +4,7 @@ import '../services/financial_service.dart';
 import '../services/animal_service.dart';
 import '../models/financial_account.dart';
 import '../models/animal.dart';
+import '../utils/animal_display_utils.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:provider/provider.dart';
@@ -77,9 +78,17 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
 
   Future<void> _loadAnimals() async {
     final animalService = context.read<AnimalService>();
-    setState(() {
-      _animals = animalService.animals;
-    });
+    try {
+      final animals =
+          await animalService.searchAnimals(searchQuery: '', limit: 100);
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
+      setState(() {
+        _animals = animals;
+      });
+    } catch (_) {
+      // Mantém lista vazia em caso de erro
+    }
   }
 
   void _initializeControllers() {

@@ -1,4 +1,5 @@
 // lib/widgets/breeding_import_dialog.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,7 +17,8 @@ class BreedingImportDialog extends StatefulWidget {
 class _BreedingImportDialogState extends State<BreedingImportDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  List<Animal> _allAnimals = [];
+  List<Animal> _femaleOptions = [];
+  List<Animal> _maleOptions = [];
   Animal? _female;
   Animal? _male;
 
@@ -32,6 +34,9 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   final _maleCtrl = TextEditingController();
 
   bool _saving = false;
+  bool _loadingAnimals = true;
+  Timer? _femaleDebounce;
+  Timer? _maleDebounce;
 
   @override
   void initState() {
@@ -42,12 +47,28 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
   Future<void> _loadAnimals() async {
     final animalService = context.read<AnimalService>();
-    if (animalService.animals.isEmpty) {
-      await animalService.loadData();
+    try {
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludePregnant: true,
+        excludeCategories: const ['borrego', 'borrega', 'venda'],
+        limit: 50,
+      );
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['borrego', 'venda'],
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() {
+        _femaleOptions = females;
+        _maleOptions = males;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
     }
-    setState(() {
-      _allAnimals = List<Animal>.from(animalService.animals);
-    });
   }
 
   bool _isFemaleAllowed(Animal a) {
@@ -66,8 +87,9 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   List<Animal> _filterForFemale(String query) {
+    _scheduleFemaleSearch(query);
     final q = query.trim().toLowerCase();
-    return _allAnimals.where((a) {
+    return _femaleOptions.where((a) {
       if (!_isFemaleAllowed(a)) return false;
       if (q.isEmpty) return true;
       final code = a.code.toLowerCase();
@@ -77,8 +99,9 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   List<Animal> _filterForMale(String query) {
+    _scheduleMaleSearch(query);
     final q = query.trim().toLowerCase();
-    return _allAnimals.where((a) {
+    return _maleOptions.where((a) {
       if (!_isMaleAllowed(a)) return false;
       if (q.isEmpty) return true;
       final code = a.code.toLowerCase();
@@ -88,6 +111,53 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   String _labelOf(Animal a) => '${a.code} — ${a.name}';
+
+  void _scheduleFemaleSearch(String query) {
+    _femaleDebounce?.cancel();
+    _femaleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchFemales(query);
+    });
+  }
+
+  void _scheduleMaleSearch(String query) {
+    _maleDebounce?.cancel();
+    _maleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchMales(query);
+    });
+  }
+
+  Future<void> _fetchFemales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludePregnant: true,
+        excludeCategories: const ['borrego', 'borrega', 'venda'],
+        searchQuery: query,
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() => _femaleOptions = females);
+    } catch (_) {
+      // mantém opções atuais em caso de erro
+    }
+  }
+
+  Future<void> _fetchMales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['borrego', 'venda'],
+        searchQuery: query,
+        limit: 50,
+      );
+      if (!mounted) return;
+      setState(() => _maleOptions = males);
+    } catch (_) {
+      // mantém opções atuais em caso de erro
+    }
+  }
 
   // ----------- salvar (com cálculo de stage) -----------
   Future<void> _save() async {
@@ -151,12 +221,8 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
         final femaleId = _female!.id;
 
         // tenta achar a fêmea no service, se não achar usa a selecionada (_female)
-        Animal? female;
-        try {
-          female = animalService.animals.firstWhere((a) => a.id == femaleId);
-        } catch (_) {
-          female = _female;
-        }
+        final female =
+            await animalService.getAnimalById(femaleId) ?? _female;
 
         if (female != null) {
           final updatedFemale = female.copyWith(
@@ -167,9 +233,6 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
           await animalService.updateAnimal(updatedFemale);
         }
       }
-
-      // Atualizar provider/UI (cards e lista)
-      await animalService.loadData();
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -189,6 +252,8 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
   @override
   void dispose() {
+    _femaleDebounce?.cancel();
+    _maleDebounce?.cancel();
     _femaleCtrl.dispose();
     _maleCtrl.dispose();
     super.dispose();
@@ -196,6 +261,15 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingAnimals) {
+      return const AlertDialog(
+        title: Text('Adicionar registro existente'),
+        content: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
     return AlertDialog(
       title: const Text('Adicionar registro existente'),
       content: SingleChildScrollView(

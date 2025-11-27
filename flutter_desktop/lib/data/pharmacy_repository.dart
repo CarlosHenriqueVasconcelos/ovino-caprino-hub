@@ -11,10 +11,15 @@ class PharmacyRepository {
   // ==================== PHARMACY STOCK ====================
 
   /// Retorna todos os itens do estoque
-  Future<List<PharmacyStock>> getAllStock() async {
+  Future<List<PharmacyStock>> getAllStock({
+    int? limit,
+    int? offset,
+  }) async {
     final maps = await _db.db.query(
       'pharmacy_stock',
       orderBy: 'medication_name ASC',
+      limit: limit,
+      offset: offset,
     );
     return maps.map((m) => PharmacyStock.fromMap(m)).toList();
   }
@@ -115,10 +120,15 @@ class PharmacyRepository {
   }
 
   /// Retorna todas as movimentações
-  Future<List<PharmacyStockMovement>> getAllMovements() async {
+  Future<List<PharmacyStockMovement>> getAllMovements({
+    int? limit,
+    int? offset,
+  }) async {
     final maps = await _db.db.query(
       'pharmacy_stock_movements',
       orderBy: 'created_at DESC',
+      limit: limit,
+      offset: offset,
     );
     return maps.map((m) => PharmacyStockMovement.fromMap(m)).toList();
   }

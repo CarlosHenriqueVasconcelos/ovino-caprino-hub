@@ -16,6 +16,8 @@ class PharmacyManagementScreen extends StatefulWidget {
 class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   List<PharmacyStock> _stock = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
   String _filter = 'Todos';
   String _searchQuery = '';
   String _sortBy = 'name'; // name, quantity, expiration
@@ -23,12 +25,53 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   // Paginação
   int _currentPage = 0;
-  final int _itemsPerPage = 20;
+  final int _itemsPerPage = 50;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
     _loadStock();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final nextPage = _currentPage + 1;
+      final pharmacyService =
+          Provider.of<PharmacyService>(context, listen: false);
+      final pageData = await pharmacyService.getPharmacyStock(
+        limit: _itemsPerPage,
+        offset: nextPage * _itemsPerPage,
+      );
+      if (!mounted) return;
+      setState(() {
+        _stock.addAll(pageData);
+        _currentPage = nextPage;
+        _hasMore = pageData.length == _itemsPerPage;
+      });
+    } catch (_) {
+      // mantém estado atual em caso de erro
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStock() async {
@@ -36,9 +79,14 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     try {
       final pharmacyService =
           Provider.of<PharmacyService>(context, listen: false);
-      final stock = await pharmacyService.getPharmacyStock();
+      final stock = await pharmacyService.getPharmacyStock(
+        limit: _itemsPerPage,
+        offset: 0,
+      );
       setState(() {
         _stock = stock;
+        _currentPage = 0;
+        _hasMore = stock.length == _itemsPerPage;
         _isLoading = false;
       });
     } catch (e) {
@@ -51,12 +99,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     }
   }
 
-  int get _totalPages {
-    final allFiltered = _filterStockWithoutPagination();
-    return (allFiltered.length / _itemsPerPage).ceil();
-  }
-
-  List<PharmacyStock> _filterStockWithoutPagination() {
+  List<PharmacyStock> _filterStock() {
     var filtered = _stock.toList();
 
     // Aplicar busca
@@ -112,20 +155,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     return filtered;
   }
 
-  List<PharmacyStock> _filterStock() {
-    final allFiltered = _filterStockWithoutPagination();
-
-    // Aplica paginação
-    final start = _currentPage * _itemsPerPage;
-    final end = (start + _itemsPerPage).clamp(0, allFiltered.length);
-
-    if (start >= allFiltered.length) {
-      return [];
-    }
-
-    return allFiltered.sublist(start, end);
-  }
-
   @override
   Widget build(BuildContext context) {
     final filteredStock = _filterStock();
@@ -146,10 +175,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               const SizedBox(height: 12),
 
               // Paginação
-              if (!_isLoading && _stock.isNotEmpty) _buildPagination(),
-
-              const SizedBox(height: 12),
-
               // Lista de medicamentos
               Expanded(
                 child: _isLoading
@@ -190,6 +215,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                               final aspect = crossAxisCount == 1 ? 3.0 : 1.9;
 
                               return GridView.builder(
+                                controller: _scrollController,
                                 padding: const EdgeInsets.only(bottom: 96),
                                 itemCount: filteredStock.length,
                                 gridDelegate:
@@ -261,41 +287,6 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     );
   }
 
-  Widget _buildPagination() {
-    if (_totalPages <= 1) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 0
-                ? () => setState(() {
-                      _currentPage--;
-                    })
-                : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            'Página ${_currentPage + 1} de $_totalPages',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(width: 16),
-          IconButton(
-            onPressed: _currentPage < _totalPages - 1
-                ? () => setState(() {
-                      _currentPage++;
-                    })
-                : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFiltersBar(ThemeData theme) {
     return Wrap(
       spacing: 8,
@@ -307,7 +298,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
           child: TextField(
             onChanged: (value) => setState(() {
               _searchQuery = value;
-              _currentPage = 0; // Reset para primeira página
+              _currentPage = 0;
             }),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),

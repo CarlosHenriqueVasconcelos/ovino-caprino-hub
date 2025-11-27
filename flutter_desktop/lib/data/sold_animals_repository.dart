@@ -7,12 +7,16 @@ class SoldAnimalsRepository {
   SoldAnimalsRepository(this._db);
 
   Future<List<Animal>> fetchAll() async {
-    final rows = await _db.db.query(
-      'sold_animals',
-      orderBy: 'sale_date DESC',
-    );
+    try {
+      final rows = await _db.db.query(
+        'sold_animals',
+        orderBy: 'sale_date DESC',
+      );
+      return rows.map(_mapRowToAnimal).toList();
+    } catch (e) {
+      rethrow;
+    }
 
-    return rows.map(_mapRowToAnimal).toList();
   }
 
   Animal _mapRowToAnimal(Map<String, dynamic> row) {

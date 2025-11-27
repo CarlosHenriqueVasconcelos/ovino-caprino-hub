@@ -1,4 +1,5 @@
 // lib/widgets/breeding_wizard_dialog.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,6 +26,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   List<Animal> _females = [];
   List<Animal> _males = [];
   bool _isLoading = true;
+  Timer? _femaleDebounce;
+  Timer? _maleDebounce;
 
   Animal? _selectedFemale;
   Animal? _selectedMale;
@@ -42,23 +45,17 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   Future<void> _loadAnimals() async {
     try {
       final animalService = context.read<AnimalService>();
-
-      // Garante que a lista está carregada
-      if (animalService.animals.isEmpty) {
-        await animalService.loadData();
-      }
-
-      final animals = List<Animal>.from(animalService.animals);
-
-      // Filtrar: fêmeas e machos, excluindo categoria "Borrego"
-      final females = animals
-          .where((a) => a.gender == 'Fêmea' && a.category != 'Borrego')
-          .toList();
-      final males = animals
-          .where((a) => a.gender == 'Macho' && a.category != 'Borrego')
-          .toList();
-
-      // Ordenar por cor e depois por número
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludeCategories: const ['borrego'],
+        excludePregnant: true,
+        limit: 50,
+      );
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['borrego'],
+        limit: 50,
+      );
       AnimalDisplayUtils.sortAnimalsList(females);
       AnimalDisplayUtils.sortAnimalsList(males);
 
@@ -77,12 +74,68 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     }
   }
 
+  void _scheduleFemaleSearch(String query) {
+    _femaleDebounce?.cancel();
+    _femaleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchFemales(query);
+    });
+  }
+
+  void _scheduleMaleSearch(String query) {
+    _maleDebounce?.cancel();
+    _maleDebounce = Timer(const Duration(milliseconds: 250), () {
+      _fetchMales(query);
+    });
+  }
+
+  Future<void> _fetchFemales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final females = await animalService.searchAnimals(
+        gender: 'Fêmea',
+        excludeCategories: const ['borrego'],
+        excludePregnant: true,
+        searchQuery: query,
+        limit: 50,
+      );
+      AnimalDisplayUtils.sortAnimalsList(females);
+      if (!mounted) return;
+      setState(() => _females = females);
+    } catch (_) {
+      // mantém lista atual
+    }
+  }
+
+  Future<void> _fetchMales(String query) async {
+    final animalService = context.read<AnimalService>();
+    try {
+      final males = await animalService.searchAnimals(
+        gender: 'Macho',
+        excludeCategories: const ['borrego'],
+        searchQuery: query,
+        limit: 50,
+      );
+      AnimalDisplayUtils.sortAnimalsList(males);
+      if (!mounted) return;
+      setState(() => _males = males);
+    } catch (_) {
+      // mantém lista atual
+    }
+  }
+
   String _getAnimalDisplayText(Animal animal) {
     return AnimalDisplayUtils.getDisplayText(animal);
   }
 
   void _calculateMatingEndDate() {
     _matingEndDate = _matingStartDate.add(const Duration(days: 60));
+  }
+
+  @override
+  void dispose() {
+    _femaleDebounce?.cancel();
+    _maleDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _submit() async {
@@ -171,6 +224,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       Autocomplete<Animal>(
                         displayStringForOption: _getAnimalDisplayText,
                         optionsBuilder: (TextEditingValue textEditingValue) {
+                          _scheduleFemaleSearch(textEditingValue.text);
                           if (textEditingValue.text.isEmpty) {
                             return _females;
                           }
@@ -245,6 +299,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                       Autocomplete<Animal>(
                         displayStringForOption: _getAnimalDisplayText,
                         optionsBuilder: (TextEditingValue textEditingValue) {
+                          _scheduleMaleSearch(textEditingValue.text);
                           if (textEditingValue.text.isEmpty) {
                             return _males;
                           }

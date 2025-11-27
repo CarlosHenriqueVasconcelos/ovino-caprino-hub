@@ -70,6 +70,21 @@ class _ReportsQueries {
     return !d.isBefore(s) && !d.isAfter(e);
   }
 
+  /// Aplica paginação em memória e registra total em [out] para uso na UI.
+  static List<T> _paginate<T>(
+    List<T> data,
+    ReportFilters filters,
+    Map<String, dynamic> out,
+  ) {
+    out['total'] = data.length;
+    final offset = (filters.offset ?? 0);
+    final limit = filters.limit;
+    if (offset >= data.length) return const [];
+    if (limit == null) return data.sublist(offset);
+    final end = (offset + limit).clamp(0, data.length);
+    return data.sublist(offset, end);
+  }
+
   static String _asLower(dynamic v) =>
       (v == null ? '' : v.toString()).trim().toLowerCase();
 
@@ -125,10 +140,13 @@ class _ReportsQueries {
     final database = await _resolveDatabase(db);
     var animals = await _animalsWithinPeriod(database, filters);
     animals = _applyAnimalReportFilters(animals, filters);
+    final map = <String, dynamic>{};
+    final paged = _paginate(animals, filters, map);
 
     return {
       'summary': _buildAnimalSummary(animals),
-      'data': _mapAnimalsReportRows(animals),
+      'data': _mapAnimalsReportRows(paged),
+      'total': map['total'] ?? animals.length,
     };
   }
 
@@ -188,10 +206,13 @@ class _ReportsQueries {
 
     final animalStats = _buildWeightStatistics(groupedWeights, animalMap);
     final summary = _buildWeightSummary(weights, groupedWeights, animalStats);
+    final map = <String, dynamic>{};
+    final paged = _paginate(animalStats, filters, map);
 
     return {
       'summary': summary,
-      'data': animalStats,
+      'data': paged,
+      'total': map['total'] ?? animalStats.length,
     };
   }
 
@@ -202,10 +223,13 @@ class _ReportsQueries {
   }) async {
     final database = await _resolveDatabase(db);
     final vaccinations = await _fetchVaccinationsWithAnimals(database, filters);
+    final map = <String, dynamic>{};
+    final paged = _paginate(vaccinations, filters, map);
 
     return {
       'summary': _buildStatusSummary(vaccinations),
-      'data': vaccinations.map(_mapVaccinationRow).toList(),
+      'data': paged.map(_mapVaccinationRow).toList(),
+      'total': map['total'] ?? vaccinations.length,
     };
   }
 
@@ -216,10 +240,13 @@ class _ReportsQueries {
   }) async {
     final database = await _resolveDatabase(db);
     final medications = await _fetchMedicationsWithAnimals(database, filters);
+    final map = <String, dynamic>{};
+    final paged = _paginate(medications, filters, map);
 
     return {
       'summary': _buildStatusSummary(medications),
-      'data': medications.map(_mapMedicationRow).toList(),
+      'data': paged.map(_mapMedicationRow).toList(),
+      'total': map['total'] ?? medications.length,
     };
   }
 
@@ -235,10 +262,13 @@ class _ReportsQueries {
     final animalMap = {for (var a in animals) a.id: a};
 
     final summary = _stageSummary(breeding);
+    final map = <String, dynamic>{};
+    final paged = _paginate(breeding, filters, map);
 
     return {
       'summary': summary,
-      'data': breeding.map((b) => _mapBreedingRow(b, animalMap)).toList(),
+      'data': paged.map((b) => _mapBreedingRow(b, animalMap)).toList(),
+      'total': map['total'] ?? breeding.length,
     };
   }
 
@@ -292,11 +322,14 @@ class _ReportsQueries {
     normalized.sort(_sortByEffectiveDateDesc);
 
     final summary = _buildFinancialSummary(normalized);
-    final data = normalized.map(_mapFinancialRow).toList();
+    final map = <String, dynamic>{};
+    final paged = _paginate(normalized, filters, map);
+    final data = paged.map(_mapFinancialRow).toList();
 
     return {
       'summary': summary,
       'data': data,
+      'total': map['total'] ?? normalized.length,
     };
   }
 
@@ -312,10 +345,13 @@ class _ReportsQueries {
     final animalMap = {for (var a in animals) a.id: a};
 
     final summary = _buildNotesSummary(notes);
+    final map = <String, dynamic>{};
+    final paged = _paginate(notes, filters, map);
 
     return {
       'summary': summary,
-      'data': notes.map((n) => _mapNoteRow(n, animalMap)).toList(),
+      'data': paged.map((n) => _mapNoteRow(n, animalMap)).toList(),
+      'total': map['total'] ?? notes.length,
     };
   }
 

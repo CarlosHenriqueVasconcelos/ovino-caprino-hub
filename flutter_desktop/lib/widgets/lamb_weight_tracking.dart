@@ -5,6 +5,7 @@ import '../services/animal_service.dart';
 import '../services/weight_service.dart';
 import '../models/animal.dart';
 import 'animal_form.dart';
+import 'weight_tracking/weight_tracking_pagination_bar.dart';
 
 class LambWeightTracking extends StatefulWidget {
   const LambWeightTracking({super.key});
@@ -18,6 +19,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
   static const int _itemsPerPage = 25;
+  Future<HerdQueryResult>? _future;
 
   @override
   void dispose() {
@@ -99,6 +101,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                               setState(() {
                                 _searchController.clear();
                                 _searchQuery = '';
+                                _currentPage = 0;
+                                _future = null;
                               });
                             },
                           )
@@ -111,6 +115,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                     setState(() {
                       _searchQuery = value.toLowerCase();
                       _currentPage = 0; // Reset para primeira página ao buscar
+                      _future = null;
                     });
                   },
                 ),
@@ -154,9 +159,28 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             const SizedBox(height: 24),
 
             // Lambs Weight List
-            Consumer<AnimalService>(
-              builder: (context, animalService, _) {
-                final lambs = _getFilteredLambs(animalService.animals);
+            FutureBuilder<HerdQueryResult>(
+              future: _future ??= context.read<AnimalService>().herdQuery(
+                    categoryFilter: 'Borrego',
+                    searchQuery: _searchQuery,
+                    page: _currentPage,
+                    pageSize: _itemsPerPage,
+                  ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  );
+                }
+
+                final result = snapshot.data;
+                final lambs = result?.items ?? const <Animal>[];
+                final total = result?.total ?? 0;
+                final totalPages =
+                    (total / _itemsPerPage).ceil().clamp(1, 9999);
 
                 return Card(
                   child: Padding(
@@ -174,7 +198,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                             ),
                             const Spacer(),
                             Text(
-                              '${lambs.length} borregos',
+                              '$total borregos',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 color: theme.colorScheme.primary,
                               ),
@@ -186,6 +210,18 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                           _buildEmptyState(theme)
                         else
                           _buildLambsList(theme, lambs),
+                        const SizedBox(height: 16),
+                        WeightTrackingPaginationBar(
+                          currentPage: _currentPage,
+                          totalPages: totalPages,
+                          itemsPerPage: _itemsPerPage,
+                          onPageChanged: (page) {
+                            setState(() {
+                              _currentPage = page;
+                              _future = null;
+                            });
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -245,37 +281,6 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     );
   }
 
-  List<Animal> _getFilteredLambs(List<Animal> animals) {
-    // Filtrar apenas borregos (machos e fêmeas)
-    var lambs = animals.where((animal) {
-      return animal.category == 'Borrego';
-    }).toList();
-
-    // Aplicar filtro de pesquisa
-    if (_searchQuery.isNotEmpty) {
-      lambs = lambs.where((animal) {
-        return animal.name.toLowerCase().contains(_searchQuery) ||
-            animal.code.toLowerCase().contains(_searchQuery);
-      }).toList();
-    }
-
-    // Ordenar por cor e depois por código numérico
-    lambs.sort((a, b) {
-      final colorA = a.nameColor;
-      final colorB = b.nameColor;
-      final colorCompare = colorA.compareTo(colorB);
-      if (colorCompare != 0) return colorCompare;
-
-      final numA =
-          int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
-      final numB =
-          int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
-      return numA.compareTo(numB);
-    });
-
-    return lambs;
-  }
-
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Padding(
@@ -311,52 +316,15 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Widget _buildLambsList(ThemeData theme, List<Animal> lambs) {
-    final totalPages = (lambs.length / _itemsPerPage).ceil();
-    final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage).clamp(0, lambs.length);
-    final paginatedLambs = lambs.sublist(startIndex, endIndex);
-
-    return Column(
-      children: [
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: paginatedLambs.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 16),
-          itemBuilder: (context, index) {
-            final lamb = paginatedLambs[index];
-            return _buildLambCard(theme, lamb);
-          },
-        ),
-        if (totalPages > 1) ...[
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                'Página ${_currentPage + 1} de $totalPages',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _currentPage < totalPages - 1
-                    ? () => setState(() => _currentPage++)
-                    : null,
-              ),
-            ],
-          ),
-        ],
-      ],
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: lambs.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final lamb = lambs[index];
+        return _buildLambCard(theme, lamb);
+      },
     );
   }
 

@@ -24,7 +24,10 @@ class VaccinationService extends ChangeNotifier {
 
   Future<VaccinationAlertsData> getVaccinationAlerts() async {
     final vacs = await _repository.getScheduledWithAnimalInfo();
-    final medsRaw = await _medicationRepository.getScheduledWithAnimalInfo();
+    final medsRaw = await _medicationRepository.getScheduledWithAnimalInfo(
+      limit: 200,
+      offset: 0,
+    );
 
     DateTime? parseDate(dynamic v) {
       if (v == null) return null;
@@ -60,9 +63,12 @@ class VaccinationService extends ChangeNotifier {
   // ---------- RESTO DO SEU SERVICE (igual estava) ----------
 
   /// Retorna todas as vacinações
-  Future<List<Map<String, dynamic>>> getVaccinations() async {
+  Future<List<Map<String, dynamic>>> getVaccinations({
+    int? limit,
+    int? offset,
+  }) async {
     try {
-      return await _repository.getAll();
+      return await _repository.getAll(limit: limit, offset: offset);
     } catch (e) {
       debugPrint('Erro ao buscar vacinações: $e');
       return [];
@@ -79,6 +85,8 @@ class VaccinationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações atrasadas com info: $e');
@@ -96,6 +104,8 @@ class VaccinationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações agendadas com info: $e');
@@ -113,6 +123,8 @@ class VaccinationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações aplicadas com info: $e');
@@ -130,6 +142,8 @@ class VaccinationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar vacinações canceladas com info: $e');
@@ -294,6 +308,8 @@ class VaccinationQueryOptions {
   final String? searchTerm;
   final DateTime? startDate;
   final DateTime? endDate;
+  final int? limit;
+  final int? offset;
 
   const VaccinationQueryOptions({
     this.species,
@@ -301,5 +317,7 @@ class VaccinationQueryOptions {
     this.searchTerm,
     this.startDate,
     this.endDate,
+    this.limit,
+    this.offset,
   });
 }

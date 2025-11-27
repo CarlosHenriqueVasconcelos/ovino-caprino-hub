@@ -21,22 +21,41 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   late PharmacyStock _stock;
   List<PharmacyStockMovement> _movements = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
+  int _page = 0;
+  static const int _pageSize = 50;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     _stock = widget.stock;
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
     _loadMovements();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMovements() async {
     setState(() => _isLoading = true);
     try {
       final service = context.read<PharmacyService>();
-      final data = await service.getMovements(_stock.id);
+      final data = await service.getMovements(
+        _stock.id,
+        limit: _pageSize,
+        offset: 0,
+      );
       if (!mounted) return;
       setState(() {
         _movements = data;
+        _page = 0;
+        _hasMore = data.length == _pageSize;
         _isLoading = false;
       });
     } catch (_) {
@@ -165,6 +184,38 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
     }
   }
 
+  void _handleScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final nextPage = _page + 1;
+      final service = context.read<PharmacyService>();
+      final data = await service.getMovements(
+        _stock.id,
+        limit: _pageSize,
+        offset: nextPage * _pageSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _movements.addAll(data);
+        _page = nextPage;
+        _hasMore = data.length == _pageSize;
+      });
+    } catch (_) {
+      // mantém estado atual
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -198,6 +249,8 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
                       isLoading: _isLoading,
                       movements: _movements,
                       unit: _stock.unitOfMeasure,
+                      controller: _scrollController,
+                      showLoadingMore: _isLoadingMore || _hasMore,
                     ),
                     const SizedBox(height: 16),
                     if (_stock.notes != null && _stock.notes!.isNotEmpty)
@@ -409,11 +462,15 @@ class StockHistorySection extends StatelessWidget {
     required this.isLoading,
     required this.movements,
     required this.unit,
+    this.controller,
+    this.showLoadingMore = false,
   });
 
   final bool isLoading;
   final List<PharmacyStockMovement> movements;
   final String unit;
+  final ScrollController? controller;
+  final bool showLoadingMore;
 
   @override
   Widget build(BuildContext context) {
@@ -447,10 +504,17 @@ class StockHistorySection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             ListView.builder(
+              controller: controller,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: movements.length,
+              itemCount: movements.length + (showLoadingMore ? 1 : 0),
               itemBuilder: (context, index) {
+                if (showLoadingMore && index >= movements.length) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
                 final movement = movements[index];
                 return _MovementTile(movement: movement, unit: unit);
               },

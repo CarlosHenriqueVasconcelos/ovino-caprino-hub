@@ -9,10 +9,15 @@ class VaccinationRepository {
   String _isoDate(DateTime value) => value.toIso8601String().split('T').first;
 
   /// Retorna todas as vacinações
-  Future<List<Map<String, dynamic>>> getAll() async {
+  Future<List<Map<String, dynamic>>> getAll({
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.query(
       'vaccinations',
       orderBy: 'scheduled_date DESC',
+      limit: limit,
+      offset: offset,
     );
   }
 
@@ -39,12 +44,17 @@ class VaccinationRepository {
   }
 
   /// Retorna vacinações agendadas (status = 'Agendada')
-  Future<List<Map<String, dynamic>>> getScheduled() async {
+  Future<List<Map<String, dynamic>>> getScheduled({
+    int? limit,
+    int? offset,
+  }) async {
     return await _db.db.query(
       'vaccinations',
       where: 'status = ?',
       whereArgs: ['Agendada'],
       orderBy: 'scheduled_date ASC',
+      limit: limit,
+      offset: offset,
     );
   }
 
@@ -110,6 +120,8 @@ class VaccinationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -134,6 +146,8 @@ class VaccinationRepository {
       LEFT JOIN animals a ON a.id = v.animal_id
       ${filters.isNotEmpty ? 'WHERE ${filters.join(' AND ')}' : ''}
       ORDER BY v.scheduled_date DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -144,6 +158,8 @@ class VaccinationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -173,6 +189,8 @@ class VaccinationRepository {
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY v.scheduled_date ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -183,6 +201,8 @@ class VaccinationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -212,6 +232,8 @@ class VaccinationRepository {
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY v.scheduled_date ASC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -222,6 +244,8 @@ class VaccinationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -249,6 +273,8 @@ class VaccinationRepository {
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY COALESCE(v.applied_date, v.scheduled_date) DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
@@ -259,6 +285,8 @@ class VaccinationRepository {
     String? searchTerm,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
     final args = <dynamic>[];
     final filters = _buildFilters(
@@ -286,6 +314,8 @@ class VaccinationRepository {
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE ${whereClause.toString()}
       ORDER BY v.scheduled_date DESC
+      ${limit != null ? 'LIMIT $limit' : ''}
+      ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }

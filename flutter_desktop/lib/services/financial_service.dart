@@ -24,6 +24,7 @@ class FinancialService {
 
   Future<void> updateAccount(FinancialAccount account) async {
     await _repository.updateAccount(account);
+    await handleAnimalSaleIfApplicable(_lifecycleRepository, account);
   }
 
   Future<void> deleteAccount(String id) async {
@@ -40,6 +41,22 @@ class FinancialService {
 
   Future<List<FinancialAccount>> getAllAccounts() {
     return _repository.getAllAccounts();
+  }
+
+  Future<List<FinancialAccount>> getAccountsPage({
+    String? type,
+    String? status,
+    int? limit,
+    int? offset,
+    bool ascending = true,
+  }) {
+    return _repository.getAccountsPaged(
+      type: type,
+      status: status,
+      limit: limit,
+      offset: offset,
+      ascending: ascending,
+    );
   }
 
   Future<void> markAsPaid(String id, DateTime paymentDate) async {
@@ -176,8 +193,15 @@ class FinancialService {
 
   // ========== ADAPTADOR PARA TELA ==========
 
-  Future<List<Map<String, dynamic>>> getFinancialRecords() async {
-    final accounts = await getAllAccounts();
+  Future<List<Map<String, dynamic>>> getFinancialRecords({
+    int? limit,
+    int? offset,
+  }) async {
+    final accounts = await getAccountsPage(
+      limit: limit,
+      offset: offset,
+      ascending: false,
+    );
 
     return accounts.map((acc) {
       final dueStr = _dateStr(acc.dueDate);

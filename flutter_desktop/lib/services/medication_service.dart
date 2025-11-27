@@ -8,9 +8,12 @@ class MedicationService extends ChangeNotifier {
   MedicationService(this._repository);
 
   /// Retorna todas as medicações
-  Future<List<Map<String, dynamic>>> getMedications() async {
+  Future<List<Map<String, dynamic>>> getMedications({
+    int? limit,
+    int? offset,
+  }) async {
     try {
-      return await _repository.getAll();
+      return await _repository.getAll(limit: limit, offset: offset);
     } catch (e) {
       debugPrint('Erro ao buscar medicações: $e');
       return [];
@@ -91,6 +94,8 @@ class MedicationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar medicações com info do animal: $e');
@@ -108,6 +113,8 @@ class MedicationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar medicações atrasadas com info: $e');
@@ -125,6 +132,8 @@ class MedicationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar medicações agendadas com info: $e');
@@ -142,6 +151,8 @@ class MedicationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar medicações aplicadas com info: $e');
@@ -159,6 +170,8 @@ class MedicationService extends ChangeNotifier {
         searchTerm: options.searchTerm,
         startDate: options.startDate,
         endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
       );
     } catch (e) {
       debugPrint('Erro ao buscar medicações canceladas com info: $e');
@@ -297,6 +310,8 @@ class MedicationQueryOptions {
   final String? searchTerm;
   final DateTime? startDate;
   final DateTime? endDate;
+  final int? limit;
+  final int? offset;
 
   const MedicationQueryOptions({
     this.species,
@@ -304,5 +319,7 @@ class MedicationQueryOptions {
     this.searchTerm,
     this.startDate,
     this.endDate,
+    this.limit,
+    this.offset,
   });
 }

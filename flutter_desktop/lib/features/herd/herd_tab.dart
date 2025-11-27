@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -50,6 +48,9 @@ class HerdSectionState extends State<HerdSection> {
 
   StreamSubscription<String>? _busSub;
   Future<List<Animal>>? _deceasedFuture;
+  Future<HerdQueryResult>? _futurePage;
+  List<String> _availableColors = [];
+  List<String> _availableCategories = [];
 
   @override
   void initState() {
@@ -57,13 +58,14 @@ class HerdSectionState extends State<HerdSection> {
     // Recarrega automaticamente quando hooks mexerem no banco
     _busSub = DataRefreshBus.stream.listen((_) {
       if (!mounted) return;
-      // Atualiza lista viva e refaz FutureBuilders de vendidos/óbitos
-      context.read<AnimalService>().loadData();
+      _refresh();
       setState(() {
         _deceasedFuture = _loadDeceasedAnimals(context);
       });
     });
     _deceasedFuture = _loadDeceasedAnimals(context);
+    _loadFilters();
+    _refresh();
   }
 
   @override
@@ -80,7 +82,24 @@ class HerdSectionState extends State<HerdSection> {
 
   Future<List<Animal>> _loadSoldAnimals(BuildContext context) async {
     final soldService = context.read<SoldAnimalsService>();
-    return soldService.getSoldAnimals();
+    final animalService = context.read<AnimalService>();
+    // Sold table (animais já movidos)
+    final soldFromTable = await soldService.getSoldAnimals();
+    // Fallback: animais ainda na tabela principal com status Vendido (caso algum não tenha sido movido)
+    final fromMain = await animalService.herdQuery(
+      includeSold: true,
+      statusEquals: 'Vendido',
+      pageSize: 500,
+    );
+    // Mesclar evitando duplicados pelo id
+    final merged = <String, Animal>{};
+    for (final a in soldFromTable) {
+      merged[a.id] = a;
+    }
+    for (final a in fromMain.items) {
+      merged[a.id] = a;
+    }
+    return merged.values.toList();
   }
 
   @override
@@ -95,77 +114,15 @@ class HerdSectionState extends State<HerdSection> {
         final deceasedLoading =
             deceasedSnapshot.connectionState == ConnectionState.waiting &&
                 deceasedSnapshot.data == null;
-        return Selector<AnimalService, int>(
-          selector: (_, service) => service.animalsVersion,
-          builder: (context, _, __) {
-            final animalService = context.read<AnimalService>();
-            final animalRepo = context.read<AnimalRepository>();
-            final deleteCascade = context.read<AnimalDeleteCascade>();
-            final UnmodifiableListView<Animal> all = animalService.animals;
-            final baseList = (() {
-              if (_statusFilter == 'Vendido') {
-                return all.where((a) => a.status == 'Vendido').toList();
-              } else if (_statusFilter == 'Em tratamento') {
-                return all.where((a) => a.status == 'Em tratamento').toList();
-              } else if (_statusFilter == 'Saudável') {
-                return all.where((a) => a.status == 'Saudável').toList();
-              } else if (_statusFilter == 'Óbito') {
-                // Lista especial renderizada abaixo via FutureBuilder
-                return <Animal>[];
-              } else {
-                // Sem status específico: volta a valer o toggle "Incluir vendidos"
-                return _includeSold
-                    ? all
-                    : all.where((a) => a.status != 'Vendido').toList();
-              }
-            })();
 
-            // Aplicar filtros de cor e categoria
-            var filtered = baseList.where((a) {
-              final color = a.nameColor;
-              if (_colorFilter != null && color != _colorFilter) {
-                return false;
-              }
-              final category = a.category;
-              if (_categoryFilter != null && category != _categoryFilter) {
-                return false;
-              }
-              return true;
-            }).toList();
-
-            // Aplicar busca por texto (exata)
-            filtered = _filter(filtered, _query);
-
-            // Ordenar por cor e depois por número
-            filtered.sort((a, b) {
-              final colorA = a.nameColor;
-              final colorB = b.nameColor;
-              final colorCompare = colorA.compareTo(colorB);
-              if (colorCompare != 0) return colorCompare;
-
-              // Extrair números do código para ordenação numérica
-              final numA =
-                  int.tryParse(a.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-              final numB =
-                  int.tryParse(b.code.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-              return numA.compareTo(numB);
-            });
-
-            // Obter listas únicas de cores e categorias
-            final availableColors = all
-                .map((a) => a.nameColor)
-                .whereType<String>()
-                .toSet()
-                .toList()
-              ..sort();
-            final availableCategories = all
-                .map((a) => a.category)
-                .whereType<String>()
-                .toSet()
-                .toList()
-              ..sort();
-
-            final relations = _AnimalRelations(all, deceasedAnimals);
+        return FutureBuilder<HerdQueryResult>(
+          future: _futurePage,
+          builder: (context, snapshot) {
+            final page = snapshot.data;
+            final items = page?.items ?? const <Animal>[];
+            final total = page?.total ?? 0;
+            final totalPages =
+                ((total + _itemsPerPage - 1) / _itemsPerPage).ceil().clamp(1, 9999);
 
             return Card(
               child: Padding(
@@ -182,17 +139,25 @@ class HerdSectionState extends State<HerdSection> {
                       onSearchChanged: (value) {
                         setState(() {
                           _query = value.trim().toLowerCase();
+                          _currentPage = 0;
                         });
+                        _refresh();
                       },
                       onClearSearch: () {
                         setState(() {
                           _query = '';
                           _search.clear();
+                          _currentPage = 0;
                         });
+                        _refresh();
                       },
                       includeSold: _includeSold,
                       onIncludeSoldChanged: (value) {
-                        setState(() => _includeSold = value);
+                        setState(() {
+                          _includeSold = value;
+                          _currentPage = 0;
+                        });
+                        _refresh();
                       },
                       statusFilter: _statusFilter,
                       statusOptions: const [
@@ -206,38 +171,45 @@ class HerdSectionState extends State<HerdSection> {
                           _statusFilter = value;
                           _currentPage = 0;
                         });
+                        _refresh();
                       },
                       colorFilter: _colorFilter,
-                      colorOptions: availableColors,
+                      colorOptions: _availableColors,
                       onColorChanged: (value) {
                         setState(() {
                           _colorFilter = value;
                           _currentPage = 0;
                         });
+                        _refresh();
                       },
                       categoryFilter: _categoryFilter,
-                      categoryOptions: availableCategories,
+                      categoryOptions: _availableCategories,
                       onCategoryChanged: (value) {
                         setState(() {
                           _categoryFilter = value;
                           _currentPage = 0;
                         });
+                        _refresh();
                       },
                     ),
                     const SizedBox(height: 12),
-                    if (all.isEmpty)
+                    if (snapshot.connectionState == ConnectionState.waiting)
+                      const Center(child: CircularProgressIndicator())
+                    else if (items.isEmpty &&
+                        _statusFilter != 'Óbito' &&
+                        _statusFilter != 'Vendido')
                       _emptyState(theme)
                     else ...[
-                      // Informações de paginação (apenas quando não está em Óbito/Vendido)
+                      // Paginação (não aplicável a óbito/vendido)
                       if (_statusFilter != 'Óbito' &&
                           _statusFilter != 'Vendido' &&
-                          filtered.isNotEmpty) ...[
+                          items.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, filtered.length)} de ${filtered.length} animais',
+                              'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, total)} de $total animais',
                               style: theme.textTheme.bodyMedium,
                             ),
                             Row(
@@ -245,22 +217,21 @@ class HerdSectionState extends State<HerdSection> {
                                 IconButton(
                                   icon: const Icon(Icons.chevron_left),
                                   onPressed: _currentPage > 0
-                                      ? () => setState(
-                                            () => _currentPage--,
-                                          )
+                                      ? () => setState(() {
+                                            _currentPage--;
+                                            _refresh();
+                                          })
                                       : null,
                                 ),
-                                Text(
-                                  'Página ${_currentPage + 1} de ${((filtered.length - 1) ~/ _itemsPerPage) + 1}',
-                                ),
+                                Text('Página ${_currentPage + 1} de $totalPages'),
                                 IconButton(
                                   icon: const Icon(Icons.chevron_right),
                                   onPressed:
-                                      (_currentPage + 1) * _itemsPerPage <
-                                              filtered.length
-                                          ? () => setState(
-                                                () => _currentPage++,
-                                              )
+                                      (_currentPage + 1) < totalPages
+                                          ? () => setState(() {
+                                                _currentPage++;
+                                                _refresh();
+                                              })
                                           : null,
                                 ),
                               ],
@@ -269,7 +240,6 @@ class HerdSectionState extends State<HerdSection> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      // Quando filtro = Óbito, carrega da tabela deceased_animals via service
                       if (_statusFilter == 'Óbito')
                         Builder(
                           builder: (context) {
@@ -281,17 +251,16 @@ class HerdSectionState extends State<HerdSection> {
                             if (deceasedAnimals.isEmpty) {
                               return _emptyState(theme);
                             }
-                            final deceasedRelations =
-                                _AnimalRelations([...all], deceasedAnimals);
+                            final relations =
+                                _AnimalRelations([], deceasedAnimals);
                             return HerdAnimalGrid(
                               animals: deceasedAnimals,
-                              repository: animalRepo,
-                              resolveParent: deceasedRelations.parentOf,
-                              resolveOffspring: deceasedRelations.offspringOf,
+                              repository: context.read<AnimalRepository>(),
+                              resolveParent: relations.parentOf,
+                              resolveOffspring: relations.offspringOf,
                             );
                           },
                         )
-                      // Quando filtro = Vendido, carrega da tabela sold_animals
                       else if (_statusFilter == 'Vendido')
                         FutureBuilder<List<Animal>>(
                           future: _loadSoldAnimals(context),
@@ -305,38 +274,38 @@ class HerdSectionState extends State<HerdSection> {
                             if (list.isEmpty) {
                               return _emptyState(theme);
                             }
-                            final soldRelations = _AnimalRelations(
-                              [...all, ...list],
-                            );
+                            final relations = _AnimalRelations(list);
                             return HerdAnimalGrid(
                               animals: list,
-                              repository: animalRepo,
-                              resolveParent: soldRelations.parentOf,
-                              resolveOffspring: soldRelations.offspringOf,
+                              repository: context.read<AnimalRepository>(),
+                              resolveParent: relations.parentOf,
+                              resolveOffspring: relations.offspringOf,
                             );
                           },
                         )
                       else
                         Builder(
                           builder: (context) {
-                            // Aplicar paginação
-                            final startIndex = _currentPage * _itemsPerPage;
-                            final endIndex = (startIndex + _itemsPerPage)
-                                .clamp(0, filtered.length);
-                            final paginatedList =
-                                filtered.sublist(startIndex, endIndex);
-
+                            final deleteCascade =
+                                context.read<AnimalDeleteCascade>();
                             return HerdAnimalGrid(
-                              animals: paginatedList,
-                              repository: animalRepo,
-                              resolveParent: relations.parentOf,
-                              resolveOffspring: relations.offspringOf,
+                              animals: items,
+                              repository: context.read<AnimalRepository>(),
+                              resolveParent:
+                                  _AnimalRelations(items, deceasedAnimals)
+                                      .parentOf,
+                              resolveOffspring:
+                                  _AnimalRelations(items, deceasedAnimals)
+                                      .offspringOf,
                               onEdit: (animal) =>
                                   _showAnimalForm(context, animal: animal),
                               onDeleteCascade: (animal) async {
                                 await deleteCascade.delete(animal.id);
                                 if (!mounted) return;
-                                await animalService.removeFromCache(animal.id);
+                                setState(() {
+                                  _currentPage = 0;
+                                });
+                                _refresh();
                               },
                             );
                           },
@@ -350,18 +319,6 @@ class HerdSectionState extends State<HerdSection> {
         );
       },
     );
-  }
-
-  List<Animal> _filter(List<Animal> animals, String q) {
-    if (q.isEmpty) return animals;
-    return animals.where((animal) {
-      final name = animal.name.toLowerCase();
-      final code = animal.code.toLowerCase();
-      final category = animal.category.toLowerCase();
-      final breed = animal.breed.toLowerCase();
-      // Busca exata - retorna apenas se algum campo for exatamente igual ao termo buscado
-      return name == q || code == q || category == q || breed == q;
-    }).toList();
   }
 
   Widget _emptyState(ThemeData theme) {
@@ -395,6 +352,39 @@ class HerdSectionState extends State<HerdSection> {
       context: context,
       builder: (context) => AnimalFormDialog(animal: animal),
     );
+  }
+
+  Future<void> _loadFilters() async {
+    final service = context.read<AnimalService>();
+    final colors = await service.getAvailableColors();
+    final categories = await service.getAvailableCategories();
+    if (!mounted) return;
+    setState(() {
+      _availableColors = colors;
+      _availableCategories = categories;
+    });
+  }
+
+  void _refresh() {
+    if (_statusFilter == 'Óbito' || _statusFilter == 'Vendido') {
+      setState(() {
+        _futurePage = Future.value(const HerdQueryResult(items: [], total: 0));
+      });
+      return;
+    }
+    final service = context.read<AnimalService>();
+    final future = service.herdQuery(
+      includeSold: _includeSold,
+      statusEquals: _statusFilter,
+      colorFilter: _colorFilter,
+      categoryFilter: _categoryFilter,
+      searchQuery: _query,
+      page: _currentPage,
+      pageSize: _itemsPerPage,
+    );
+    setState(() {
+      _futurePage = future;
+    });
   }
 }
 

@@ -105,12 +105,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       // Atualiza estado da fêmea (gestante / saudável) via AnimalService
       final femaleId = widget.record.femaleAnimalId;
       if (femaleId != null && femaleId.isNotEmpty) {
-        Animal? female;
-        try {
-          female = animalService.animals.firstWhere((a) => a.id == femaleId);
-        } catch (_) {
-          female = null;
-        }
+        final female = await animalService.getAnimalById(femaleId);
 
         if (female != null) {
           final updatedFemale = female.copyWith(
@@ -185,12 +180,7 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       // Limpa marcação de gestante no animal
       final femaleId = widget.record.femaleAnimalId;
       if (femaleId != null && femaleId.isNotEmpty) {
-        Animal? mother;
-        try {
-          mother = animalService.animals.firstWhere((a) => a.id == femaleId);
-        } catch (_) {
-          mother = null;
-        }
+        final mother = await animalService.getAnimalById(femaleId);
 
         if (mother != null) {
           final updatedMother = mother.copyWith(
@@ -216,19 +206,11 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         Animal? father;
 
         if (femaleId != null && femaleId.isNotEmpty) {
-          try {
-            mother = animalService.animals.firstWhere((a) => a.id == femaleId);
-          } catch (_) {
-            mother = null;
-          }
+          mother = await animalService.getAnimalById(femaleId);
         }
 
         if (maleId != null && maleId.isNotEmpty) {
-          try {
-            father = animalService.animals.firstWhere((a) => a.id == maleId);
-          } catch (_) {
-            father = null;
-          }
+          father = await animalService.getAnimalById(maleId);
         }
 
         // Libera processamento antes de abrir o(s) formulário(s)

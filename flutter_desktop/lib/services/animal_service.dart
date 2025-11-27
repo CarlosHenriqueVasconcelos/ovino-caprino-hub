@@ -16,12 +16,26 @@ import 'weight_alert_service.dart'; // WeightAlertService
 
 enum WeightCategoryFilter { all, juveniles, adults, reproducers }
 
+class WeightTrackingResult {
+  final List<Animal> items;
+  final int total;
+  const WeightTrackingResult({required this.items, required this.total});
+}
+
+class HerdQueryResult {
+  final List<Animal> items;
+  final int total;
+  const HerdQueryResult({required this.items, required this.total});
+}
+
 class AnimalService extends ChangeNotifier {
   // ----------------- Estado -----------------
   AnimalStats? _stats;
   bool _loading = false;
   Timer? _alertsDebounceTimer;
   Timer? _statsDebounceTimer;
+  final List<Animal> _animals = [];
+  final Map<String, Animal> _animalCacheById = {};
 
   // Painel de alertas (vacinas + medicações + pesagens)
   final List<AlertItem> _alerts = [];
@@ -34,10 +48,8 @@ class AnimalService extends ChangeNotifier {
   final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
-  /// Deprecated: Use getAllAnimals() instead for direct DB queries
-  @Deprecated('Use getAllAnimals() para buscar animais diretamente do banco')
-  UnmodifiableListView<Animal> get animals => UnmodifiableListView([]);
-  
+  UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
+
   AnimalStats? get stats => _stats;
   bool get isLoading => _loading;
 
@@ -76,8 +88,36 @@ class AnimalService extends ChangeNotifier {
 
   // ----------------- Métodos auxiliares -----------------
   /// Busca todos os animais diretamente do banco
-  Future<List<Animal>> getAllAnimals() async {
-    return await _animalRepository.all();
+  Future<List<Animal>> getAllAnimals({
+    int? limit,
+    int? offset,
+    String orderBy = 'name COLLATE NOCASE',
+  }) async {
+    final animals = await _animalRepository.all(
+      limit: limit,
+      offset: offset,
+      orderBy: orderBy,
+    );
+    for (final a in animals) {
+      _animalCacheById[a.id] = a;
+    }
+    return animals;
+  }
+
+  Future<Animal?> getAnimalById(String id) async {
+    if (_animalCacheById.containsKey(id)) return _animalCacheById[id];
+    try {
+      final found = _animals.firstWhere((a) => a.id == id);
+      _animalCacheById[id] = found;
+      return found;
+    } catch (_) {
+      // ignore
+    }
+    final fromDb = await _animalRepository.getAnimalById(id);
+    if (fromDb != null) {
+      _animalCacheById[id] = fromDb;
+    }
+    return fromDb;
   }
 
   // ----------------- CRUD: Animal -----------------
@@ -101,6 +141,8 @@ class AnimalService extends ChangeNotifier {
     final saved = Animal.fromMap(map);
     await _validateUniqueness(saved, isUpdate: false);
     await _animalRepository.upsert(saved);
+    _animalCacheById[saved.id] = saved;
+    _animals.add(saved);
 
     // Cria alertas de pesagem se for borrego
     if (_isLambCategory(saved.category)) {
@@ -209,7 +251,25 @@ class AnimalService extends ChangeNotifier {
       return;
     }
 
-    await _animalRepository.upsert(updated);
+    final existing = await _animalRepository.getAnimalById(updated.id);
+
+    // Move para vendidos se status mudou para Vendido e ainda existe no rebanho
+    if (updated.status == 'Vendido' && existing != null) {
+      await _animalLifecycleRepository.moveToSoldManual(
+        animalId: updated.id,
+        saleDate: DateTime.now(),
+        notes: 'Status marcado como Vendido',
+      );
+      _animalCacheById.remove(updated.id);
+      _animals.removeWhere((a) => a.id == updated.id);
+    } else {
+      await _animalRepository.upsert(updated);
+      _animalCacheById[updated.id] = updated;
+      final existingIndex = _animals.indexWhere((a) => a.id == updated.id);
+      if (existingIndex >= 0) {
+        _animals[existingIndex] = updated;
+      }
+    }
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
@@ -218,19 +278,21 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> deleteAnimal(String id) async {
     await _animalRepository.delete(id);
+    _animals.removeWhere((a) => a.id == id);
+    _animalCacheById.remove(id);
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
   }
 
-  /// Deprecated: Cache removido, use refreshAlerts() e _scheduleStatsRefresh() diretamente
-  @Deprecated('Cache foi removido. Use refreshAlerts() para atualizar dados.')
   Future<void> removeFromCache(
     String id, {
     bool refreshStats = true,
     bool refreshAlertsData = true,
   }) async {
+    _animals.removeWhere((a) => a.id == id);
+
     if (refreshStats) {
       await _scheduleStatsRefresh();
     }
@@ -242,11 +304,13 @@ class AnimalService extends ChangeNotifier {
     }
   }
 
-  /// Query filtrada diretamente no banco para weight tracking
-  Future<List<Animal>> weightTrackingQuery({
+  /// Resultado paginado para weight tracking.
+  Future<WeightTrackingResult> weightTrackingQuery({
     WeightCategoryFilter category = WeightCategoryFilter.all,
     String? colorFilter,
     String searchQuery = '',
+    int page = 0,
+    int pageSize = 50,
   }) async {
     int? ageMinMonths;
     int? ageMaxMonths;
@@ -257,35 +321,94 @@ class AnimalService extends ChangeNotifier {
         ageMaxMonths = 12;
         break;
       case WeightCategoryFilter.adults:
-        ageMinMonths = 12;
-        excludeReproducers = true;
         break;
       case WeightCategoryFilter.reproducers:
-        // Busca direto por categoria no repository (vamos filtrar aqui)
-        final all = await _animalRepository.getFilteredAnimals(
+        final total = await _animalRepository.countFilteredAnimals(
           nameColor: colorFilter,
           searchQuery: searchQuery.trim(),
+          onlyReproducers: true,
         );
-        final result = all
-            .where((a) => a.category.toLowerCase().contains('reprodutor'))
-            .toList();
-        AnimalDisplayUtils.sortAnimalsList(result);
-        return result;
+        final filtered = await _animalRepository.getFilteredAnimals(
+          nameColor: colorFilter,
+          searchQuery: searchQuery.trim(),
+          onlyReproducers: true,
+          limit: pageSize,
+          offset: page * pageSize,
+        );
+        AnimalDisplayUtils.sortAnimalsList(filtered);
+        return WeightTrackingResult(items: filtered, total: total);
       case WeightCategoryFilter.all:
       default:
         break;
     }
 
-    final result = await _animalRepository.getFilteredAnimals(
+    final total = await _animalRepository.countFilteredAnimals(
       ageMinMonths: ageMinMonths,
       ageMaxMonths: ageMaxMonths,
       excludeReproducers: excludeReproducers,
       nameColor: colorFilter,
+      categoryLikeAny: category == WeightCategoryFilter.adults
+          ? const ['adult', 'reprodutor']
+          : null,
       searchQuery: searchQuery.trim(),
     );
 
-    AnimalDisplayUtils.sortAnimalsList(result);
-    return result;
+    final items = await _animalRepository.getFilteredAnimals(
+      ageMinMonths: ageMinMonths,
+      ageMaxMonths: ageMaxMonths,
+      excludeReproducers: excludeReproducers,
+      nameColor: colorFilter,
+      categoryLikeAny: category == WeightCategoryFilter.adults
+          ? const ['adult', 'reprodutor']
+          : null,
+      searchQuery: searchQuery.trim(),
+      limit: pageSize,
+      offset: page * pageSize,
+    );
+
+    AnimalDisplayUtils.sortAnimalsList(items);
+    return WeightTrackingResult(items: items, total: total);
+  }
+
+  Future<List<String>> getAvailableColors() {
+    return _animalRepository.getDistinctColors();
+  }
+
+  Future<List<String>> getAvailableCategories() {
+    return _animalRepository.getDistinctCategories();
+  }
+
+  Future<HerdQueryResult> herdQuery({
+    bool includeSold = true,
+    String? statusEquals,
+    String? colorFilter,
+    String? categoryFilter,
+    String searchQuery = '',
+    int page = 0,
+    int pageSize = 50,
+  }) async {
+    final total = await _animalRepository.countFilteredAnimals(
+      includeSold: includeSold,
+      statusEquals: statusEquals,
+      nameColor: colorFilter,
+      categoryEquals: categoryFilter,
+      searchQuery: searchQuery.trim(),
+      onlyReproducers: false,
+      excludeReproducers: false,
+    );
+
+    final items = await _animalRepository.getFilteredAnimals(
+      includeSold: includeSold,
+      statusEquals: statusEquals,
+      nameColor: colorFilter,
+      categoryEquals: categoryFilter,
+      searchQuery: searchQuery.trim(),
+      limit: pageSize,
+      offset: page * pageSize,
+    );
+
+    AnimalDisplayUtils.sortAnimalsList(items);
+    return HerdQueryResult(items: items, total: total);
   }
 
   // ----------------- Helpers de gestação (para Reprodução) -----------------
@@ -515,9 +638,32 @@ class AnimalService extends ChangeNotifier {
     return 'loc_$t';
   }
 
-  int _ageInMonths(DateTime birthDate, DateTime reference) {
-    return (reference.year - birthDate.year) * 12 +
-        (reference.month - birthDate.month);
+  Future<List<Animal>> searchAnimals({
+    String? gender,
+    bool excludePregnant = false,
+    List<String> excludeCategories = const [],
+    String? searchQuery,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final result = await _animalRepository.searchAnimals(
+      gender: gender,
+      excludePregnant: excludePregnant,
+      excludeCategories: excludeCategories,
+      searchQuery: searchQuery,
+      limit: limit,
+      offset: offset,
+    );
+    _animalCacheById.addEntries(result.map((a) => MapEntry(a.id, a)));
+    for (final a in result) {
+      if (_animals.every((cached) => cached.id != a.id)) {
+        _animals.add(a);
+      }
+    }
+    if (_animals.length > 500) {
+      _animals.removeRange(0, _animals.length - 500);
+    }
+    return result;
   }
 
   DateTime? _parseDate(dynamic value) {

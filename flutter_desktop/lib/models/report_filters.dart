@@ -12,6 +12,8 @@ class ReportFilters {
   final String? financialCategory;
   final String? notesPriority;
   final bool? notesIsRead;
+  final int? limit;
+  final int? offset;
 
   ReportFilters({
     required this.startDate,
@@ -27,5 +29,7 @@ class ReportFilters {
     this.financialCategory,
     this.notesPriority,
     this.notesIsRead,
+    this.limit,
+    this.offset,
   });
 }

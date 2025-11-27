@@ -11,9 +11,12 @@ class PharmacyService extends ChangeNotifier {
   PharmacyService(this._repository);
 
   // Listar medicamentos em estoque
-  Future<List<PharmacyStock>> getPharmacyStock() async {
+  Future<List<PharmacyStock>> getPharmacyStock({
+    int? limit,
+    int? offset,
+  }) async {
     try {
-      return await _repository.getAllStock();
+      return await _repository.getAllStock(limit: limit, offset: offset);
     } catch (e) {
       debugPrint('Erro ao buscar estoque da farmácia: $e');
       return [];
@@ -95,8 +98,19 @@ class PharmacyService extends ChangeNotifier {
   }
 
   // Buscar histórico de movimentações
-  Future<List<PharmacyStockMovement>> getMovements(String stockId) async {
+  Future<List<PharmacyStockMovement>> getMovements(
+    String stockId, {
+    int? limit,
+    int? offset,
+  }) async {
     try {
+      if (limit != null || offset != null) {
+        // paginação por movimentações globais não existe; filtrar localmente
+        final list = await _repository.getMovementsByStockId(stockId);
+        final start = offset ?? 0;
+        final end = limit != null ? (start + limit) : list.length;
+        return list.sublist(start, end.clamp(0, list.length));
+      }
       return await _repository.getMovementsByStockId(stockId);
     } catch (e) {
       debugPrint('Erro ao buscar movimentações: $e');

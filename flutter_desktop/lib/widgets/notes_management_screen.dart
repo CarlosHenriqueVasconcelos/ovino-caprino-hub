@@ -19,13 +19,17 @@ class NotesManagementScreen extends StatefulWidget {
 class _NotesManagementScreenState extends State<NotesManagementScreen> {
   List<Map<String, dynamic>> _notes = [];
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
+  int _page = 0;
   String _searchTerm = '';
   String _selectedCategory = 'Todas';
   String _selectedPriority = 'Todas';
   bool _showOnlyUnread = false;
   late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
   Timer? _searchDebounce;
-  static const int _pageSize = 200;
+  static const int _pageSize = 50;
 
   final List<String> _categories = const [
     'Todas',
@@ -50,11 +54,14 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
   void initState() {
     super.initState();
     _searchController = TextEditingController();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
     _loadNotes();
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     _searchDebounce?.cancel();
     super.dispose();
@@ -64,7 +71,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
     setState(() => _isLoading = true);
     try {
       final noteService = context.read<NoteService>();
-      _notes = await noteService.getNotes(
+      final result = await noteService.getNotes(
         options: NoteQueryOptions(
           category: _selectedCategory == 'Todas' ? null : _selectedCategory,
           priority: _selectedPriority == 'Todas' ? null : _selectedPriority,
@@ -74,6 +81,9 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
           offset: 0,
         ),
       );
+      _notes = result;
+      _page = 0;
+      _hasMore = result.length == _pageSize;
     } catch (e) {
       debugPrint('Error loading notes: $e');
     }
@@ -97,6 +107,8 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
         final dateB = b['date'] ?? '';
         return dateB.compareTo(dateA);
       });
+    final showLoaderRow = _isLoadingMore || _hasMore;
+    final itemCount = sortedNotes.length + (showLoaderRow ? 1 : 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -144,6 +156,9 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
                 : _notes.isEmpty
                     ? _buildEmptyState(theme)
                     : NotesListSection(
+                        controller: _scrollController,
+                        itemCount: itemCount,
+                        showLoadingMore: showLoaderRow,
                         notes: sortedNotes,
                         onViewDetails: _onNoteSelected,
                         onMarkAsRead: (note) =>
@@ -272,6 +287,43 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
           backgroundColor: errorColor,
         ),
       );
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final nextPage = _page + 1;
+      final noteService = context.read<NoteService>();
+      final result = await noteService.getNotes(
+        options: NoteQueryOptions(
+          category: _selectedCategory == 'Todas' ? null : _selectedCategory,
+          priority: _selectedPriority == 'Todas' ? null : _selectedPriority,
+          unreadOnly: _showOnlyUnread ? true : null,
+          searchTerm: _searchTerm.isEmpty ? null : _searchTerm,
+          limit: _pageSize,
+          offset: nextPage * _pageSize,
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _notes.addAll(result);
+        _page = nextPage;
+        _hasMore = result.length == _pageSize;
+      });
+    } catch (e) {
+      debugPrint('Error loading more notes: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 }

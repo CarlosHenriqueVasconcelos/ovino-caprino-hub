@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -28,32 +29,56 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
   String _category = 'Geral';
   String _priority = 'Média';
   DateTime _date = DateTime.now();
+  List<Animal> _animalOptions = [];
+  bool _loadingAnimals = true;
+  Timer? _animalDebounce;
+  Animal? _linkedAnimal;
 
   @override
   void initState() {
     super.initState();
     _selectedAnimalId = widget.animalId;
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    final animalService = context.read<AnimalService>();
+    if (widget.animalId != null) {
+      final animal = await animalService.getAnimalById(widget.animalId!);
+      if (animal != null) {
+        _linkedAnimal = animal;
+        _animalFieldText = '${animal.code} - ${animal.name}';
+      }
+    }
+    await _loadAnimals();
+  }
+
+  Future<void> _loadAnimals([String query = '']) async {
+    try {
+      final animalService = context.read<AnimalService>();
+      final animals =
+          await animalService.searchAnimals(searchQuery: query, limit: 50);
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
+      setState(() {
+        _animalOptions = animals;
+        _loadingAnimals = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingAnimals = false);
+    }
+  }
+
+  void _scheduleAnimalSearch(String query) {
+    _animalDebounce?.cancel();
+    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
+      _loadAnimals(query);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final animalService = context.watch<AnimalService>();
-    final animals = animalService.animals;
-
-    // Se veio um animalId fixo, tenta achar o animal pra exibir o nome/código
-    Animal? linkedAnimal;
-    if (widget.animalId != null) {
-      try {
-        linkedAnimal = animals.firstWhere((a) => a.id == widget.animalId);
-      } on StateError {
-        linkedAnimal = null;
-      }
-    }
-
-    if (linkedAnimal != null && _animalFieldText.isEmpty) {
-      _animalFieldText = '${linkedAnimal.code} - ${linkedAnimal.name}';
-    }
-
     return AlertDialog(
       title: const Text('Nova Anotação'),
       content: SingleChildScrollView(
@@ -68,15 +93,13 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                 if (widget.animalId == null) ...[
                   Autocomplete<Animal>(
                     optionsBuilder: (textEditingValue) {
+                      _scheduleAnimalSearch(textEditingValue.text);
+                      if (_loadingAnimals) return const Iterable<Animal>.empty();
                       final query = textEditingValue.text.toLowerCase();
-                      return animals.where((animal) {
+                      return _animalOptions.where((animal) {
                         final name = animal.name.toLowerCase();
                         final code = animal.code.toLowerCase();
-                        return name.contains(query) ||
-                            code.contains(query) ||
-                            AnimalDisplayUtils.getColorName(animal.nameColor)
-                                .toLowerCase()
-                                .contains(query);
+                        return name.contains(query) || code.contains(query);
                       });
                     },
                     displayStringForOption: (Animal option) =>
@@ -129,8 +152,8 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                         border: OutlineInputBorder(),
                       ),
                       child: Text(
-                        linkedAnimal != null
-                            ? '${linkedAnimal.code} - ${linkedAnimal.name}'
+                        _linkedAnimal != null
+                            ? '${_linkedAnimal!.code} - ${_linkedAnimal!.name}'
                             : 'Animal não encontrado',
                       ),
                     ),
@@ -353,6 +376,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
 
   @override
   void dispose() {
+    _animalDebounce?.cancel();
     _titleController.dispose();
     _contentController.dispose();
     _createdByController.dispose();

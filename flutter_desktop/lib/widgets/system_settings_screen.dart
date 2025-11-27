@@ -242,8 +242,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ),
                     const Divider(),
                     Builder(builder: (context) {
-                      final totalAnimals = animalService.stats?.totalAnimals ??
-                          animalService.animals.length;
+                      final totalAnimals = animalService.stats?.totalAnimals ?? 0;
                       return ListTile(
                         leading: Icon(Icons.analytics,
                             color: theme.colorScheme.secondary),

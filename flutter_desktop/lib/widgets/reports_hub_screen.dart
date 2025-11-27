@@ -190,6 +190,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             : _notesIsReadFilter == 'Não lidas'
                 ? false
                 : null,
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
       );
 
       final reportType = _reportTypes[_tabController.index];
@@ -330,7 +332,37 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     }
 
     try {
-      final data = _getSortedData();
+      // Busca todos os dados paginados via nova chamada
+      final period = _getPeriodRange();
+      final filters = ReportFilters(
+        startDate: period.startDate,
+        endDate: period.endDate,
+        species: _speciesFilter,
+        gender: _genderFilter,
+        status: _statusFilter,
+        category: _categoryFilter,
+        vaccineType: _vaccineTypeFilter,
+        medicationStatus: _medicationStatusFilter,
+        breedingStage: _breedingStageFilter,
+        financialType: _financialTypeFilter,
+        financialCategory: _financialCategoryFilter,
+        notesPriority: _notesPriorityFilter,
+        notesIsRead: _notesIsReadFilter == 'Lidas'
+            ? true
+            : _notesIsReadFilter == 'Não lidas'
+                ? false
+                : null,
+        limit: null,
+        offset: null,
+      );
+      final reportType = _reportTypes[_tabController.index];
+      final reportsController = context.read<ReportsController>();
+      final fullData = await reportsController.generateReport(
+        reportType,
+        filters,
+      );
+      final data = List<Map<String, dynamic>>.from(fullData['data'] ?? []);
+      if (!mounted) return;
       if (data.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nenhum dado para exportar')),
@@ -354,8 +386,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
       final csv = '$headers\n$rows';
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final reportType = _reportTypes[_tabController.index].toLowerCase();
-      final filename = '${reportType}_$timestamp.csv';
+      final reportSlug = _reportTypes[_tabController.index].toLowerCase();
+      final filename = '${reportSlug}_$timestamp.csv';
 
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/$filename');
@@ -459,13 +491,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   }
 
   List<Map<String, dynamic>> _getPaginatedData() {
-    final sorted = _getSortedData();
-    if (sorted.isEmpty) return const [];
-    final start = (_currentPage * _pageSize).clamp(0, sorted.length);
-    final end = (start + _pageSize).clamp(0, sorted.length);
-    final safeStart = start.toInt();
-    final safeEnd = end.toInt();
-    return sorted.sublist(safeStart, safeEnd);
+    return _getSortedData();
   }
 
   List<ReportChartPoint> _buildChartPoints() {
@@ -782,7 +808,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   }
 
   Widget _buildPagination(ThemeData theme) {
-    final totalItems = _getSortedData().length;
+    final totalItems =
+        (_reportData?['total'] as int?) ?? _getSortedData().length;
     final totalPages = (totalItems / _pageSize).ceil();
 
     if (totalPages <= 1) {
@@ -805,14 +832,20 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               IconButton(
                 icon: const Icon(Icons.chevron_left),
                 onPressed: _currentPage > 0
-                    ? () => setState(() => _currentPage--)
+                    ? () async {
+                        setState(() => _currentPage--);
+                        await _loadReport();
+                      }
                     : null,
               ),
               Text('Página ${_currentPage + 1} de $totalPages'),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
                 onPressed: _currentPage < totalPages - 1
-                    ? () => setState(() => _currentPage++)
+                    ? () async {
+                        setState(() => _currentPage++);
+                        await _loadReport();
+                      }
                     : null,
               ),
             ],

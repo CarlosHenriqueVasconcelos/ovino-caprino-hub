@@ -4,6 +4,9 @@ import '../../utils/animal_record_display.dart';
 import 'notes_helpers.dart';
 
 class NotesListSection extends StatelessWidget {
+  final ScrollController? controller;
+  final int? itemCount;
+  final bool showLoadingMore;
   final List<Map<String, dynamic>> notes;
   final ValueChanged<Map<String, dynamic>> onViewDetails;
   final ValueChanged<Map<String, dynamic>>? onMarkAsRead;
@@ -11,6 +14,9 @@ class NotesListSection extends StatelessWidget {
 
   const NotesListSection({
     super.key,
+    this.controller,
+    this.itemCount,
+    this.showLoadingMore = false,
     required this.notes,
     required this.onViewDetails,
     this.onMarkAsRead,
@@ -19,11 +25,19 @@ class NotesListSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final total = itemCount ?? notes.length;
     return ListView.separated(
+      controller: controller,
       padding: const EdgeInsets.all(16),
       separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemCount: notes.length,
+      itemCount: total,
       itemBuilder: (context, index) {
+        if (showLoadingMore && index >= notes.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
         final note = notes[index];
         return _NoteCard(
           note: note,

@@ -21,6 +21,11 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   List<HistoryItem> _historyItems = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = false;
+  int _page = 0;
+  static const int _pageSize = 100;
+  final ScrollController _scrollController = ScrollController();
   String _selectedFilter = 'Todos';
   final List<String> _filterOptions = [
     'Todos',
@@ -35,7 +40,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     _loadHistory();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   /// Helper para evitar o uso de `firstOrNull`
@@ -45,6 +57,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (animal.id == id) return animal;
     }
     return null;
+  }
+
+  // Cache local para resolver animais por id entre páginas
+  final Map<String, Animal> _animalCache = {};
+
+  void _cacheAnimals(List<Animal> animals) {
+    for (final a in animals) {
+      _animalCache[a.id] = a;
+    }
+  }
+
+  Future<Animal?> _getAnimalById(String? id) async {
+    if (id == null || id.isEmpty) return null;
+    if (_animalCache.containsKey(id)) return _animalCache[id];
+    final service = context.read<AnimalService>();
+    try {
+      final result = await service.getAnimalById(id);
+      if (result != null) {
+        _animalCache[id] = result;
+      }
+      return result;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _buildAnimalLabel(Map<String, dynamic> record, Animal? cachedAnimal) {
@@ -57,6 +93,212 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Future<void> _loadMore() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final animalService = context.read<AnimalService>();
+      final vaccinationService = context.read<VaccinationService>();
+      final medicationService = context.read<MedicationService>();
+      final breedingService = context.read<BreedingService>();
+      final financialService = context.read<FinancialService>();
+      final noteService = context.read<NoteService>();
+
+      final nextPage = _page + 1;
+      final offset = nextPage * _pageSize;
+
+      final List<HistoryItem> newItems = [];
+
+      // Animais
+      final animals = await animalService.getAllAnimals(
+        limit: _pageSize,
+        offset: offset,
+        orderBy: 'created_at DESC',
+      );
+      _cacheAnimals(animals);
+      for (final animal in animals) {
+        newItems.add(
+          HistoryItem(
+            id: animal.id,
+            title: 'Animal ${animal.code} cadastrado',
+            description: '${animal.name} - ${animal.species} ${animal.breed}',
+            timestamp: animal.createdAt,
+            type: HistoryType.animalAdded,
+            icon: Icons.pets,
+            color: Colors.blue,
+          ),
+        );
+      }
+
+      // Vacinas aplicadas
+      final vaccinations =
+          await vaccinationService.getAppliedVaccinationsWithAnimalInfo(
+        options: VaccinationQueryOptions(limit: _pageSize, offset: offset),
+      );
+      for (final v in vaccinations) {
+        final String? animalId = v['animal_id'] as String?;
+        final animal = _animalCache[animalId ?? ''] ?? await _getAnimalById(animalId);
+        final animalName = _buildAnimalLabel(v, animal);
+        final dynamic appliedRaw =
+            v['applied_date'] ?? v['scheduled_date'] ?? v['created_at'];
+        DateTime appliedDate;
+        if (appliedRaw is DateTime) {
+          appliedDate = appliedRaw;
+        } else if (appliedRaw is String) {
+          appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
+        } else {
+          appliedDate = DateTime.now();
+        }
+        newItems.add(
+          HistoryItem(
+            id: v['id'] as String,
+            title: 'Vacinação aplicada',
+            description: '${v['vaccine_name'] ?? 'Vacina'} - $animalName',
+            timestamp: appliedDate,
+            type: HistoryType.vaccination,
+            icon: Icons.vaccines,
+            color: Colors.green,
+          ),
+        );
+      }
+
+      // Medicações aplicadas
+      final medications =
+          await medicationService.getAppliedMedicationsWithAnimalInfo(
+        options: MedicationQueryOptions(limit: _pageSize, offset: offset),
+      );
+      for (final med in medications) {
+        final String? animalId = med['animal_id'] as String?;
+        final animal = _animalCache[animalId ?? ''] ?? await _getAnimalById(animalId);
+        final animalName = _buildAnimalLabel(med, animal);
+        final dynamic appliedRaw =
+            med['applied_date'] ?? med['date'] ?? med['created_at'];
+        DateTime appliedDate;
+        if (appliedRaw is DateTime) {
+          appliedDate = appliedRaw;
+        } else if (appliedRaw is String) {
+          appliedDate = DateTime.tryParse(appliedRaw) ?? DateTime.now();
+        } else {
+          appliedDate = DateTime.now();
+        }
+        newItems.add(
+          HistoryItem(
+            id: med['id'] as String,
+            title: 'Medicamento aplicado',
+            description: '${med['medication_name']} - $animalName',
+            timestamp: appliedDate,
+            type: HistoryType.medication,
+            icon: Icons.medical_services,
+            color: Colors.orange,
+          ),
+        );
+      }
+
+      // Reprodução
+      final breedingRecords = await breedingService.getBreedingRecords(
+        limit: _pageSize,
+        offset: offset,
+      );
+      for (final breeding in breedingRecords) {
+        final String? femaleId = breeding['female_animal_id'] as String?;
+        final female =
+            _animalCache[femaleId ?? ''] ?? await _getAnimalById(femaleId);
+        final femaleName = female != null
+            ? '${female.name} (${female.code})'
+            : 'Fêmea desconhecida';
+        final String? createdStr = breeding['created_at'] as String?;
+        final createdAt = createdStr != null
+            ? DateTime.tryParse(createdStr) ?? DateTime.now()
+            : DateTime.now();
+
+        newItems.add(
+          HistoryItem(
+            id: breeding['id'] as String,
+            title: 'Cobertura registrada',
+            description: 'Fêmea: $femaleName - Status: ${breeding['status']}',
+            timestamp: createdAt,
+            type: HistoryType.breeding,
+            icon: Icons.favorite,
+            color: Colors.pink,
+          ),
+        );
+      }
+
+      // Financeiro
+      final financialRecords = await financialService.getFinancialRecords(
+        limit: _pageSize,
+        offset: offset,
+      );
+      for (final record in financialRecords) {
+        final bool isReceita = record['type'] == 'receita';
+        final String? dateStr = record['date'] as String?;
+        final DateTime date = dateStr != null
+            ? DateTime.tryParse(dateStr) ?? DateTime.now()
+            : DateTime.now();
+        final num amount = record['amount'] as num? ?? 0;
+
+        newItems.add(
+          HistoryItem(
+            id: record['id'] as String,
+            title: isReceita ? 'Receita registrada' : 'Despesa registrada',
+            description:
+                '${record['category']} - R\$ ${amount.toStringAsFixed(2)}',
+            timestamp: date,
+            type: HistoryType.financial,
+            icon: isReceita ? Icons.trending_up : Icons.trending_down,
+            color: isReceita ? Colors.green : Colors.red,
+          ),
+        );
+      }
+
+      // Anotações
+      final notes = await noteService.getNotes(
+        options: NoteQueryOptions(limit: _pageSize, offset: offset),
+      );
+      for (final note in notes) {
+        final String? createdStr = note['created_at'] as String?;
+        final DateTime createdAt = createdStr != null
+            ? DateTime.tryParse(createdStr) ?? DateTime.now()
+            : DateTime.now();
+
+        newItems.add(
+          HistoryItem(
+            id: note['id'] as String,
+            title: 'Anotação criada',
+            description: '${note['title']} - ${note['category']}',
+            timestamp: createdAt,
+            type: HistoryType.note,
+            icon: Icons.notes,
+            color: Colors.purple,
+          ),
+        );
+      }
+
+      // Mesclar e ordenar
+      final merged = [..._historyItems, ...newItems];
+      merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      if (!mounted) return;
+      setState(() {
+        _historyItems = merged;
+        _page = nextPage;
+        _hasMore = newItems.length >= _pageSize;
+        _isLoadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
 
@@ -71,7 +313,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       // 1) Animais cadastrados (via AnimalService)
       await animalService.loadData();
-      final List<Animal> animals = animalService.animals.toList();
+      final List<Animal> animals = await animalService.getAllAnimals(
+        limit: _pageSize,
+        offset: 0,
+        orderBy: 'created_at DESC',
+      );
+      _cacheAnimals(animals);
 
       for (final animal in animals) {
         items.add(
@@ -92,11 +339,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       // 2) Vacinações aplicadas
       final vaccinations =
-          await vaccinationService.getAppliedVaccinationsWithAnimalInfo();
+          await vaccinationService.getAppliedVaccinationsWithAnimalInfo(
+        options: const VaccinationQueryOptions(limit: _pageSize, offset: 0),
+      );
 
       for (final v in vaccinations) {
         final String? animalId = v['animal_id'] as String?;
-        final animal = _findAnimalById(animals, animalId);
+        final animal = _animalCache[animalId] ?? _findAnimalById(animals, animalId);
         final animalName = _buildAnimalLabel(v, animal);
 
         final dynamic appliedRaw =
@@ -125,11 +374,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       // 3) Medicamentos aplicados
       final medications =
-          await medicationService.getAppliedMedicationsWithAnimalInfo();
+          await medicationService.getAppliedMedicationsWithAnimalInfo(
+        options: const MedicationQueryOptions(limit: _pageSize, offset: 0),
+      );
 
       for (final med in medications) {
         final String? animalId = med['animal_id'] as String?;
-        final animal = _findAnimalById(animals, animalId);
+        final animal = _animalCache[animalId] ?? _findAnimalById(animals, animalId);
         final animalName = _buildAnimalLabel(med, animal);
 
         final dynamic appliedRaw =
@@ -156,12 +407,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
       }
 
-      // 4) Registros de reprodução (via BreedingService)
-      final breedingRecords = await breedingService.getBreedingRecords();
+      // 4) Registros de reprodução (via BreedingService) - limitado
+      final breedingRecords = await breedingService.getBreedingRecords(
+        limit: _pageSize,
+        offset: 0,
+      );
 
       for (final breeding in breedingRecords) {
         final String? femaleId = breeding['female_animal_id'] as String?;
-        final female = _findAnimalById(animals, femaleId);
+        final female = _animalCache[femaleId ?? ''] ?? _findAnimalById(animals, femaleId);
         final femaleName = female != null
             ? '${female.name} (${female.code})'
             : 'Fêmea desconhecida';
@@ -184,8 +438,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         );
       }
 
-      // 5) Registros financeiros (via FinancialService)
-      final financialRecords = await financialService.getFinancialRecords();
+      // 5) Registros financeiros (via FinancialService) - limitado
+      final financialRecords = await financialService.getFinancialRecords(
+        limit: _pageSize,
+        offset: 0,
+      );
 
       for (final record in financialRecords) {
         final bool isReceita = record['type'] == 'receita';
@@ -211,7 +468,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       // 6) Anotações (via NoteService)
       final notes = await noteService.getNotes(
-        options: const NoteQueryOptions(limit: 250),
+        options: const NoteQueryOptions(limit: _pageSize, offset: 0),
       );
 
       for (final note in notes) {
@@ -238,7 +495,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       if (!mounted) return;
       setState(() {
-        _historyItems = items;
+        _historyItems = items.take(_pageSize).toList();
+        _page = 0;
+        _hasMore = items.length > _pageSize;
         _isLoading = false;
       });
     } catch (e, stack) {

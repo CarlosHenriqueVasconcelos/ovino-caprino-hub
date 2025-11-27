@@ -21,6 +21,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
   static const int _itemsPerPage = 25;
+  Future<WeightTrackingResult>? _future;
 
   @override
   void dispose() {
@@ -93,6 +94,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 setState(() {
                   _searchQuery = value.toLowerCase();
                   _currentPage = 0;
+                  _future = null;
                 });
               },
               onClearSearch: () {
@@ -100,6 +102,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   _searchController.clear();
                   _searchQuery = '';
                   _currentPage = 0;
+                  _future = null;
                 });
               },
               dropdowns: const [],
@@ -107,12 +110,29 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             const SizedBox(height: 24),
 
             // Adult Animals List
-            Consumer<AnimalService>(
-              builder: (context, animalService, _) {
-                final adults = _getFilteredAdults(animalService.animals);
-                final paginatedAdults = _paginatedAdults(adults);
+            FutureBuilder<WeightTrackingResult>(
+              future: _future ??= context
+                  .read<AnimalService>()
+                  .weightTrackingQuery(
+                    category: WeightCategoryFilter.adults,
+                    searchQuery: _searchQuery,
+                    page: _currentPage,
+                    pageSize: _itemsPerPage,
+                  ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  );
+                }
+                final result = snapshot.data;
+                final adults = result?.items ?? const <Animal>[];
+                final total = result?.total ?? 0;
                 final totalPages =
-                    (adults.length / _itemsPerPage).ceil().clamp(1, 9999);
+                    (total / _itemsPerPage).ceil().clamp(1, 9999);
 
                 return Card(
                   child: Padding(
@@ -130,7 +150,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                             ),
                             const Spacer(),
                             Text(
-                              '${adults.length} animais',
+                              '$total animais',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 color: theme.colorScheme.primary,
                               ),
@@ -139,7 +159,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                         ),
                         const SizedBox(height: 24),
                         WeightTrackingTable<Animal>(
-                          items: paginatedAdults,
+                          items: adults,
                           mode: WeightTrackingTableMode.list,
                           itemBuilder: (context, adult) =>
                               _buildAdultCard(context, adult),
@@ -153,7 +173,10 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                           totalPages: totalPages,
                           itemsPerPage: _itemsPerPage,
                           onPageChanged: (page) {
-                            setState(() => _currentPage = page);
+                            setState(() {
+                              _currentPage = page;
+                              _future = null;
+                            });
                           },
                         ),
                       ],
@@ -166,45 +189,6 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
         ),
       ),
     );
-  }
-
-  List<Animal> _getFilteredAdults(List<Animal> animals) {
-    // Filtrar apenas animais adultos (não borregos)
-    var adults = animals.where((animal) {
-      return animal.category != 'Borrego';
-    }).toList();
-
-    // Aplicar filtro de pesquisa
-    if (_searchQuery.isNotEmpty) {
-      adults = adults.where((animal) {
-        return animal.name.toLowerCase().contains(_searchQuery) ||
-            animal.code.toLowerCase().contains(_searchQuery);
-      }).toList();
-    }
-
-    // Ordenar por cor e depois por código numérico
-    adults.sort((a, b) {
-      final colorA = a.nameColor;
-      final colorB = b.nameColor;
-      final colorCompare = colorA.compareTo(colorB);
-      if (colorCompare != 0) return colorCompare;
-
-      final numA =
-          int.tryParse(RegExp(r'\d+').firstMatch(a.code)?.group(0) ?? '0') ?? 0;
-      final numB =
-          int.tryParse(RegExp(r'\d+').firstMatch(b.code)?.group(0) ?? '0') ?? 0;
-      return numA.compareTo(numB);
-    });
-
-    return adults;
-  }
-
-  List<Animal> _paginatedAdults(List<Animal> adults) {
-    if (adults.isEmpty) return const [];
-    final total = adults.length;
-    final start = (_currentPage * _itemsPerPage).clamp(0, total);
-    final end = (start + _itemsPerPage).clamp(0, total);
-    return adults.sublist(start.toInt(), end.toInt());
   }
 
   Widget _buildEmptyState(BuildContext context) {

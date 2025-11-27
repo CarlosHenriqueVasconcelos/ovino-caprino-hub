@@ -20,6 +20,8 @@ Future<void> handleAnimalSaleIfApplicable(
   // Só interessa para receitas de "Venda de Animais"
   if (account.type != 'receita') return;
   if (account.category != 'Venda de Animais') return;
+  // Só mover para vendidos quando estiver pago
+  if (account.status != 'Pago') return;
 
   final animalId = account.animalId;
   if (animalId == null || animalId.isEmpty) return;

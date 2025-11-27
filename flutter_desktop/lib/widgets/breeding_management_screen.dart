@@ -48,20 +48,26 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
       final breedingService = context.read<BreedingService>();
       final animalService = context.read<AnimalService>();
 
-      // Garante que os animais estão carregados
-      await animalService.loadData();
-      final List<Animal> animalsList = animalService.animals.toList();
-
-      // Monta o mapa id -> Animal (tipado certinho)
-      final Map<String, Animal> animalsMap = {
-        for (final a in animalsList) a.id: a,
-      };
-
       // Busca os registros de reprodução pelo BreedingService
       final breedingData = await breedingService.getBreedingRecords();
 
       final records =
           breedingData.map((e) => BreedingRecord.fromMap(e)).toList();
+
+      // Busca apenas os animais necessários (fêmea/macho) via serviço
+      final ids = <String>{
+        ...records
+            .where((r) => (r.femaleAnimalId ?? '').isNotEmpty)
+            .map((r) => r.femaleAnimalId!),
+        ...records
+            .where((r) => (r.maleAnimalId ?? '').isNotEmpty)
+            .map((r) => r.maleAnimalId!),
+      };
+      final animalsMap = <String, Animal>{};
+      for (final id in ids) {
+        final animal = await animalService.getAnimalById(id);
+        if (animal != null) animalsMap[id] = animal;
+      }
 
       if (!mounted) return;
       setState(() {

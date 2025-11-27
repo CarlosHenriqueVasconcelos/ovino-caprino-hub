@@ -26,6 +26,8 @@ class BackupRepository {
     'financial_accounts',
     'financial_records',
     'notes',
+    'pharmacy_stock',
+    'pharmacy_stock_movements',
     'vaccinations',
     'medications',
     'animal_weights',
@@ -35,10 +37,12 @@ class BackupRepository {
   ];
 
   static const List<String> _deleteChildFirst = [
+    'pharmacy_stock_movements',
+    'medications',
+    'pharmacy_stock',
     'animal_weights',
     'breeding_records',
     'vaccinations',
-    'medications',
     'notes',
     'financial_records',
     'financial_accounts',
@@ -62,6 +66,10 @@ class BackupRepository {
     ],
     'financial_accounts': const [
       _FkRef('financial_accounts', 'parent_id'),
+    ],
+    'pharmacy_stock': const [
+      _FkRef('pharmacy_stock_movements', 'pharmacy_stock_id'),
+      _FkRef('medications', 'pharmacy_stock_id'),
     ],
   };
 
@@ -266,6 +274,30 @@ class BackupRepository {
       'created_at',
       'updated_at',
     },
+    'pharmacy_stock': {
+      'id',
+      'medication_name',
+      'medication_type',
+      'unit_of_measure',
+      'quantity_per_unit',
+      'total_quantity',
+      'min_stock_alert',
+      'expiration_date',
+      'is_opened',
+      'opened_quantity',
+      'notes',
+      'created_at',
+      'updated_at',
+    },
+    'pharmacy_stock_movements': {
+      'id',
+      'pharmacy_stock_id',
+      'medication_id',
+      'movement_type',
+      'quantity',
+      'reason',
+      'created_at',
+    },
   };
 
   Future<void> backupMirrorRemote({
@@ -360,9 +392,11 @@ class BackupRepository {
 
   Future<void> _clearLocalTables(Database db) async {
     await db.transaction((txn) async {
+      await txn.execute('PRAGMA foreign_keys = OFF');
       for (final table in _deleteChildFirst) {
         await txn.delete(table);
       }
+      await txn.execute('PRAGMA foreign_keys = ON');
     });
   }
 
@@ -480,6 +514,9 @@ class BackupRepository {
     if (table == 'financial_accounts') {
       r['is_recurring'] = _toBool(row['is_recurring']);
     }
+    if (table == 'pharmacy_stock') {
+      r['is_opened'] = _toBool(row['is_opened']);
+    }
     if (table == 'reports') r['parameters'] = _jsonIn(row['parameters']);
     if (table == 'push_tokens') r['device_info'] = _jsonIn(row['device_info']);
 
@@ -501,6 +538,9 @@ class BackupRepository {
     if (table == 'notes') r['is_read'] = _toInt01(row['is_read']);
     if (table == 'financial_accounts') {
       r['is_recurring'] = _toInt01(row['is_recurring']);
+    }
+    if (table == 'pharmacy_stock') {
+      r['is_opened'] = _toInt01(row['is_opened']);
     }
 
     if (table == 'breeding_records') {

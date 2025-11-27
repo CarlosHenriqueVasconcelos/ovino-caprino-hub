@@ -91,8 +91,11 @@ class BreedingService extends ChangeNotifier {
   /// Mantém o formato esperado pela UI:
   /// - datas como String (yyyy-MM-dd)
   /// - campos `female_animal_id`, `male_animal_id`, `status`, `stage`, `expected_birth`
-  Future<List<Map<String, dynamic>>> getBreedingRecords() async {
-    final records = await _repository.getAll();
+  Future<List<Map<String, dynamic>>> getBreedingRecords({
+    int? limit,
+    int? offset,
+  }) async {
+    final records = await _repository.getAll(limit: limit, offset: offset);
 
     return records.map((r) {
       return <String, dynamic>{

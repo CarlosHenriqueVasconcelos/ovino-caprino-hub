@@ -19,24 +19,43 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
   List<FinancialAccount> accounts = [];
   String filterStatus = 'Todos';
   bool isLoading = true;
+  bool isLoadingMore = false;
+  bool hasMore = false;
+  int page = 0;
+  static const int _pageSize = 50;
+  late final ScrollController _scrollController;
 
   FinancialService get _service => context.read<FinancialService>();
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
     _loadAccounts();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAccounts() async {
     setState(() => isLoading = true);
 
-    final allAccounts = await _service.getAllAccounts();
-    final filtered = allAccounts.where((a) => a.type == 'despesa').toList()
-      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    final pageData = await _service.getAccountsPage(
+      type: 'despesa',
+      status: filterStatus == 'Todos' ? null : filterStatus,
+      limit: _pageSize,
+      offset: 0,
+      ascending: true,
+    );
 
     setState(() {
-      accounts = filtered;
+      accounts = pageData;
+      page = 0;
+      hasMore = pageData.length == _pageSize;
       isLoading = false;
     });
   }
@@ -98,8 +117,43 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
     return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
+  void _handleScroll() {
+    if (!_scrollController.hasClients || isLoadingMore || !hasMore) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (isLoading || isLoadingMore || !hasMore) return;
+    setState(() => isLoadingMore = true);
+    try {
+      final nextPage = page + 1;
+      final pageData = await _service.getAccountsPage(
+        type: 'despesa',
+        status: filterStatus == 'Todos' ? null : filterStatus,
+        limit: _pageSize,
+        offset: nextPage * _pageSize,
+        ascending: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        accounts.addAll(pageData);
+        page = nextPage;
+        hasMore = pageData.length == _pageSize;
+      });
+    } catch (_) {
+      // mantém estado atual em caso de erro
+    } finally {
+      if (mounted) setState(() => isLoadingMore = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final loaderExtra = (isLoadingMore || hasMore) ? 1 : 0;
+    final itemCount = filteredAccounts.length + loaderExtra;
     return Column(
       children: [
         Padding(
@@ -154,13 +208,26 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                       ),
                     )
                   : ListView.builder(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(16),
-                      itemCount: filteredAccounts.length,
+                      itemCount: itemCount,
                       itemBuilder: (context, index) {
+                        if ((isLoadingMore || hasMore) &&
+                            index >= filteredAccounts.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
                         final account = filteredAccounts[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            isThreeLine: true,
                             leading: CircleAvatar(
                               backgroundColor: Colors.red.withOpacity(0.2),
                               child: const Icon(Icons.arrow_downward,
@@ -170,6 +237,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                                 Text(account.description ?? account.category),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                     'Vencimento: ${_formatDate(account.dueDate)}'),
@@ -179,7 +247,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                               ],
                             ),
                             trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
@@ -189,6 +257,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                                     color: Colors.red,
                                   ),
                                 ),
+                                const SizedBox(height: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 2),
@@ -202,6 +271,7 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: _getStatusColor(account.status),
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
