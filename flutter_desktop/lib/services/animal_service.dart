@@ -34,7 +34,6 @@ class AnimalService extends ChangeNotifier {
   bool _loading = false;
   Timer? _alertsDebounceTimer;
   Timer? _statsDebounceTimer;
-  final List<Animal> _animals = [];
   final Map<String, Animal> _animalCacheById = {};
 
   // Painel de alertas (vacinas + medicações + pesagens)
@@ -48,7 +47,8 @@ class AnimalService extends ChangeNotifier {
   final WeightAlertService _weightAlertService;
 
   // ----------------- Getters públicos -----------------
-  UnmodifiableListView<Animal> get animals => UnmodifiableListView(_animals);
+  @Deprecated('Use getAllAnimals() or repository queries instead')
+  UnmodifiableListView<Animal> get animals => UnmodifiableListView(const []);
 
   AnimalStats? get stats => _stats;
   bool get isLoading => _loading;
@@ -106,13 +106,6 @@ class AnimalService extends ChangeNotifier {
 
   Future<Animal?> getAnimalById(String id) async {
     if (_animalCacheById.containsKey(id)) return _animalCacheById[id];
-    try {
-      final found = _animals.firstWhere((a) => a.id == id);
-      _animalCacheById[id] = found;
-      return found;
-    } catch (_) {
-      // ignore
-    }
     final fromDb = await _animalRepository.getAnimalById(id);
     if (fromDb != null) {
       _animalCacheById[id] = fromDb;
@@ -142,7 +135,6 @@ class AnimalService extends ChangeNotifier {
     await _validateUniqueness(saved, isUpdate: false);
     await _animalRepository.upsert(saved);
     _animalCacheById[saved.id] = saved;
-    _animals.add(saved);
 
     // Cria alertas de pesagem se for borrego
     if (_isLambCategory(saved.category)) {
@@ -265,10 +257,6 @@ class AnimalService extends ChangeNotifier {
     } else {
       await _animalRepository.upsert(updated);
       _animalCacheById[updated.id] = updated;
-      final existingIndex = _animals.indexWhere((a) => a.id == updated.id);
-      if (existingIndex >= 0) {
-        _animals[existingIndex] = updated;
-      }
     }
 
     await _scheduleStatsRefresh();
@@ -278,7 +266,6 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> deleteAnimal(String id) async {
     await _animalRepository.delete(id);
-    _animals.removeWhere((a) => a.id == id);
     _animalCacheById.remove(id);
 
     await _scheduleStatsRefresh();
@@ -286,12 +273,13 @@ class AnimalService extends ChangeNotifier {
     notifyListeners();
   }
 
+  @Deprecated('Cache no longer maintained - refresh UI directly')
   Future<void> removeFromCache(
     String id, {
     bool refreshStats = true,
     bool refreshAlertsData = true,
   }) async {
-    _animals.removeWhere((a) => a.id == id);
+    _animalCacheById.remove(id);
 
     if (refreshStats) {
       await _scheduleStatsRefresh();
