@@ -101,7 +101,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
 
   Widget _buildHeader(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: theme.cardColor.withOpacity(0.90),
         border: Border(
@@ -119,68 +119,98 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
       ),
       child: SafeArea(
         bottom: false,
-        child: Row(
-          children: [
-            // Logo and Title
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.primary.withOpacity(0.8),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 800;
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Logo compacto
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.primary.withOpacity(0.8),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('🐑', style: TextStyle(fontSize: 16)),
+                          SizedBox(width: 2),
+                          Icon(Icons.agriculture, color: Colors.white, size: 16),
+                          SizedBox(width: 2),
+                          Text('🐐', style: TextStyle(fontSize: 16)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Título responsivo
+                    if (!isNarrow)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fazenda São Petronio',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            Text(
+                              'Sistema de Gestão Completo',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Expanded(
+                        child: Text(
+                          'São Petronio',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    
+                    // Botões compactos
+                    IconButton(
+                      onPressed: () => context.read<AnimalService>().loadData(),
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Recarregar',
+                    ),
+                    const SizedBox(width: 4),
+                    ElevatedButton(
+                      onPressed: () => _showAnimalForm(context),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add, size: 18),
+                          if (!isNarrow) ...[
+                            const SizedBox(width: 4),
+                            const Text('Novo'),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('🐑', style: TextStyle(fontSize: 20)),
-                  SizedBox(width: 4),
-                  Icon(Icons.agriculture, color: Colors.white, size: 20),
-                  SizedBox(width: 4),
-                  Text('🐐', style: TextStyle(fontSize: 20)),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Fazenda São Petronio',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  Text(
-                    'Sistema Completo de Gestão para Ovinocultura e Caprinocultura',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-
-            // Botão para recarregar os dados
-            OutlinedButton.icon(
-              onPressed: () => context.read<AnimalService>().loadData(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Recarregar dados'),
-            ),
-            const SizedBox(width: 12),
-
-            ElevatedButton.icon(
-              onPressed: () => _showAnimalForm(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Novo Animal'),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -189,31 +219,42 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
   Widget _buildNavigation(ThemeData theme) {
     return Container(
       color: theme.cardColor.withOpacity(0.60),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: false,
-        tabAlignment: TabAlignment.fill,
-        indicatorColor: theme.colorScheme.primary,
-        indicatorWeight: 3,
-        labelColor: theme.colorScheme.primary,
-        unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-        unselectedLabelStyle:
-            const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
-        tabs: _tabs
-            .map(
-              (tab) => Tab(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(tab.icon, size: 20),
-                    const SizedBox(height: 4),
-                    Text(tab.label),
-                  ],
-                ),
-              ),
-            )
-            .toList(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 800;
+          
+          return TabBar(
+            controller: _tabController,
+            isScrollable: isNarrow,
+            tabAlignment: isNarrow ? TabAlignment.start : TabAlignment.fill,
+            indicatorColor: theme.colorScheme.primary,
+            indicatorWeight: 3,
+            labelColor: theme.colorScheme.primary,
+            unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
+            labelStyle: TextStyle(
+              fontWeight: FontWeight.w600, 
+              fontSize: isNarrow ? 11 : 12,
+            ),
+            unselectedLabelStyle: TextStyle(
+              fontWeight: FontWeight.normal, 
+              fontSize: isNarrow ? 11 : 12,
+            ),
+            tabs: _tabs
+                .map(
+                  (tab) => Tab(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(tab.icon, size: isNarrow ? 18 : 20),
+                        SizedBox(height: isNarrow ? 2 : 4),
+                        Text(tab.label),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        },
       ),
     );
   }
