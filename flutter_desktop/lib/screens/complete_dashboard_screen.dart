@@ -102,7 +102,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
 
   Widget _buildHeader(ThemeData theme) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: ResponsiveUtils.getPadding(context),
@@ -147,52 +147,54 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                     children: [
                       Text('🐑', style: TextStyle(fontSize: isMobile ? 14 : 16)),
                       const SizedBox(width: 2),
-                      Icon(Icons.agriculture, color: Colors.white, size: isMobile ? 14 : 16),
+                      Icon(
+                        Icons.agriculture,
+                        color: Colors.white,
+                        size: isMobile ? 14 : 16,
+                      ),
                       const SizedBox(width: 2),
                       Text('🐐', style: TextStyle(fontSize: isMobile ? 14 : 16)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Título
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Fazenda São Petrônio',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isMobile ? 14 : 16,
-                            ),
-                          ),
-                          if (!isMobile)
-                            Text(
-                              'Gestão de Ovinos e Caprinos',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    // Botão adicionar
-                    if (!isMobile)
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                        ),
-                        onPressed: () => _showAnimalForm(context),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Novo'),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
+                // Título
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Fazenda São Petrônio',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 14 : 16,
+                        ),
+                      ),
+                      if (!isMobile)
+                        Text(
+                          'Gestão de Ovinos e Caprinos',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Botão adicionar
+                if (!isMobile)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                    ),
+                    onPressed: () => _showAnimalForm(context),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Novo'),
+                  ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

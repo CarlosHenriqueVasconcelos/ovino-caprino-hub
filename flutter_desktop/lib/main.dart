@@ -70,7 +70,7 @@ Future<void> main() async {
       logService.logError(
         details.exception.toString(),
         stackTrace: details.stack,
-        widget: details.context?.widget.toString(),
+        widget: details.context?.toDescription(),
       );
     }
     

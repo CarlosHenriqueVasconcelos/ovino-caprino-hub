@@ -37,6 +37,7 @@ class AnimalService extends ChangeNotifier {
   Timer? _alertsDebounceTimer;
   Timer? _statsDebounceTimer;
   final Map<String, Animal> _animalCacheById = {};
+  final List<Animal> _animals = [];
 
   // Painel de alertas (vacinas + medicações + pesagens)
   final List<AlertItem> _alerts = [];

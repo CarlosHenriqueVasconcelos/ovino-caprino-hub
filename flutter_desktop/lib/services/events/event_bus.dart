@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'app_events.dart';
 
 /// EventBus global singleton para comunicação reativa entre componentes
