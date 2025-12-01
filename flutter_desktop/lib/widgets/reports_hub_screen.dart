@@ -19,6 +19,7 @@ import 'reports/reports_models.dart';
 import 'reports/reports_summary_cards_row.dart';
 import 'reports/reports_table_area.dart';
 import 'reports/reports_view_switcher.dart';
+import 'common/pagination_bar.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});
@@ -68,7 +69,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   String _sortKey = '';
   bool _sortAsc = true;
   int _currentPage = 0;
-  static const int _pageSize = 25;
+  int _pageSize = 25;
 
   final List<String> _reportTypes = const [
     'Animais',
@@ -712,6 +713,10 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
     return Column(
       children: [
+        // Paginação no topo
+        _buildPagination(theme),
+        const SizedBox(height: 16),
+        
         Expanded(
           child: ReportsTableArea(
             theme: theme,
@@ -723,6 +728,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             cellBuilder: (row, key) => _buildDataCell(row, key, theme),
           ),
         ),
+        
+        // Paginação no final
+        const SizedBox(height: 16),
         _buildPagination(theme),
       ],
     );
@@ -816,41 +824,23 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       return const SizedBox.shrink();
     }
 
-    return Container(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Mostrando ${_currentPage * _pageSize + 1} '
-            'a ${((_currentPage + 1) * _pageSize).clamp(0, totalItems)} '
-            'de $totalItems resultados',
-            style: theme.textTheme.bodySmall,
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: _currentPage > 0
-                    ? () async {
-                        setState(() => _currentPage--);
-                        await _loadReport();
-                      }
-                    : null,
-              ),
-              Text('Página ${_currentPage + 1} de $totalPages'),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _currentPage < totalPages - 1
-                    ? () async {
-                        setState(() => _currentPage++);
-                        await _loadReport();
-                      }
-                    : null,
-              ),
-            ],
-          ),
-        ],
+      child: PaginationBar(
+        currentPage: _currentPage,
+        totalPages: totalPages,
+        itemsPerPage: _pageSize,
+        onPageChanged: (page) async {
+          setState(() => _currentPage = page);
+          await _loadReport();
+        },
+        onItemsPerPageChanged: (newSize) async {
+          setState(() {
+            _pageSize = newSize;
+            _currentPage = 0;
+          });
+          await _loadReport();
+        },
       ),
     );
   }

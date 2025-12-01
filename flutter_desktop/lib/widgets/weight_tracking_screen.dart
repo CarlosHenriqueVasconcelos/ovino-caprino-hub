@@ -8,7 +8,7 @@ import 'lamb_weight_tracking.dart';
 import 'adult_weight_tracking.dart';
 import 'weight_tracking/weight_tracking_filters_bar.dart';
 import 'weight_tracking/weight_tracking_table.dart';
-import 'weight_tracking/weight_tracking_pagination_bar.dart';
+import 'common/pagination_bar.dart';
 
 class WeightTrackingScreen extends StatefulWidget {
   const WeightTrackingScreen({super.key});
@@ -35,7 +35,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   ];
 
   int _currentPage = 0;
-  static const int _itemsPerPage = 50;
+  int _itemsPerPage = 50;
 
   @override
   void initState() {
@@ -282,7 +282,28 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 16),
+                          
+                          // Paginação no topo
+                          if (items.isNotEmpty)
+                            PaginationBar(
+                              currentPage: _currentPage,
+                              totalPages: totalPages,
+                              itemsPerPage: _itemsPerPage,
+                              onPageChanged: (page) {
+                                setState(() => _currentPage = page);
+                                _refresh();
+                              },
+                              onItemsPerPageChanged: (newSize) {
+                                setState(() {
+                                  _itemsPerPage = newSize;
+                                  _currentPage = 0;
+                                });
+                                _refresh();
+                              },
+                            ),
+                          const SizedBox(height: 16),
+                          
                           WeightTrackingTable<Animal>(
                             items: items,
                             mode: WeightTrackingTableMode.list,
@@ -292,16 +313,27 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                             separatorBuilder: (context, index) =>
                                 const Divider(),
                           ),
-                          const SizedBox(height: 24),
-                          WeightTrackingPaginationBar(
-                            currentPage: _currentPage,
-                            totalPages: totalPages,
-                            itemsPerPage: _itemsPerPage,
-                            onPageChanged: (page) {
-                              setState(() => _currentPage = page);
-                              _refresh();
-                            },
-                          ),
+                          
+                          // Paginação no final
+                          if (items.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            PaginationBar(
+                              currentPage: _currentPage,
+                              totalPages: totalPages,
+                              itemsPerPage: _itemsPerPage,
+                              onPageChanged: (page) {
+                                setState(() => _currentPage = page);
+                                _refresh();
+                              },
+                              onItemsPerPageChanged: (newSize) {
+                                setState(() {
+                                  _itemsPerPage = newSize;
+                                  _currentPage = 0;
+                                });
+                                _refresh();
+                              },
+                            ),
+                          ],
                         ],
                       ),
                     ),

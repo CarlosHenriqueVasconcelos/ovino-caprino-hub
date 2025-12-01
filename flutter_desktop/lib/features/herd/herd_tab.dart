@@ -15,6 +15,7 @@ import '../../data/animal_repository.dart';
 import '../../widgets/herd/herd_actions_bar.dart';
 import '../../widgets/herd/herd_animal_grid.dart';
 import '../../widgets/herd/herd_filters_bar.dart';
+import '../../widgets/common/pagination_bar.dart';
 
 class HerdTab extends StatelessWidget {
   const HerdTab({super.key});
@@ -47,7 +48,7 @@ class HerdSectionState extends State<HerdSection>
   String? _categoryFilter;
 
   int _currentPage = 0;
-  static const int _itemsPerPage = 50;
+  int _itemsPerPage = 50;
 
   StreamSubscription<String>? _busSub;
   Future<List<Animal>>? _deceasedFuture;
@@ -252,43 +253,26 @@ class HerdSectionState extends State<HerdSection>
                         _statusFilter != 'Vendido')
                       _emptyState(theme)
                     else ...[
-                      // Paginação (não aplicável a óbito/vendido)
+                      // Paginação no topo (não aplicável a óbito/vendido)
                       if (_statusFilter != 'Óbito' &&
                           _statusFilter != 'Vendido' &&
                           items.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Exibindo ${(_currentPage * _itemsPerPage) + 1} - ${((_currentPage + 1) * _itemsPerPage).clamp(0, total)} de $total animais',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_left),
-                                  onPressed: _currentPage > 0
-                                      ? () => setState(() {
-                                            _currentPage--;
-                                            _refresh();
-                                          })
-                                      : null,
-                                ),
-                                Text('Página ${_currentPage + 1} de $totalPages'),
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_right),
-                                  onPressed:
-                                      (_currentPage + 1) < totalPages
-                                          ? () => setState(() {
-                                                _currentPage++;
-                                                _refresh();
-                                              })
-                                          : null,
-                                ),
-                              ],
-                            ),
-                          ],
+                        PaginationBar(
+                          currentPage: _currentPage,
+                          totalPages: totalPages,
+                          itemsPerPage: _itemsPerPage,
+                          onPageChanged: (page) {
+                            setState(() => _currentPage = page);
+                            _refresh();
+                          },
+                          onItemsPerPageChanged: (newSize) {
+                            setState(() {
+                              _itemsPerPage = newSize;
+                              _currentPage = 0;
+                            });
+                            _refresh();
+                          },
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -362,6 +346,29 @@ class HerdSectionState extends State<HerdSection>
                             );
                           },
                         ),
+                      
+                      // Paginação no final (não aplicável a óbito/vendido)
+                      if (_statusFilter != 'Óbito' &&
+                          _statusFilter != 'Vendido' &&
+                          items.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        PaginationBar(
+                          currentPage: _currentPage,
+                          totalPages: totalPages,
+                          itemsPerPage: _itemsPerPage,
+                          onPageChanged: (page) {
+                            setState(() => _currentPage = page);
+                            _refresh();
+                          },
+                          onItemsPerPageChanged: (newSize) {
+                            setState(() {
+                              _itemsPerPage = newSize;
+                              _currentPage = 0;
+                            });
+                            _refresh();
+                          },
+                        ),
+                      ],
                     ],
                   ],
                 ),
