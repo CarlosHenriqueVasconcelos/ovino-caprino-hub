@@ -13,6 +13,8 @@ import '../utils/animal_display_utils.dart';
 import 'animal/animal_stats_calculator.dart';
 import 'deceased_hooks.dart'; // handleAnimalDeathIfApplicable
 import 'weight_alert_service.dart'; // WeightAlertService
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 enum WeightCategoryFilter { all, juveniles, adults, reproducers }
 
@@ -141,6 +143,13 @@ class AnimalService extends ChangeNotifier {
       await _weightAlertService.createLambWeightAlerts(saved);
     }
 
+    // Emite evento reativo
+    EventBus().emit(AnimalCreatedEvent(
+      animalId: saved.id,
+      name: saved.name,
+      category: saved.category,
+    ));
+
     await _scheduleStatsRefresh();
     await refreshAlerts();
     notifyListeners();
@@ -253,10 +262,21 @@ class AnimalService extends ChangeNotifier {
         notes: 'Status marcado como Vendido',
       );
       _animalCacheById.remove(updated.id);
-      _animals.removeWhere((a) => a.id == updated.id);
+      
+      // Emite evento reativo
+      EventBus().emit(AnimalMarkedAsSoldEvent(
+        animalId: updated.id,
+        saleDate: DateTime.now(),
+      ));
     } else {
       await _animalRepository.upsert(updated);
       _animalCacheById[updated.id] = updated;
+      
+      // Emite evento reativo
+      EventBus().emit(AnimalUpdatedEvent(
+        animalId: updated.id,
+        changes: map,
+      ));
     }
 
     await _scheduleStatsRefresh();
@@ -267,6 +287,9 @@ class AnimalService extends ChangeNotifier {
   Future<void> deleteAnimal(String id) async {
     await _animalRepository.delete(id);
     _animalCacheById.remove(id);
+
+    // Emite evento reativo
+    EventBus().emit(AnimalDeletedEvent(animalId: id));
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
@@ -422,6 +445,13 @@ class AnimalService extends ChangeNotifier {
 
       final updated = Animal.fromMap(map);
       await updateAnimal(updated);
+      
+      // Emite evento reativo
+      EventBus().emit(AnimalPregnancyUpdatedEvent(
+        animalId: animalId,
+        isPregnant: true,
+        expectedDelivery: expectedBirth,
+      ));
     } catch (e) {
       debugPrint('Erro em markAsPregnant: $e');
       rethrow;
@@ -448,6 +478,12 @@ class AnimalService extends ChangeNotifier {
 
       final updated = Animal.fromMap(map);
       await updateAnimal(updated);
+      
+      // Emite evento reativo
+      EventBus().emit(AnimalPregnancyUpdatedEvent(
+        animalId: animalId,
+        isPregnant: false,
+      ));
     } catch (e) {
       debugPrint('Erro em markAsNotPregnant: $e');
       rethrow;
