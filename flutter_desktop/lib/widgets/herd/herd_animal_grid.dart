@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/animal_repository.dart';
 import '../../models/animal.dart';
+import '../../utils/responsive_utils.dart';
 import '../animal_card.dart';
 
 class HerdAnimalGrid extends StatelessWidget {
@@ -27,11 +28,11 @@ class HerdAnimalGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.8,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveUtils.getAnimalGridCrossAxisCount(context),
+        crossAxisSpacing: ResponsiveUtils.getSpacing(context),
+        mainAxisSpacing: ResponsiveUtils.getSpacing(context),
+        childAspectRatio: ResponsiveUtils.getCardAspectRatio(context),
       ),
       itemCount: animals.length,
       itemBuilder: (context, index) {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../utils/responsive_utils.dart';
+import '../responsive/responsive_actions.dart';
 
 class PharmacyActionsBar extends StatelessWidget {
   final VoidCallback onNewMedication;
@@ -16,6 +18,49 @@ class PharmacyActionsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    if (isMobile) {
+      // Layout mobile: botões em coluna, full-width
+      return ResponsiveActions(
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onNewMedication,
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Novo medicamento'),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onRegisterEntry,
+              icon: const Icon(Icons.arrow_downward),
+              label: const Text('Registrar entrada'),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onRegisterExit,
+              icon: const Icon(Icons.arrow_upward),
+              label: const Text('Registrar saída'),
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onExport,
+              icon: const Icon(Icons.file_download),
+              label: const Text('Exportar planilha'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Layout desktop: wrap horizontal
     return Wrap(
       spacing: 12,
       runSpacing: 8,

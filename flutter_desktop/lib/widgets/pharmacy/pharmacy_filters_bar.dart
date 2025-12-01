@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/responsive_utils.dart';
 import 'pharmacy_enums.dart';
 
 class PharmacyFiltersBar extends StatelessWidget {
@@ -26,9 +27,11 @@ class PharmacyFiltersBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

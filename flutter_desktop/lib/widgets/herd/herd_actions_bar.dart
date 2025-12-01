@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/responsive_utils.dart';
 
 class HerdActionsBar extends StatelessWidget {
   final VoidCallback onAddAnimal;
@@ -11,6 +12,19 @@ class HerdActionsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+
+    if (isMobile) {
+      // Layout mobile: só título (botão fica como FAB)
+      return Text(
+        'Rebanho',
+        style: theme.textTheme.headlineSmall?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    // Layout desktop: título + botão
     return Row(
       children: [
         Text(

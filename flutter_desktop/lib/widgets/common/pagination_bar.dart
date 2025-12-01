@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Barra de paginação universal com controles completos
 /// - Navegação entre páginas (anterior/próximo)
@@ -93,7 +94,8 @@ class _PaginationBarState extends State<PaginationBar> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    if (widget.compact) {
+    // Mobile sempre usa versão compacta
+    if (widget.compact || ResponsiveUtils.isMobile(context)) {
       return _buildCompactBar(theme);
     }
     
