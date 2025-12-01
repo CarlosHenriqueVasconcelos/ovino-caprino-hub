@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../models/animal.dart';
 import '../services/animal_service.dart';
 import '../utils/animal_display_utils.dart';
+import '../utils/responsive_utils.dart';
 import 'animal_form_sections.dart';
 
 class AnimalFormDialog extends StatefulWidget {
@@ -313,7 +314,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     return AlertDialog(
       title: Text(widget.animal == null ? 'Novo Animal' : 'Editar Animal'),
       content: SizedBox(
-        width: 600,
+        width: ResponsiveUtils.getDialogWidth(context),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -435,16 +436,33 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _saveAnimal,
-          child: Text(widget.animal == null ? 'Criar' : 'Salvar'),
-        ),
-      ],
+      actions: ResponsiveUtils.isMobile(context) 
+        ? [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  onPressed: _saveAnimal,
+                  child: Text(widget.animal == null ? 'Criar' : 'Salvar'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            ),
+          ]
+        : [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: _saveAnimal,
+              child: Text(widget.animal == null ? 'Criar' : 'Salvar'),
+            ),
+          ],
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/responsive_utils.dart';
 
 class WeightFilterDropdownConfig {
   final String label;
@@ -42,9 +43,11 @@ class WeightTrackingFiltersBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -87,13 +90,13 @@ class WeightTrackingFiltersBar extends StatelessWidget {
               ],
             ),
             if (dropdowns.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: ResponsiveUtils.getSpacing(context)),
               Wrap(
-                spacing: 16,
-                runSpacing: 12,
+                spacing: ResponsiveUtils.getSpacing(context),
+                runSpacing: ResponsiveUtils.getSpacing(context),
                 children: dropdowns.map((dropdown) {
                   return SizedBox(
-                    width: 200,
+                    width: isMobile ? double.infinity : 200,
                     child: DropdownButtonFormField<String>(
                       value: dropdown.value,
                       decoration: InputDecoration(labelText: dropdown.label),
@@ -112,7 +115,7 @@ class WeightTrackingFiltersBar extends StatelessWidget {
               ),
             ],
             if (extraFilters != null && extraFilters!.isNotEmpty) ...[
-              const SizedBox(height: 12),
+              SizedBox(height: ResponsiveUtils.getSpacing(context)),
               ...extraFilters!,
             ],
           ],

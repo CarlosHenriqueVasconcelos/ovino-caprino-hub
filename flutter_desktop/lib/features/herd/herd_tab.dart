@@ -12,6 +12,7 @@ import '../../services/events/event_bus.dart';
 import '../../services/events/app_events.dart';
 import '../../widgets/animal_form.dart';
 import '../../data/animal_repository.dart';
+import '../../utils/responsive_utils.dart';
 import '../../widgets/herd/herd_actions_bar.dart';
 import '../../widgets/herd/herd_animal_grid.dart';
 import '../../widgets/herd/herd_filters_bar.dart';
@@ -22,9 +23,31 @@ class HerdTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.all(24),
-      child: HerdSection(),
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
+          child: const HerdSection(),
+        ),
+        // FAB para adicionar animal em mobile
+        if (isMobile)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: Builder(
+              builder: (ctx) {
+                final herdSectionState = ctx.findAncestorStateOfType<HerdSectionState>();
+                return FloatingActionButton.extended(
+                  onPressed: () => herdSectionState?._showAnimalForm(ctx),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Animal'),
+                );
+              },
+            ),
+          ),
+      ],
     );
   }
 }

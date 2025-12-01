@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/animal.dart';
+import '../utils/responsive_utils.dart';
+import '../widgets/responsive/responsive_actions.dart';
 import 'animal_history_dialog.dart';
 import '../data/animal_repository.dart';
 import '../services/animal_service.dart';
@@ -633,27 +635,51 @@ class AnimalCard extends StatelessWidget {
               ),
             const SizedBox(height: 16),
 
-            // Actions
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => AnimalHistoryDialog(animal: animal),
-                      );
-                    },
-                    child: const Text('Ver Histórico'),
+            // Actions - responsivas
+            ResponsiveActions(
+              actions: [
+                if (ResponsiveUtils.isMobile(context)) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AnimalHistoryDialog(animal: animal),
+                        );
+                      },
+                      icon: const Icon(Icons.history),
+                      label: const Text('Ver Histórico'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onEdit != null ? () => onEdit!(animal) : null,
-                    child: const Text('Editar'),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: onEdit != null ? () => onEdit!(animal) : null,
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Editar'),
+                    ),
                   ),
-                ),
+                ] else ...[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AnimalHistoryDialog(animal: animal),
+                        );
+                      },
+                      child: const Text('Ver Histórico'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onEdit != null ? () => onEdit!(animal) : null,
+                      child: const Text('Editar'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ],

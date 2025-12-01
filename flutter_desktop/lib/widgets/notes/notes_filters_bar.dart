@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/responsive_utils.dart';
 
 class NotesFiltersBar extends StatelessWidget {
   final TextEditingController? searchController;
@@ -29,18 +30,23 @@ class NotesFiltersBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = ResponsiveUtils.isMobile(context);
+    
     return Material(
       elevation: 2,
       color: theme.colorScheme.surface,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveUtils.getPadding(context),
+          vertical: 8,
+        ),
         child: Wrap(
-          spacing: 16,
+          spacing: ResponsiveUtils.getSpacing(context),
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             SizedBox(
-              width: 260,
+              width: isMobile ? double.infinity : 260,
               child: TextField(
                 controller: searchController,
                 decoration: const InputDecoration(
