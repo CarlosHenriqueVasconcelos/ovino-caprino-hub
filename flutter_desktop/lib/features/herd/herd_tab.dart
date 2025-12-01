@@ -8,6 +8,8 @@ import '../../services/animal_service.dart';
 import '../../services/data_refresh_bus.dart';
 import '../../services/deceased_service.dart';
 import '../../services/sold_animals_service.dart';
+import '../../services/events/event_bus.dart';
+import '../../services/events/app_events.dart';
 import '../../widgets/animal_form.dart';
 import '../../data/animal_repository.dart';
 import '../../widgets/herd/herd_actions_bar.dart';
@@ -33,7 +35,8 @@ class HerdSection extends StatefulWidget {
   State<HerdSection> createState() => HerdSectionState();
 }
 
-class HerdSectionState extends State<HerdSection> {
+class HerdSectionState extends State<HerdSection>
+    with EventBusSubscriptions {
   final TextEditingController _search = TextEditingController();
   String _query = '';
 
@@ -55,7 +58,11 @@ class HerdSectionState extends State<HerdSection> {
   @override
   void initState() {
     super.initState();
-    // Recarrega automaticamente quando hooks mexerem no banco
+    
+    // Sistema reativo aprimorado (FASE 3)
+    _setupReactiveListeners();
+    
+    // Backward compatibility com DataRefreshBus
     _busSub = DataRefreshBus.stream.listen((_) {
       if (!mounted) return;
       _refresh();
@@ -63,9 +70,54 @@ class HerdSectionState extends State<HerdSection> {
         _deceasedFuture = _loadDeceasedAnimals(context);
       });
     });
+    
     _deceasedFuture = _loadDeceasedAnimals(context);
     _loadFilters();
     _refresh();
+  }
+  
+  /// FASE 3: Listeners reativos granulares
+  void _setupReactiveListeners() {
+    // Quando animal é criado/atualizado/deletado
+    onEvent<AnimalCreatedEvent>((event) {
+      debugPrint('🆕 Animal criado: ${event.name}, recarregando lista');
+      _refresh();
+    });
+    
+    onEvent<AnimalUpdatedEvent>((event) {
+      debugPrint('📝 Animal ${event.animalId} atualizado, recarregando lista');
+      _refresh();
+    });
+    
+    onEvent<AnimalDeletedEvent>((event) {
+      debugPrint('🗑️ Animal ${event.animalId} deletado, recarregando lista');
+      _refresh();
+    });
+    
+    // Quando animal é vendido ou morre
+    onEvent<AnimalMarkedAsSoldEvent>((event) {
+      debugPrint('💰 Animal ${event.animalId} vendido, recarregando');
+      _refresh();
+      setState(() {
+        _deceasedFuture = _loadDeceasedAnimals(context);
+      });
+    });
+    
+    onEvent<AnimalMarkedAsDeceasedEvent>((event) {
+      debugPrint('⚰️ Animal ${event.animalId} faleceu, recarregando');
+      _refresh();
+      setState(() {
+        _deceasedFuture = _loadDeceasedAnimals(context);
+      });
+    });
+    
+    // Quando peso é adicionado (pode mudar categoria de borrego para adulto)
+    onEvent<WeightAddedEvent>((event) {
+      if (event.milestone == '120d') {
+        debugPrint('⚖️ Peso 120d adicionado, animal pode ter sido promovido');
+        _refresh();
+      }
+    });
   }
 
   @override
