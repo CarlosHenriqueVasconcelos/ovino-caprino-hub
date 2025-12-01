@@ -31,19 +31,20 @@ class StatsCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
+                  flex: 3,
                   child: Text(
                     title,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      fontSize: isMobile ? 12 : null,
+                      fontSize: isMobile ? 11 : null,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Container(
-                  padding: EdgeInsets.all(isMobile ? 6 : 8),
+                  padding: EdgeInsets.all(isMobile ? 5 : 8),
                   decoration: BoxDecoration(
                     color: cardColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -53,7 +54,7 @@ class StatsCard extends StatelessWidget {
                   ),
                   child: Icon(
                     icon,
-                    size: isMobile ? 18 : 20,
+                    size: isMobile ? 16 : 20,
                     color: cardColor,
                   ),
                 ),

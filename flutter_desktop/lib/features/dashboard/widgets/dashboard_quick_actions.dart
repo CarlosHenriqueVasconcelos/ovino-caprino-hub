@@ -211,6 +211,8 @@ class _ActionCard extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w600,

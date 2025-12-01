@@ -258,35 +258,49 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(isMobile ? 8 : 10),
           decoration: BoxDecoration(
             color: color.withOpacity(.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: color),
+          child: Icon(icon, color: color, size: isMobile ? 20 : 24),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isMobile ? 8 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: isMobile ? 14 : null,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               if (subtitle != null)
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: isMobile ? 11 : null,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
             ],
           ),
         ),
-        if (trailing != null) trailing!,
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          trailing!,
+        ],
       ],
     );
   }
@@ -308,20 +322,28 @@ class _SubHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Row(
       children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 8),
+        Icon(icon, color: color, size: isMobile ? 16 : 18),
+        SizedBox(width: isMobile ? 6 : 8),
         Expanded(
           child: Text(
             title,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
+              fontSize: isMobile ? 12 : null,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (trailing != null) trailing!,
+        if (trailing != null) ...[
+          const SizedBox(width: 6),
+          trailing!,
+        ],
       ],
     );
   }

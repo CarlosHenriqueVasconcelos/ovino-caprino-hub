@@ -68,6 +68,9 @@ class DashboardKpiRow extends StatelessWidget {
         final crossAxis = availableWidth.isFinite && availableWidth > 0
             ? (availableWidth / targetWidth).floor().clamp(1, 5)
             : 5;
+        
+        // Ajustar childAspectRatio baseado no número de colunas
+        final aspectRatio = crossAxis == 1 ? 2.5 : (crossAxis == 2 ? 1.8 : 1.3);
 
         return GridView.builder(
           shrinkWrap: true,
@@ -76,7 +79,7 @@ class DashboardKpiRow extends StatelessWidget {
             crossAxisCount: crossAxis,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1.3,
+            childAspectRatio: aspectRatio,
           ),
           itemCount: cards.length,
           itemBuilder: (context, index) {
