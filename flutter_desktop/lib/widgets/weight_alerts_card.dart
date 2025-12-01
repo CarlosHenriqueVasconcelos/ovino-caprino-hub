@@ -163,6 +163,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
     final daysUntil = alert.dueDate.difference(DateTime.now()).inDays;
     final label = AnimalRecordDisplay.labelFromRecord(alert.extra);
     final color = AnimalRecordDisplay.colorFromRecord(alert.extra);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     String alertTitle;
     switch (alert.alertType) {
@@ -187,7 +188,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isMobile ? 8 : 12),
       decoration: BoxDecoration(
         color: isOverdue
             ? theme.colorScheme.error.withOpacity(0.05)
@@ -205,9 +206,9 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
             Icons.monitor_weight,
             color:
                 isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
-            size: 20,
+            size: isMobile ? 18 : 20,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: isMobile ? 8 : 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,19 +218,27 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: color,
+                    fontSize: isMobile ? 12 : null,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   alertTitle,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: isMobile ? 10 : null,
                   ),
                 ),
               ],
             ),
           ),
+          SizedBox(width: isMobile ? 6 : 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 6 : 8,
+              vertical: isMobile ? 3 : 4,
+            ),
             decoration: BoxDecoration(
               color: isOverdue
                   ? theme.colorScheme.error
@@ -241,10 +250,10 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                   ? 'Vencido'
                   : daysUntil == 0
                       ? 'Hoje'
-                      : '$daysUntil dias',
+                      : '$daysUntil ${isMobile ? 'd' : 'dias'}',
               style: TextStyle(
                 color: theme.colorScheme.onPrimary,
-                fontSize: 12,
+                fontSize: isMobile ? 10 : 12,
                 fontWeight: FontWeight.bold,
               ),
             ),

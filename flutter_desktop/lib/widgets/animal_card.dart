@@ -408,10 +408,13 @@ class AnimalCard extends StatelessWidget {
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,6 +430,8 @@ class AnimalCard extends StatelessWidget {
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -435,22 +440,37 @@ class AnimalCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
               children: [
-                const Icon(Icons.monitor_weight, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  '${animal.weight}kg',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.monitor_weight, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${animal.weight}kg',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                const Icon(Icons.location_on, size: 18),
-                const SizedBox(width: 4),
-                Text(
-                  animal.location,
-                  style: theme.textTheme.bodyMedium,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.location_on, size: 18),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        animal.location,
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -333,6 +333,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     Map<String, dynamic> row,
   ) {
     final vaccineName = (row['vaccine_name'] ?? '').toString();
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     final scheduledStr = (row['scheduled_date'] ?? '').toString();
     final scheduled = _parseDate(scheduledStr);
@@ -344,44 +345,64 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.25)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.vaccines, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildAnimalLabel(row, theme),
-                const SizedBox(height: 4),
-                Text(
-                  'Vacina: $vaccineName',
-                  style: theme.textTheme.bodyLarge,
-                ),
-                if (labelDate != null)
-                  Text(
-                    overdue
-                        ? 'ATRASADA há ${days.abs()} dia(s)'
-                        : 'Agendada para $labelDate (em $days dia(s))',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Icon(Icons.vaccines, color: color, size: isMobile ? 20 : 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildAnimalLabel(row, theme),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Vacina: $vaccineName',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: isMobile ? 13 : null,
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                    if (labelDate != null)
+                      Text(
+                        overdue
+                            ? 'ATRASADA há ${days.abs()} dia(s)'
+                            : 'Agendada para $labelDate (em $days dia(s))',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 11 : null,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: widget.onGoToVaccinations,
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Ver vacinas'),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.onGoToVaccinations,
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: Text(
+                'Ver vacinas',
+                style: TextStyle(fontSize: isMobile ? 12 : null),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 12,
+                  vertical: isMobile ? 6 : 8,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -394,6 +415,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     Map<String, dynamic> row,
   ) {
     final medName = (row['medication_name'] ?? '').toString();
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     // Usa a primeira data disponível: date (agendada agora) ou next_date (próxima dose)
     final when = _parseDate(row['date']) ?? _parseDate(row['next_date']);
@@ -407,54 +429,75 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 12 : 20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.25)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.medical_services, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildAnimalLabel(row, theme),
-                const SizedBox(height: 4),
-                Text(
-                  'Medicação: $medName',
-                  style: theme.textTheme.bodyLarge,
-                ),
-                if (labelDate != null)
-                  Text(
-                    overdue
-                        ? 'ATRASADA há ${days.abs()} dia(s)'
-                        : 'Agendada para $labelDate (em $days dia(s))',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                if (status != 'Agendado')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      'Status: $status',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+          Row(
+            children: [
+              Icon(Icons.medical_services, color: color, size: isMobile ? 20 : 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildAnimalLabel(row, theme),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Medicação: $medName',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontSize: isMobile ? 13 : null,
                       ),
                     ),
-                  ),
-              ],
-            ),
+                    if (labelDate != null)
+                      Text(
+                        overdue
+                            ? 'ATRASADA há ${days.abs()} dia(s)'
+                            : 'Agendada para $labelDate (em $days dia(s))',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isMobile ? 11 : null,
+                        ),
+                      ),
+                    if (status != 'Agendado')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Status: $status',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            fontSize: isMobile ? 10 : null,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: widget.onGoToVaccinations,
-            icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Ver medicações'),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.onGoToVaccinations,
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: Text(
+                'Ver medicações',
+                style: TextStyle(fontSize: isMobile ? 12 : null),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 12,
+                  vertical: isMobile ? 6 : 8,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -465,6 +508,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
     final label = AnimalRecordDisplay.labelFromRecord(row);
     final color = AnimalRecordDisplay.colorFromRecord(row);
     final translated = AnimalRecordDisplay.translateColor(row['animal_color']);
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final parts = label.split(' - ');
     String text;
     if (parts.length >= 2) {
@@ -477,7 +521,10 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       style: theme.textTheme.titleLarge?.copyWith(
         fontWeight: FontWeight.bold,
         color: color ?? theme.colorScheme.onSurface,
+        fontSize: isMobile ? 14 : null,
       ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
