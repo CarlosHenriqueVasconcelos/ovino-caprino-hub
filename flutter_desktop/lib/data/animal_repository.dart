@@ -726,18 +726,53 @@ class AnimalRepository {
   }
 
   /// Busca animais vendidos
-  Future<List<Map<String, dynamic>>> getSoldAnimals() async {
+  /// Busca animais vendidos com paginação
+  Future<List<Map<String, dynamic>>> getSoldAnimals({
+    int? limit,
+    int? offset,
+    String? searchQuery,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
     return await _db.db.query(
       'sold_animals',
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: args.isNotEmpty ? args : null,
       orderBy: 'sale_date DESC',
+      limit: limit,
+      offset: offset,
     );
   }
 
-  /// Busca animais falecidos
-  Future<List<Map<String, dynamic>>> getDeceasedAnimals() async {
+  /// Busca animais falecidos com paginação
+  Future<List<Map<String, dynamic>>> getDeceasedAnimals({
+    int? limit,
+    int? offset,
+    String? searchQuery,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
     return await _db.db.query(
       'deceased_animals',
+      where: where.isNotEmpty ? where.join(' AND ') : null,
+      whereArgs: args.isNotEmpty ? args : null,
       orderBy: 'death_date DESC',
+      limit: limit,
+      offset: offset,
     );
   }
 
@@ -767,5 +802,315 @@ class AnimalRepository {
       where: whereBuffer.toString(),
       whereArgs: args,
     );
+  }
+
+  // ----------------- FASE 2: Queries otimizadas e paginadas -----------------
+
+  /// Busca animais por gênero com paginação (otimizado para performance)
+  Future<List<Animal>> getAnimalsByGender({
+    required String gender,
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>['LOWER(gender) = ?'];
+    final args = <dynamic>[gender.toLowerCase()];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca animais por espécie com paginação
+  Future<List<Animal>> getAnimalsBySpecies({
+    required String species,
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>['LOWER(species) = ?'];
+    final args = <dynamic>[species.toLowerCase()];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca animais por categoria com paginação
+  Future<List<Animal>> getAnimalsByCategory({
+    required String category,
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>['LOWER(category) = ?'];
+    final args = <dynamic>[category.toLowerCase()];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca animais grávidas com paginação
+  Future<List<Animal>> getPregnantAnimals({
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>['pregnant = 1'];
+    final args = <dynamic>[];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args.isNotEmpty ? args : null,
+      orderBy: 'expected_delivery ASC, name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca reprodutores (machos e fêmeas) com paginação
+  Future<List<Animal>> getReproducers({
+    String? gender,
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>["LOWER(category) LIKE '%reprodutor%'"];
+    final args = <dynamic>[];
+
+    if (gender != null && gender.isNotEmpty) {
+      where.add('LOWER(gender) = ?');
+      args.add(gender.toLowerCase());
+    }
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args.isNotEmpty ? args : null,
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca borregos (filhotes) com paginação
+  Future<List<Animal>> getLambs({
+    String? gender,
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>["LOWER(category) = 'borrego'"];
+    final args = <dynamic>[];
+
+    if (gender != null && gender.isNotEmpty) {
+      where.add('LOWER(gender) = ?');
+      args.add(gender.toLowerCase());
+    }
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args.isNotEmpty ? args : null,
+      orderBy: 'birth_date DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca animais em tratamento com paginação
+  Future<List<Animal>> getAnimalsInTreatment({
+    int limit = 50,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final where = <String>["status = 'Em tratamento'"];
+    final args = <dynamic>[];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim().toLowerCase()}%';
+      where.add('(LOWER(name) LIKE ? OR LOWER(code) LIKE ?)');
+      args.addAll([q, q]);
+    }
+
+    final rows = await _db.db.query(
+      'animals',
+      where: where.join(' AND '),
+      whereArgs: args.isNotEmpty ? args : null,
+      orderBy: 'name COLLATE NOCASE',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Conta animais por filtros simples (sem carregar dados)
+  Future<int> countAnimals({
+    String? gender,
+    String? species,
+    String? category,
+    bool? pregnant,
+    String? status,
+  }) async {
+    final where = <String>[];
+    final args = <dynamic>[];
+
+    if (gender != null && gender.isNotEmpty) {
+      where.add('LOWER(gender) = ?');
+      args.add(gender.toLowerCase());
+    }
+
+    if (species != null && species.isNotEmpty) {
+      where.add('LOWER(species) = ?');
+      args.add(species.toLowerCase());
+    }
+
+    if (category != null && category.isNotEmpty) {
+      where.add('LOWER(category) = ?');
+      args.add(category.toLowerCase());
+    }
+
+    if (pregnant != null) {
+      where.add('pregnant = ?');
+      args.add(pregnant ? 1 : 0);
+    }
+
+    if (status != null && status.isNotEmpty) {
+      where.add('status = ?');
+      args.add(status);
+    }
+
+    final result = await _db.db.rawQuery(
+      '''
+      SELECT COUNT(*) AS count
+      FROM animals
+      ${where.isNotEmpty ? 'WHERE ${where.join(' AND ')}' : ''}
+      ''',
+      args.isNotEmpty ? args : null,
+    );
+
+    if (result.isEmpty) return 0;
+    final value = result.first['count'];
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  /// Busca animais próximos do parto (próximos 30 dias) - otimizado para alertas
+  Future<List<Animal>> getAnimalsNearDelivery({int daysAhead = 30}) async {
+    final now = DateTime.now();
+    final futureDate = now.add(Duration(days: daysAhead));
+    
+    final rows = await _db.db.query(
+      'animals',
+      where: 'pregnant = 1 AND expected_delivery IS NOT NULL AND expected_delivery <= ?',
+      whereArgs: [futureDate.toIso8601String().split('T').first],
+      orderBy: 'expected_delivery ASC',
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca borregos que completaram 120 dias e precisam de promoção para adulto
+  Future<List<Animal>> getLambsReadyForPromotion() async {
+    final now = DateTime.now();
+    final date120DaysAgo = now.subtract(const Duration(days: 120));
+    
+    final rows = await _db.db.query(
+      'animals',
+      where: "LOWER(category) = 'borrego' AND birth_date <= ? AND weight_120_days > 0",
+      whereArgs: [date120DaysAgo.toIso8601String().split('T').first],
+      orderBy: 'birth_date ASC',
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
+  }
+
+  /// Busca animais que precisam de pesagem em marco específico
+  Future<List<Animal>> getAnimalsNeedingWeightCheck({
+    required String milestone,
+    required int daysOld,
+    int toleranceDays = 3,
+  }) async {
+    final now = DateTime.now();
+    final minDate = now.subtract(Duration(days: daysOld + toleranceDays));
+    final maxDate = now.subtract(Duration(days: daysOld - toleranceDays));
+    
+    String? weightField;
+    if (milestone == '30d') weightField = 'weight_30_days';
+    if (milestone == '60d') weightField = 'weight_60_days';
+    if (milestone == '90d') weightField = 'weight_90_days';
+    if (milestone == '120d') weightField = 'weight_120_days';
+    
+    if (weightField == null) return [];
+    
+    final rows = await _db.db.query(
+      'animals',
+      where: 'birth_date >= ? AND birth_date <= ? AND ($weightField IS NULL OR $weightField = 0)',
+      whereArgs: [
+        minDate.toIso8601String().split('T').first,
+        maxDate.toIso8601String().split('T').first,
+      ],
+      orderBy: 'birth_date ASC',
+    );
+    return rows.map((m) => Animal.fromMap(m)).toList();
   }
 }
