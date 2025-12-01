@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/animal_service.dart';
 import '../services/backup_service.dart';
 import '../services/system_maintenance_service.dart';
+import '../main.dart' show logService;
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -255,6 +256,104 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         ),
                       );
                     }),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Logs de Erro
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.bug_report, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text('Logs de Erro e Overflow',
+                            style: theme.textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    FutureBuilder<Map<String, int>>(
+                      future: Future.value(logService.getLogCounts()),
+                      builder: (context, snapshot) {
+                        final counts = snapshot.data ?? {};
+                        final totalLogs = counts.values.fold(0, (a, b) => a + b);
+                        
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: Icon(Icons.list_alt,
+                                  color: theme.colorScheme.primary),
+                              title: const Text('Total de Logs'),
+                              subtitle: Text(
+                                'Erros: ${counts['ERROR'] ?? 0} | '
+                                'Overflows: ${counts['OVERFLOW'] ?? 0} | '
+                                'Avisos: ${counts['WARNING'] ?? 0}',
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: totalLogs > 0
+                                      ? theme.colorScheme.error.withOpacity(0.1)
+                                      : theme.colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: totalLogs > 0
+                                        ? theme.colorScheme.error.withOpacity(0.3)
+                                        : theme.colorScheme.primary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  '$totalLogs',
+                                  style: TextStyle(
+                                    color: totalLogs > 0
+                                        ? theme.colorScheme.error
+                                        : theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Divider(),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: _viewLogs,
+                                    icon: const Icon(Icons.visibility),
+                                    label: const Text('Ver Logs'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: totalLogs > 0 ? _exportLogs : null,
+                                    icon: const Icon(Icons.share),
+                                    label: const Text('Exportar'),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: totalLogs > 0 ? _clearLogs : null,
+                                    icon: const Icon(Icons.delete_outline),
+                                    label: const Text('Limpar'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -524,6 +623,190 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
+  }
+
+  void _viewLogs() {
+    final logs = logService.getLogs();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logs de Erro e Overflow'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 500,
+          child: logs.isEmpty
+              ? const Center(
+                  child: Text('Nenhum log registrado'),
+                )
+              : ListView.separated(
+                  itemCount: logs.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final log = logs[index];
+                    Color typeColor;
+                    
+                    switch (log.type) {
+                      case 'ERROR':
+                        typeColor = Theme.of(context).colorScheme.error;
+                        break;
+                      case 'OVERFLOW':
+                        typeColor = Colors.orange;
+                        break;
+                      case 'WARNING':
+                        typeColor = Colors.amber;
+                        break;
+                      default:
+                        typeColor = Theme.of(context).colorScheme.primary;
+                    }
+                    
+                    return ListTile(
+                      dense: true,
+                      leading: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: typeColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: typeColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          log.type,
+                          style: TextStyle(
+                            color: typeColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        log.message.split('\n').first,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        log.timestamp,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        ),
+                      ),
+                      onTap: () => _showLogDetails(log),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogDetails(dynamic log) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${log.icon} Detalhes do Log'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Tipo: ${log.type}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Data/Hora: ${log.timestamp}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Mensagem:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                log.message,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportLogs() async {
+    try {
+      await logService.exportLogs();
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Logs exportados com sucesso'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Erro ao exportar logs: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearLogs() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Limpar Logs'),
+        content: const Text('Deseja realmente limpar todos os logs?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Limpar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await logService.clearLogs();
+      if (!mounted) return;
+      
+      setState(() {}); // Atualizar contadores
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🗑️ Logs limpos com sucesso'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _confirmDataClear() {

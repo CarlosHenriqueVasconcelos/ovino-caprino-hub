@@ -51,10 +51,29 @@ import 'data/weight_alert_repository.dart';
 import 'data/maintenance_repository.dart';
 import 'data/backup_repository.dart';
 import 'data/reports_repository.dart';
+import 'services/log_service.dart';
+
+// Instância global do LogService
+final logService = LogService();
 
 Future<void> main() async {
   // ============ Ganchos globais de erro ============
   FlutterError.onError = (FlutterErrorDetails details) {
+    // Capturar erros de overflow especificamente
+    if (details.exception.toString().contains('RenderFlex overflowed') ||
+        details.exception.toString().contains('overflowed')) {
+      logService.logOverflow(
+        details.exception.toString(),
+        stackTrace: details.stack,
+      );
+    } else {
+      logService.logError(
+        details.exception.toString(),
+        stackTrace: details.stack,
+        widget: details.context?.widget.toString(),
+      );
+    }
+    
     FlutterError.presentError(details);
     if (details.stack != null) {
       Zone.current.handleUncaughtError(details.exception, details.stack!);
@@ -69,6 +88,9 @@ Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
     Intl.defaultLocale = 'pt_BR';
     await initializeDateFormatting('pt_BR', null);
+    
+    // Inicializar LogService
+    await logService.initialize();
 
     // Supabase (somente para backup manual)
     await Supabase.initialize(
@@ -129,6 +151,12 @@ Future<void> main() async {
       ),
     );
   }, (error, stack) {
+    // Capturar erros não tratados
+    logService.logError(
+      error.toString(),
+      stackTrace: stack,
+    );
+    
     debugPrint('=== Uncaught error ===');
     debugPrint('$error');
     debugPrintStack(stackTrace: stack);
