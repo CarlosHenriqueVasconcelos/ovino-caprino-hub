@@ -53,10 +53,6 @@ import 'data/backup_repository.dart';
 import 'data/reports_repository.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  Intl.defaultLocale = 'pt_BR';
-  await initializeDateFormatting('pt_BR', null);
-
   // ============ Ganchos globais de erro ============
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -69,6 +65,11 @@ Future<void> main() async {
 
   // ============ Inicialização sob runZonedGuarded ============
   await runZonedGuarded<Future<void>>(() async {
+    // Inicializar Flutter bindings dentro do zone
+    WidgetsFlutterBinding.ensureInitialized();
+    Intl.defaultLocale = 'pt_BR';
+    await initializeDateFormatting('pt_BR', null);
+
     // Supabase (somente para backup manual)
     await Supabase.initialize(
       url: AppConfig.supabaseUrl,
