@@ -92,6 +92,9 @@ class AppDatabase {
         father_id TEXT
       );
     ''');
+    // ============ FASE 4: ÍNDICES COMPOSTOS OTIMIZADOS ============
+    
+    // Índices simples básicos
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);');
     await db.execute(
@@ -99,15 +102,41 @@ class AppDatabase {
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);');
-    await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);');
+    
+    // Índices para buscas case-insensitive
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_code_nocase ON animals(code COLLATE NOCASE);');
+    
+    // Índices compostos para queries filtradas (FASE 4)
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_category_gender ON animals(category, gender);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_status_category ON animals(status, category);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_pregnant_delivery ON animals(pregnant, expected_delivery);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_category_birth ON animals(category, birth_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_birth_date ON animals(birth_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_mother_id ON animals(mother_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_father_id ON animals(father_id);');
+    
+    // Índice para validação de unicidade (name + color + category + lote)
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_identity ON animals(name_color, category, lote);');
+    
+    // Índice para busca por nome e cor
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_name_color ON animals(name COLLATE NOCASE, name_color);');
 
     // -------- animal_weights
     await db.execute('''
@@ -122,8 +151,11 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
+    // Índices compostos para peso (FASE 4)
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date);');
+        'CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date DESC);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_milestone ON animal_weights(animal_id, milestone);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);');
 
@@ -152,6 +184,7 @@ class AppDatabase {
       );
     ''');
 
+    // Índices compostos para reprodução (FASE 4)
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);');
     await db.execute(
@@ -160,6 +193,14 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_female_status ON breeding_records(female_animal_id, status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_male_status ON breeding_records(male_animal_id, status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_stage_status ON breeding_records(stage, status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_breeding_expected_birth ON breeding_records(expected_birth);');
 
     // === Trigger: traduz stage -> status na inserção ===
     await db.execute('''
@@ -267,6 +308,7 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
+    // Índices simples para financeiro
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_finacc_due_date ON financial_accounts(due_date);');
     await db.execute(
@@ -281,6 +323,14 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_finacc_parent_id ON financial_accounts(parent_id);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_finacc_is_recurring ON financial_accounts(is_recurring);');
+    
+    // Índices compostos para financeiro (FASE 4)
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_type_status_due ON financial_accounts(type, status, due_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_status_due ON financial_accounts(status, due_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_finacc_type_category ON financial_accounts(type, category);');
 
     // -------- financial_records
     await db.execute('''
@@ -297,8 +347,13 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
+    // Índices para financial_records (FASE 4)
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_financial_type_date ON financial_records(type, date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_financial_date ON financial_records(date);');
 
     // -------- pharmacy_stock
     await db.execute('''
@@ -318,12 +373,17 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
+    // Índices para pharmacy_stock (FASE 4)
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name);');
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name COLLATE NOCASE);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration ON pharmacy_stock(expiration_date);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type ON pharmacy_stock(medication_type);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type_name ON pharmacy_stock(medication_type, medication_name);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_opened ON pharmacy_stock(is_opened, expiration_date);');
 
     // -------- pharmacy_stock_movements
     await db.execute('''
@@ -339,10 +399,15 @@ class AppDatabase {
         FOREIGN KEY (medication_id) REFERENCES medications(id)
       );
     ''');
+    // Índices para pharmacy_stock_movements (FASE 4)
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_movements_medication_id ON pharmacy_stock_movements(medication_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movements_stock_type ON pharmacy_stock_movements(pharmacy_stock_id, movement_type);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_movements_created ON pharmacy_stock_movements(created_at DESC);');
 
     // -------- medications
     await db.execute('''
@@ -365,6 +430,7 @@ class AppDatabase {
         FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id)
       );
     ''');
+    // Índices simples para medications
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);');
     await db.execute(
@@ -377,6 +443,14 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);');
+    
+    // Índices compostos para medications (FASE 4) - para alertas e dashboard
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_animal_status ON medications(animal_id, status, date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_status_date ON medications(status, date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_medications_status_next ON medications(status, next_date);');
 
     // -------- notes
     await db.execute('''
@@ -395,6 +469,7 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
+    // Índices simples para notes
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);');
     await db.execute(
@@ -403,6 +478,14 @@ class AppDatabase {
         .execute('CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);');
+    
+    // Índices compostos para notes (FASE 4) - para filtros de notas não lidas
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_animal_read ON notes(animal_id, is_read);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_category_priority_read ON notes(category, priority, is_read);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_notes_read_date ON notes(is_read, date DESC);');
 
     // -------- reports
     await db.execute('''
@@ -474,6 +557,7 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id)
       );
     ''');
+    // Índices simples para vaccinations
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);');
     await db.execute(
@@ -482,6 +566,14 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);');
+    
+    // Índices compostos para vaccinations (FASE 4) - para alertas e dashboard
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_status ON vaccinations(animal_id, status, scheduled_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_status_scheduled ON vaccinations(status, scheduled_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_vaccinations_type_status ON vaccinations(vaccine_type, status);');
 
     // -------- sold_animals (animais vendidos)
     await db.execute('''
@@ -515,10 +607,15 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
+    // Índices para sold_animals (FASE 4)
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code);');
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code COLLATE NOCASE);');
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name, name_color);');
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_name ON sold_animals(name COLLATE NOCASE);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name COLLATE NOCASE, name_color);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sold_animals_sale_date ON sold_animals(sale_date DESC);');
 
     // -------- deceased_animals (animais falecidos)
     await db.execute('''
@@ -551,10 +648,15 @@ class AppDatabase {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     ''');
+    // Índices para deceased_animals (FASE 4)
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code);');
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code COLLATE NOCASE);');
     await db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name, name_color);');
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_name ON deceased_animals(name COLLATE NOCASE);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name COLLATE NOCASE, name_color);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_deceased_animals_death_date ON deceased_animals(death_date DESC);');
 
     // -------- weight_alerts (alertas de pesagem)
     await db.execute('''
@@ -569,12 +671,19 @@ class AppDatabase {
         FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
       );
     ''');
+    // Índices simples para weight_alerts
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_id ON weight_alerts(animal_id);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_weight_alerts_due_date ON weight_alerts(due_date);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);');
+    
+    // Índices compostos para weight_alerts (FASE 4) - para alertas pendentes
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed_due ON weight_alerts(completed, due_date);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_weight_alerts_animal_completed ON weight_alerts(animal_id, completed);');
 
     // ==========================
     // ====== TRIGGERS ==========
