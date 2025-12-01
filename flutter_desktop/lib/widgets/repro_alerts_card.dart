@@ -199,26 +199,36 @@ class _EventRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final color =
         evt.overdue ? theme.colorScheme.error : theme.colorScheme.primary;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.circle, size: 8, color: color),
-          const SizedBox(width: 8),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Icon(Icons.circle, size: isMobile ? 6 : 8, color: color),
+          ),
+          SizedBox(width: isMobile ? 6 : 8),
           Expanded(
             child: Text(
               '${evt.label}: ${evt.femaleCode} — ${evt.femaleName}',
-              style: theme.textTheme.bodyMedium,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: isMobile ? 12 : null,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isMobile ? 6 : 8),
           Text(
             _fmt(evt.date),
             style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
+              fontSize: isMobile ? 10 : null,
               color: evt.overdue
                   ? theme.colorScheme.error
                   : theme.colorScheme.onSurfaceVariant,
