@@ -247,6 +247,44 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   }
 
   Widget _buildHeader(ThemeData theme) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.medical_services_outlined, color: Colors.teal, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Farmácia',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                onPressed: _loadStock,
+                icon: const Icon(Icons.refresh, size: 20),
+                tooltip: 'Recarregar',
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+    
     return Row(
       children: [
         Container(
@@ -259,13 +297,16 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               const Icon(Icons.medical_services_outlined, color: Colors.teal),
         ),
         const SizedBox(width: 10),
-        Text(
-          'Farmácia — Estoque de Medicamentos',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
+        Expanded(
+          child: Text(
+            'Farmácia — Estoque de Medicamentos',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Spacer(),
         OutlinedButton.icon(
           onPressed: _loadStock,
           icon: const Icon(Icons.refresh),
@@ -288,13 +329,16 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   }
 
   Widget _buildFiltersBar(ThemeData theme) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final searchWidth = isMobile ? double.infinity : 360.0;
+    
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SizedBox(
-          width: 360,
+          width: searchWidth,
           child: TextField(
             onChanged: (value) => setState(() {
               _searchQuery = value;
@@ -302,7 +346,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
             }),
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
-              hintText: 'Buscar por nome ou apresentação…',
+              hintText: isMobile ? 'Buscar…' : 'Buscar por nome ou apresentação…',
               isDense: true,
               filled: true,
               fillColor: Colors.grey[100],

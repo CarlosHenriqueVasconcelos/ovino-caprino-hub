@@ -67,75 +67,26 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cards de Estatísticas
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Saldo do Mês',
-                    (stats['balance'] as num?)?.toDouble() ?? 0.0,
-                    Icons.account_balance_wallet,
-                    ((stats['balance'] as num?)?.toDouble() ?? 0.0) >= 0
-                        ? Colors.green
-                        : Colors.red,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'A Vencer (7 dias)',
-                    (stats['totalUpcoming'] as num?)?.toDouble() ?? 0.0,
-                    Icons.schedule,
-                    Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Vencidas',
-                    (stats['totalOverdue'] as num?)?.toDouble() ?? 0.0,
-                    Icons.warning,
-                    Colors.red,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    // agora corresponde a “a receber pendente”
-                    'Total Pendente',
-                    (stats['totalPending'] as num?)?.toDouble() ?? 0.0,
-                    Icons.pending,
-                    Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Receitas e Despesas
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Receitas do Mês',
-                    (stats['totalRevenue'] as num?)?.toDouble() ?? 0.0,
-                    Icons.arrow_upward,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'Despesas do Mês',
-                    (stats['totalExpense'] as num?)?.toDouble() ?? 0.0,
-                    Icons.arrow_downward,
-                    Colors.red,
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: isMobile ? 1 : 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: isMobile ? 3.5 : 2.5,
+                  children: [
+                    _buildStatCard('Saldo do Mês', (stats['balance'] as num?)?.toDouble() ?? 0.0, Icons.account_balance_wallet, ((stats['balance'] as num?)?.toDouble() ?? 0.0) >= 0 ? Colors.green : Colors.red),
+                    _buildStatCard('A Vencer (7 dias)', (stats['totalUpcoming'] as num?)?.toDouble() ?? 0.0, Icons.schedule, Colors.orange),
+                    _buildStatCard('Vencidas', (stats['totalOverdue'] as num?)?.toDouble() ?? 0.0, Icons.warning, Colors.red),
+                    _buildStatCard('Total Pendente', (stats['totalPending'] as num?)?.toDouble() ?? 0.0, Icons.pending, Colors.blue),
+                    _buildStatCard('Receitas do Mês', (stats['totalRevenue'] as num?)?.toDouble() ?? 0.0, Icons.arrow_upward, Colors.green),
+                    _buildStatCard('Despesas do Mês', (stats['totalExpense'] as num?)?.toDouble() ?? 0.0, Icons.arrow_downward, Colors.red),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 

@@ -69,10 +69,15 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final dialogWidth = isMobile ? screenWidth * 0.9 : 500.0;
+    final optionsWidth = isMobile ? screenWidth * 0.8 : 468.0;
+
     return AlertDialog(
       title: const Text('Nova Vacinação'),
       content: SizedBox(
-        width: 500,
+        width: dialogWidth,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -105,7 +110,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                         focusNode: focusNode,
                         decoration: InputDecoration(
                           labelText: 'Animal *',
-                          hintText: 'Digite o número ou nome para buscar',
+                          hintText: isMobile ? 'Buscar animal…' : 'Digite o número ou nome para buscar',
                           prefixIcon: const Icon(Icons.pets),
                           border: const OutlineInputBorder(),
                           suffixIcon: _selectedAnimalId != null
@@ -130,7 +135,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                           elevation: 4.0,
                           child: Container(
                             constraints: const BoxConstraints(maxHeight: 200),
-                            width: 468,
+                            width: optionsWidth,
                             child: ListView.builder(
                               padding: EdgeInsets.zero,
                               itemCount: options.length,
@@ -156,51 +161,93 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                 if (widget.animalId == null) const SizedBox(height: 16),
 
                 // Vaccine Info
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _vaccineNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Nome da Vacina *',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Campo obrigatório';
-                          }
-                          return null;
-                        },
+                isMobile
+                    ? Column(
+                        children: [
+                          TextFormField(
+                            controller: _vaccineNameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Nome da Vacina *',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              if (value?.isEmpty ?? true) {
+                                return 'Campo obrigatório';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _vaccineType,
+                            decoration: const InputDecoration(
+                              labelText: 'Tipo',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: [
+                              'Obrigatória',
+                              'Preventiva',
+                              'Tratamento',
+                              'Emergencial'
+                            ].map((type) {
+                              return DropdownMenuItem(
+                                value: type,
+                                child: Text(type),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _vaccineType = value!;
+                              });
+                            },
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _vaccineNameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Nome da Vacina *',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Campo obrigatório';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _vaccineType,
+                              decoration: const InputDecoration(
+                                labelText: 'Tipo',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: [
+                                'Obrigatória',
+                                'Preventiva',
+                                'Tratamento',
+                                'Emergencial'
+                              ].map((type) {
+                                return DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _vaccineType = value!;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _vaccineType,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: [
-                          'Obrigatória',
-                          'Preventiva',
-                          'Tratamento',
-                          'Emergencial'
-                        ].map((type) {
-                          return DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _vaccineType = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 16),
 
                 // Dates

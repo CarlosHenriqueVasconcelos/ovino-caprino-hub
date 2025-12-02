@@ -115,37 +115,48 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
             return Column(
               children: [
                 // Header Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                Builder(
+                  builder: (context) {
+                    final isMobile = MediaQuery.of(context).size.width < 600;
+                    return Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(isMobile ? 16 : 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.monitor_weight,
-                                size: 28, color: theme.colorScheme.primary),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Controle de Peso e Desenvolvimento',
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary,
-                              ),
+                            Row(
+                              children: [
+                                Icon(Icons.monitor_weight,
+                                    size: isMobile ? 22 : 28, color: theme.colorScheme.primary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    isMobile ? 'Controle de Peso' : 'Controle de Peso e Desenvolvimento',
+                                    style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
+                            if (!isMobile) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                'Monitore o desenvolvimento dos animais através do controle de peso. '
+                                'Acompanhe o crescimento por categoria de idade e identifique animais com peso inadequado.',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Monitore o desenvolvimento dos animais através do controle de peso. '
-                          'Acompanhe o crescimento por categoria de idade e identifique animais com peso inadequado.',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -170,81 +181,100 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   },
                   dropdowns: const [],
                   extraFilters: [
-                    Row(
-                      children: [
-                        Text(
-                          'Filtrar por categoria:',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            children: _categories.map((category) {
-                              final isSelected = category == _selectedCategory;
-                              return FilterChip(
-                                label: Text(category),
-                                selected: isSelected,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _selectedCategory = category;
-                                    _currentPage = 0;
-                                  });
-                                  _refresh();
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Text(
-                          'Filtrar por cor:',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 8,
-                            children: [
-                              FilterChip(
-                                label: const Text('Todas'),
-                                selected: _selectedColor == null,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _selectedColor = null;
-                                    _currentPage = 0;
-                                  });
-                                  _refresh();
-                                },
+                    Builder(
+                      builder: (context) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Filtrar por categoria:',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
                               ),
-                              ..._availableColors.map((color) {
-                                final isSelected = color == _selectedColor;
-                                final colorName =
-                                    AnimalDisplayUtils.getColorName(color);
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _categories.map((category) {
+                                final isSelected = category == _selectedCategory;
                                 return FilterChip(
-                                  label: Text(colorName),
+                                  label: Text(
+                                    category,
+                                    style: TextStyle(fontSize: isMobile ? 12 : 14),
+                                  ),
                                   selected: isSelected,
                                   onSelected: (_) {
                                     setState(() {
-                                      _selectedColor = color;
+                                      _selectedCategory = category;
                                       _currentPage = 0;
                                     });
                                     _refresh();
                                   },
                                 );
-                              }),
-                            ],
-                          ),
-                        ),
-                      ],
+                              }).toList(),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Builder(
+                      builder: (context) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Filtrar por cor:',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilterChip(
+                                  label: Text(
+                                    'Todas',
+                                    style: TextStyle(fontSize: isMobile ? 12 : 14),
+                                  ),
+                                  selected: _selectedColor == null,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedColor = null;
+                                      _currentPage = 0;
+                                    });
+                                    _refresh();
+                                  },
+                                ),
+                                ..._availableColors.map((color) {
+                                  final isSelected = color == _selectedColor;
+                                  final colorName =
+                                      AnimalDisplayUtils.getColorName(color);
+                                  return FilterChip(
+                                    label: Text(
+                                      colorName,
+                                      style: TextStyle(fontSize: isMobile ? 12 : 14),
+                                    ),
+                                    selected: isSelected,
+                                    onSelected: (_) {
+                                      setState(() {
+                                        _selectedColor = color;
+                                        _currentPage = 0;
+                                      });
+                                      _refresh();
+                                    },
+                                  );
+                                }),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -386,43 +416,59 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
         animals.where((a) => a.weight > _getIdealWeightRange(a)['max']!).length;
     final normalWeight = animals.length - underweight - overweight;
 
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.3,
-      children: [
-        _buildStatCard(
-          theme,
-          title: 'Peso Médio',
-          value: '${avgWeight.toStringAsFixed(1)} kg',
-          icon: Icons.bar_chart,
-          color: theme.colorScheme.primary,
-        ),
-        _buildStatCard(
-          theme,
-          title: 'Peso Normal',
-          value: '$normalWeight animais',
-          icon: Icons.check_circle,
-          color: theme.colorScheme.tertiary,
-        ),
-        _buildStatCard(
-          theme,
-          title: 'Abaixo do Peso',
-          value: '$underweight animais',
-          icon: Icons.trending_down,
-          color: theme.colorScheme.error,
-        ),
-        _buildStatCard(
-          theme,
-          title: 'Acima do Peso',
-          value: '$overweight animais',
-          icon: Icons.trending_up,
-          color: theme.colorScheme.secondary,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        int crossAxisCount = 4;
+        double aspectRatio = 1.3;
+        
+        if (width < 600) {
+          crossAxisCount = 2;
+          aspectRatio = 1.6;
+        } else if (width < 900) {
+          crossAxisCount = 2;
+          aspectRatio = 1.5;
+        }
+        
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: aspectRatio,
+          children: [
+            _buildStatCard(
+              theme,
+              title: 'Peso Médio',
+              value: '${avgWeight.toStringAsFixed(1)} kg',
+              icon: Icons.bar_chart,
+              color: theme.colorScheme.primary,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Peso Normal',
+              value: '$normalWeight animais',
+              icon: Icons.check_circle,
+              color: theme.colorScheme.tertiary,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Abaixo do Peso',
+              value: '$underweight animais',
+              icon: Icons.trending_down,
+              color: theme.colorScheme.error,
+            ),
+            _buildStatCard(
+              theme,
+              title: 'Acima do Peso',
+              value: '$overweight animais',
+              icon: Icons.trending_up,
+              color: theme.colorScheme.secondary,
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -308,29 +308,52 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
       );
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     switch (widget.record.stage) {
       case BreedingStage.encabritamento:
         final needsAction = widget.record.needsAction();
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ElevatedButton.icon(
-              onPressed: needsAction ? _separateAnimals : null,
-              icon: const Icon(Icons.call_split),
-              label: const Text('Separar Animais'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: needsAction ? Colors.orange : Colors.grey,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            OutlinedButton.icon(
-              onPressed: _cancelBreeding,
-              icon: const Icon(Icons.cancel),
-              label: const Text('Cancelar'),
-            ),
-          ],
-        );
+        return isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: needsAction ? _separateAnimals : null,
+                    icon: const Icon(Icons.call_split, size: 18),
+                    label: const Text('Separar Animais'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: needsAction ? Colors.orange : Colors.grey,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _cancelBreeding,
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Cancelar'),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: needsAction ? _separateAnimals : null,
+                    icon: const Icon(Icons.call_split),
+                    label: const Text('Separar Animais'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: needsAction ? Colors.orange : Colors.grey,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: _cancelBreeding,
+                    icon: const Icon(Icons.cancel),
+                    label: const Text('Cancelar'),
+                  ),
+                ],
+              );
 
       case BreedingStage.aguardandoUltrassom:
       case BreedingStage.separacao:

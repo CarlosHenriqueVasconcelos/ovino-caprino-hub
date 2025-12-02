@@ -49,17 +49,18 @@ class NotesFiltersBar extends StatelessWidget {
               width: isMobile ? double.infinity : 260,
               child: TextField(
                 controller: searchController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Buscar anotações',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
+                  hintText: isMobile ? 'Pesquisar...' : null,
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
                 onChanged: onSearchChanged,
               ),
             ),
             SizedBox(
-              width: 180,
+              width: isMobile ? (MediaQuery.of(context).size.width - 48) / 2 : 180,
               child: DropdownButtonFormField<String>(
                 value: selectedCategory,
                 isDense: true,
@@ -81,7 +82,7 @@ class NotesFiltersBar extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 160,
+              width: isMobile ? (MediaQuery.of(context).size.width - 48) / 2 : 160,
               child: DropdownButtonFormField<String>(
                 value: selectedPriority,
                 isDense: true,
@@ -102,16 +103,36 @@ class NotesFiltersBar extends StatelessWidget {
                 },
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  value: showOnlyUnread,
-                  onChanged: onShowOnlyUnreadChanged,
-                ),
-                const Text('Mostrar apenas não lidas'),
-              ],
-            ),
+            isMobile
+                ? SizedBox(
+                    width: double.infinity,
+                    child: Row(
+                      children: [
+                        Switch(
+                          value: showOnlyUnread,
+                          onChanged: onShowOnlyUnreadChanged,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Apenas não lidas',
+                            style: const TextStyle(fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: showOnlyUnread,
+                        onChanged: onShowOnlyUnreadChanged,
+                      ),
+                      const Text('Mostrar apenas não lidas'),
+                    ],
+                  ),
           ],
         ),
       ),
