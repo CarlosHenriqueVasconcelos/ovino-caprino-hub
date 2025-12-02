@@ -182,7 +182,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _category,
+                        initialValue: _category,
                         decoration: const InputDecoration(
                           labelText: 'Categoria',
                           border: OutlineInputBorder(),
@@ -211,7 +211,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _priority,
+                        initialValue: _priority,
                         decoration: const InputDecoration(
                           labelText: 'Prioridade',
                           border: OutlineInputBorder(),

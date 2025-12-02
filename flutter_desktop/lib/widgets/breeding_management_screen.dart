@@ -176,7 +176,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -198,7 +198,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                                       color: Colors.green.shade700, size: 24),
                                 ),
                                 const SizedBox(width: 12),
-                                Expanded(
+                                const Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -512,7 +512,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: stageColor.withOpacity(0.1),
+                    color: stageColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(stageIcon, color: stageColor),

@@ -149,7 +149,7 @@ class LogService {
       if (lines.length > _maxLogEntries) {
         // Manter apenas as últimas N entradas
         final recentLines = lines.skip(lines.length - _maxLogEntries).toList();
-        await _logFile!.writeAsString(recentLines.join('\n') + '\n');
+        await _logFile!.writeAsString('${recentLines.join('\n')}\n');
       }
     } catch (e) {
       debugPrint('❌ Erro ao limitar arquivo de log: $e');

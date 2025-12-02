@@ -27,8 +27,6 @@ class PharmacyFiltersBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = ResponsiveUtils.isMobile(context);
-    
     return Card(
       child: Padding(
         padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
@@ -57,7 +55,7 @@ class PharmacyFiltersBar extends StatelessWidget {
                 SizedBox(
                   width: 200,
                   child: DropdownButtonFormField<String>(
-                    value: selectedCategory,
+                    initialValue: selectedCategory,
                     decoration: const InputDecoration(labelText: 'Categoria'),
                     items: categories
                         .map(

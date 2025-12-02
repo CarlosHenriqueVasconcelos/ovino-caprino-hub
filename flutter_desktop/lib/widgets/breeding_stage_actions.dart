@@ -65,19 +65,13 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
           children: [
             ListTile(
               title: const Text('Gestação Confirmada'),
-              leading: Radio<String>(
-                value: 'Confirmada',
-                groupValue: null,
-                onChanged: (value) => Navigator.pop(context, value),
-              ),
+              leading: const Icon(Icons.radio_button_unchecked),
+              onTap: () => Navigator.pop(context, 'Confirmada'),
             ),
             ListTile(
               title: const Text('Não Confirmada'),
-              leading: Radio<String>(
-                value: 'Nao_Confirmada',
-                groupValue: null,
-                onChanged: (value) => Navigator.pop(context, value),
-              ),
+              leading: const Icon(Icons.radio_button_unchecked),
+              onTap: () => Navigator.pop(context, 'Nao_Confirmada'),
             ),
           ],
         ),

@@ -105,9 +105,9 @@ class _ReactiveAnimalCardState extends State<ReactiveAnimalCard>
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Center(
             child: CircularProgressIndicator(),
           ),
@@ -116,9 +116,9 @@ class _ReactiveAnimalCardState extends State<ReactiveAnimalCard>
     }
 
     if (_animal == null) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Center(
             child: Text('Animal não encontrado'),
           ),
@@ -138,9 +138,9 @@ class _ReactiveAnimalCardState extends State<ReactiveAnimalCard>
                 children: [
                   Text(
                     _animal!.speciesIcon,
-                    style: TextStyle(fontSize: 24),
+                    style: const TextStyle(fontSize: 24),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,7 +160,7 @@ class _ReactiveAnimalCardState extends State<ReactiveAnimalCard>
                   ),
                 ],
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: [
@@ -173,7 +173,7 @@ class _ReactiveAnimalCardState extends State<ReactiveAnimalCard>
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   if (_animal!.pregnant == true)
-                    Chip(
+                    const Chip(
                       label: Text('🤰 Gestante'),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),

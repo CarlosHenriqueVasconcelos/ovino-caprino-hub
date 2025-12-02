@@ -429,7 +429,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
                 // Status (aqui ainda usamos os rótulos antigos; mapeamos para stage)
                 DropdownButtonFormField<String>(
-                  value: _status,
+                  initialValue: _status,
                   decoration: const InputDecoration(
                     labelText: 'Status',
                     border: OutlineInputBorder(),

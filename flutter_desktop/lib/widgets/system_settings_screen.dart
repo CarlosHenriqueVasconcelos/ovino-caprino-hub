@@ -33,7 +33,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
+            theme.colorScheme.primary.withValues(alpha: 0.05),
             Colors.transparent,
           ],
         ),
@@ -75,7 +75,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           Text(
                             'Configure notificações, gerencie backups e mantenha seus dados sempre seguros.',
                             style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -260,11 +260,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                               color:
-                                  theme.colorScheme.primary.withOpacity(0.3)),
+                                  theme.colorScheme.primary.withValues(alpha: 0.3)),
                         ),
                         child: Text('SQLite',
                             style: TextStyle(
@@ -340,13 +340,13 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                                     horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: totalLogs > 0
-                                      ? theme.colorScheme.error.withOpacity(0.1)
-                                      : theme.colorScheme.primary.withOpacity(0.1),
+                                      ? theme.colorScheme.error.withValues(alpha: 0.1)
+                                      : theme.colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: totalLogs > 0
-                                        ? theme.colorScheme.error.withOpacity(0.3)
-                                        : theme.colorScheme.primary.withOpacity(0.3),
+                                        ? theme.colorScheme.error.withValues(alpha: 0.3)
+                                        : theme.colorScheme.primary.withValues(alpha: 0.3),
                                   ),
                                 ),
                                 child: Text(
@@ -741,9 +741,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: typeColor.withOpacity(0.1),
+                          color: typeColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: typeColor.withOpacity(0.3)),
+                          border: Border.all(color: typeColor.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           log.type,
@@ -767,7 +767,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.6),
+                              .withValues(alpha: 0.6),
                         ),
                       ),
                       onTap: () => _showLogDetails(log),

@@ -111,12 +111,12 @@ class AnimalCard extends StatelessWidget {
           Text(label),
         ],
       ),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
       labelStyle: TextStyle(
         color: color,
         fontWeight: FontWeight.w500,
       ),
-      side: BorderSide(color: color.withOpacity(0.2)),
+      side: BorderSide(color: color.withValues(alpha: 0.2)),
     );
   }
 
@@ -137,7 +137,7 @@ class AnimalCard extends StatelessWidget {
     return Card(
       elevation: hasHealthIssue ? 4 : 2,
       shadowColor:
-          hasHealthIssue ? theme.colorScheme.error.withOpacity(0.3) : null,
+          hasHealthIssue ? theme.colorScheme.error.withValues(alpha: 0.3) : null,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -165,7 +165,7 @@ class AnimalCard extends StatelessWidget {
                       Text(
                         animal.code,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -210,10 +210,7 @@ class AnimalCard extends StatelessWidget {
                               notes: 'Registrado manualmente pelo usuário',
                             );
                             if (!context.mounted) return;
-                            await animalService.removeFromCache(
-                              animal.id,
-                              refreshAlertsData: true,
-                            );
+                            await animalService.refreshAlerts();
                           } else {
                             await animalService
                                 .updateAnimal(animal.copyWith(status: 'Óbito'));
@@ -320,12 +317,12 @@ class AnimalCard extends StatelessWidget {
               children: [
                 Chip(
                   label: Text(animal.status),
-                  backgroundColor: statusColor.withOpacity(0.1),
+                  backgroundColor: statusColor.withValues(alpha: 0.1),
                   labelStyle: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.w500,
                   ),
-                  side: BorderSide(color: statusColor.withOpacity(0.2)),
+                  side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
                 ),
 
                 // 🔹 Novo: chip de sexo (inferido pela category)
@@ -336,14 +333,14 @@ class AnimalCard extends StatelessWidget {
                   Chip(
                     label: Text(animal.category),
                     backgroundColor:
-                        theme.colorScheme.secondary.withOpacity(0.1),
+                        theme.colorScheme.secondary.withValues(alpha: 0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.secondary,
                       fontWeight: FontWeight.w500,
                       fontSize: 12,
                     ),
                     side: BorderSide(
-                      color: theme.colorScheme.secondary.withOpacity(0.2),
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.2),
                     ),
                   ),
 
@@ -358,13 +355,13 @@ class AnimalCard extends StatelessWidget {
                       ],
                     ),
                     backgroundColor:
-                        theme.colorScheme.tertiary.withOpacity(0.1),
+                        theme.colorScheme.tertiary.withValues(alpha: 0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.tertiary,
                       fontWeight: FontWeight.w500,
                     ),
                     side: BorderSide(
-                      color: theme.colorScheme.tertiary.withOpacity(0.2),
+                      color: theme.colorScheme.tertiary.withValues(alpha: 0.2),
                     ),
                   ),
                 if (hasHealthIssue)
@@ -377,13 +374,13 @@ class AnimalCard extends StatelessWidget {
                         Text(animal.healthIssue!),
                       ],
                     ),
-                    backgroundColor: theme.colorScheme.error.withOpacity(0.1),
+                    backgroundColor: theme.colorScheme.error.withValues(alpha: 0.1),
                     labelStyle: TextStyle(
                       color: theme.colorScheme.error,
                       fontWeight: FontWeight.w500,
                     ),
                     side: BorderSide(
-                      color: theme.colorScheme.error.withOpacity(0.2),
+                      color: theme.colorScheme.error.withValues(alpha: 0.2),
                     ),
                   ),
               ],
@@ -404,7 +401,7 @@ class AnimalCard extends StatelessWidget {
                               Text(
                                 'Raça',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                               ),
                               Text(
@@ -424,7 +421,7 @@ class AnimalCard extends StatelessWidget {
                               Text(
                                 'Idade',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                               ),
                               Text(
@@ -448,7 +445,7 @@ class AnimalCard extends StatelessWidget {
                                 Text(
                                   'Raça',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                                 ),
                                 Text(
@@ -470,7 +467,7 @@ class AnimalCard extends StatelessWidget {
                                 Text(
                                   'Idade',
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                                 ),
                                 Text(
@@ -567,7 +564,7 @@ class AnimalCard extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -621,7 +618,7 @@ class AnimalCard extends StatelessWidget {
                 padding: const EdgeInsets.all(8),
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.tertiary.withOpacity(0.1),
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -676,7 +673,7 @@ class AnimalCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.tertiary.withOpacity(0.1),
+                  color: theme.colorScheme.tertiary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -708,13 +705,13 @@ class AnimalCard extends StatelessWidget {
                   Icon(
                     Icons.favorite,
                     size: 14,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'Última vacinação: ${DateFormat('dd/MM/yyyy').format(animal.lastVaccination!)}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],

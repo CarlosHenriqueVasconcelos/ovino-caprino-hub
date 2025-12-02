@@ -63,7 +63,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           child: TabBar(
             controller: _tabController,
             labelColor: theme.colorScheme.primary,
-            unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
+            unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             indicatorColor: theme.colorScheme.primary,
             tabs: const [
               Tab(icon: Icon(Icons.monitor_weight), text: 'Geral'),
@@ -96,7 +96,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
+            theme.colorScheme.primary.withValues(alpha: 0.05),
             Colors.transparent,
           ],
         ),
@@ -148,7 +148,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                                 'Monitore o desenvolvimento dos animais através do controle de peso. '
                                 'Acompanhe o crescimento por categoria de idade e identifique animais com peso inadequado.',
                                 style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                               ),
                             ],
@@ -527,7 +527,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   title,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     fontSize: isMobile ? 9 : null,
                   ),
                   maxLines: 1,
@@ -538,7 +538,6 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           ),
         );
       },
-    );
     );
   }
 
@@ -558,7 +557,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
               'Ajuste os filtros ou adicione animais ao rebanho',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -623,7 +622,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -632,7 +631,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -651,7 +650,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                 Text(
                   'Faixa ideal: ${weightRange['min']!.toStringAsFixed(1)} - ${weightRange['max']!.toStringAsFixed(1)} kg',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -676,9 +675,9 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

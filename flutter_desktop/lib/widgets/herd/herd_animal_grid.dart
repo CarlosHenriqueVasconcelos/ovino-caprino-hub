@@ -25,7 +25,6 @@ class HerdAnimalGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
     final crossAxisCount = ResponsiveUtils.getAnimalGridCrossAxisCount(context);
     
     // Ajustar aspect ratio para mobile: cards mais altos para acomodar conteúdo

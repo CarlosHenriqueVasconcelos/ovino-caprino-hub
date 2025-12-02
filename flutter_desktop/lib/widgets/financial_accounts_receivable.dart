@@ -225,7 +225,7 @@ class _FinancialAccountsReceivableState
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: Colors.green.withOpacity(0.2),
+                              backgroundColor: Colors.green.withValues(alpha: 0.2),
                               child: const Icon(Icons.arrow_upward,
                                   color: Colors.green),
                             ),
@@ -256,7 +256,7 @@ class _FinancialAccountsReceivableState
                                       horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
                                     color: _getStatusColor(account.status)
-                                        .withOpacity(0.2),
+                                        .withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(

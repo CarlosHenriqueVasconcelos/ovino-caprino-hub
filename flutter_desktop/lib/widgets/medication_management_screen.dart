@@ -553,7 +553,7 @@ class _MedicationManagementScreenState
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(Icons.vaccines, color: statusColor, size: 24),
@@ -759,7 +759,7 @@ class _MedicationManagementScreenState
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(Icons.medication, color: statusColor, size: 24),
@@ -1262,7 +1262,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               children: [
                 // Tipo
                 DropdownButtonFormField<String>(
-                  value: _type,
+                  initialValue: _type,
                   decoration: const InputDecoration(
                     labelText: 'Tipo *',
                     border: OutlineInputBorder(),
@@ -1536,7 +1536,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.orange),
                         ),
@@ -1561,7 +1561,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 // Tipo de vacina ou dosagem
                 if (_type == 'Vacinação')
                   DropdownButtonFormField<String>(
-                    value: _vaccineType,
+                    initialValue: _vaccineType,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de Vacina',
                       border: OutlineInputBorder(),
@@ -1835,7 +1835,7 @@ class _DetailsDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: accentColor.withValues(alpha: 0.1),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -1846,7 +1846,7 @@ class _DetailsDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.2),
+                      color: accentColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -2039,9 +2039,9 @@ class _DetailsDialog extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         crossAxisAlignment:

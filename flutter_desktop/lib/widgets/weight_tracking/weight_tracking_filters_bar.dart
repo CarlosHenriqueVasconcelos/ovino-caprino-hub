@@ -98,7 +98,7 @@ class WeightTrackingFiltersBar extends StatelessWidget {
                   return SizedBox(
                     width: isMobile ? double.infinity : 200,
                     child: DropdownButtonFormField<String>(
-                      value: dropdown.value,
+                      initialValue: dropdown.value,
                       decoration: InputDecoration(labelText: dropdown.label),
                       items: dropdown.options
                           .map((value) => DropdownMenuItem(

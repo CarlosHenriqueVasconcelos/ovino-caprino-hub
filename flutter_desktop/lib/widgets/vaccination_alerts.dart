@@ -220,20 +220,20 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                       Icon(
                         Icons.check_circle_outline,
                         size: 48,
-                        color: theme.colorScheme.primary.withOpacity(0.5),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 12),
                       Text(
                         'Nenhum alerta no momento',
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Todas as vacinações e medicações estão em dia',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -280,7 +280,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         const SizedBox(width: 8),
         Expanded(
           child: Divider(
-            color: theme.colorScheme.outline.withOpacity(0.3),
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
             thickness: 1,
           ),
         ),
@@ -288,7 +288,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
         Text(
           '$start–$end de $total',
           style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(width: 8),
@@ -334,7 +334,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
           Text(
             label,
             style: TextStyle(
-              color: theme.colorScheme.onPrimary.withOpacity(0.9),
+              color: theme.colorScheme.onPrimary.withValues(alpha: 0.9),
               fontSize: 12,
             ),
           ),
@@ -365,9 +365,9 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(isMobile ? 12 : 20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,9 +449,9 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(isMobile ? 12 : 20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,7 +489,7 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
                         child: Text(
                           'Status: $status',
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             fontSize: isMobile ? 10 : null,
                           ),
                         ),

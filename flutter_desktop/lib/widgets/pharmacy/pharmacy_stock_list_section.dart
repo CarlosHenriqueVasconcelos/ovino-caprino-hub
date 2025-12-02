@@ -74,7 +74,7 @@ class PharmacyStockListSection extends StatelessWidget {
                     label: Text(row.status.label),
                     avatar:
                         Icon(row.status.icon, size: 16, color: row.status.color),
-                    backgroundColor: row.status.color.withOpacity(0.1),
+                    backgroundColor: row.status.color.withValues(alpha: 0.1),
                   ),
                 ),
                 DataCell(
@@ -146,7 +146,7 @@ class PharmacyStockListSection extends StatelessWidget {
                     style: const TextStyle(fontSize: 11),
                   ),
                   avatar: Icon(row.status.icon, size: 14, color: row.status.color),
-                  backgroundColor: row.status.color.withOpacity(0.1),
+                  backgroundColor: row.status.color.withValues(alpha: 0.1),
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -167,7 +167,7 @@ class PharmacyStockListSection extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Expanded(child: _infoChip(Icons.inventory, '${row.stock.totalQuantity.toStringAsFixed(1)}', theme)),
+                    Expanded(child: _infoChip(Icons.inventory, row.stock.totalQuantity.toStringAsFixed(1), theme)),
                     const SizedBox(width: 8),
                     Expanded(child: _infoChip(Icons.event, row.expirationLabel, theme)),
                   ],
@@ -211,7 +211,7 @@ class PharmacyStockListSection extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+        Icon(icon, size: 14, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
         const SizedBox(width: 4),
         Flexible(
           child: Text(

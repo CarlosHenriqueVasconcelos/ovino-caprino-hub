@@ -62,7 +62,7 @@ class NotesFiltersBar extends StatelessWidget {
             SizedBox(
               width: isMobile ? (MediaQuery.of(context).size.width - 48) / 2 : 180,
               child: DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 isDense: true,
                 decoration: const InputDecoration(
                   labelText: 'Categoria',
@@ -84,7 +84,7 @@ class NotesFiltersBar extends StatelessWidget {
             SizedBox(
               width: isMobile ? (MediaQuery.of(context).size.width - 48) / 2 : 160,
               child: DropdownButtonFormField<String>(
-                value: selectedPriority,
+                initialValue: selectedPriority,
                 isDense: true,
                 decoration: const InputDecoration(
                   labelText: 'Prioridade',
@@ -112,10 +112,10 @@ class NotesFiltersBar extends StatelessWidget {
                           value: showOnlyUnread,
                           onChanged: onShowOnlyUnreadChanged,
                         ),
-                        Expanded(
+                        const Expanded(
                           child: Text(
                             'Apenas não lidas',
-                            style: const TextStyle(fontSize: 13),
+                            style: TextStyle(fontSize: 13),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

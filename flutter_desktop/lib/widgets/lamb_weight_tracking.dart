@@ -37,7 +37,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
+            theme.colorScheme.primary.withValues(alpha: 0.05),
             Colors.transparent,
           ],
         ),
@@ -83,7 +83,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                             'Acompanhe o desenvolvimento dos borregos desde o nascimento até 120 dias. '
                             'Monitore o ganho de peso e identifique animais com crescimento inadequado.',
                             style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -136,7 +136,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
 
             // Weight Gain Metrics Card
             Card(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -278,7 +278,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
             width: 80,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -304,7 +304,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 Text(
                   gain,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -340,7 +340,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                   : 'Tente outra pesquisa',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -373,7 +373,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -386,7 +386,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _getColorFromName(lamb.nameColor).withOpacity(0.2),
+                  color: _getColorFromName(lamb.nameColor).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -407,7 +407,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                     Text(
                       'Idade: $ageInDays dias',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -425,7 +425,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -458,9 +458,9 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: weightStatus['color'].withOpacity(0.1),
+              color: weightStatus['color'].withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: weightStatus['color'].withOpacity(0.3)),
+              border: Border.all(color: weightStatus['color'].withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -513,7 +513,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           width: 90,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
@@ -536,7 +536,7 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
               fontWeight: weight != null ? FontWeight.bold : FontWeight.normal,
               color: weight != null
                   ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurface.withOpacity(0.5),
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
         ),

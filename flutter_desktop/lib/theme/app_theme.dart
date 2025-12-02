@@ -35,7 +35,7 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundLight,
       cardColor: cardLight,
       appBarTheme: AppBarTheme(
-        backgroundColor: cardLight.withOpacity(0.8),
+        backgroundColor: cardLight.withValues(alpha: 0.8),
         elevation: 0,
         centerTitle: false,
         titleTextStyle: const TextStyle(
@@ -48,7 +48,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: cardLight,
         elevation: 2,
-        shadowColor: primaryGreen.withOpacity(0.12),
+        shadowColor: primaryGreen.withValues(alpha: 0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -75,9 +75,9 @@ class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: primaryGreen.withOpacity(0.1),
+        backgroundColor: primaryGreen.withValues(alpha: 0.1),
         labelStyle: const TextStyle(color: primaryGreen),
-        side: BorderSide(color: primaryGreen.withOpacity(0.2)),
+        side: BorderSide(color: primaryGreen.withValues(alpha: 0.2)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -125,7 +125,7 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundDark,
       cardColor: cardDark,
       appBarTheme: AppBarTheme(
-        backgroundColor: cardDark.withOpacity(0.8),
+        backgroundColor: cardDark.withValues(alpha: 0.8),
         elevation: 0,
         centerTitle: false,
         titleTextStyle: const TextStyle(
@@ -138,7 +138,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: cardDark,
         elevation: 2,
-        shadowColor: primaryGlow.withOpacity(0.12),
+        shadowColor: primaryGlow.withValues(alpha: 0.12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),

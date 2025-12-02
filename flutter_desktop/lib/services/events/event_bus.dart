@@ -2,7 +2,6 @@
 // Sistema reativo de eventos tipados
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'app_events.dart';
 

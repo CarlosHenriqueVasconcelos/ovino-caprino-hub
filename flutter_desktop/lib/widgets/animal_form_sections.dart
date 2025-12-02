@@ -48,7 +48,7 @@ class AnimalBasicInfoSection extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: selectedColor,
+                  initialValue: selectedColor,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Cor *',
@@ -129,7 +129,7 @@ class AnimalBasicInfoSection extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: DropdownButtonFormField<String>(
-                  value: selectedColor,
+                  initialValue: selectedColor,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Cor *',
@@ -424,7 +424,7 @@ class AnimalCategorySection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
-          value: category,
+          initialValue: category,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Categoria *',
@@ -444,7 +444,7 @@ class AnimalCategorySection extends StatelessWidget {
         if (isMobile) ...[
           // Mobile: Stack vertically
           DropdownButtonFormField<String>(
-            value: species,
+            initialValue: species,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Espécie',
@@ -462,7 +462,7 @@ class AnimalCategorySection extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: gender,
+            initialValue: gender,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Sexo',
@@ -484,7 +484,7 @@ class AnimalCategorySection extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: species,
+                  initialValue: species,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Espécie',
@@ -504,7 +504,7 @@ class AnimalCategorySection extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: gender,
+                  initialValue: gender,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Sexo',
@@ -528,7 +528,7 @@ class AnimalCategorySection extends StatelessWidget {
         if (isMobile) ...[
           // Mobile: Stack vertically
           DropdownButtonFormField<String>(
-            value: breedDropdownValue,
+            initialValue: breedDropdownValue,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Raça *',
@@ -569,7 +569,7 @@ class AnimalCategorySection extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: DropdownButtonFormField<String>(
-                  value: breedDropdownValue,
+                  initialValue: breedDropdownValue,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Raça *',
@@ -674,7 +674,7 @@ class AnimalNotesSection extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: status,
+            initialValue: status,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Status',
@@ -708,7 +708,7 @@ class AnimalNotesSection extends StatelessWidget {
         const SizedBox(width: 16),
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: status,
+            initialValue: status,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Status',

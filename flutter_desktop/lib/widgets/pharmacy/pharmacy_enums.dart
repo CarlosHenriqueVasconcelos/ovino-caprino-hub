@@ -10,7 +10,6 @@ extension StockStatusFilterLabel on StockStatusFilter {
       case StockStatusFilter.expired:
         return 'Vencidos';
       case StockStatusFilter.all:
-      default:
         return 'Todos';
     }
   }

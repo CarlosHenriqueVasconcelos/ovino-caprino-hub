@@ -258,7 +258,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withOpacity(0.1),
+                  color: Colors.teal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.medical_services_outlined, color: Colors.teal, size: 20),
@@ -290,7 +290,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.teal.withOpacity(0.1),
+            color: Colors.teal.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child:
@@ -487,7 +487,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.teal.withOpacity(0.1),
+                    backgroundColor: Colors.teal.withValues(alpha: 0.1),
                     child: Icon(icon, color: Colors.teal),
                   ),
                   const SizedBox(width: 12),
@@ -619,9 +619,9 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: tone.withOpacity(0.12),
+        color: tone.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tone.withOpacity(0.22)),
+        border: Border.all(color: tone.withValues(alpha: 0.22)),
       ),
       child: Text(
         text,

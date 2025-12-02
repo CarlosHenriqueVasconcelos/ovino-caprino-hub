@@ -65,7 +65,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.error.withOpacity(0.1),
+                        color: theme.colorScheme.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -88,7 +88,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                     child: Text(
                       'e mais ${alerts.length - 5} alertas...',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -191,13 +191,13 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
       padding: EdgeInsets.all(isMobile ? 8 : 12),
       decoration: BoxDecoration(
         color: isOverdue
-            ? theme.colorScheme.error.withOpacity(0.05)
-            : theme.colorScheme.primary.withOpacity(0.05),
+            ? theme.colorScheme.error.withValues(alpha: 0.05)
+            : theme.colorScheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isOverdue
-              ? theme.colorScheme.error.withOpacity(0.3)
-              : theme.colorScheme.primary.withOpacity(0.3),
+              ? theme.colorScheme.error.withValues(alpha: 0.3)
+              : theme.colorScheme.primary.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -226,7 +226,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                 Text(
                   alertTitle,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                     fontSize: isMobile ? 10 : null,
                   ),
                 ),

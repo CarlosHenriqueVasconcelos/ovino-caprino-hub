@@ -119,8 +119,8 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: account.type == 'receita'
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.red.withOpacity(0.2),
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.red.withValues(alpha: 0.2),
                       child: Icon(
                         account.type == 'receita'
                             ? Icons.arrow_upward
@@ -153,7 +153,7 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: _getStatusColor(account.status)
-                                .withOpacity(0.2),
+                                .withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(

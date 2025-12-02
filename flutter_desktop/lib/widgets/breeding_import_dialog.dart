@@ -430,7 +430,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
               // Resultado do US
               DropdownButtonFormField<String>(
-                value: _ultrasoundResult,
+                initialValue: _ultrasoundResult,
                 items: const [
                   DropdownMenuItem(
                     value: 'nao_informado',

@@ -350,7 +350,6 @@ class AnimalService extends ChangeNotifier {
         AnimalDisplayUtils.sortAnimalsList(filtered);
         return WeightTrackingResult(items: filtered, total: total);
       case WeightCategoryFilter.all:
-      default:
         break;
     }
 

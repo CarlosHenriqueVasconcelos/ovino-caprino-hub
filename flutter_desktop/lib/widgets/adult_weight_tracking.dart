@@ -39,7 +39,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            theme.colorScheme.primary.withOpacity(0.05),
+            theme.colorScheme.primary.withValues(alpha: 0.05),
             Colors.transparent,
           ],
         ),
@@ -85,7 +85,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                             'Acompanhe o desenvolvimento dos animais adultos com controle de 24 meses (2 anos). '
                             'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
                             style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -251,7 +251,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   : 'Tente outra pesquisa',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -266,7 +266,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -279,7 +279,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -300,7 +300,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     Text(
                       'Peso atual: ${adult.weight.toStringAsFixed(1)} kg',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -314,7 +314,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
@@ -406,7 +406,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             width: 48,
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withOpacity(0.1),
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
@@ -422,7 +422,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           const SizedBox(width: 6),
           Text(
             weight != null
-                ? '${weight.toStringAsFixed(1)}'
+                ? weight.toStringAsFixed(1)
                 : '—',
             style: TextStyle(
               fontSize: 11,
@@ -430,7 +430,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   weight != null ? FontWeight.bold : FontWeight.normal,
               color: weight != null
                   ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurface.withOpacity(0.5),
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
         ],
@@ -482,9 +482,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           title: Text('Registrar Pesagem Mensal - ${animal.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                value: selectedMonth,
+              children: [
+                DropdownButtonFormField<int>(
+                initialValue: selectedMonth,
                 decoration: const InputDecoration(
                   labelText: 'Selecione o mês',
                   border: OutlineInputBorder(),

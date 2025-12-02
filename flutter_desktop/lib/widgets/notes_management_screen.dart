@@ -181,7 +181,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
             Icon(
               Icons.note_alt_outlined,
               size: 64,
-              color: theme.colorScheme.onSurface.withOpacity(0.4),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
@@ -193,7 +193,7 @@ class _NotesManagementScreenState extends State<NotesManagementScreen> {
             Text(
               'Use o botão "+" para adicionar uma nova anotação, ou altere os filtros de busca.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),

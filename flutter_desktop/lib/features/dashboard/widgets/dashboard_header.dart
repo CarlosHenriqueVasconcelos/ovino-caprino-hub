@@ -30,7 +30,7 @@ class DashboardHeader extends StatelessWidget {
                           gradient: LinearGradient(
                             colors: [
                               theme.colorScheme.primary,
-                              theme.colorScheme.primary.withOpacity(0.8),
+                              theme.colorScheme.primary.withValues(alpha: 0.8),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(8),
@@ -64,7 +64,7 @@ class DashboardHeader extends StatelessWidget {
                             Text(
                               'Sistema de Gestão',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -110,7 +110,7 @@ class DashboardHeader extends StatelessWidget {
                       gradient: LinearGradient(
                         colors: [
                           theme.colorScheme.primary,
-                          theme.colorScheme.primary.withOpacity(0.8),
+                          theme.colorScheme.primary.withValues(alpha: 0.8),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -142,7 +142,7 @@ class DashboardHeader extends StatelessWidget {
                         Text(
                           'Sistema Completo de Gestão para Ovinocultura e Caprinocultura',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],

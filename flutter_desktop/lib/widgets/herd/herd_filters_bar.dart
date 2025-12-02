@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/animal_display_utils.dart';
-import '../../utils/responsive_utils.dart';
 
 class HerdFiltersBar extends StatelessWidget {
   final TextEditingController searchController;

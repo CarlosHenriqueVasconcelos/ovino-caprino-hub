@@ -100,7 +100,7 @@ class _NoteDetailsDialog extends StatelessWidget {
                 icon: Icons.person_outline,
                 title: 'Criado por',
                 content: createdBy.isEmpty ? 'Autor não informado' : createdBy,
-                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
               ),
               const SizedBox(height: 16),
               _NoteDetailSection(
@@ -182,7 +182,7 @@ class _NoteDetailSection extends StatelessWidget {
               Text(
                 title,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),

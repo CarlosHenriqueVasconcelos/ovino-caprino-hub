@@ -1,12 +1,10 @@
 // lib/screens/complete_dashboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../features/dashboard/dashboard_tab.dart';
 import '../features/herd/herd_tab.dart';
 import '../features/navigation/dashboard_tabs.dart';
 import '../models/animal.dart';
-import '../services/animal_service.dart';
 import '../utils/responsive_utils.dart';
 import '../widgets/animal_form.dart';
 import '../widgets/breeding_management_screen.dart';
@@ -64,8 +62,8 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              theme.colorScheme.primary.withOpacity(0.08),
-              theme.colorScheme.primary.withOpacity(0.02),
+              theme.colorScheme.primary.withValues(alpha: 0.08),
+              theme.colorScheme.primary.withValues(alpha: 0.02),
             ],
           ),
         ),
@@ -109,15 +107,15 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
         vertical: isMobile ? 8 : 12,
       ),
       decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(0.90),
+        color: theme.cardColor.withValues(alpha: 0.90),
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.08),
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -137,7 +135,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                     gradient: LinearGradient(
                       colors: [
                         theme.colorScheme.primary,
-                        theme.colorScheme.primary.withOpacity(0.8),
+                        theme.colorScheme.primary.withValues(alpha: 0.8),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(8),
@@ -174,7 +172,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                         Text(
                           'Gestão de Ovinos e Caprinos',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                     ],
@@ -205,7 +203,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
     final isTablet = ResponsiveUtils.isTablet(context);
     
     return Container(
-      color: theme.cardColor.withOpacity(0.60),
+      color: theme.cardColor.withValues(alpha: 0.60),
       child: TabBar(
         controller: _tabController,
         isScrollable: isMobile || isTablet,
@@ -213,7 +211,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
         indicatorColor: theme.colorScheme.primary,
         indicatorWeight: 3,
         labelColor: theme.colorScheme.primary,
-        unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.7),
+        unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.7),
         labelStyle: TextStyle(
           fontWeight: FontWeight.w600, 
           fontSize: isMobile ? 10 : (isTablet ? 11 : 12),

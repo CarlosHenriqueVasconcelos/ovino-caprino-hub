@@ -103,8 +103,8 @@ class _NoteCard extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-      side: BorderSide(color: priorityColor.withOpacity(0.6)),
-      backgroundColor: priorityColor.withOpacity(0.06),
+      side: BorderSide(color: priorityColor.withValues(alpha: 0.6)),
+      backgroundColor: priorityColor.withValues(alpha: 0.06),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
@@ -121,7 +121,7 @@ class _NoteCard extends StatelessWidget {
         side: BorderSide(
           color: isRead
               ? theme.dividerColor
-              : theme.colorScheme.primary.withOpacity(0.5),
+              : theme.colorScheme.primary.withValues(alpha: 0.5),
           width: isRead ? 0.5 : 1.2,
         ),
       ),
@@ -139,7 +139,7 @@ class _NoteCard extends StatelessWidget {
                     isRead ? Icons.sticky_note_2_outlined : Icons.note_alt,
                     size: 30,
                     color: isRead
-                        ? theme.colorScheme.onSurface.withOpacity(0.6)
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.6)
                         : theme.colorScheme.primary,
                   ),
                   const SizedBox(height: 8),
@@ -187,7 +187,7 @@ class _NoteCard extends StatelessWidget {
                         Text(
                           dateStr,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -217,7 +217,7 @@ class _NoteCard extends StatelessWidget {
                     Text(
                       contentPreview,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.85),
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.85),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -234,14 +234,14 @@ class _NoteCard extends StatelessWidget {
                                 Icons.person_outline,
                                 size: 16,
                                 color: theme.colorScheme.onSurface
-                                    .withOpacity(0.7),
+                                    .withValues(alpha: 0.7),
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 createdBy,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(0.7),
+                                      .withValues(alpha: 0.7),
                                 ),
                               ),
                             ],

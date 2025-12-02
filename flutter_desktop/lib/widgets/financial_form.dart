@@ -241,7 +241,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             DropdownButtonFormField<String>(
-              value: _selectedCategory,
+              initialValue: _selectedCategory,
               decoration: const InputDecoration(
                 labelText: 'Categoria *',
                 border: OutlineInputBorder(),
@@ -264,7 +264,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
             if (widget.type == 'receita' &&
                 _selectedCategory == 'Venda de Animais')
               DropdownButtonFormField<String>(
-                value: _selectedAnimalId,
+                initialValue: _selectedAnimalId,
                 decoration: const InputDecoration(
                   labelText: 'Animal *',
                   border: OutlineInputBorder(),
@@ -330,7 +330,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedPaymentMethod,
+              initialValue: _selectedPaymentMethod,
               decoration: const InputDecoration(
                 labelText: 'Forma de Pagamento',
                 border: OutlineInputBorder(),

@@ -694,7 +694,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         }
         return ReportsChartArea(points: points);
       case ReportViewMode.table:
-      default:
         return _buildTableView(theme, rows);
     }
   }

@@ -181,7 +181,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         decoration: const InputDecoration(
                           labelText: 'Tipo *',
                           border: OutlineInputBorder(),
@@ -199,7 +199,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedUnit,
+                        initialValue: _selectedUnit,
                         decoration: const InputDecoration(
                           labelText: 'Unidade *',
                           border: OutlineInputBorder(),

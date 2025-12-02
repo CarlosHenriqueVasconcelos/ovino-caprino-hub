@@ -170,7 +170,7 @@ class _Section extends StatelessWidget {
           title: title,
           trailing: _Badge(
               text: '${events.length}',
-              color: color.withOpacity(.15),
+              color: color.withValues(alpha: .15),
               textColor: color),
         ),
         const SizedBox(height: 6),
@@ -265,7 +265,7 @@ class _Header extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(isMobile ? 8 : 10),
           decoration: BoxDecoration(
-            color: color.withOpacity(.12),
+            color: color.withValues(alpha: .12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: isMobile ? 20 : 24),
@@ -365,7 +365,7 @@ class _Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(.35)),
+        border: Border.all(color: color.withValues(alpha: .35)),
       ),
       child: Text(text,
           style:
