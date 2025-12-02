@@ -153,15 +153,25 @@ class PharmacyStockListSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Info rows
-            Wrap(
-              spacing: 16,
-              runSpacing: 4,
+            // Info rows - Column layout to avoid overflow
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _infoChip(Icons.category, row.stock.medicationType, theme),
-                _infoChip(Icons.straighten, row.stock.unitOfMeasure, theme),
-                _infoChip(Icons.inventory, '${row.stock.totalQuantity.toStringAsFixed(1)}', theme),
-                _infoChip(Icons.event, row.expirationLabel, theme),
+                Row(
+                  children: [
+                    Expanded(child: _infoChip(Icons.category, row.stock.medicationType, theme)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _infoChip(Icons.straighten, row.stock.unitOfMeasure, theme)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(child: _infoChip(Icons.inventory, '${row.stock.totalQuantity.toStringAsFixed(1)}', theme)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _infoChip(Icons.event, row.expirationLabel, theme)),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -203,9 +213,13 @@ class PharmacyStockListSection extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: theme.textTheme.bodySmall,
+        Flexible(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

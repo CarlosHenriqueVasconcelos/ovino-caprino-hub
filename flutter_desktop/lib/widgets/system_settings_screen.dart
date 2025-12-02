@@ -362,32 +362,61 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                               ),
                             ),
                             const Divider(),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _viewLogs,
-                                    icon: const Icon(Icons.visibility),
-                                    label: const Text('Ver Logs'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: totalLogs > 0 ? _exportLogs : null,
-                                    icon: const Icon(Icons.share),
-                                    label: const Text('Exportar'),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: totalLogs > 0 ? _clearLogs : null,
-                                    icon: const Icon(Icons.delete_outline),
-                                    label: const Text('Limpar'),
-                                  ),
-                                ),
-                              ],
+                            Builder(
+                              builder: (ctx) {
+                                final isMobile = MediaQuery.of(ctx).size.width < 600;
+                                if (isMobile) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: _viewLogs,
+                                        icon: const Icon(Icons.visibility, size: 18),
+                                        label: const Text('Ver Logs'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      OutlinedButton.icon(
+                                        onPressed: totalLogs > 0 ? _exportLogs : null,
+                                        icon: const Icon(Icons.share, size: 18),
+                                        label: const Text('Exportar'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      OutlinedButton.icon(
+                                        onPressed: totalLogs > 0 ? _clearLogs : null,
+                                        icon: const Icon(Icons.delete_outline, size: 18),
+                                        label: const Text('Limpar'),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: _viewLogs,
+                                        icon: const Icon(Icons.visibility),
+                                        label: const Text('Ver Logs'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: totalLogs > 0 ? _exportLogs : null,
+                                        icon: const Icon(Icons.share),
+                                        label: const Text('Exportar'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: totalLogs > 0 ? _clearLogs : null,
+                                        icon: const Icon(Icons.delete_outline),
+                                        label: const Text('Limpar'),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         );
