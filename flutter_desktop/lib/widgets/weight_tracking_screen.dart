@@ -447,7 +447,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
         
         if (width < 600) {
           crossAxisCount = 2;
-          aspectRatio = 1.6;
+          aspectRatio = 1.4; // Taller cards for mobile
         } else if (width < 900) {
           crossAxisCount = 2;
           aspectRatio = 1.5;
@@ -457,8 +457,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
           childAspectRatio: aspectRatio,
           children: [
             _buildStatCard(
@@ -502,32 +502,43 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     required IconData icon,
     required Color color,
   }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final isMobile = constraints.maxWidth < 150;
+        return Card(
+          child: Padding(
+            padding: EdgeInsets.all(isMobile ? 8 : 16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: isMobile ? 20 : 32, color: color),
+                SizedBox(height: isMobile ? 4 : 8),
+                Text(
+                  value,
+                  style: (isMobile ? theme.textTheme.bodyMedium : theme.textTheme.titleLarge)?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: isMobile ? 2 : 4),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: isMobile ? 9 : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+    );
     );
   }
 

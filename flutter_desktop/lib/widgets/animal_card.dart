@@ -528,26 +528,34 @@ class AnimalCard extends StatelessWidget {
 
             // Ano e Lote
             if (animal.year != null || animal.lote != null)
-              Row(
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
                 children: [
-                  if (animal.year != null) ...[
-                    const Icon(Icons.calendar_today, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Ano: ${animal.year}',
-                      style: theme.textTheme.bodyMedium,
+                  if (animal.year != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Ano: ${animal.year}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                  ],
-                  if (animal.year != null && animal.lote != null)
-                    const SizedBox(width: 16),
-                  if (animal.lote != null) ...[
-                    const Icon(Icons.label, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Lote: ${animal.lote}',
-                      style: theme.textTheme.bodyMedium,
+                  if (animal.lote != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.label, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Lote: ${animal.lote}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                  ],
                 ],
               ),
             if (animal.year != null || animal.lote != null)

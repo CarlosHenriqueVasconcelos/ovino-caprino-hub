@@ -660,6 +660,40 @@ class AnimalNotesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
+    if (isMobile) {
+      return Column(
+        children: [
+          TextFormField(
+            controller: locationController,
+            decoration: const InputDecoration(
+              labelText: 'Localização',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: status,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Status',
+              border: OutlineInputBorder(),
+            ),
+            items: statusOptions
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: onStatusChanged,
+          ),
+        ],
+      );
+    }
+    
     return Row(
       children: [
         Expanded(
@@ -675,6 +709,7 @@ class AnimalNotesSection extends StatelessWidget {
         Expanded(
           child: DropdownButtonFormField<String>(
             value: status,
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Status',
               border: OutlineInputBorder(),
@@ -683,7 +718,7 @@ class AnimalNotesSection extends StatelessWidget {
                 .map(
                   (option) => DropdownMenuItem(
                     value: option,
-                    child: Text(option),
+                    child: Text(option, overflow: TextOverflow.ellipsis),
                   ),
                 )
                 .toList(),
