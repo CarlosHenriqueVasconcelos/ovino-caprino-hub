@@ -54,10 +54,20 @@ class DashboardQuickActions extends StatelessWidget {
     void openModal(Widget child) {
       showDialog(
         context: context,
-        builder: (_) => Dialog(
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(width: 1200, height: 720, child: child),
-        ),
+        builder: (_) {
+          final size = MediaQuery.of(context).size;
+          final dialogWidth = (size.width * 0.95).clamp(280.0, 1200.0);
+          final dialogHeight = (size.height * 0.9).clamp(300.0, 720.0);
+
+          return Dialog(
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: dialogWidth,
+              height: dialogHeight,
+              child: child,
+            ),
+          );
+        },
       );
     }
 
