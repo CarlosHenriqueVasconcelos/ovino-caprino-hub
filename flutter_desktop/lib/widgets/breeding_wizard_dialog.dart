@@ -181,10 +181,15 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+    final dialogWidth = isMobile ? screenWidth * 0.95 : 600.0;
+    final optionsWidth = isMobile ? screenWidth * 0.85 : 500.0;
+
     return Dialog(
       child: Container(
-        width: 600,
-        padding: const EdgeInsets.all(24),
+        width: dialogWidth,
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Form(
@@ -196,15 +201,17 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.pets, color: Colors.green, size: 32),
+                          Icon(Icons.pets, color: Colors.green, size: isMobile ? 24 : 32),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'Nova Cobertura - Encabritamento',
+                              isMobile ? 'Nova Cobertura' : 'Nova Cobertura - Encabritamento',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: isMobile ? 18 : 24,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           IconButton(
@@ -214,9 +221,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Etapa 1: Juntar macho e fêmea por 60 dias',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                        style: TextStyle(color: Colors.grey, fontSize: isMobile ? 12 : 14),
                       ),
                       const Divider(height: 32),
 
@@ -273,7 +280,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                               child: Container(
                                 constraints:
                                     const BoxConstraints(maxHeight: 200),
-                                width: 500,
+                                width: optionsWidth,
                                 child: ListView.builder(
                                   padding: EdgeInsets.zero,
                                   shrinkWrap: true,
@@ -348,7 +355,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                               child: Container(
                                 constraints:
                                     const BoxConstraints(maxHeight: 200),
-                                width: 500,
+                                width: optionsWidth,
                                 child: ListView.builder(
                                   padding: EdgeInsets.zero,
                                   shrinkWrap: true,
