@@ -49,40 +49,51 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
         child: Column(
           children: [
             // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            Builder(
+              builder: (context) {
+                final isMobile = MediaQuery.of(context).size.width < 600;
+                return Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.scale,
-                          size: 28,
-                          color: theme.colorScheme.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.scale,
+                              size: isMobile ? 22 : 28,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isMobile ? 'Peso - Adultos' : 'Controle de Peso - Animais Adultos',
+                                style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Controle de Peso - Animais Adultos',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
+                        if (!isMobile) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Acompanhe o desenvolvimento dos animais adultos com controle de 24 meses (2 anos). '
+                            'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Acompanhe o desenvolvimento dos animais adultos com controle de 24 meses (2 anos). '
-                      'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -140,22 +151,45 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Animais Adultos',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '$total animais',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ],
+                        Builder(
+                          builder: (context) {
+                            final isMobile = MediaQuery.of(context).size.width < 600;
+                            return isMobile
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Animais Adultos',
+                                        style: theme.textTheme.titleLarge?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$total cadastrados',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      Text(
+                                        'Animais Adultos',
+                                        style: theme.textTheme.headlineSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        '$total animais',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                          },
                         ),
                         const SizedBox(height: 24),
                         WeightTrackingTable<Animal>(
@@ -293,33 +327,42 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: _getMonthlyWeights(adult.id),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _getMonthlyWeights(adult.id),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
 
-                    final weights = snapshot.data!;
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: List.generate(5, (colIndex) {
-                        return Expanded(
-                          child: Column(
-                            children: List.generate(5, (rowIndex) {
-                              final monthIndex = colIndex * 5 + rowIndex;
-                              if (monthIndex >= 24) {
-                                return const SizedBox.shrink();
-                              }
-                              return _buildMonthField(
-                                  theme, monthIndex + 1, weights);
+                        final weights = snapshot.data!;
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        final columns = isMobile ? 2 : 5;
+                        final rowsPerColumn = isMobile ? 12 : 5;
+                        
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: List.generate(columns, (colIndex) {
+                              return Container(
+                                width: isMobile ? 120 : null,
+                                padding: EdgeInsets.only(right: isMobile ? 8 : 0),
+                                child: Column(
+                                  children: List.generate(rowsPerColumn, (rowIndex) {
+                                    final monthIndex = colIndex * rowsPerColumn + rowIndex;
+                                    if (monthIndex >= 24) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return _buildMonthField(
+                                        theme, monthIndex + 1, weights);
+                                  }),
+                                ),
+                              );
                             }),
                           ),
                         );
-                      }),
-                    );
-                  },
-                ),
+                      },
+                    ),
               ],
             ),
           ),
@@ -355,39 +398,39 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
         : null;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 60,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            width: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'Mês $month',
+              'M$month',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
               ),
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              weight != null
-                  ? '${weight.toStringAsFixed(1)} kg'
-                  : 'Não registrado',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight:
-                    weight != null ? FontWeight.bold : FontWeight.normal,
-                color: weight != null
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurface.withOpacity(0.5),
-              ),
+          const SizedBox(width: 6),
+          Text(
+            weight != null
+                ? '${weight.toStringAsFixed(1)}'
+                : '—',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight:
+                  weight != null ? FontWeight.bold : FontWeight.normal,
+              color: weight != null
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
         ],

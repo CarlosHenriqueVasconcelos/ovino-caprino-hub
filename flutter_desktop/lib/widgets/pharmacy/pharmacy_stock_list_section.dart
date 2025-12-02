@@ -24,6 +24,29 @@ class PharmacyStockListSection extends StatelessWidget {
       return const Center(child: Text('Nenhum medicamento encontrado.'));
     }
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    if (isMobile) {
+      // Mobile: Card list view
+      return ListView.builder(
+        controller: controller,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: rows.length + (showLoadingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == rows.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final row = rows[index];
+          return _buildMobileCard(context, row);
+        },
+      );
+    }
+
+    // Desktop: DataTable
     return SingleChildScrollView(
       controller: controller,
       scrollDirection: Axis.horizontal,
@@ -92,6 +115,99 @@ class PharmacyStockListSection extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileCard(BuildContext context, PharmacyStockRow row) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: Nome + Status
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    row.stock.medicationName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Chip(
+                  label: Text(
+                    row.status.label,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  avatar: Icon(row.status.icon, size: 14, color: row.status.color),
+                  backgroundColor: row.status.color.withOpacity(0.1),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Info rows
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              children: [
+                _infoChip(Icons.category, row.stock.medicationType, theme),
+                _infoChip(Icons.straighten, row.stock.unitOfMeasure, theme),
+                _infoChip(Icons.inventory, '${row.stock.totalQuantity.toStringAsFixed(1)}', theme),
+                _infoChip(Icons.event, row.expirationLabel, theme),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Actions
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onView(row.stock),
+                    icon: const Icon(Icons.visibility, size: 18),
+                    label: const Text('Ver'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => onEdit(stock: row.stock),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Editar'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text, ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: theme.textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

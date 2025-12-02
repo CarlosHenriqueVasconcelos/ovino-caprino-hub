@@ -47,40 +47,51 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
         child: Column(
           children: [
             // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            Builder(
+              builder: (context) {
+                final isMobile = MediaQuery.of(context).size.width < 600;
+                return Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.baby_changing_station,
-                          size: 28,
-                          color: theme.colorScheme.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.baby_changing_station,
+                              size: isMobile ? 22 : 28,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isMobile ? 'Peso - Borregos' : 'Controle de Peso - Borregos',
+                                style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Controle de Peso - Borregos',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
+                        if (!isMobile) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Acompanhe o desenvolvimento dos borregos desde o nascimento até 120 dias. '
+                            'Monitore o ganho de peso e identifique animais com crescimento inadequado.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Acompanhe o desenvolvimento dos borregos desde o nascimento até 120 dias. '
-                      'Monitore o ganho de peso e identifique animais com crescimento inadequado.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -188,22 +199,45 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Text(
-                              'Borregos Cadastrados',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              '$total borregos',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ],
+                        Builder(
+                          builder: (context) {
+                            final isMobile = MediaQuery.of(context).size.width < 600;
+                            return isMobile
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Borregos',
+                                        style: theme.textTheme.titleLarge?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        '$total cadastrados',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      Text(
+                                        'Borregos Cadastrados',
+                                        style: theme.textTheme.headlineSmall?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        '$total borregos',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                          },
                         ),
                         const SizedBox(height: 24),
                         if (lambs.isEmpty)
