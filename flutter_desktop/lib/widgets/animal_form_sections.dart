@@ -23,86 +23,169 @@ class AnimalBasicInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome/Número *',
-                  border: OutlineInputBorder(),
-                  hintText: 'Ex: 18',
-                ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Campo obrigatório';
-                  }
-                  return null;
-                },
-              ),
+        if (isMobile) ...[
+          // Mobile: Stack vertically
+          TextFormField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nome/Número *',
+              border: OutlineInputBorder(),
+              hintText: 'Ex: 18',
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String>(
-                value: selectedColor,
-                decoration: const InputDecoration(
-                  labelText: 'Cor *',
-                  border: OutlineInputBorder(),
-                ),
-                items: AnimalDisplayUtils.colorEntries.map((entry) {
-                  return DropdownMenuItem(
-                    value: entry.key,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 16,
-                          height: 16,
-                          decoration: BoxDecoration(
-                            color: entry.value,
-                            borderRadius: BorderRadius.circular(4),
-                            border: entry.key == 'white'
-                                ? Border.all(color: Colors.grey, width: 1)
-                                : null,
+            validator: (value) {
+              if (value?.isEmpty ?? true) {
+                return 'Campo obrigatório';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: selectedColor,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Cor *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AnimalDisplayUtils.colorEntries.map((entry) {
+                    return DropdownMenuItem(
+                      value: entry.key,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: entry.value,
+                              borderRadius: BorderRadius.circular(4),
+                              border: entry.key == 'white'
+                                  ? Border.all(color: Colors.grey, width: 1)
+                                  : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            AnimalDisplayUtils.getColorName(entry.key),
-                            overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              AnimalDisplayUtils.getColorName(entry.key),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: onColorChanged,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: codeController,
-                decoration: const InputDecoration(
-                  labelText: 'Código *',
-                  border: OutlineInputBorder(),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: onColorChanged,
                 ),
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Campo obrigatório';
-                  }
-                  return null;
-                },
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: codeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Código *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Campo obrigatório';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ] else ...[
+          // Desktop: Row layout
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome/Número *',
+                    border: OutlineInputBorder(),
+                    hintText: 'Ex: 18',
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Campo obrigatório';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: selectedColor,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Cor *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AnimalDisplayUtils.colorEntries.map((entry) {
+                    return DropdownMenuItem(
+                      value: entry.key,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: entry.value,
+                              borderRadius: BorderRadius.circular(4),
+                              border: entry.key == 'white'
+                                  ? Border.all(color: Colors.grey, width: 1)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              AnimalDisplayUtils.getColorName(entry.key),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: onColorChanged,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: codeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Código *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Campo obrigatório';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         Row(
           children: [
@@ -335,11 +418,14 @@ class AnimalCategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
           value: category,
+          isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Categoria *',
             border: OutlineInputBorder(),
@@ -348,99 +434,182 @@ class AnimalCategorySection extends StatelessWidget {
               .map(
                 (category) => DropdownMenuItem(
                   value: category,
-                  child: Text(category),
+                  child: Text(category, overflow: TextOverflow.ellipsis),
                 ),
               )
               .toList(),
           onChanged: onCategoryChanged,
         ),
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: species,
-                decoration: const InputDecoration(
-                  labelText: 'Espécie',
-                  border: OutlineInputBorder(),
-                ),
-                items: speciesOptions
-                    .map(
-                      (option) => DropdownMenuItem(
-                        value: option,
-                        child: Text(option),
-                      ),
-                    )
-                    .toList(),
-                onChanged: onSpeciesChanged,
-              ),
+        if (isMobile) ...[
+          // Mobile: Stack vertically
+          DropdownButtonFormField<String>(
+            value: species,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Espécie',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: gender,
-                decoration: const InputDecoration(
-                  labelText: 'Sexo',
-                  border: OutlineInputBorder(),
-                ),
-                items: genderOptions
-                    .map(
-                      (option) => DropdownMenuItem(
-                        value: option,
-                        child: Text(option),
-                      ),
-                    )
-                    .toList(),
-                onChanged: onGenderChanged,
-              ),
+            items: speciesOptions
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option),
+                  ),
+                )
+                .toList(),
+            onChanged: onSpeciesChanged,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: gender,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Sexo',
+              border: OutlineInputBorder(),
             ),
-          ],
-        ),
+            items: genderOptions
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option),
+                  ),
+                )
+                .toList(),
+            onChanged: onGenderChanged,
+          ),
+        ] else ...[
+          // Desktop: Row layout
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: species,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Espécie',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: speciesOptions
+                      .map(
+                        (option) => DropdownMenuItem(
+                          value: option,
+                          child: Text(option),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: onSpeciesChanged,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: gender,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Sexo',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: genderOptions
+                      .map(
+                        (option) => DropdownMenuItem(
+                          value: option,
+                          child: Text(option),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: onGenderChanged,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String>(
-                value: breedDropdownValue,
-                decoration: const InputDecoration(
-                  labelText: 'Raça *',
-                  border: OutlineInputBorder(),
-                ),
-                items: breedOptions
-                    .map(
-                      (option) => DropdownMenuItem(
-                        value: option,
-                        child: Text(option),
-                      ),
-                    )
-                    .toList(),
-                onChanged: onBreedChanged,
-              ),
+        if (isMobile) ...[
+          // Mobile: Stack vertically
+          DropdownButtonFormField<String>(
+            value: breedDropdownValue,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Raça *',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: weightController,
-                decoration: const InputDecoration(
-                  labelText: 'Peso (kg) *',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Campo obrigatório';
-                  }
-                  if (double.tryParse(value!) == null) {
-                    return 'Valor inválido';
-                  }
-                  return null;
-                },
-              ),
+            items: breedOptions
+                .map(
+                  (option) => DropdownMenuItem(
+                    value: option,
+                    child: Text(option, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
+            onChanged: onBreedChanged,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: weightController,
+            decoration: const InputDecoration(
+              labelText: 'Peso (kg) *',
+              border: OutlineInputBorder(),
             ),
-          ],
-        ),
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value?.isEmpty ?? true) {
+                return 'Campo obrigatório';
+              }
+              if (double.tryParse(value!) == null) {
+                return 'Valor inválido';
+              }
+              return null;
+            },
+          ),
+        ] else ...[
+          // Desktop: Row layout
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: breedDropdownValue,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Raça *',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: breedOptions
+                      .map(
+                        (option) => DropdownMenuItem(
+                          value: option,
+                          child: Text(option, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: onBreedChanged,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: weightController,
+                  decoration: const InputDecoration(
+                    labelText: 'Peso (kg) *',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value?.isEmpty ?? true) {
+                      return 'Campo obrigatório';
+                    }
+                    if (double.tryParse(value!) == null) {
+                      return 'Valor inválido';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
         if (showCustomBreedField) ...[
           const SizedBox(height: 16),
           TextFormField(

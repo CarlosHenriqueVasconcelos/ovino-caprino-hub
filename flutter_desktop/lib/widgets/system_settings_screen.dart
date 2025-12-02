@@ -43,36 +43,47 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         child: Column(
           children: [
             // Header Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+            Builder(
+              builder: (context) {
+                final isMobile = MediaQuery.of(context).size.width < 600;
+                return Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(isMobile ? 16 : 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.settings,
-                            size: 28, color: theme.colorScheme.primary),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Configurações do Sistema',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.settings,
+                                size: isMobile ? 22 : 28, color: theme.colorScheme.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isMobile ? 'Configurações' : 'Configurações do Sistema',
+                                style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
+                        if (!isMobile) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            'Configure notificações, gerencie backups e mantenha seus dados sempre seguros.',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Configure notificações, gerencie backups e mantenha seus dados sempre seguros.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -86,11 +97,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     Row(
                       children: [
                         Icon(Icons.notifications,
-                            color: theme.colorScheme.primary),
+                            color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
-                        Text('Notificações',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text('Notificações',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -140,11 +158,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.backup, color: theme.colorScheme.primary),
+                        Icon(Icons.backup, color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
-                        Text('Backup e Dados',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text('Backup e Dados',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -210,11 +235,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.storage, color: theme.colorScheme.primary),
+                        Icon(Icons.storage, color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
-                        Text('Status do Banco de Dados',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text(MediaQuery.of(context).size.width < 600 ? 'Banco de Dados' : 'Status do Banco de Dados',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -271,11 +303,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.bug_report, color: theme.colorScheme.primary),
+                        Icon(Icons.bug_report, color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
-                        Text('Logs de Erro e Overflow',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text(MediaQuery.of(context).size.width < 600 ? 'Logs de Erro' : 'Logs de Erro e Overflow',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -369,11 +408,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.build, color: theme.colorScheme.primary),
+                        Icon(Icons.build, color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
-                        Text('Ações do Sistema',
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                        Expanded(
+                          child: Text('Ações do Sistema',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

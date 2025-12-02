@@ -116,42 +116,60 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Cabeçalho
-            Row(
-              children: [
-                Icon(
-                  Icons.notifications_active,
-                  color: theme.colorScheme.primary,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Alertas de Vacinação e Medicação',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                _counterChip(
-                  theme,
-                  label: 'Total',
-                  value: total,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                _counterChip(
-                  theme,
-                  label: 'Vacinas',
-                  value: _vaccines.length,
-                  color: Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                _counterChip(
-                  theme,
-                  label: 'Medicações',
-                  value: _meds.length,
-                  color: Colors.teal,
-                ),
-              ],
+            Builder(
+              builder: (context) {
+                final isMobile = MediaQuery.of(context).size.width < 600;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.notifications_active,
+                          color: theme.colorScheme.primary,
+                          size: isMobile ? 20 : 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isMobile ? 'Alertas Vacinação/Medicação' : 'Alertas de Vacinação e Medicação',
+                            style: (isMobile ? theme.textTheme.titleMedium : theme.textTheme.headlineSmall)?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _counterChip(
+                          theme,
+                          label: 'Total',
+                          value: total,
+                          color: theme.colorScheme.primary,
+                        ),
+                        _counterChip(
+                          theme,
+                          label: 'Vacinas',
+                          value: _vaccines.length,
+                          color: Colors.orange,
+                        ),
+                        _counterChip(
+                          theme,
+                          label: 'Medicações',
+                          value: _meds.length,
+                          color: Colors.teal,
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
 
