@@ -447,18 +447,18 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
         
         if (width < 600) {
           crossAxisCount = 2;
-          aspectRatio = 1.4; // Taller cards for mobile
+          aspectRatio = 1.1; // Mais alto para evitar overflow
         } else if (width < 900) {
           crossAxisCount = 2;
-          aspectRatio = 1.5;
+          aspectRatio = 1.3;
         }
         
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
           childAspectRatio: aspectRatio,
           children: [
             _buildStatCard(
@@ -603,6 +603,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     final isUnderweight = animal.weight < weightRange['min']!;
     final isOverweight = animal.weight > weightRange['max']!;
     final ageInMonths = _getAgeInMonths(animal.birthDate);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     Color statusColor = theme.colorScheme.tertiary;
     IconData statusIcon = Icons.check_circle;
@@ -611,13 +612,123 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     if (isUnderweight) {
       statusColor = theme.colorScheme.error;
       statusIcon = Icons.trending_down;
-      statusText = 'Abaixo do peso';
+      statusText = 'Abaixo';
     } else if (isOverweight) {
       statusColor = theme.colorScheme.secondary;
       statusIcon = Icons.trending_up;
-      statusText = 'Acima do peso';
+      statusText = 'Acima';
     }
 
+    if (isMobile) {
+      // Layout mobile: mais compacto e vertical
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Linha 1: Ícone + Nome + Peso
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(animal.speciesIcon, style: const TextStyle(fontSize: 18)),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        animal.name,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AnimalRecordDisplay.colorFromDescriptor(animal.nameColor) ?? theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        animal.code,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${animal.weight} kg',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 12, color: statusColor),
+                          const SizedBox(width: 2),
+                          Text(statusText, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Linha 2: Detalhes + botão editar
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text('${animal.breed}', style: theme.textTheme.bodySmall),
+                      Text('• $ageInMonths m', style: theme.textTheme.bodySmall),
+                      Text('• Ideal: ${weightRange['min']!.toInt()}-${weightRange['max']!.toInt()} kg', 
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: () => _showWeightEditDialog(animal),
+                  tooltip: 'Editar peso',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Layout desktop: horizontal original
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -634,10 +745,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
               color: statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              animal.speciesIcon,
-              style: const TextStyle(fontSize: 24),
-            ),
+            child: Text(animal.speciesIcon, style: const TextStyle(fontSize: 24)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -685,7 +793,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                     Icon(statusIcon, size: 14, color: statusColor),
                     const SizedBox(width: 4),
                     Text(
-                      statusText,
+                      isUnderweight ? 'Abaixo do peso' : (isOverweight ? 'Acima do peso' : 'Normal'),
                       style: TextStyle(
                         color: statusColor,
                         fontSize: 12,
