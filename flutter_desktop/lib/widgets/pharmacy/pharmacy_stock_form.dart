@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/pharmacy_stock.dart';
 import '../../services/pharmacy_service.dart';
+import '../../utils/responsive_utils.dart';
 
 class PharmacyStockForm extends StatefulWidget {
   final PharmacyStock? stock;
@@ -143,9 +144,12 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final dialogWidth = ResponsiveUtils.getDialogWidth(context);
+    
     return Dialog(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: BoxConstraints(maxWidth: dialogWidth, maxHeight: 700),
         child: Scaffold(
           appBar: AppBar(
             title: Text(widget.stock == null
@@ -159,7 +163,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
           body: Form(
             key: _formKey,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
               children: [
                 TextFormField(
                   controller: _nameController,
@@ -177,44 +181,91 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 ),
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedType,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.category),
-                        ),
-                        items: _types.map((type) {
-                          return DropdownMenuItem(
-                              value: type, child: Text(type));
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedType = value!);
-                        },
-                      ),
+                if (isMobile) ...[
+                  // Mobile: Stack dropdowns vertically
+                  DropdownButtonFormField<String>(
+                    value: _selectedType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedUnit,
-                        decoration: const InputDecoration(
-                          labelText: 'Unidade *',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: _units.map((unit) {
-                          return DropdownMenuItem(
-                              value: unit, child: Text(unit));
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedUnit = value!);
-                        },
-                      ),
+                    items: _types.map((type) {
+                      return DropdownMenuItem(
+                        value: type, 
+                        child: Text(type, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedType = value!);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedUnit,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Unidade *',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                ),
+                    items: _units.map((unit) {
+                      return DropdownMenuItem(
+                        value: unit, 
+                        child: Text(unit, overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedUnit = value!);
+                    },
+                  ),
+                ] else ...[
+                  // Desktop: Side by side
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedType,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.category),
+                          ),
+                          items: _types.map((type) {
+                            return DropdownMenuItem(
+                              value: type, 
+                              child: Text(type, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() => _selectedType = value!);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedUnit,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Unidade *',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _units.map((unit) {
+                            return DropdownMenuItem(
+                              value: unit, 
+                              child: Text(unit, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() => _selectedUnit = value!);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 // Mostrar campo de quantidade por recipiente apenas para ml/mg/g
@@ -246,49 +297,89 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   const SizedBox(height: 16),
                 ],
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _totalQuantityController,
-                        decoration: InputDecoration(
-                          labelText: _selectedUnit == 'unidade'
-                              ? 'Quantidade Total (unidades) *'
-                              : 'Quantidade de Recipientes *',
-                          hintText: _selectedUnit == 'unidade'
-                              ? 'Número de comprimidos/cápsulas'
-                              : 'Número de frascos/ampolas/embalagens',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.inventory),
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Quantidade é obrigatória';
-                          }
-                          final number =
-                              double.tryParse(value.replaceAll(',', '.'));
-                          if (number == null || number < 0) {
-                            return 'Quantidade inválida';
-                          }
-                          return null;
-                        },
-                      ),
+                if (isMobile) ...[
+                  // Mobile: Stack quantity fields vertically
+                  TextFormField(
+                    controller: _totalQuantityController,
+                    decoration: InputDecoration(
+                      labelText: _selectedUnit == 'unidade'
+                          ? 'Quantidade Total (unidades) *'
+                          : 'Quantidade de Recipientes *',
+                      hintText: _selectedUnit == 'unidade'
+                          ? 'Número de comprimidos/cápsulas'
+                          : 'Número de frascos/ampolas/embalagens',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.inventory),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _minStockController,
-                        decoration: const InputDecoration(
-                          labelText: 'Estoque Mínimo',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.warning_amber),
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Quantidade é obrigatória';
+                      }
+                      final number =
+                          double.tryParse(value.replaceAll(',', '.'));
+                      if (number == null || number < 0) {
+                        return 'Quantidade inválida';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _minStockController,
+                    decoration: const InputDecoration(
+                      labelText: 'Estoque Mínimo',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.warning_amber),
                     ),
-                  ],
-                ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ] else ...[
+                  // Desktop: Side by side
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _totalQuantityController,
+                          decoration: InputDecoration(
+                            labelText: _selectedUnit == 'unidade'
+                                ? 'Quantidade Total (unidades) *'
+                                : 'Quantidade de Recipientes *',
+                            hintText: _selectedUnit == 'unidade'
+                                ? 'Número de comprimidos/cápsulas'
+                                : 'Número de frascos/ampolas/embalagens',
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.inventory),
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Quantidade é obrigatória';
+                            }
+                            final number =
+                                double.tryParse(value.replaceAll(',', '.'));
+                            if (number == null || number < 0) {
+                              return 'Quantidade inválida';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _minStockController,
+                          decoration: const InputDecoration(
+                            labelText: 'Estoque Mínimo',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.warning_amber),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 InkWell(
