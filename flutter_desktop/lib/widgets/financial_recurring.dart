@@ -215,19 +215,20 @@ class _FinancialRecurringScreenState extends State<FinancialRecurringScreen> {
                         Text('Até: ${_date(account.recurrenceEndDate!)}'),
                     ],
                   ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _money(account.amount),
                         style: TextStyle(
                             color: color, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(width: 4),
                       IconButton(
                         tooltip: 'Excluir recorrência',
-                        icon: const Icon(Icons.delete_outline),
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                         onPressed: () => _deleteRecurring(account),
                       ),
                     ],

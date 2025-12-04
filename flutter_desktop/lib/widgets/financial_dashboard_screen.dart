@@ -76,14 +76,14 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
                   crossAxisCount: isMobile ? 1 : 2,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
-                  childAspectRatio: isMobile ? 3.5 : 2.5,
+                  childAspectRatio: isMobile ? 3.2 : 2.5,
                   children: [
-                    _buildStatCard('Saldo do Mês', (stats['balance'] as num?)?.toDouble() ?? 0.0, Icons.account_balance_wallet, ((stats['balance'] as num?)?.toDouble() ?? 0.0) >= 0 ? Colors.green : Colors.red),
-                    _buildStatCard('A Vencer (7 dias)', (stats['totalUpcoming'] as num?)?.toDouble() ?? 0.0, Icons.schedule, Colors.orange),
-                    _buildStatCard('Vencidas', (stats['totalOverdue'] as num?)?.toDouble() ?? 0.0, Icons.warning, Colors.red),
-                    _buildStatCard('Total Pendente', (stats['totalPending'] as num?)?.toDouble() ?? 0.0, Icons.pending, Colors.blue),
-                    _buildStatCard('Receitas do Mês', (stats['totalRevenue'] as num?)?.toDouble() ?? 0.0, Icons.arrow_upward, Colors.green),
-                    _buildStatCard('Despesas do Mês', (stats['totalExpense'] as num?)?.toDouble() ?? 0.0, Icons.arrow_downward, Colors.red),
+                    _buildStatCard('Saldo do Mês', (stats['balance'] as num?)?.toDouble() ?? 0.0, Icons.account_balance_wallet, ((stats['balance'] as num?)?.toDouble() ?? 0.0) >= 0 ? Colors.green : Colors.red, isMobile),
+                    _buildStatCard('A Vencer (7 dias)', (stats['totalUpcoming'] as num?)?.toDouble() ?? 0.0, Icons.schedule, Colors.orange, isMobile),
+                    _buildStatCard('Vencidas', (stats['totalOverdue'] as num?)?.toDouble() ?? 0.0, Icons.warning, Colors.red, isMobile),
+                    _buildStatCard('Total Pendente', (stats['totalPending'] as num?)?.toDouble() ?? 0.0, Icons.pending, Colors.blue, isMobile),
+                    _buildStatCard('Receitas do Mês', (stats['totalRevenue'] as num?)?.toDouble() ?? 0.0, Icons.arrow_upward, Colors.green, isMobile),
+                    _buildStatCard('Despesas do Mês', (stats['totalExpense'] as num?)?.toDouble() ?? 0.0, Icons.arrow_downward, Colors.red, isMobile),
                   ],
                 );
               },
@@ -176,35 +176,43 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
   }
 
   Widget _buildStatCard(
-      String title, double value, IconData icon, Color color) {
+      String title, double value, IconData icon, Color color, bool isMobile) {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Icon(icon, color: color, size: 24),
+                Icon(icon, color: color, size: isMobile ? 20 : 24),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                    maxLines: 2,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontSize: isMobile ? 12 : 14,
+                    ),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              _formatCurrency(value),
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _formatCurrency(value),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                      fontSize: isMobile ? 18 : 24,
+                    ),
+              ),
             ),
           ],
         ),
