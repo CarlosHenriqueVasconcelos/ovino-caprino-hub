@@ -268,41 +268,90 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   }) {
     final start = total == 0 ? 0 : (page * _pageSize) + 1;
     final end = ((page + 1) * _pageSize).clamp(0, total);
+    
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 400;
+        
+        if (isMobile) {
+          // Layout compacto para mobile
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '$start–$end/$total',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Anterior',
+                    onPressed: onPrev,
+                    icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                  IconButton(
+                    tooltip: 'Próximo',
+                    onPressed: onNext,
+                    icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
 
-    return Row(
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Divider(
-            color: theme.colorScheme.outline.withValues(alpha: 0.3),
-            thickness: 1,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$start–$end de $total',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          tooltip: 'Anterior',
-          onPressed: onPrev,
-          icon: const Icon(Icons.keyboard_arrow_up),
-        ),
-        IconButton(
-          tooltip: 'Próximo',
-          onPressed: onNext,
-          icon: const Icon(Icons.keyboard_arrow_down),
-        ),
-      ],
+        return Row(
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Divider(
+                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                thickness: 1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$start–$end de $total',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Anterior',
+              onPressed: onPrev,
+              icon: const Icon(Icons.keyboard_arrow_up),
+            ),
+            IconButton(
+              tooltip: 'Próximo',
+              onPressed: onNext,
+              icon: const Icon(Icons.keyboard_arrow_down),
+            ),
+          ],
+        );
+      },
     );
   }
 
