@@ -70,7 +70,7 @@ class HerdSectionState extends State<HerdSection>
   String? _categoryFilter;
 
   int _currentPage = 0;
-  int _itemsPerPage = 50;
+  int _itemsPerPage = 25; // Reduzido para melhor performance em mobile
 
   Future<List<Animal>>? _deceasedFuture;
   Future<HerdQueryResult>? _futurePage;

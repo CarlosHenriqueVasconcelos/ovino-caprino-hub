@@ -353,6 +353,9 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      addAutomaticKeepAlives: false, // Reduz memória
+      addRepaintBoundaries: true,    // Evita repaint desnecessário
+      cacheExtent: 500,              // Pre-carrega itens próximos
       itemCount: lambs.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
