@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../models/animal.dart';
 import '../../services/animal_delete_cascade.dart';
 import '../../services/animal_service.dart';
-import '../../services/data_refresh_bus.dart';
 import '../../services/deceased_service.dart';
 import '../../services/sold_animals_service.dart';
 import '../../services/events/event_bus.dart';
@@ -73,7 +72,6 @@ class HerdSectionState extends State<HerdSection>
   int _currentPage = 0;
   int _itemsPerPage = 50;
 
-  StreamSubscription<String>? _busSub;
   Future<List<Animal>>? _deceasedFuture;
   Future<HerdQueryResult>? _futurePage;
   List<String> _availableColors = [];
@@ -83,17 +81,8 @@ class HerdSectionState extends State<HerdSection>
   void initState() {
     super.initState();
     
-    // Sistema reativo aprimorado (FASE 3)
+    // Sistema reativo via EventBus
     _setupReactiveListeners();
-    
-    // Backward compatibility com DataRefreshBus
-    _busSub = DataRefreshBus.stream.listen((_) {
-      if (!mounted) return;
-      _refresh();
-      setState(() {
-        _deceasedFuture = _loadDeceasedAnimals(context);
-      });
-    });
     
     _deceasedFuture = _loadDeceasedAnimals(context);
     _loadFilters();
@@ -146,7 +135,6 @@ class HerdSectionState extends State<HerdSection>
 
   @override
   void dispose() {
-    _busSub?.cancel();
     _search.dispose();
     super.dispose();
   }

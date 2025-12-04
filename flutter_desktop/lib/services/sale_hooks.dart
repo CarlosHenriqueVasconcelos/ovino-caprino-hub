@@ -4,7 +4,8 @@
 
 import '../data/animal_lifecycle_repository.dart';
 import '../models/financial_account.dart';
-import 'data_refresh_bus.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 DateTime? _tryParseDate(dynamic v) {
   if (v == null) return null;
@@ -39,6 +40,10 @@ Future<void> handleAnimalSaleIfApplicable(
     notes: account.notes ?? account.description,
   );
 
-  // Notifica a UI
-  DataRefreshBus.emit('sold');
+  // Notifica a UI via EventBus
+  EventBus().emit(AnimalMarkedAsSoldEvent(
+    animalId: animalId,
+    saleDate: saleDateValue,
+    salePrice: account.amount,
+  ));
 }

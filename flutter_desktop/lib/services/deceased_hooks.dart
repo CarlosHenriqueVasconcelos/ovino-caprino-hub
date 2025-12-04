@@ -4,7 +4,8 @@
 // + service para listar animais falecidos para o Dashboard
 
 import '../data/animal_lifecycle_repository.dart';
-import 'data_refresh_bus.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 // -----------------------------------------------------------------------------
 // Hook: chamado pelo AnimalService quando o status muda para "Óbito"
@@ -16,5 +17,8 @@ Future<void> handleAnimalDeathIfApplicable(
 ) async {
   if (newStatus != 'Óbito') return;
   await repository.moveToDeceased(animalId);
-  DataRefreshBus.emit('deceased');
+  EventBus().emit(AnimalMarkedAsDeceasedEvent(
+    animalId: animalId,
+    deathDate: DateTime.now(),
+  ));
 }

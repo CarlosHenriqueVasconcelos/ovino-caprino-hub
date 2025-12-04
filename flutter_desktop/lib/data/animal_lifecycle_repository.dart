@@ -1,7 +1,8 @@
 import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
 
 import 'local_db.dart';
-import '../services/data_refresh_bus.dart';
+import '../services/events/event_bus.dart';
+import '../services/events/app_events.dart';
 
 class AnimalLifecycleRepository {
   final AppDatabase _appDb;
@@ -196,7 +197,11 @@ class AnimalLifecycleRepository {
         await txn.execute('PRAGMA foreign_keys = ON');
       }
     });
-    DataRefreshBus.emit('sold');
+    EventBus().emit(AnimalMarkedAsSoldEvent(
+      animalId: animalId,
+      saleDate: saleDate,
+      salePrice: salePrice,
+    ));
   }
 
   Future<void> moveToSoldManual({
@@ -333,6 +338,10 @@ class AnimalLifecycleRepository {
         await txn.execute('PRAGMA foreign_keys = ON');
       }
     });
-    DataRefreshBus.emit('sold');
+    EventBus().emit(AnimalMarkedAsSoldEvent(
+      animalId: animalId,
+      saleDate: saleDate ?? DateTime.now(),
+      salePrice: salePrice,
+    ));
   }
 }
