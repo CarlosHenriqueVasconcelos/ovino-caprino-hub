@@ -16,10 +16,10 @@ import 'reports_empty_state.dart';
 import 'reports_export_bar.dart';
 import 'reports_filter_panel.dart';
 import 'reports_models.dart';
-import 'reports/reports_summary_cards_row.dart';
-import 'reports/reports_table_area.dart';
-import 'reports/reports_view_switcher.dart';
-import 'common/pagination_bar.dart';
+import 'reports_summary_cards_row.dart';
+import 'reports_table_area.dart';
+import 'reports_view_switcher.dart';
+import '../common/pagination_bar.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});
