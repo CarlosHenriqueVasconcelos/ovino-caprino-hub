@@ -106,12 +106,6 @@ class DashboardQuickActions extends StatelessWidget {
                     onTap: showMedicationDialog,
                   ),
                   _QuickActionData(
-                    title: 'Gerar Relatório',
-                    icon: Icons.description,
-                    color: Colors.purple,
-                    onTap: () => openModal(const ReportsHubScreen()),
-                  ),
-                  _QuickActionData(
                     title: 'Histórico Completo',
                     icon: Icons.history,
                     color: Colors.orange,
@@ -120,36 +114,6 @@ class DashboardQuickActions extends StatelessWidget {
                         builder: (_) => const HistoryScreen(),
                       ),
                     ),
-                  ),
-                  _QuickActionData(
-                    title: 'Financeiro',
-                    icon: Icons.attach_money,
-                    color: Colors.green,
-                    onTap: () => openModal(const FinancialCompleteScreen()),
-                  ),
-                  _QuickActionData(
-                    title: 'Farmácia',
-                    icon: Icons.local_pharmacy,
-                    color: Colors.redAccent,
-                    onTap: () => openModal(const PharmacyManagementScreen()),
-                  ),
-                  _QuickActionData(
-                    title: 'Medicações',
-                    icon: Icons.medical_services,
-                    color: Colors.indigo,
-                    onTap: () => openModal(const MedicationManagementScreen()),
-                  ),
-                  _QuickActionData(
-                    title: 'Anotações',
-                    icon: Icons.note_alt,
-                    color: Colors.brown,
-                    onTap: () => openModal(const NotesManagementScreen()),
-                  ),
-                  _QuickActionData(
-                    title: 'Configurações',
-                    icon: Icons.settings,
-                    color: Colors.grey,
-                    onTap: () => openModal(const SystemSettingsScreen()),
                   ),
                 ];
 

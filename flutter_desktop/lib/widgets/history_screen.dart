@@ -600,6 +600,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildActivityStats(ThemeData theme) {
     final now = DateTime.now();
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     final today = _historyItems
         .where((item) => now.difference(item.timestamp).inDays == 0)
@@ -613,38 +614,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
         .where((item) => now.difference(item.timestamp).inDays <= 30)
         .length;
 
+    final cards = [
+      _buildStatCard(
+        'Hoje',
+        '$today',
+        Icons.today,
+        theme.colorScheme.primary,
+        theme,
+        isMobile,
+      ),
+      _buildStatCard(
+        'Semana',
+        '$thisWeek',
+        Icons.calendar_view_week,
+        theme.colorScheme.secondary,
+        theme,
+        isMobile,
+      ),
+      _buildStatCard(
+        'Mês',
+        '$thisMonth',
+        Icons.calendar_month,
+        theme.colorScheme.tertiary,
+        theme,
+        isMobile,
+      ),
+    ];
+
     return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Hoje',
-            '$today',
-            Icons.today,
-            theme.colorScheme.primary,
-            theme,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Esta Semana',
-            '$thisWeek',
-            Icons.calendar_view_week,
-            theme.colorScheme.secondary,
-            theme,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
-            'Este Mês',
-            '$thisMonth',
-            Icons.calendar_month,
-            theme.colorScheme.tertiary,
-            theme,
-          ),
-        ),
-      ],
+      children: cards
+          .expand((card) => [Expanded(child: card), const SizedBox(width: 8)])
+          .toList()
+        ..removeLast(),
     );
   }
 
@@ -654,30 +655,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     IconData icon,
     Color color,
     ThemeData theme,
+    bool isMobile,
   ) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 8 : 16),
         child: Column(
           children: [
             Row(
               children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                Icon(icon, color: color, size: isMobile ? 16 : 20),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontSize: isMobile ? 11 : 14,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               value,
-              style: theme.textTheme.headlineMedium?.copyWith(
+              style: theme.textTheme.headlineSmall?.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 18 : 24,
               ),
             ),
           ],

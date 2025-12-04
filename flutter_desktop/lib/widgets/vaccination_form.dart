@@ -251,53 +251,110 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                 const SizedBox(height: 16),
 
                 // Dates
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            locale: const Locale('pt', 'BR'),
-                            initialDate: _scheduledDate,
-                            firstDate: DateTime.now()
-                                .subtract(const Duration(days: 365)),
-                            lastDate:
-                                DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _scheduledDate = date;
-                            });
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Data Agendada *',
-                            border: OutlineInputBorder(),
-                            suffixIcon: Icon(Icons.calendar_today),
+                isMobile
+                    ? Column(
+                        children: [
+                          InkWell(
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                locale: const Locale('pt', 'BR'),
+                                initialDate: _scheduledDate,
+                                firstDate: DateTime.now()
+                                    .subtract(const Duration(days: 365)),
+                                lastDate:
+                                    DateTime.now().add(const Duration(days: 365)),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  _scheduledDate = date;
+                                });
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Data Agendada *',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.calendar_today),
+                              ),
+                              child: Text(
+                                '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
+                              ),
+                            ),
                           ),
-                          child: Text(
-                            '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _status,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Status',
+                              border: OutlineInputBorder(),
+                            ),
+                            items:
+                                ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
+                              return DropdownMenuItem(
+                                value: status,
+                                child: Text(status),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _status = value!;
+                                if (_status == 'Aplicada') {
+                                  _appliedDate ??= DateTime.now();
+                                }
+                              });
+                            },
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _status,
-                        decoration: const InputDecoration(
-                          labelText: 'Status',
-                          border: OutlineInputBorder(),
-                        ),
-                        items:
-                            ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
-                          return DropdownMenuItem(
-                            value: status,
-                            child: Text(status),
-                          );
-                        }).toList(),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final date = await showDatePicker(
+                                  context: context,
+                                  locale: const Locale('pt', 'BR'),
+                                  initialDate: _scheduledDate,
+                                  firstDate: DateTime.now()
+                                      .subtract(const Duration(days: 365)),
+                                  lastDate:
+                                      DateTime.now().add(const Duration(days: 365)),
+                                );
+                                if (date != null) {
+                                  setState(() {
+                                    _scheduledDate = date;
+                                  });
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Data Agendada *',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(Icons.calendar_today),
+                                ),
+                                child: Text(
+                                  '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _status,
+                              decoration: const InputDecoration(
+                                labelText: 'Status',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
+                                return DropdownMenuItem(
+                                  value: status,
+                                  child: Text(status),
+                                );
+                              }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _status = value!;
