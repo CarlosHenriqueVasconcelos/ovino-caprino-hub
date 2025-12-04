@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import '../data/feeding_repository.dart';
 import '../models/feeding_pen.dart';
 import '../models/feeding_schedule.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 /// Service para gerenciar lógica de alimentação (baias e tratos)
 class FeedingService extends ChangeNotifier {
@@ -54,6 +56,12 @@ class FeedingService extends ChangeNotifier {
   Future<void> addPen(FeedingPen pen) async {
     try {
       await _repository.insertPen(pen);
+      
+      EventBus().emit(FeedingPenCreatedEvent(
+        penId: pen.id,
+        name: pen.name,
+      ));
+      
       await loadPens();
     } catch (e) {
       _error = 'Erro ao adicionar baia: $e';
@@ -67,6 +75,9 @@ class FeedingService extends ChangeNotifier {
   Future<void> updatePen(FeedingPen pen) async {
     try {
       await _repository.updatePen(pen);
+      
+      EventBus().emit(FeedingPenUpdatedEvent(penId: pen.id));
+      
       await loadPens();
     } catch (e) {
       _error = 'Erro ao atualizar baia: $e';
@@ -80,6 +91,9 @@ class FeedingService extends ChangeNotifier {
   Future<void> deletePen(String penId) async {
     try {
       await _repository.deletePen(penId);
+      
+      EventBus().emit(FeedingPenDeletedEvent(penId: penId));
+      
       await loadPens();
     } catch (e) {
       _error = 'Erro ao deletar baia: $e';
@@ -94,9 +108,13 @@ class FeedingService extends ChangeNotifier {
     try {
       await _repository.insertSchedule(schedule);
 
-      // Recarregar schedules da baia específica
       _schedulesByPen[schedule.penId] =
           await _repository.getSchedulesByPenId(schedule.penId);
+
+      EventBus().emit(FeedingScheduleCreatedEvent(
+        scheduleId: schedule.id,
+        penId: schedule.penId,
+      ));
 
       notifyListeners();
     } catch (e) {
@@ -112,9 +130,13 @@ class FeedingService extends ChangeNotifier {
     try {
       await _repository.updateSchedule(schedule);
 
-      // Recarregar schedules da baia específica
       _schedulesByPen[schedule.penId] =
           await _repository.getSchedulesByPenId(schedule.penId);
+
+      EventBus().emit(FeedingScheduleUpdatedEvent(
+        scheduleId: schedule.id,
+        penId: schedule.penId,
+      ));
 
       notifyListeners();
     } catch (e) {
@@ -130,8 +152,12 @@ class FeedingService extends ChangeNotifier {
     try {
       await _repository.deleteSchedule(scheduleId);
 
-      // Recarregar schedules da baia específica
       _schedulesByPen[penId] = await _repository.getSchedulesByPenId(penId);
+
+      EventBus().emit(FeedingScheduleDeletedEvent(
+        scheduleId: scheduleId,
+        penId: penId,
+      ));
 
       notifyListeners();
     } catch (e) {

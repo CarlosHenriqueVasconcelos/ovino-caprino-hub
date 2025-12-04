@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../data/medication_repository.dart';
 import '../data/vaccination_repository.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 class VaccinationAlertsData {
   final List<Map<String, dynamic>> vaccines;
@@ -238,7 +240,12 @@ class VaccinationService extends ChangeNotifier {
       // Inserir no banco local
       await _repository.insert(v);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(VaccinationCreatedEvent(
+        vaccinationId: v['id']?.toString() ?? '',
+        animalId: v['animal_id']?.toString() ?? '',
+        vaccineName: v['vaccine_name']?.toString() ?? '',
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao criar vacinação: $e');
@@ -264,7 +271,12 @@ class VaccinationService extends ChangeNotifier {
       // Atualizar no banco local
       await _repository.update(id, v);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(VaccinationUpdatedEvent(
+        vaccinationId: id,
+        animalId: v['animal_id']?.toString() ?? '',
+        status: v['status']?.toString() ?? '',
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao atualizar vacinação: $e');
@@ -275,10 +287,17 @@ class VaccinationService extends ChangeNotifier {
   /// Deleta uma vacinação
   Future<void> deleteVaccination(String id) async {
     try {
-      // Deletar no banco local
+      // Buscar dados antes de deletar para emitir evento
+      final existing = await _repository.getById(id);
+      final animalId = existing?['animal_id']?.toString() ?? '';
+      
       await _repository.delete(id);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(VaccinationDeletedEvent(
+        vaccinationId: id,
+        animalId: animalId,
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao deletar vacinação: $e');
