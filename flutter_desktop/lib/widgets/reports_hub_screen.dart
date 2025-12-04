@@ -256,19 +256,28 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       barrierDismissible: false,
       barrierColor: Colors.black54,
       builder: (ctx) {
-        final isMobile = MediaQuery.of(ctx).size.width < 600;
+        final mediaQuery = MediaQuery.of(ctx);
+        final isMobile = mediaQuery.size.width < 600;
+        final keyboardHeight = mediaQuery.viewInsets.bottom;
+        
         return StatefulBuilder(
           builder: (ctx, setState) {
-            return AlertDialog(
-              title: const Text('Acesso Protegido'),
-              content: SingleChildScrollView(
-                child: Column(
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 100),
+              padding: EdgeInsets.only(bottom: keyboardHeight),
+              child: AlertDialog(
+                insetPadding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 16 : 40,
+                  vertical: isMobile ? 24 : 24,
+                ),
+                title: const Text('Acesso Protegido'),
+                content: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
                       isMobile 
-                        ? 'Digite a senha para acessar:' 
+                        ? 'Digite a senha:' 
                         : 'Digite a senha para acessar os relatórios financeiros:',
                       style: TextStyle(fontSize: isMobile ? 14 : null),
                     ),
@@ -280,9 +289,10 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                         labelText: 'Senha',
                         border: const OutlineInputBorder(),
                         errorText: error,
+                        isDense: isMobile,
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: 12,
-                          vertical: isMobile ? 12 : 16,
+                          vertical: isMobile ? 10 : 16,
                         ),
                       ),
                       onChanged: (v) => input = v,
@@ -298,25 +308,25 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                     ),
                   ],
                 ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      if (input == _kReportsFinancePin) {
+                        Navigator.pop(ctx, true);
+                      } else {
+                        setState(
+                          () => error = 'Senha incorreta. Tente novamente.',
+                        );
+                      }
+                    },
+                    child: const Text('Confirmar'),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    if (input == _kReportsFinancePin) {
-                      Navigator.pop(ctx, true);
-                    } else {
-                      setState(
-                        () => error = 'Senha incorreta. Tente novamente.',
-                      );
-                    }
-                  },
-                  child: const Text('Confirmar'),
-                ),
-              ],
             );
           },
         );
