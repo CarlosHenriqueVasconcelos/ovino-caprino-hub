@@ -7,7 +7,8 @@ import '../widgets/responsive/responsive_actions.dart';
 import 'animal_history_dialog.dart';
 import '../data/animal_repository.dart';
 import '../services/animal_service.dart';
-import '../services/data_refresh_bus.dart';
+import '../services/events/event_bus.dart';
+import '../services/events/app_events.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
@@ -216,7 +217,11 @@ class AnimalCard extends StatelessWidget {
                                 .updateAnimal(animal.copyWith(status: 'Óbito'));
                           }
                           if (!context.mounted) return;
-                          DataRefreshBus.emit('deceased');
+                          EventBus().emit(AnimalMarkedAsDeceasedEvent(
+                            animalId: animal.id,
+                            deathDate: DateTime.now(),
+                            causeOfDeath: animal.healthIssue,
+                          ));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Animal registrado como óbito'),
