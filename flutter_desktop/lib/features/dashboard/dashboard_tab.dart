@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/animal.dart';
 import '../../services/animal_service.dart';
-import '../../widgets/animal_form.dart';
+import '../../widgets/animal/animal_form.dart';
 import 'widgets/dashboard_alerts_section.dart';
 import 'widgets/dashboard_header.dart';
 import 'widgets/dashboard_quick_actions.dart';

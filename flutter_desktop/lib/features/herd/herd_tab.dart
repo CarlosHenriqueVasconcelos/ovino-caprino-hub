@@ -9,7 +9,7 @@ import '../../services/deceased_service.dart';
 import '../../services/sold_animals_service.dart';
 import '../../services/events/event_bus.dart';
 import '../../services/events/app_events.dart';
-import '../../widgets/animal_form.dart';
+import '../../widgets/animal/animal_form.dart';
 import '../../data/animal_repository.dart';
 import '../../utils/responsive_utils.dart';
 import '../../widgets/herd/herd_actions_bar.dart';

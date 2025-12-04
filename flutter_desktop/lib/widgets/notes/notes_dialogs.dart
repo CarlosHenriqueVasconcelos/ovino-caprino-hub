@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/animal_record_display.dart';
-import '../notes_form.dart';
+import 'notes_form.dart';
 import 'notes_helpers.dart';
 
 Future<bool?> showAddNoteDialog(BuildContext context) {
