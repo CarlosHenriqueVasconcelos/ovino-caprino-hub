@@ -704,7 +704,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      Text(animal.breed, style: theme.textTheme.bodySmall),
+                      Text('${animal.breed}', style: theme.textTheme.bodySmall),
                       Text('• $ageInMonths m', style: theme.textTheme.bodySmall),
                       Text('• Ideal: ${weightRange['min']!.toInt()}-${weightRange['max']!.toInt()} kg', 
                         style: theme.textTheme.bodySmall?.copyWith(
