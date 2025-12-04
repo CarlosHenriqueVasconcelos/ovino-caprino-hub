@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/animal.dart';
-import '../../../widgets/stats_card.dart';
+import '../../../widgets/common/stats_card.dart';
 
 class DashboardKpiRow extends StatelessWidget {
   final AnimalStats stats;

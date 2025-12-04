@@ -9,15 +9,15 @@ import '../../../services/animal_service.dart';
 import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
 import '../../../utils/animal_display_utils.dart';
-import '../../../widgets/animal_form.dart';
-import '../../../widgets/financial_complete_screen.dart';
-import '../../../widgets/history_screen.dart';
-import '../../../widgets/medication_management_screen.dart';
-import '../../../widgets/notes_management_screen.dart';
-import '../../../widgets/pharmacy_management_screen.dart';
-import '../../../widgets/reports_hub_screen.dart';
-import '../../../widgets/system_settings_screen.dart';
-import '../../../widgets/vaccination_form.dart';
+import '../../../widgets/animal/animal_form.dart';
+import '../../../widgets/financial/financial_complete_screen.dart';
+import '../../../widgets/system/history_screen.dart';
+import '../../../widgets/medication/medication_management_screen.dart';
+import '../../../widgets/notes/notes_management_screen.dart';
+import '../../../widgets/pharmacy/pharmacy_management_screen.dart';
+import '../../../widgets/reports/reports_hub_screen.dart';
+import '../../../widgets/system/system_settings_screen.dart';
+import '../../../widgets/vaccination/vaccination_form.dart';
 
 class DashboardQuickActions extends StatelessWidget {
   final void Function(int) onGoToTab;
