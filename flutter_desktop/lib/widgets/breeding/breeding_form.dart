@@ -1,13 +1,13 @@
-// lib/widgets/breeding_form.dart
+// lib/widgets/breeding/breeding_form.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../services/animal_service.dart';
-import '../services/breeding_service.dart';
-import '../models/animal.dart';
-import '../models/breeding_record.dart';
-import '../utils/animal_display_utils.dart';
+import '../../services/animal_service.dart';
+import '../../services/breeding_service.dart';
+import '../../models/animal.dart';
+import '../../models/breeding_record.dart';
+import '../../utils/animal_display_utils.dart';
 
 class BreedingFormDialog extends StatefulWidget {
   const BreedingFormDialog({super.key});
