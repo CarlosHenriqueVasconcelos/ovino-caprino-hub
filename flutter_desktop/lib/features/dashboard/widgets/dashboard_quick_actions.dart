@@ -10,6 +10,7 @@ import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../widgets/animal/animal_form.dart';
+import '../../../widgets/system/history_screen.dart';
 import '../../../widgets/vaccination/vaccination_form.dart';
 
 class DashboardQuickActions extends StatelessWidget {
@@ -84,7 +85,7 @@ class DashboardQuickActions extends StatelessWidget {
                     color: Colors.orange,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const HistoryScreen(),
+                        builder: (_) => HistoryScreen(),
                       ),
                     ),
                   ),
