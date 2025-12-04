@@ -256,38 +256,48 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       barrierDismissible: false,
       barrierColor: Colors.black54,
       builder: (ctx) {
+        final isMobile = MediaQuery.of(ctx).size.width < 600;
         return StatefulBuilder(
           builder: (ctx, setState) {
             return AlertDialog(
               title: const Text('Acesso Protegido'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Digite a senha para acessar os relatórios financeiros:',
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    autofocus: true,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Senha',
-                      border: const OutlineInputBorder(),
-                      errorText: error,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      isMobile 
+                        ? 'Digite a senha para acessar:' 
+                        : 'Digite a senha para acessar os relatórios financeiros:',
+                      style: TextStyle(fontSize: isMobile ? 14 : null),
                     ),
-                    onChanged: (v) => input = v,
-                    onSubmitted: (_) {
-                      if (input == _kReportsFinancePin) {
-                        Navigator.pop(ctx, true);
-                      } else {
-                        setState(
-                          () => error = 'Senha incorreta. Tente novamente.',
-                        );
-                      }
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      autofocus: true,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: 'Senha',
+                        border: const OutlineInputBorder(),
+                        errorText: error,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: isMobile ? 12 : 16,
+                        ),
+                      ),
+                      onChanged: (v) => input = v,
+                      onSubmitted: (_) {
+                        if (input == _kReportsFinancePin) {
+                          Navigator.pop(ctx, true);
+                        } else {
+                          setState(
+                            () => error = 'Senha incorreta. Tente novamente.',
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
