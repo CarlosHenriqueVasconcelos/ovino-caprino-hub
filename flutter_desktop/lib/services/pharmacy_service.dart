@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 import '../models/pharmacy_stock.dart';
 import '../models/pharmacy_stock_movement.dart';
 import '../data/pharmacy_repository.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 class PharmacyService extends ChangeNotifier {
   final PharmacyRepository _repository;
@@ -53,7 +55,12 @@ class PharmacyService extends ChangeNotifier {
         );
       }
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(PharmacyStockCreatedEvent(
+        stockId: stock.id,
+        medicationName: stock.medicationName,
+      ));
+
+      notifyListeners();
     } catch (e) {
       debugPrint('Erro ao criar medicamento: $e');
       rethrow;
@@ -65,7 +72,13 @@ class PharmacyService extends ChangeNotifier {
     try {
       await _repository.updateStock(stock);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(PharmacyStockUpdatedEvent(
+        stockId: id,
+        medicationName: stock.medicationName,
+        totalQuantity: stock.totalQuantity,
+      ));
+
+      notifyListeners();
     } catch (e) {
       debugPrint('Erro ao atualizar medicamento: $e');
       rethrow;
@@ -75,10 +88,11 @@ class PharmacyService extends ChangeNotifier {
   // Deletar medicamento
   Future<void> deleteMedication(String id) async {
     try {
-      // Repository já cuida da lógica de deleção
       await _repository.deleteStock(id);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(PharmacyStockDeletedEvent(stockId: id));
+
+      notifyListeners();
     } catch (e) {
       debugPrint('Erro ao deletar medicamento: $e');
       rethrow;

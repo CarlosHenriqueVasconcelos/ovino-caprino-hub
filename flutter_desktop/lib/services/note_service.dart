@@ -1,6 +1,8 @@
 // lib/services/note_service.dart
 import 'package:flutter/foundation.dart';
 import '../data/note_repository.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 /// Service para gerenciar lógica de anotações.
 ///
@@ -37,6 +39,12 @@ class NoteService extends ChangeNotifier {
   Future<void> createNote(Map<String, dynamic> note) async {
     try {
       await _repository.insert(note);
+      
+      EventBus().emit(NoteCreatedEvent(
+        noteId: note['id']?.toString() ?? '',
+        animalId: note['animal_id']?.toString(),
+        category: note['category']?.toString() ?? '',
+      ));
     } catch (e, stack) {
       debugPrint('Erro ao criar anotação: $e');
       debugPrint(stack.toString());
@@ -48,6 +56,11 @@ class NoteService extends ChangeNotifier {
   Future<void> updateNote(String id, Map<String, dynamic> updates) async {
     try {
       await _repository.update(id, updates);
+      
+      EventBus().emit(NoteUpdatedEvent(
+        noteId: id,
+        isRead: updates['is_read'] as bool?,
+      ));
     } catch (e, stack) {
       debugPrint('Erro ao atualizar anotação: $e');
       debugPrint(stack.toString());
@@ -59,6 +72,8 @@ class NoteService extends ChangeNotifier {
   Future<void> deleteNote(String id) async {
     try {
       await _repository.delete(id);
+      
+      EventBus().emit(NoteDeletedEvent(noteId: id));
     } catch (e, stack) {
       debugPrint('Erro ao excluir anotação: $e');
       debugPrint(stack.toString());

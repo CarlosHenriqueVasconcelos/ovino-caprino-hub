@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../data/animal_repository.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 /// Service para gerenciar registros de peso dos animais
 class WeightService extends ChangeNotifier {
@@ -26,6 +28,14 @@ class WeightService extends ChangeNotifier {
     String? milestone,
   }) async {
     await _repository.addWeight(animalId, date, weight, milestone: milestone);
+    
+    EventBus().emit(WeightAddedEvent(
+      animalId: animalId,
+      weight: weight,
+      date: date,
+      milestone: milestone,
+    ));
+    
     notifyListeners();
   }
 

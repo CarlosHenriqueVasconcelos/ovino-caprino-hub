@@ -7,6 +7,8 @@ import '../data/animal_repository.dart';
 import '../data/breeding_repository.dart';
 import '../models/animal.dart';
 import '../models/breeding_record.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 class BreedingEvent {
   final String label; // ex: "Ultrassom", "Parto previsto"
@@ -206,6 +208,13 @@ class BreedingService extends ChangeNotifier {
 
     await _repository.insert(record);
     _invalidateBoardCache();
+    
+    EventBus().emit(BreedingRecordCreatedEvent(
+      recordId: record.id,
+      femaleAnimalId: record.femaleAnimalId,
+      maleAnimalId: record.maleAnimalId,
+    ));
+    
     notifyListeners();
   }
 
@@ -291,6 +300,13 @@ class BreedingService extends ChangeNotifier {
 
     await _repository.update(updated);
     _invalidateBoardCache();
+    
+    EventBus().emit(BreedingRecordUpdatedEvent(
+      recordId: breedingId,
+      stage: updated.stage.value,
+      status: updated.status,
+    ));
+    
     notifyListeners();
   }
 

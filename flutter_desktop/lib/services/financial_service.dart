@@ -3,6 +3,8 @@ import '../data/animal_lifecycle_repository.dart';
 import '../data/finance_repository.dart';
 import '../models/financial_account.dart';
 import 'sale_hooks.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 class FinancialService {
   final FinanceRepository _repository;
@@ -20,15 +22,28 @@ class FinancialService {
   Future<void> createAccount(FinancialAccount account) async {
     await _repository.insertAccount(account);
     await handleAnimalSaleIfApplicable(_lifecycleRepository, account);
+    
+    EventBus().emit(FinancialAccountCreatedEvent(
+      accountId: account.id,
+      type: account.type,
+      amount: account.amount,
+    ));
   }
 
   Future<void> updateAccount(FinancialAccount account) async {
     await _repository.updateAccount(account);
     await handleAnimalSaleIfApplicable(_lifecycleRepository, account);
+    
+    EventBus().emit(FinancialAccountUpdatedEvent(
+      accountId: account.id,
+      status: account.status,
+    ));
   }
 
   Future<void> deleteAccount(String id) async {
     await _repository.deleteAccount(id);
+    
+    EventBus().emit(FinancialAccountDeletedEvent(accountId: id));
   }
 
   Future<FinancialAccount> getById(String id) async {

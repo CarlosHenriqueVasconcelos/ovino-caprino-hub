@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../data/medication_repository.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 /// Service para gerenciar medicações
 class MedicationService extends ChangeNotifier {
@@ -227,7 +229,12 @@ class MedicationService extends ChangeNotifier {
       // Inserir no banco local
       await _repository.insert(m);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(MedicationCreatedEvent(
+        medicationId: m['id']?.toString() ?? '',
+        animalId: m['animal_id']?.toString() ?? '',
+        medicationName: m['medication_name']?.toString() ?? '',
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao criar medicação: $e');
@@ -255,7 +262,12 @@ class MedicationService extends ChangeNotifier {
       // Atualizar no banco local
       await _repository.update(id, m);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(MedicationUpdatedEvent(
+        medicationId: id,
+        animalId: m['animal_id']?.toString() ?? '',
+        status: m['status']?.toString() ?? '',
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao atualizar medicação: $e');
@@ -266,10 +278,17 @@ class MedicationService extends ChangeNotifier {
   /// Deleta uma medicação
   Future<void> deleteMedication(String id) async {
     try {
-      // Deletar no banco local
+      // Buscar dados antes de deletar
+      final existing = await _repository.getById(id);
+      final animalId = existing?['animal_id']?.toString() ?? '';
+      
       await _repository.delete(id);
 
-      // Nota: Sincronização com Supabase é feita apenas via backup manual
+      EventBus().emit(MedicationDeletedEvent(
+        medicationId: id,
+        animalId: animalId,
+      ));
+
       notifyListeners();
     } catch (e) {
       debugPrint('Erro ao deletar medicação: $e');
