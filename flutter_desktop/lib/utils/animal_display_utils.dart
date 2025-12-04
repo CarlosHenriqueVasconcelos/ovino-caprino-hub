@@ -42,26 +42,29 @@ class AnimalDisplayUtils {
     return _colorValues[colorKey] ?? Colors.grey;
   }
 
-  /// Extrai o número do código do animal
-  static int extractNumber(String code) {
-    final match = RegExp(r'\d+').firstMatch(code);
+  /// Extrai o número de uma string (nome ou código)
+  static int extractNumber(String text) {
+    final match = RegExp(r'\d+').firstMatch(text);
     return match != null ? int.parse(match.group(0)!) : 0;
   }
 
-  /// Ordena a lista de animais por cor e depois por código numérico
+  /// Ordena a lista de animais por cor e depois pelo nome numérico (crescente)
   static void sortAnimalsList(List<Animal> animals) {
     animals.sort((a, b) {
-      // Primeiro ordenar por cor
-      final colorA = a.nameColor;
-      final colorB = b.nameColor;
+      // Primeiro ordenar por cor alfabeticamente
+      final colorA = a.nameColor.toLowerCase();
+      final colorB = b.nameColor.toLowerCase();
       final colorCompare = colorA.compareTo(colorB);
 
       if (colorCompare != 0) return colorCompare;
 
-      // Depois ordenar por código numérico
-      final numA = extractNumber(a.code);
-      final numB = extractNumber(b.code);
-      return numA.compareTo(numB);
+      // Depois ordenar pelo nome numérico (crescente)
+      final numA = extractNumber(a.name);
+      final numB = extractNumber(b.name);
+      if (numA != numB) return numA.compareTo(numB);
+
+      // Se números iguais, ordenar alfabeticamente pelo nome completo
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
   }
 
