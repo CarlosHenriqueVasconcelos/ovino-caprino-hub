@@ -38,9 +38,11 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
           return _buildEmptyState(theme);
         }
 
+        final isMobile = MediaQuery.of(context).size.width < 600;
+        
         return Card(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(isMobile ? 12 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -48,31 +50,37 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
                   children: [
                     Icon(
                       Icons.monitor_weight,
-                      size: 28,
+                      size: isMobile ? 20 : 28,
                       color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Alertas de Pesagem',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    SizedBox(width: isMobile ? 8 : 12),
+                    Expanded(
+                      child: Text(
+                        isMobile ? 'Alertas Pesagem' : 'Alertas de Pesagem',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 14 : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : 12,
+                        vertical: isMobile ? 4 : 6,
                       ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${alerts.length} pendente${alerts.length != 1 ? 's' : ''}',
+                        '${alerts.length}',
                         style: TextStyle(
                           color: theme.colorScheme.error,
                           fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? 12 : 14,
                         ),
                       ),
                     ),
