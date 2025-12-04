@@ -214,7 +214,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                                 aspect = 1.9;
                               } else if (width <= 700) {
                                 crossAxisCount = 1;
-                                aspect = 1.8; // Mais alto para caber todo conteúdo
+                                aspect = 1.5; // Mais alto para caber todo conteúdo
                               } else {
                                 aspect = 1.9;
                               }
