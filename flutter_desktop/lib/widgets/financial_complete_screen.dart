@@ -83,54 +83,81 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
+        final isMobile = MediaQuery.of(ctx).size.width < 600;
+        
         return StatefulBuilder(
           builder: (ctx, setState) {
-            return AlertDialog(
-              title: const Text('Área Financeira'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Digite a senha para acessar.'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    autofocus: true,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Senha',
-                      border: const OutlineInputBorder(),
-                      errorText: error,
-                    ),
-                    onChanged: (v) => input = v,
-                    onSubmitted: (_) {
-                      if (input == expected) {
-                        Navigator.pop(ctx, true);
-                      } else {
-                        setState(
-                            () => error = 'Senha incorreta. Tente novamente.');
-                      }
-                    },
-                  ),
-                ],
+            return Dialog(
+              insetPadding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 40,
+                vertical: 24,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pop(ctx, false), // apenas fecha o diálogo
-                  child: const Text('Cancelar'),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Área Financeira',
+                        style: Theme.of(ctx).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        isMobile ? 'Digite a senha:' : 'Digite a senha para acessar.',
+                        style: TextStyle(fontSize: isMobile ? 14 : null),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        autofocus: true,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: 'Senha',
+                          border: const OutlineInputBorder(),
+                          errorText: error,
+                          isDense: isMobile,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: isMobile ? 10 : 16,
+                          ),
+                        ),
+                        onChanged: (v) => input = v,
+                        onSubmitted: (_) {
+                          if (input == expected) {
+                            Navigator.pop(ctx, true);
+                          } else {
+                            setState(
+                                () => error = 'Senha incorreta. Tente novamente.');
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () {
+                              if (input == expected) {
+                                Navigator.pop(ctx, true);
+                              } else {
+                                setState(
+                                    () => error = 'Senha incorreta. Tente novamente.');
+                              }
+                            },
+                            child: const Text('Entrar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                FilledButton(
-                  onPressed: () {
-                    if (input == expected) {
-                      Navigator.pop(ctx, true);
-                    } else {
-                      setState(
-                          () => error = 'Senha incorreta. Tente novamente.');
-                    }
-                  },
-                  child: const Text('Entrar'),
-                ),
-              ],
+              ),
             );
           },
         );
