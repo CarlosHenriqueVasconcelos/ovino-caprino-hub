@@ -221,62 +221,89 @@ class _NoteCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        categoryChip,
-                        const SizedBox(width: 8),
-                        priorityChip,
-                        const Spacer(),
-                        if (createdBy.isNotEmpty)
-                          Row(
+                    Builder(
+                      builder: (context) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        if (isMobile) {
+                          // Layout mobile: empilhado
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.person_outline,
-                                size: 16,
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.7),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  categoryChip,
+                                  priorityChip,
+                                  if (createdBy.isNotEmpty)
+                                    Chip(
+                                      avatar: Icon(Icons.person_outline, size: 14, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                                      label: Text(createdBy, style: theme.textTheme.bodySmall),
+                                      padding: EdgeInsets.zero,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                ],
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                createdBy,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7),
-                                ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  if (!isRead && onMarkAsRead != null)
+                                    Expanded(
+                                      child: TextButton.icon(
+                                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                                        label: const Text('Lida', style: TextStyle(fontSize: 12)),
+                                        onPressed: onMarkAsRead,
+                                      ),
+                                    ),
+                                  if (onDelete != null)
+                                    Expanded(
+                                      child: TextButton.icon(
+                                        style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+                                        icon: const Icon(Icons.delete_outline, size: 18),
+                                        label: const Text('Excluir', style: TextStyle(fontSize: 12)),
+                                        onPressed: () => onDelete!(note),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ],
-                          ),
-                        if (!isRead && onMarkAsRead != null) ...[
-                          const SizedBox(width: 12),
-                          TextButton.icon(
-                            icon: const Icon(Icons.check_circle_outline),
-                            label: const Text('Marcar como lida'),
-                            onPressed: onMarkAsRead,
-                          ),
-                        ],
-                        if (onDelete != null) ...[
-                          const SizedBox(width: 12),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: theme.colorScheme.error,
-                            ),
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Excluir'),
-                            onPressed: () => onDelete!(note),
-                          ),
-                        ],
-                        if (onDelete != null) ...[
-                          const SizedBox(width: 12),
-                          TextButton.icon(
-                            style: TextButton.styleFrom(
-                              foregroundColor: theme.colorScheme.error,
-                            ),
-                            icon: const Icon(Icons.delete_outline),
-                            label: const Text('Excluir'),
-                            onPressed: () => onDelete!(note),
-                          ),
-                        ],
-                      ],
+                          );
+                        }
+                        // Layout desktop: Row original
+                        return Row(
+                          children: [
+                            categoryChip,
+                            const SizedBox(width: 8),
+                            priorityChip,
+                            const Spacer(),
+                            if (createdBy.isNotEmpty)
+                              Row(
+                                children: [
+                                  Icon(Icons.person_outline, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                                  const SizedBox(width: 4),
+                                  Text(createdBy, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.7))),
+                                ],
+                              ),
+                            if (!isRead && onMarkAsRead != null) ...[
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Marcar como lida'),
+                                onPressed: onMarkAsRead,
+                              ),
+                            ],
+                            if (onDelete != null) ...[
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Excluir'),
+                                onPressed: () => onDelete!(note),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
