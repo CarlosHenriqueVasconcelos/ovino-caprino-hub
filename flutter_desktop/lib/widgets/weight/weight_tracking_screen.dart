@@ -35,7 +35,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   ];
 
   int _currentPage = 0;
-  int _itemsPerPage = 50;
+  int _itemsPerPage = 25; // Reduzido para melhor performance em mobile
 
   @override
   void initState() {

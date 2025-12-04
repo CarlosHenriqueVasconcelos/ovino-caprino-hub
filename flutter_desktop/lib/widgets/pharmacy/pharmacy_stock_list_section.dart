@@ -27,11 +27,14 @@ class PharmacyStockListSection extends StatelessWidget {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     if (isMobile) {
-      // Mobile: Card list view
+      // Mobile: Card list view - otimizado para performance
       return ListView.builder(
         controller: controller,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: true,
+        cacheExtent: 500,
         itemCount: rows.length + (showLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == rows.length) {

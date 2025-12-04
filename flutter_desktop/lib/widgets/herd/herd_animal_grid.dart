@@ -40,6 +40,9 @@ class HerdAnimalGrid extends StatelessWidget {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      addAutomaticKeepAlives: false, // Reduz memória
+      addRepaintBoundaries: true,    // Evita repaint desnecessário
+      cacheExtent: 500,              // Pre-carrega itens próximos
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: ResponsiveUtils.getSpacing(context),

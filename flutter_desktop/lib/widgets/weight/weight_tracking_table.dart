@@ -55,6 +55,9 @@ class WeightTrackingTable<T> extends StatelessWidget {
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
+          cacheExtent: 500,
           itemCount: items.length,
           separatorBuilder: separatorBuilder ??
               (context, index) => const SizedBox(height: 16),
