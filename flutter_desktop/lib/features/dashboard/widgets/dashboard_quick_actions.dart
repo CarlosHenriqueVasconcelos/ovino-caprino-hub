@@ -10,13 +10,7 @@ import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../widgets/animal_form.dart';
-import '../../../widgets/financial_complete_screen.dart';
 import '../../../widgets/history_screen.dart';
-import '../../../widgets/medication_management_screen.dart';
-import '../../../widgets/notes_management_screen.dart';
-import '../../../widgets/pharmacy_management_screen.dart';
-import '../../../widgets/reports_hub_screen.dart';
-import '../../../widgets/system_settings_screen.dart';
 import '../../../widgets/vaccination_form.dart';
 
 class DashboardQuickActions extends StatelessWidget {
@@ -48,26 +42,6 @@ class DashboardQuickActions extends StatelessWidget {
         builder: (context) => _MedicationFormDialog(
           onSaved: () => animalService.loadData(),
         ),
-      );
-    }
-
-    void openModal(Widget child) {
-      showDialog(
-        context: context,
-        builder: (_) {
-          final size = MediaQuery.of(context).size;
-          final dialogWidth = (size.width * 0.95).clamp(280.0, 1200.0);
-          final dialogHeight = (size.height * 0.9).clamp(300.0, 720.0);
-
-          return Dialog(
-            clipBehavior: Clip.hardEdge,
-            child: SizedBox(
-              width: dialogWidth,
-              height: dialogHeight,
-              child: child,
-            ),
-          );
-        },
       );
     }
 
