@@ -30,9 +30,9 @@ class HerdAnimalGrid extends StatelessWidget {
     // Ajustar aspect ratio para mobile: cards mais altos para acomodar conteúdo
     double aspectRatio;
     if (crossAxisCount == 1) {
-      aspectRatio = 0.75; // Mobile: mais alto para evitar overflow vertical
+      aspectRatio = 0.55; // Mobile: bem mais alto para acomodar todo conteúdo e botões
     } else if (crossAxisCount == 2) {
-      aspectRatio = 0.65; // Tablet: mais alto ainda
+      aspectRatio = 0.50; // Tablet: ainda mais alto
     } else {
       aspectRatio = ResponsiveUtils.getCardAspectRatio(context);
     }
