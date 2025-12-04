@@ -204,15 +204,20 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
                             builder: (context, constraints) {
                               final width = constraints.maxWidth;
                               int crossAxisCount = 2;
+                              double aspect;
+                              
                               if (width >= 1500) {
                                 crossAxisCount = 4;
+                                aspect = 1.9;
                               } else if (width >= 1100) {
                                 crossAxisCount = 3;
+                                aspect = 1.9;
                               } else if (width <= 700) {
                                 crossAxisCount = 1;
+                                aspect = 1.8; // Mais alto para caber todo conteúdo
+                              } else {
+                                aspect = 1.9;
                               }
-
-                              final aspect = crossAxisCount == 1 ? 3.0 : 1.9;
 
                               return GridView.builder(
                                 controller: _scrollController,
