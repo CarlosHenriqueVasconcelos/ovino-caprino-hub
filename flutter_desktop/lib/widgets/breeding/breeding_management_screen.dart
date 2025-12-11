@@ -18,7 +18,7 @@ class BreedingManagementScreen extends StatefulWidget {
 }
 
 class _BreedingManagementScreenState extends State<BreedingManagementScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   List<BreedingRecord> _breedingRecords = [];
   Map<String, Animal> _animalsMap = {};
@@ -63,10 +63,15 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
             .where((r) => (r.maleAnimalId ?? '').isNotEmpty)
             .map((r) => r.maleAnimalId!),
       };
+      final idList = ids.toList();
       final animalsMap = <String, Animal>{};
-      for (final id in ids) {
-        final animal = await animalService.getAnimalById(id);
-        if (animal != null) animalsMap[id] = animal;
+
+      final fetched = await Future.wait(
+        idList.map((id) => animalService.getAnimalById(id)),
+      );
+      for (var i = 0; i < idList.length; i++) {
+        final animal = fetched[i];
+        if (animal != null) animalsMap[idList[i]] = animal;
       }
 
       if (!mounted) return;
@@ -152,6 +157,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -735,4 +741,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

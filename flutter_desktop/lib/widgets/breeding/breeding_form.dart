@@ -189,276 +189,283 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
     return AlertDialog(
       title: const Text('Registrar Cobertura'),
-      content: SizedBox(
-        width: 500,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Female Selection with Search
-                Autocomplete<Animal>(
-                  displayStringForOption: _getAnimalDisplayText,
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    _scheduleFemaleSearch(textEditingValue.text);
-                    if (textEditingValue.text.isEmpty) {
-                      return femaleAnimals;
-                    }
-                    return femaleAnimals.where((animal) {
-                      final searchText = textEditingValue.text.toLowerCase();
-                      return animal.code.toLowerCase().contains(searchText) ||
-                          animal.name.toLowerCase().contains(searchText);
-                    });
-                  },
-                  onSelected: (Animal animal) {
-                    setState(() => _femaleAnimalId = animal.id);
-                  },
-                  fieldViewBuilder:
-                      (context, controller, focusNode, onSubmitted) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Fêmea *',
-                        hintText: 'Digite o número ou nome para buscar',
-                        prefixIcon: const Icon(Icons.female),
-                        border: const OutlineInputBorder(),
-                        suffixIcon: _femaleAnimalId != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() => _femaleAnimalId = null);
-                                  controller.clear();
-                                },
-                              )
-                            : null,
-                      ),
-                      validator: (value) => _femaleAnimalId == null
-                          ? 'Selecione uma fêmea'
-                          : null,
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 8.0,
-                        color: Theme.of(context).cardColor,
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 240),
-                          width: 468,
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            itemCount: options.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final Animal animal = options.elementAt(index);
-                              return InkWell(
-                                onTap: () => onSelected(animal),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(
-                                    animal,
-                                    textStyle: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                        ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Male Selection (Optional) with Search
-                Autocomplete<Animal>(
-                  displayStringForOption: _getAnimalDisplayText,
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    _scheduleMaleSearch(textEditingValue.text);
-                    if (textEditingValue.text.isEmpty) {
-                      return maleAnimals;
-                    }
-                    return maleAnimals.where((animal) {
-                      final searchText = textEditingValue.text.toLowerCase();
-                      return animal.code.toLowerCase().contains(searchText) ||
-                          animal.name.toLowerCase().contains(searchText);
-                    });
-                  },
-                  onSelected: (Animal animal) {
-                    setState(() => _maleAnimalId = animal.id);
-                  },
-                  fieldViewBuilder:
-                      (context, controller, focusNode, onSubmitted) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: 'Macho (opcional)',
-                        hintText: 'Digite o número ou nome para buscar',
-                        prefixIcon: const Icon(Icons.male),
-                        border: const OutlineInputBorder(),
-                        suffixIcon: _maleAnimalId != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  setState(() => _maleAnimalId = null);
-                                  controller.clear();
-                                },
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 8.0,
-                        color: Theme.of(context).cardColor,
-                        child: Container(
-                          constraints: const BoxConstraints(maxHeight: 240),
-                          width: 468,
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            itemCount: options.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final Animal animal = options.elementAt(index);
-                              return InkWell(
-                                onTap: () => onSelected(animal),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(
-                                    animal,
-                                    textStyle: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
-                                        ),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Breeding Date
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      locale: const Locale('pt', 'BR'),
-                      initialDate: _breedingDate,
-                      firstDate:
-                          DateTime.now().subtract(const Duration(days: 365)),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _breedingDate = date;
-                        // Calcula uma previsão aproximada de parto (150 dias)
-                        _expectedBirth = date.add(const Duration(days: 150));
+      content: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          width: 500,
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Female Selection with Search
+                  Autocomplete<Animal>(
+                    displayStringForOption: _getAnimalDisplayText,
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      _scheduleFemaleSearch(textEditingValue.text);
+                      if (textEditingValue.text.isEmpty) {
+                        return femaleAnimals;
+                      }
+                      return femaleAnimals.where((animal) {
+                        final searchText = textEditingValue.text.toLowerCase();
+                        return animal.code.toLowerCase().contains(searchText) ||
+                            animal.name.toLowerCase().contains(searchText);
                       });
-                    }
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Data da Cobertura *',
-                      border: OutlineInputBorder(),
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                    child: Text(
-                      '${_breedingDate.day.toString().padLeft(2, '0')}/'
-                      '${_breedingDate.month.toString().padLeft(2, '0')}/'
-                      '${_breedingDate.year}',
-                    ),
+                    },
+                    onSelected: (Animal animal) {
+                      setState(() => _femaleAnimalId = animal.id);
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Fêmea *',
+                          hintText: 'Digite o número ou nome para buscar',
+                          prefixIcon: const Icon(Icons.female),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _femaleAnimalId != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() => _femaleAnimalId = null);
+                                    controller.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                        validator: (value) => _femaleAnimalId == null
+                            ? 'Selecione uma fêmea'
+                            : null,
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 8.0,
+                          color: Theme.of(context).cardColor,
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 240),
+                            width: 468,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final Animal animal = options.elementAt(index);
+                                return InkWell(
+                                  onTap: () => onSelected(animal),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    child: AnimalDisplayUtils.buildDropdownItem(
+                                      animal,
+                                      textStyle: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                          ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Expected Birth
-                if (_expectedBirth != null) ...[
+                  // Male Selection (Optional) with Search
+                  Autocomplete<Animal>(
+                    displayStringForOption: _getAnimalDisplayText,
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      _scheduleMaleSearch(textEditingValue.text);
+                      if (textEditingValue.text.isEmpty) {
+                        return maleAnimals;
+                      }
+                      return maleAnimals.where((animal) {
+                        final searchText = textEditingValue.text.toLowerCase();
+                        return animal.code.toLowerCase().contains(searchText) ||
+                            animal.name.toLowerCase().contains(searchText);
+                      });
+                    },
+                    onSelected: (Animal animal) {
+                      setState(() => _maleAnimalId = animal.id);
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Macho (opcional)',
+                          hintText: 'Digite o número ou nome para buscar',
+                          prefixIcon: const Icon(Icons.male),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _maleAnimalId != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    setState(() => _maleAnimalId = null);
+                                    controller.clear();
+                                  },
+                                )
+                              : null,
+                        ),
+                      );
+                    },
+                    optionsViewBuilder: (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 8.0,
+                          color: Theme.of(context).cardColor,
+                          child: Container(
+                            constraints: const BoxConstraints(maxHeight: 240),
+                            width: 468,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final Animal animal = options.elementAt(index);
+                                return InkWell(
+                                  onTap: () => onSelected(animal),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    child: AnimalDisplayUtils.buildDropdownItem(
+                                      animal,
+                                      textStyle: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface,
+                                          ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Breeding Date
                   InkWell(
                     onTap: () async {
                       final date = await showDatePicker(
                         context: context,
                         locale: const Locale('pt', 'BR'),
-                        initialDate: _expectedBirth!,
-                        firstDate: _breedingDate.add(const Duration(days: 120)),
-                        lastDate: _breedingDate.add(const Duration(days: 180)),
+                        initialDate: _breedingDate,
+                        firstDate:
+                            DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now(),
                       );
                       if (date != null) {
                         setState(() {
-                          _expectedBirth = date;
+                          _breedingDate = date;
+                          // Calcula uma previsão aproximada de parto (150 dias)
+                          _expectedBirth = date.add(const Duration(days: 150));
                         });
                       }
                     },
                     child: InputDecorator(
                       decoration: const InputDecoration(
-                        labelText: 'Previsão de Nascimento',
+                        labelText: 'Data da Cobertura *',
                         border: OutlineInputBorder(),
                         suffixIcon: Icon(Icons.calendar_today),
                       ),
                       child: Text(
-                        '${_expectedBirth!.day.toString().padLeft(2, '0')}/'
-                        '${_expectedBirth!.month.toString().padLeft(2, '0')}/'
-                        '${_expectedBirth!.year}',
+                        '${_breedingDate.day.toString().padLeft(2, '0')}/'
+                        '${_breedingDate.month.toString().padLeft(2, '0')}/'
+                        '${_breedingDate.year}',
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // Expected Birth
+                  if (_expectedBirth != null) ...[
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          locale: const Locale('pt', 'BR'),
+                          initialDate: _expectedBirth!,
+                          firstDate: _breedingDate.add(const Duration(days: 120)),
+                          lastDate: _breedingDate.add(const Duration(days: 180)),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _expectedBirth = date;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Previsão de Nascimento',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          '${_expectedBirth!.day.toString().padLeft(2, '0')}/'
+                          '${_expectedBirth!.month.toString().padLeft(2, '0')}/'
+                          '${_expectedBirth!.year}',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Status (aqui ainda usamos os rótulos antigos; mapeamos para stage)
+                  DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ['Cobertura', 'Confirmada', 'Nasceu', 'Perdida']
+                        .map((status) {
+                      return DropdownMenuItem(
+                        value: status,
+                        child: Text(status),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _status = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Notes
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Observações',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
                 ],
-
-                // Status (aqui ainda usamos os rótulos antigos; mapeamos para stage)
-                DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['Cobertura', 'Confirmada', 'Nasceu', 'Perdida']
-                      .map((status) {
-                    return DropdownMenuItem(
-                      value: status,
-                      child: Text(status),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _status = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Notes
-                TextFormField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Observações',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
+              ),
             ),
           ),
         ),

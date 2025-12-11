@@ -316,12 +316,15 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
+    final dialogWidth = (size.width * 0.95).clamp(320.0, 720.0).toDouble();
+    final dialogHeight = (size.height * 0.9).clamp(320.0, 520.0).toDouble();
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: SizedBox(
-        width: 720,
-        height: 520,
+        width: dialogWidth,
+        height: dialogHeight,
         child: Column(
           children: [
             // Cabeçalho

@@ -76,137 +76,101 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
 
     return AlertDialog(
       title: const Text('Nova Vacinação'),
-      content: SizedBox(
-        width: dialogWidth,
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Animal Selection with Search
-                if (widget.animalId == null)
-                  Autocomplete<Animal>(
-                    displayStringForOption: _getAnimalDisplayText,
-                    optionsBuilder: (TextEditingValue textEditingValue) {
-                      _scheduleAnimalSearch(textEditingValue.text);
-                      if (_loadingAnimals) return const Iterable<Animal>.empty();
-                      if (textEditingValue.text.isEmpty) {
-                        return _animalOptions;
-                      }
-                      return _animalOptions.where((animal) {
-                        final searchText = textEditingValue.text.toLowerCase();
-                        return animal.code.toLowerCase().contains(searchText) ||
-                            animal.name.toLowerCase().contains(searchText);
-                      });
-                    },
-                    onSelected: (Animal animal) {
-                      setState(() => _selectedAnimalId = animal.id);
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onSubmitted) {
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: 'Animal *',
-                          hintText: isMobile ? 'Buscar animal…' : 'Digite o número ou nome para buscar',
-                          prefixIcon: const Icon(Icons.pets),
-                          border: const OutlineInputBorder(),
-                          suffixIcon: _selectedAnimalId != null
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    setState(() => _selectedAnimalId = null);
-                                    controller.clear();
-                                  },
-                                )
+      content: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SizedBox(
+          width: dialogWidth,
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Animal Selection with Search
+                  if (widget.animalId == null)
+                    Autocomplete<Animal>(
+                      displayStringForOption: _getAnimalDisplayText,
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        _scheduleAnimalSearch(textEditingValue.text);
+                        if (_loadingAnimals) return const Iterable<Animal>.empty();
+                        if (textEditingValue.text.isEmpty) {
+                          return _animalOptions;
+                        }
+                        return _animalOptions.where((animal) {
+                          final searchText = textEditingValue.text.toLowerCase();
+                          return animal.code.toLowerCase().contains(searchText) ||
+                              animal.name.toLowerCase().contains(searchText);
+                        });
+                      },
+                      onSelected: (Animal animal) {
+                        setState(() => _selectedAnimalId = animal.id);
+                      },
+                      fieldViewBuilder:
+                          (context, controller, focusNode, onSubmitted) {
+                        return TextFormField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            labelText: 'Animal *',
+                            hintText: isMobile ? 'Buscar animal…' : 'Digite o número ou nome para buscar',
+                            prefixIcon: const Icon(Icons.pets),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: _selectedAnimalId != null
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() => _selectedAnimalId = null);
+                                      controller.clear();
+                                    },
+                                  )
+                                : null,
+                          ),
+                          validator: (value) => _selectedAnimalId == null
+                              ? 'Selecione um animal'
                               : null,
-                        ),
-                        validator: (value) => _selectedAnimalId == null
-                            ? 'Selecione um animal'
-                            : null,
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4.0,
-                          child: Container(
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            width: optionsWidth,
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              itemCount: options.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final Animal animal = options.elementAt(index);
-                                return InkWell(
-                                  onTap: () => onSelected(animal),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    child: AnimalDisplayUtils.buildDropdownItem(
-                                        animal),
-                                  ),
-                                );
-                              },
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              width: optionsWidth,
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final Animal animal = options.elementAt(index);
+                                  return InkWell(
+                                    onTap: () => onSelected(animal),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      child: AnimalDisplayUtils.buildDropdownItem(
+                                          animal),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
 
-                if (widget.animalId == null) const SizedBox(height: 16),
+                  if (widget.animalId == null) const SizedBox(height: 16),
 
-                // Vaccine Info
-                isMobile
-                    ? Column(
-                        children: [
-                          TextFormField(
-                            controller: _vaccineNameController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nome da Vacina *',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (value) {
-                              if (value?.isEmpty ?? true) {
-                                return 'Campo obrigatório';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            initialValue: _vaccineType,
-                            decoration: const InputDecoration(
-                              labelText: 'Tipo',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: [
-                              'Obrigatória',
-                              'Preventiva',
-                              'Tratamento',
-                              'Emergencial'
-                            ].map((type) {
-                              return DropdownMenuItem(
-                                value: type,
-                                child: Text(type),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _vaccineType = value!;
-                              });
-                            },
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
+                  // Vaccine Info
+                  isMobile
+                      ? Column(
+                          children: [
+                            TextFormField(
                               controller: _vaccineNameController,
                               decoration: const InputDecoration(
                                 labelText: 'Nome da Vacina *',
@@ -219,10 +183,8 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                 return null;
                               },
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
+                            const SizedBox(height: 16),
+                            DropdownButtonFormField<String>(
                               initialValue: _vaccineType,
                               decoration: const InputDecoration(
                                 labelText: 'Tipo',
@@ -245,73 +207,60 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                 });
                               },
                             ),
-                          ),
-                        ],
-                      ),
-                const SizedBox(height: 16),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _vaccineNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nome da Vacina *',
+                                  border: OutlineInputBorder(),
+                                ),
+                                validator: (value) {
+                                  if (value?.isEmpty ?? true) {
+                                    return 'Campo obrigatório';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _vaccineType,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipo',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items: [
+                                  'Obrigatória',
+                                  'Preventiva',
+                                  'Tratamento',
+                                  'Emergencial'
+                                ].map((type) {
+                                  return DropdownMenuItem(
+                                    value: type,
+                                    child: Text(type),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _vaccineType = value!;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                  const SizedBox(height: 16),
 
-                // Dates
-                isMobile
-                    ? Column(
-                        children: [
-                          InkWell(
-                            onTap: () async {
-                              final date = await showDatePicker(
-                                context: context,
-                                locale: const Locale('pt', 'BR'),
-                                initialDate: _scheduledDate,
-                                firstDate: DateTime.now()
-                                    .subtract(const Duration(days: 365)),
-                                lastDate:
-                                    DateTime.now().add(const Duration(days: 365)),
-                              );
-                              if (date != null) {
-                                setState(() {
-                                  _scheduledDate = date;
-                                });
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'Data Agendada *',
-                                border: OutlineInputBorder(),
-                                suffixIcon: Icon(Icons.calendar_today),
-                              ),
-                              child: Text(
-                                '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: _status,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Status',
-                              border: OutlineInputBorder(),
-                            ),
-                            items:
-                                ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
-                              return DropdownMenuItem(
-                                value: status,
-                                child: Text(status),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _status = value!;
-                                if (_status == 'Aplicada') {
-                                  _appliedDate ??= DateTime.now();
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
+                  // Dates
+                  isMobile
+                      ? Column(
+                          children: [
+                            InkWell(
                               onTap: () async {
                                 final date = await showDatePicker(
                                   context: context,
@@ -339,11 +288,10 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
+                            const SizedBox(height: 16),
+                            DropdownButtonFormField<String>(
                               value: _status,
+                              isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'Status',
                                 border: OutlineInputBorder(),
@@ -355,76 +303,135 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                                   child: Text(status),
                                 );
                               }).toList(),
-                        onChanged: (value) {
+                              onChanged: (value) {
+                                setState(() {
+                                  _status = value!;
+                                  if (_status == 'Aplicada') {
+                                    _appliedDate ??= DateTime.now();
+                                  }
+                                });
+                              },
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () async {
+                                  final date = await showDatePicker(
+                                    context: context,
+                                    locale: const Locale('pt', 'BR'),
+                                    initialDate: _scheduledDate,
+                                    firstDate: DateTime.now()
+                                        .subtract(const Duration(days: 365)),
+                                    lastDate:
+                                        DateTime.now().add(const Duration(days: 365)),
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _scheduledDate = date;
+                                    });
+                                  }
+                                },
+                                child: InputDecorator(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Data Agendada *',
+                                    border: OutlineInputBorder(),
+                                    suffixIcon: Icon(Icons.calendar_today),
+                                  ),
+                                  child: Text(
+                                    '${_scheduledDate.day.toString().padLeft(2, '0')}/${_scheduledDate.month.toString().padLeft(2, '0')}/${_scheduledDate.year}',
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _status,
+                                decoration: const InputDecoration(
+                                  labelText: 'Status',
+                                  border: OutlineInputBorder(),
+                                ),
+                                items:
+                                    ['Agendada', 'Aplicada', 'Cancelada'].map((status) {
+                                  return DropdownMenuItem(
+                                    value: status,
+                                    child: Text(status),
+                                  );
+                                }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _status = value!;
+                                  if (_status == 'Aplicada' && _appliedDate == null) {
+                                    _appliedDate = DateTime.now();
+                                  } else if (_status != 'Aplicada') {
+                                    _appliedDate = null;
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Applied Date (if status is Applied)
+                  if (_status == 'Aplicada') ...[
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          locale: const Locale('pt', 'BR'),
+                          initialDate: _appliedDate ?? DateTime.now(),
+                          firstDate:
+                              DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
                           setState(() {
-                            _status = value!;
-                            if (_status == 'Aplicada' && _appliedDate == null) {
-                              _appliedDate = DateTime.now();
-                            } else if (_status != 'Aplicada') {
-                              _appliedDate = null;
-                            }
+                            _appliedDate = date;
                           });
-                        },
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Data de Aplicação',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          _appliedDate != null
+                              ? '${_appliedDate!.day.toString().padLeft(2, '0')}/${_appliedDate!.month.toString().padLeft(2, '0')}/${_appliedDate!.year}'
+                              : 'Selecionar data',
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 16),
                   ],
-                ),
-                const SizedBox(height: 16),
 
-                // Applied Date (if status is Applied)
-                if (_status == 'Aplicada') ...[
-                  InkWell(
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        locale: const Locale('pt', 'BR'),
-                        initialDate: _appliedDate ?? DateTime.now(),
-                        firstDate:
-                            DateTime.now().subtract(const Duration(days: 365)),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _appliedDate = date;
-                        });
-                      }
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data de Aplicação',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(
-                        _appliedDate != null
-                            ? '${_appliedDate!.day.toString().padLeft(2, '0')}/${_appliedDate!.month.toString().padLeft(2, '0')}/${_appliedDate!.year}'
-                            : 'Selecionar data',
-                      ),
+                  // Veterinarian
+                  TextFormField(
+                    controller: _veterinarianController,
+                    decoration: const InputDecoration(
+                      labelText: 'Veterinário',
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // Notes
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Observações',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                  ),
                 ],
-
-                // Veterinarian
-                TextFormField(
-                  controller: _veterinarianController,
-                  decoration: const InputDecoration(
-                    labelText: 'Veterinário',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Notes
-                TextFormField(
-                  controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Observações',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
+              ),
             ),
           ),
         ),

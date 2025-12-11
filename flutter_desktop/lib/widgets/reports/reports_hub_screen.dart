@@ -739,28 +739,35 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
     final columns = rows.first.keys.where((k) => k != 'animal_color').toList();
 
-    return Column(
-      children: [
-        // Paginação no topo
-        _buildPagination(theme),
-        const SizedBox(height: 16),
-        
-        Expanded(
-          child: ReportsTableArea(
-            theme: theme,
-            columns: columns,
-            rows: rows,
-            sortKey: _sortKey,
-            sortAscending: _sortAsc,
-            onSort: _handleSort,
-            cellBuilder: (row, key) => _buildDataCell(row, key, theme),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Column(
+              children: [
+                // Paginação no topo
+                _buildPagination(theme),
+                const SizedBox(height: 16),
+                
+                ReportsTableArea(
+                  theme: theme,
+                  columns: columns,
+                  rows: rows,
+                  sortKey: _sortKey,
+                  sortAscending: _sortAsc,
+                  onSort: _handleSort,
+                  cellBuilder: (row, key) => _buildDataCell(row, key, theme),
+                ),
+                
+                // Paginação no final
+                const SizedBox(height: 16),
+                _buildPagination(theme),
+              ],
+            ),
           ),
-        ),
-        
-        // Paginação no final
-        const SizedBox(height: 16),
-        _buildPagination(theme),
-      ],
+        );
+      },
     );
   }
 

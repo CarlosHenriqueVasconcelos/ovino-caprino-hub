@@ -707,73 +707,88 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Logs de Erro e Overflow'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 500,
-          child: logs.isEmpty
-              ? const Center(
-                  child: Text('Nenhum log registrado'),
-                )
-              : ListView.separated(
-                  itemCount: logs.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final log = logs[index];
-                    Color typeColor;
-                    
-                    switch (log.type) {
-                      case 'ERROR':
-                        typeColor = Theme.of(context).colorScheme.error;
-                        break;
-                      case 'OVERFLOW':
-                        typeColor = Colors.orange;
-                        break;
-                      case 'WARNING':
-                        typeColor = Colors.amber;
-                        break;
-                      default:
-                        typeColor = Theme.of(context).colorScheme.primary;
-                    }
-                    
-                    return ListTile(
-                      dense: true,
-                      leading: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: typeColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: typeColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          log.type,
-                          style: TextStyle(
-                            color: typeColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
+        content: LayoutBuilder(
+          builder: (context, constraints) {
+            final media = MediaQuery.of(context).size;
+            final maxHeight =
+                (media.height * 0.7).clamp(320.0, 600.0).toDouble();
+            final maxWidth =
+                (media.width * 0.9).clamp(320.0, constraints.maxWidth).toDouble();
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: maxHeight,
+                maxWidth: maxWidth,
+              ),
+              child: SizedBox(
+                width: double.maxFinite,
+                child: logs.isEmpty
+                    ? const Center(
+                        child: Text('Nenhum log registrado'),
+                      )
+                    : ListView.separated(
+                        itemCount: logs.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final log = logs[index];
+                          Color typeColor;
+                          
+                          switch (log.type) {
+                            case 'ERROR':
+                              typeColor = Theme.of(context).colorScheme.error;
+                              break;
+                            case 'OVERFLOW':
+                              typeColor = Colors.orange;
+                              break;
+                            case 'WARNING':
+                              typeColor = Colors.amber;
+                              break;
+                            default:
+                              typeColor = Theme.of(context).colorScheme.primary;
+                          }
+                          
+                          return ListTile(
+                            dense: true,
+                            leading: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: typeColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                              ),
+                              child: Text(
+                                log.type,
+                                style: TextStyle(
+                                  color: typeColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              log.message.split('\n').first,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              log.timestamp,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.6),
+                              ),
+                            ),
+                            onTap: () => _showLogDetails(log),
+                          );
+                        },
                       ),
-                      title: Text(
-                        log.message.split('\n').first,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      subtitle: Text(
-                        log.timestamp,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                      ),
-                      onTap: () => _showLogDetails(log),
-                    );
-                  },
-                ),
+              ),
+            );
+          },
         ),
         actions: [
           TextButton(

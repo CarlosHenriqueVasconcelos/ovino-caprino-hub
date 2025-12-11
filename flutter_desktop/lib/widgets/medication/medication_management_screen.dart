@@ -19,7 +19,7 @@ class MedicationManagementScreen extends StatefulWidget {
 }
 
 class _MedicationManagementScreenState
-    extends State<MedicationManagementScreen> {
+    extends State<MedicationManagementScreen> with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> _vaccinations = [];
   List<Map<String, dynamic>> _medications = [];
   bool _isLoading = true;
@@ -207,6 +207,7 @@ class _MedicationManagementScreenState
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -233,6 +234,9 @@ class _MedicationManagementScreenState
       ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   Widget _buildVaccinationsList() {
     if (_isLoading) {

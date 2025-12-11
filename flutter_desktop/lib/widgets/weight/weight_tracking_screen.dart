@@ -18,7 +18,7 @@ class WeightTrackingScreen extends StatefulWidget {
 }
 
 class _WeightTrackingScreenState extends State<WeightTrackingScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
   String _selectedCategory = 'Todos';
   String? _selectedColor;
@@ -54,6 +54,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     return Column(
       children: [
@@ -422,6 +423,9 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
       _future = future;
     });
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   int _getAgeInMonths(DateTime birthDate) {
     final now = DateTime.now();
