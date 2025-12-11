@@ -14,27 +14,39 @@ class ReportsViewSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     const options = ReportViewMode.values;
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ToggleButtons(
-        isSelected: options.map((m) => m == mode).toList(),
-        onPressed: (index) => onChanged(options[index]),
-        borderRadius: BorderRadius.circular(8),
-        children: const [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Text('Resumo'),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 16, 
+        vertical: 4,
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ToggleButtons(
+          isSelected: options.map((m) => m == mode).toList(),
+          onPressed: (index) => onChanged(options[index]),
+          borderRadius: BorderRadius.circular(8),
+          constraints: BoxConstraints(
+            minHeight: isMobile ? 36 : 40,
+            minWidth: isMobile ? 70 : 80,
           ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Text('Gráfico'),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Text('Tabela'),
-          ),
-        ],
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
+              child: Text('Resumo', style: TextStyle(fontSize: isMobile ? 12 : 14)),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
+              child: Text('Gráfico', style: TextStyle(fontSize: isMobile ? 12 : 14)),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
+              child: Text('Tabela', style: TextStyle(fontSize: isMobile ? 12 : 14)),
+            ),
+          ],
+        ),
       ),
     );
   }
