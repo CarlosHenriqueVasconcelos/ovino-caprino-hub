@@ -1,8 +1,11 @@
 // lib/widgets/breeding/repro_alerts_card.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/breeding_service.dart';
+import '../../services/events/event_bus.dart';
+import '../../services/events/app_events.dart';
 
 class ReproAlertsCard extends StatefulWidget {
   final int daysAhead;
@@ -13,10 +16,31 @@ class ReproAlertsCard extends StatefulWidget {
 }
 
 class _ReproAlertsCardState extends State<ReproAlertsCard> {
+  final List<StreamSubscription> _subscriptions = [];
+
   @override
   void initState() {
     super.initState();
+    _setupEventListeners();
     _scheduleLoad();
+  }
+
+  void _setupEventListeners() {
+    // Recarrega quando registros de reprodução são criados/atualizados/deletados
+    _subscriptions.add(EventBus().listen<BreedingRecordCreatedEvent>((_) => _scheduleLoad(force: true)));
+    _subscriptions.add(EventBus().listen<BreedingRecordUpdatedEvent>((_) => _scheduleLoad(force: true)));
+    _subscriptions.add(EventBus().listen<BreedingRecordDeletedEvent>((_) => _scheduleLoad(force: true)));
+    
+    // Refresh geral de alertas
+    _subscriptions.add(EventBus().listen<AlertsRefreshRequestedEvent>((_) => _scheduleLoad(force: true)));
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   @override

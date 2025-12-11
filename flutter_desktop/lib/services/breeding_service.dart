@@ -328,6 +328,13 @@ class BreedingService extends ChangeNotifier {
 
     await _repository.update(updated);
     _invalidateBoardCache();
+    
+    EventBus().emit(BreedingRecordUpdatedEvent(
+      recordId: breedingId,
+      stage: updated.stage.value,
+      status: updated.status,
+    ));
+    
     notifyListeners();
   }
 
@@ -347,6 +354,13 @@ class BreedingService extends ChangeNotifier {
 
     await _repository.update(updated);
     _invalidateBoardCache();
+    
+    EventBus().emit(BreedingRecordUpdatedEvent(
+      recordId: breedingId,
+      stage: updated.stage.value,
+      status: updated.status,
+    ));
+    
     notifyListeners();
   }
 

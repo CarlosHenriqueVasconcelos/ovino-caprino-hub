@@ -1,7 +1,10 @@
 // lib/widgets/vaccination/vaccination_alerts.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/vaccination_service.dart';
+import '../../services/events/event_bus.dart';
+import '../../services/events/app_events.dart';
 import '../../utils/animal_record_display.dart';
 
 class VaccinationAlerts extends StatefulWidget {
@@ -25,10 +28,37 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   int _vacPage = 0;
   int _medPage = 0;
 
+  // EventBus subscriptions
+  final List<StreamSubscription> _subscriptions = [];
+
   @override
   void initState() {
     super.initState();
+    _setupEventListeners();
     _loadAlerts();
+  }
+
+  void _setupEventListeners() {
+    // Recarrega quando vacinas são criadas/atualizadas/deletadas
+    _subscriptions.add(EventBus().listen<VaccinationCreatedEvent>((_) => _loadAlerts()));
+    _subscriptions.add(EventBus().listen<VaccinationUpdatedEvent>((_) => _loadAlerts()));
+    _subscriptions.add(EventBus().listen<VaccinationDeletedEvent>((_) => _loadAlerts()));
+    
+    // Recarrega quando medicações são criadas/atualizadas/deletadas
+    _subscriptions.add(EventBus().listen<MedicationCreatedEvent>((_) => _loadAlerts()));
+    _subscriptions.add(EventBus().listen<MedicationUpdatedEvent>((_) => _loadAlerts()));
+    _subscriptions.add(EventBus().listen<MedicationDeletedEvent>((_) => _loadAlerts()));
+    
+    // Refresh geral de alertas
+    _subscriptions.add(EventBus().listen<AlertsRefreshRequestedEvent>((_) => _loadAlerts()));
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
   }
 
   Future<void> _loadAlerts() async {
