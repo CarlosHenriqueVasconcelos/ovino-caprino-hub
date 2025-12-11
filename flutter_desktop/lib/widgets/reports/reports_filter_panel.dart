@@ -59,94 +59,157 @@ class ReportsFilterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Container(
       width: double.infinity,
       color: theme.colorScheme.surface,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Filtros', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: periodPreset,
-                  decoration: const InputDecoration(
-                    labelText: 'Período',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'last7',
-                      child: Text('Últimos 7 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'last30',
-                      child: Text('Últimos 30 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'last90',
-                      child: Text('Últimos 90 dias'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'currentMonth',
-                      child: Text('Mês atual'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'currentYear',
-                      child: Text('Ano atual'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'custom',
-                      child: Text('Personalizado'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) onPeriodPresetChanged(value);
-                  },
-                ),
+          SizedBox(height: isMobile ? 8 : 12),
+          
+          // Período - responsivo
+          if (isMobile) ...[
+            // Mobile: layout vertical
+            DropdownButtonFormField<String>(
+              value: periodPreset,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Período',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
-              if (periodPreset == 'custom') ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: onSelectCustomStart,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data inicial',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(DateFormat('dd/MM/yyyy').format(customStart)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: onSelectCustomEnd,
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Data final',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      child: Text(DateFormat('dd/MM/yyyy').format(customEnd)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: onApplyCustomRange,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Aplicar'),
-                ),
+              items: const [
+                DropdownMenuItem(value: 'last7', child: Text('Últimos 7 dias')),
+                DropdownMenuItem(value: 'last30', child: Text('Últimos 30 dias')),
+                DropdownMenuItem(value: 'last90', child: Text('Últimos 90 dias')),
+                DropdownMenuItem(value: 'currentMonth', child: Text('Mês atual')),
+                DropdownMenuItem(value: 'currentYear', child: Text('Ano atual')),
+                DropdownMenuItem(value: 'custom', child: Text('Personalizado')),
               ],
+              onChanged: (value) {
+                if (value != null) onPeriodPresetChanged(value);
+              },
+            ),
+            if (periodPreset == 'custom') ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: onSelectCustomStart,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Início',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          suffixIcon: Icon(Icons.calendar_today, size: 18),
+                        ),
+                        child: Text(
+                          DateFormat('dd/MM/yy').format(customStart),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InkWell(
+                      onTap: onSelectCustomEnd,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Fim',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          suffixIcon: Icon(Icons.calendar_today, size: 18),
+                        ),
+                        child: Text(
+                          DateFormat('dd/MM/yy').format(customEnd),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: onApplyCustomRange,
+                    icon: const Icon(Icons.check),
+                    tooltip: 'Aplicar',
+                  ),
+                ],
+              ),
             ],
-          ),
-          const SizedBox(height: 12),
+          ] else ...[
+            // Desktop: layout horizontal
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: periodPreset,
+                    decoration: const InputDecoration(
+                      labelText: 'Período',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'last7', child: Text('Últimos 7 dias')),
+                      DropdownMenuItem(value: 'last30', child: Text('Últimos 30 dias')),
+                      DropdownMenuItem(value: 'last90', child: Text('Últimos 90 dias')),
+                      DropdownMenuItem(value: 'currentMonth', child: Text('Mês atual')),
+                      DropdownMenuItem(value: 'currentYear', child: Text('Ano atual')),
+                      DropdownMenuItem(value: 'custom', child: Text('Personalizado')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) onPeriodPresetChanged(value);
+                    },
+                  ),
+                ),
+                if (periodPreset == 'custom') ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: onSelectCustomStart,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Data inicial',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(DateFormat('dd/MM/yyyy').format(customStart)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: onSelectCustomEnd,
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Data final',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(DateFormat('dd/MM/yyyy').format(customEnd)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: onApplyCustomRange,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Aplicar'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          
+          SizedBox(height: isMobile ? 8 : 12),
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -304,19 +367,30 @@ class ReportsFilterPanel extends StatelessWidget {
     required List<DropdownMenuItem<String>> items,
     required ValueChanged<String> onChanged,
   }) {
-    return SizedBox(
-      width: 200,
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        items: items,
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = MediaQuery.of(context).size.width < 600;
+        return SizedBox(
+          width: isMobile ? double.infinity : 200,
+          child: DropdownButtonFormField<String>(
+            value: value,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: label,
+              border: const OutlineInputBorder(),
+              isDense: isMobile,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: isMobile ? 10 : 16,
+              ),
+            ),
+            items: items,
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        );
+      },
     );
   }
 }
