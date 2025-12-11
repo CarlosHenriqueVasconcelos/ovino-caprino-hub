@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import '../data/weight_alert_repository.dart';
 import '../models/animal.dart';
 import '../models/weight_alert.dart';
+import 'events/event_bus.dart';
+import 'events/app_events.dart';
 
 class WeightAlertService extends ChangeNotifier {
   final WeightAlertRepository _repository;
@@ -119,6 +121,9 @@ class WeightAlertService extends ChangeNotifier {
   Future<void> completeAlert(String alertId) async {
     await _repository.markCompleted(alertId);
     await _refreshPendingCache();
+    
+    EventBus().emit(WeightAlertCompletedEvent(alertId: alertId));
+    
     notifyListeners();
   }
 
@@ -137,6 +142,9 @@ class WeightAlertService extends ChangeNotifier {
   Future<void> deleteAnimalAlerts(String animalId) async {
     await _repository.deleteAnimalAlerts(animalId);
     await _refreshPendingCache();
+    
+    EventBus().emit(AlertsRefreshRequestedEvent());
+    
     notifyListeners();
   }
 
