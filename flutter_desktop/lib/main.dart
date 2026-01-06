@@ -331,6 +331,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<DeceasedService>(
           create: (context) => DeceasedService(
             context.read<DeceasedRepository>(),
+            context.read<AnimalLifecycleRepository>(),
           ),
         ),
 

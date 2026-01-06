@@ -10,7 +10,6 @@ import '../../services/sold_animals_service.dart';
 import '../../services/events/event_bus.dart';
 import '../../services/events/app_events.dart';
 import '../../widgets/animal/animal_form.dart';
-import '../../data/animal_repository.dart';
 import '../../utils/responsive_utils.dart';
 import '../../widgets/herd/herd_actions_bar.dart';
 import '../../widgets/herd/herd_animal_grid.dart';
@@ -302,7 +301,6 @@ class HerdSectionState extends State<HerdSection>
                                 _AnimalRelations([], deceasedAnimals);
                             return HerdAnimalGrid(
                               animals: deceasedAnimals,
-                              repository: context.read<AnimalRepository>(),
                               resolveParent: relations.parentOf,
                               resolveOffspring: relations.offspringOf,
                             );
@@ -324,7 +322,6 @@ class HerdSectionState extends State<HerdSection>
                             final relations = _AnimalRelations(list);
                             return HerdAnimalGrid(
                               animals: list,
-                              repository: context.read<AnimalRepository>(),
                               resolveParent: relations.parentOf,
                               resolveOffspring: relations.offspringOf,
                             );
@@ -337,7 +334,6 @@ class HerdSectionState extends State<HerdSection>
                                 context.read<AnimalDeleteCascade>();
                             return HerdAnimalGrid(
                               animals: items,
-                              repository: context.read<AnimalRepository>(),
                               resolveParent:
                                   _AnimalRelations(items, deceasedAnimals)
                                       .parentOf,
