@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/animal_record_display.dart';
+import '../../utils/responsive_utils.dart';
 import 'notes_form.dart';
 import 'notes_helpers.dart';
 
@@ -42,7 +43,9 @@ class _NoteDetailsDialog extends StatelessWidget {
       title: Text(note['title'] ?? 'Detalhes da Anotação'),
       content: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: BoxConstraints(
+            maxWidth: ResponsiveUtils.getDialogWidth(context),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

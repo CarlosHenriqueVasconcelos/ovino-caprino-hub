@@ -1254,10 +1254,13 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final dialogWidth = isMobile ? MediaQuery.of(context).size.width * 0.95 : 500.0;
+    
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
       content: SizedBox(
-        width: 500,
+        width: dialogWidth,
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -1828,10 +1831,13 @@ class _DetailsDialog extends StatelessWidget {
                 : Colors.orange)
         : const Color(0xFF6366F1);
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final dialogWidth = isMobile ? MediaQuery.of(context).size.width * 0.95 : 600.0;
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: BoxConstraints(maxWidth: dialogWidth),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

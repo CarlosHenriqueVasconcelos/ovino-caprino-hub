@@ -8,6 +8,7 @@ import '../../services/animal_service.dart';
 import '../../services/medication_service.dart';
 import '../../services/pharmacy_service.dart';
 import '../../services/vaccination_service.dart';
+import '../../utils/responsive_utils.dart';
 
 class AddMedicationDialog extends StatefulWidget {
   final VoidCallback onSaved;
@@ -388,12 +389,15 @@ class _MedicationPharmacyAutocomplete extends StatelessWidget {
         );
       },
       optionsViewBuilder: (context, onSelected, matches) {
+        final optionsWidth = ResponsiveUtils.isMobile(context)
+            ? MediaQuery.of(context).size.width - 48
+            : 400.0;
         return Align(
           alignment: Alignment.topLeft,
           child: Material(
             elevation: 4,
             child: SizedBox(
-              width: 400,
+              width: optionsWidth,
               child: ListView.builder(
                 padding: EdgeInsets.zero,
                 itemCount: matches.length,

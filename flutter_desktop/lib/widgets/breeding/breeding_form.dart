@@ -8,6 +8,7 @@ import '../../services/breeding_service.dart';
 import '../../models/animal.dart';
 import '../../models/breeding_record.dart';
 import '../../utils/animal_display_utils.dart';
+import '../../utils/responsive_utils.dart';
 
 class BreedingFormDialog extends StatefulWidget {
   const BreedingFormDialog({super.key});
@@ -196,7 +197,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: SizedBox(
-          width: 500,
+          width: ResponsiveUtils.getDialogWidth(context),
           child: SingleChildScrollView(
             child: Form(
               key: _formKey,
@@ -246,6 +247,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                       );
                     },
                     optionsViewBuilder: (context, onSelected, options) {
+                      final optionsWidth = ResponsiveUtils.isMobile(context)
+                          ? MediaQuery.of(context).size.width - 48
+                          : 468.0;
                       return Align(
                         alignment: Alignment.topLeft,
                         child: Material(
@@ -253,7 +257,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                           color: Theme.of(context).cardColor,
                           child: Container(
                             constraints: const BoxConstraints(maxHeight: 240),
-                            width: 468,
+                            width: optionsWidth,
                             child: ListView.builder(
                               padding: EdgeInsets.zero,
                               itemCount: options.length,
@@ -326,6 +330,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                       );
                     },
                     optionsViewBuilder: (context, onSelected, options) {
+                      final optionsWidth = ResponsiveUtils.isMobile(context)
+                          ? MediaQuery.of(context).size.width - 48
+                          : 468.0;
                       return Align(
                         alignment: Alignment.topLeft,
                         child: Material(
@@ -333,7 +340,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                           color: Theme.of(context).cardColor,
                           child: Container(
                             constraints: const BoxConstraints(maxHeight: 240),
-                            width: 468,
+                            width: optionsWidth,
                             child: ListView.builder(
                               padding: EdgeInsets.zero,
                               itemCount: options.length,
