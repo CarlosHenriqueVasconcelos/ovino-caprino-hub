@@ -38,36 +38,53 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
   List<PharmacyStock> _pharmacyStock = [];
   PharmacyStock? _selectedMedication;
   bool _isLoadingStock = false;
+  
+  List<Animal> _animals = [];
+  bool _isLoadingAnimals = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPharmacyStock();
+    _loadData();
   }
 
-  Future<void> _loadPharmacyStock() async {
-    setState(() => _isLoadingStock = true);
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoadingStock = true;
+      _isLoadingAnimals = true;
+    });
 
     try {
       final pharmacyService =
           Provider.of<PharmacyService>(context, listen: false);
-      final stock = await pharmacyService.getPharmacyStock();
-      setState(() {
-        _pharmacyStock = stock;
-        _isLoadingStock = false;
-      });
+      final animalService =
+          Provider.of<AnimalService>(context, listen: false);
+      
+      final results = await Future.wait([
+        pharmacyService.getPharmacyStock(),
+        animalService.getAllAnimals(),
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _pharmacyStock = results[0] as List<PharmacyStock>;
+          _animals = results[1] as List<Animal>;
+          _isLoadingStock = false;
+          _isLoadingAnimals = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoadingStock = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingStock = false;
+          _isLoadingAnimals = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    final animals = animalService.getAllAnimals();
-    final isLoadingAnimals = context.select<AnimalService, bool>(
-      (service) => service.isLoading,
-    );
 
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
@@ -100,15 +117,15 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  if (isLoadingAnimals && animals.isEmpty)
+                  if (_isLoadingAnimals && _animals.isEmpty)
                     const Center(child: CircularProgressIndicator())
-                  else if (animals.isEmpty)
+                  else if (_animals.isEmpty)
                     const Text('Cadastre um animal antes de agendar a aplicação.')
                   else
                     DropdownButtonFormField<String>(
                       value: _selectedAnimalId,
                       decoration: const InputDecoration(labelText: 'Animal *'),
-                      items: animals
+                      items: _animals
                           .map(
                             (animal) => DropdownMenuItem(
                               value: animal.id,

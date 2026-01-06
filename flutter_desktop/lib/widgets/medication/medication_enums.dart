@@ -1,4 +1,4 @@
-/// Enums compartilhados para a gestão de medicamentos e vacinações
+// Enums compartilhados para a gestão de medicamentos e vacinações
 
 /// Filtro de status para medicamentos
 enum MedicationStatusFilter {
