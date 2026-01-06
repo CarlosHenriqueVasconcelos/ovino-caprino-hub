@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../medication_management_screen.dart' show MedicationStatusFilter;
+import 'medication_enums.dart';
 
 class MedicationFiltersBar extends StatelessWidget {
   final MedicationStatusFilter statusFilter;
@@ -147,5 +147,6 @@ class MedicationFiltersBar extends StatelessWidget {
       case MedicationStatusFilter.vaccinations:
         return 'Vacinações';
     }
+    // Fallback não deveria ser alcançado, mas satisfaz o analyzer
   }
 }

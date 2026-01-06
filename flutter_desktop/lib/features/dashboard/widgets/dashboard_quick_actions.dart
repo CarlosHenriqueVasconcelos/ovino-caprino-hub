@@ -85,7 +85,7 @@ class DashboardQuickActions extends StatelessWidget {
                     color: Colors.orange,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => HistoryScreen(),
+                        builder: (_) => const HistoryScreen(),
                       ),
                     ),
                   ),

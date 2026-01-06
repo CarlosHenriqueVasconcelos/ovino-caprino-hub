@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/animal_record_display.dart';
-import '../medication_management_screen.dart' show MedicationTabType;
+import 'medication_enums.dart';
 
 class MedicationTabConfig {
   final MedicationTabType type;
@@ -111,7 +111,7 @@ class _MedicationRowCard extends StatelessWidget {
       onTap: () => onSelectedChanged(!selected),
       child: Container(
         decoration: BoxDecoration(
-          color: selected ? Colors.blue.withOpacity(0.05) : Colors.white,
+          color: selected ? Colors.blue.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected ? Colors.blue : Colors.grey.shade300,

@@ -63,11 +63,10 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final animals = context.select<AnimalService, List<Animal>>(
-      (service) => List<Animal>.from(service.animals),
-    );
+    final animalService = Provider.of<AnimalService>(context, listen: false);
+    final animals = animalService.getAllAnimals();
     final isLoadingAnimals = context.select<AnimalService, bool>(
-      (service) => service.isLoading && service.animals.isEmpty,
+      (service) => service.isLoading,
     );
 
     return AlertDialog(
