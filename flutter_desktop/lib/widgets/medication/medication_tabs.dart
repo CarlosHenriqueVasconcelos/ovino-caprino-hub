@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../medication_management_screen.dart'
-    show MedicationTabType, VaccinationStatusFilter;
+import 'medication_enums.dart';
 import 'medication_list_section.dart';
 import 'vaccination_tab_view.dart';
 

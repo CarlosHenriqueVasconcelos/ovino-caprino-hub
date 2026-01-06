@@ -118,11 +118,14 @@ class WeightAlertService extends ChangeNotifier {
   }
 
   /// Marca alerta como completo
-  Future<void> completeAlert(String alertId) async {
+  Future<void> completeAlert(String alertId, {String? animalId}) async {
     await _repository.markCompleted(alertId);
     await _refreshPendingCache();
     
-    EventBus().emit(WeightAlertCompletedEvent(alertId: alertId));
+    EventBus().emit(WeightAlertCompletedEvent(
+      alertId: alertId,
+      animalId: animalId ?? '',
+    ));
     
     notifyListeners();
   }

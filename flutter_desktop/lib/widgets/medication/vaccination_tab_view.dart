@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../medication_management_screen.dart'
-    show VaccinationStatusFilter, MedicationTabType;
+import 'medication_enums.dart';
 import 'medication_list_section.dart'
     show MedicationTabConfig, MedicationListSection;
 
@@ -201,4 +200,5 @@ String vaccinationStatusLabel(VaccinationStatusFilter filter) {
     case VaccinationStatusFilter.cancelled:
       return 'Canceladas';
   }
+  // Fallback não deveria ser alcançado, mas satisfaz o analyzer
 }
