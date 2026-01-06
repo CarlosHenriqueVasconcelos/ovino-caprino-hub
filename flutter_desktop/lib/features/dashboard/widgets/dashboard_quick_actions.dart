@@ -9,6 +9,7 @@ import '../../../services/animal_service.dart';
 import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
 import '../../../utils/animal_display_utils.dart';
+import '../../../utils/responsive_utils.dart';
 import '../../../widgets/animal/animal_form.dart';
 import '../../../widgets/system/history_screen.dart';
 import '../../../widgets/vaccination/vaccination_form.dart';
@@ -334,12 +335,15 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                     setState(() => _selectedAnimalId = animal.id);
                   },
                   optionsViewBuilder: (context, onSelected, options) {
+                    final optionsWidth = ResponsiveUtils.isMobile(context)
+                        ? MediaQuery.of(context).size.width - 48
+                        : 468.0;
                     return Align(
                       alignment: Alignment.topLeft,
                       child: Material(
                         elevation: 4,
                         child: SizedBox(
-                          width: 468,
+                          width: optionsWidth,
                           height: 250,
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
@@ -513,12 +517,15 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
             );
           },
           optionsViewBuilder: (context, onSelected, options) {
+            final optionsWidth = ResponsiveUtils.isMobile(context)
+                ? MediaQuery.of(context).size.width - 48
+                : 468.0;
             return Align(
               alignment: Alignment.topLeft,
               child: Material(
                 elevation: 4,
                 child: SizedBox(
-                  width: 468,
+                  width: optionsWidth,
                   height: 250,
                   child: ListView.builder(
                     padding: EdgeInsets.zero,
