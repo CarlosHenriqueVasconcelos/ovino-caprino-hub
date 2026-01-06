@@ -5,15 +5,14 @@ import '../../models/animal.dart';
 import '../../utils/responsive_utils.dart';
 import '../responsive/responsive_actions.dart';
 import 'animal_history_dialog.dart';
-import '../../data/animal_repository.dart';
 import '../../services/animal_service.dart';
+import '../../services/deceased_service.dart';
 import '../../services/events/event_bus.dart';
 import '../../services/events/app_events.dart';
 
 class AnimalCard extends StatelessWidget {
   final Animal animal;
   final Function(Animal)? onEdit;
-  final AnimalRepository? repository;
   final Animal? mother;
   final Animal? father;
   final List<Animal> offspring;
@@ -26,7 +25,6 @@ class AnimalCard extends StatelessWidget {
     super.key,
     required this.animal,
     this.onEdit,
-    this.repository,
     this.mother,
     this.father,
     this.offspring = const [],
@@ -128,12 +126,6 @@ class AnimalCard extends StatelessWidget {
     final hasHealthIssue = animal.healthIssue != null;
     final motherAnimal = mother;
     final fatherAnimal = father;
-    AnimalRepository? repo;
-    try {
-      repo = repository ?? context.read<AnimalRepository>();
-    } catch (_) {
-      repo = repository;
-    }
 
     return Card(
       elevation: hasHealthIssue ? 4 : 2,
@@ -203,20 +195,15 @@ class AnimalCard extends StatelessWidget {
                       );
                       if (ok == true) {
                         try {
-                          if (repo != null) {
-                            await repo.markAsDeceased(
-                              animalId: animal.id,
-                              deathDate: DateTime.now(),
-                              causeOfDeath: animal.healthIssue,
-                              notes: 'Registrado manualmente pelo usuário',
-                            );
-                            if (!context.mounted) return;
-                            await animalService.refreshAlerts();
-                          } else {
-                            await animalService
-                                .updateAnimal(animal.copyWith(status: 'Óbito'));
-                          }
+                          final deceasedService = context.read<DeceasedService>();
+                          await deceasedService.markAsDeceased(
+                            animalId: animal.id,
+                            deathDate: DateTime.now(),
+                            causeOfDeath: animal.healthIssue,
+                            notes: 'Registrado manualmente pelo usuário',
+                          );
                           if (!context.mounted) return;
+                          await animalService.refreshAlerts();
                           EventBus().emit(AnimalMarkedAsDeceasedEvent(
                             animalId: animal.id,
                             deathDate: DateTime.now(),

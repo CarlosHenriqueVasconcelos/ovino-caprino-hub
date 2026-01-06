@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../data/animal_repository.dart';
 import '../../models/animal.dart';
 import '../../utils/responsive_utils.dart';
 import '../animal/animal_card.dart';
 
 class HerdAnimalGrid extends StatelessWidget {
   final List<Animal> animals;
-  final AnimalRepository repository;
   final Animal? Function(String?) resolveParent;
   final List<Animal> Function(String) resolveOffspring;
   final void Function(Animal)? onEdit;
@@ -16,7 +14,6 @@ class HerdAnimalGrid extends StatelessWidget {
   const HerdAnimalGrid({
     super.key,
     required this.animals,
-    required this.repository,
     required this.resolveParent,
     required this.resolveOffspring,
     this.onEdit,
@@ -54,7 +51,6 @@ class HerdAnimalGrid extends StatelessWidget {
         final animal = animals[index];
         return AnimalCard(
           animal: animal,
-          repository: repository,
           onEdit: onEdit,
           onDeleteCascade: onDeleteCascade,
           mother: resolveParent(animal.motherId),
