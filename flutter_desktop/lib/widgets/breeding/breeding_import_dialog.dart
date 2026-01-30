@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/animal.dart';
 import '../../services/animal_service.dart';
 import '../../services/breeding_service.dart';
+import '../../utils/animal_display_utils.dart';
 
 class BreedingImportDialog extends StatefulWidget {
   const BreedingImportDialog({super.key});
@@ -110,7 +111,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     }).toList();
   }
 
-  String _labelOf(Animal a) => '${a.code} — ${a.name}';
+  String _labelOf(Animal a) => AnimalDisplayUtils.getDisplayText(a);
 
   void _scheduleFemaleSearch(String query) {
     _femaleDebounce?.cancel();

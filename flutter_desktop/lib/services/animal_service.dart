@@ -516,18 +516,33 @@ class AnimalService extends ChangeNotifier {
       final horizon = now.add(Duration(days: horizonDays));
 
       final List<AlertItem> next = [];
-      
-      // Busca todos os animais para criar mapa de IDs
-      final allAnimals = await _animalRepository.all();
-      final animalsById = {for (final a in allAnimals) a.id: a};
+      Future<({String id, String name, String code})?> resolveAnimalInfo(
+        Map<String, dynamic> row,
+      ) async {
+        final animalId = (row['animal_id'] ?? '').toString();
+        if (animalId.isEmpty) return null;
+
+        var animalName = (row['animal_name'] ?? '').toString();
+        var animalCode = (row['animal_code'] ?? '').toString();
+
+        if (animalName.isEmpty) {
+          final animal = await getAnimalById(animalId);
+          if (animal == null) return null;
+          animalName = animal.name;
+          if (animalCode.isEmpty) {
+            animalCode = animal.code;
+          }
+        }
+
+        return (id: animalId, name: animalName, code: animalCode);
+      }
 
       try {
         final vacs =
             await _vaccinationRepository.getPendingAlertsWithin(horizon);
         for (final row in vacs) {
-          final animalId = (row['animal_id'] ?? '').toString();
-          final animal = animalsById[animalId];
-          if (animal == null) continue;
+          final info = await resolveAnimalInfo(row);
+          if (info == null) continue;
 
           final due = _parseDate(row['scheduled_date']);
           if (due == null) continue;
@@ -535,9 +550,9 @@ class AnimalService extends ChangeNotifier {
           next.add(
             AlertItem(
               id: row['id'].toString(),
-              animalId: animalId,
-              animalName: animal.name,
-              animalCode: animal.code,
+              animalId: info.id,
+              animalName: info.name,
+              animalCode: info.code,
               type: AlertType.vaccination,
               title: 'Vacina: ${(row['vaccine_name'] ?? '').toString()}',
               dueDate: due,
@@ -552,9 +567,8 @@ class AnimalService extends ChangeNotifier {
         final meds =
             await _medicationRepository.getPendingAlertsWithin(horizon);
         for (final row in meds) {
-          final animalId = (row['animal_id'] ?? '').toString();
-          final animal = animalsById[animalId];
-          if (animal == null) continue;
+          final info = await resolveAnimalInfo(row);
+          if (info == null) continue;
 
           final due =
               _parseDate(row['due_date'] ?? row['next_date'] ?? row['date']);
@@ -563,9 +577,9 @@ class AnimalService extends ChangeNotifier {
           next.add(
             AlertItem(
               id: row['id'].toString(),
-              animalId: animalId,
-              animalName: animal.name,
-              animalCode: animal.code,
+              animalId: info.id,
+              animalName: info.name,
+              animalCode: info.code,
               type: AlertType.medication,
               title: 'Medicação: ${(row['medication_name'] ?? '').toString()}',
               dueDate: due,
@@ -583,9 +597,8 @@ class AnimalService extends ChangeNotifier {
           final due = _parseDate(row['due_date']);
           if (due == null || due.isAfter(horizon)) continue;
 
-          final animalId = (row['animal_id'] ?? '').toString();
-          final animal = animalsById[animalId];
-          if (animal == null) continue;
+          final info = await resolveAnimalInfo(row);
+          if (info == null) continue;
 
           final alertType = (row['alert_type'] ?? '').toString();
           String title = 'Pesagem';
@@ -607,9 +620,9 @@ class AnimalService extends ChangeNotifier {
           next.add(
             AlertItem(
               id: row['id'].toString(),
-              animalId: animalId,
-              animalName: animal.name,
-              animalCode: animal.code,
+              animalId: info.id,
+              animalName: info.name,
+              animalCode: info.code,
               type: AlertType.weighing,
               title: title,
               dueDate: due,

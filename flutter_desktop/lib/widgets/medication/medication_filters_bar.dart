@@ -75,7 +75,7 @@ class MedicationFiltersBar extends StatelessWidget {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String?>(
-                  value: selectedSpecies,
+                  initialValue: selectedSpecies,
                   decoration: const InputDecoration(labelText: 'Espécie'),
                   items: [
                     const DropdownMenuItem(
@@ -95,7 +95,7 @@ class MedicationFiltersBar extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<String?>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: const InputDecoration(labelText: 'Categoria'),
                   items: [
                     const DropdownMenuItem(

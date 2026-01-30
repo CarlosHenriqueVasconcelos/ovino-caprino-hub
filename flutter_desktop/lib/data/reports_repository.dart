@@ -588,7 +588,8 @@ class _ReportsQueries {
         v.*,
         a.name AS animal_name,
         a.code AS animal_code,
-        a.name_color AS animal_color
+        a.name_color AS animal_color,
+        a.gender AS animal_gender
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE $where
@@ -623,7 +624,8 @@ class _ReportsQueries {
         m.*,
         a.name AS animal_name,
         a.code AS animal_code,
-        a.name_color AS animal_color
+        a.name_color AS animal_color,
+        a.gender AS animal_gender
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE $where
@@ -650,6 +652,7 @@ class _ReportsQueries {
       'animal_code': row['animal_code'] ?? 'N/A',
       'animal_name': row['animal_name'] ?? 'N/A',
       'animal_color': row['animal_color'] ?? '',
+      'animal_gender': row['animal_gender'] ?? '',
       'vaccine_name': row['vaccine_name'],
       'vaccine_type': row['vaccine_type'],
       'scheduled_date': row['scheduled_date'],
@@ -665,6 +668,7 @@ class _ReportsQueries {
       'animal_code': row['animal_code'] ?? 'N/A',
       'animal_name': row['animal_name'] ?? 'N/A',
       'animal_color': row['animal_color'] ?? '',
+      'animal_gender': row['animal_gender'] ?? '',
       'medication_name': row['medication_name'],
       'date': row['date'],
       'next_date': row['next_date'] ?? '',

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/animal.dart';
 import '../../services/animal_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/system_maintenance_service.dart';
@@ -25,7 +26,9 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final animalService = context.watch<AnimalService>();
+    final animalService = context.read<AnimalService>();
+    final AnimalStats? stats =
+        context.select<AnimalService, AnimalStats?>((s) => s.stats);
 
     return Container(
       decoration: BoxDecoration(
@@ -275,7 +278,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ),
                     const Divider(),
                     Builder(builder: (context) {
-                      final totalAnimals = animalService.stats?.totalAnimals ?? 0;
+                      final totalAnimals = stats?.totalAnimals ?? 0;
                       return ListTile(
                         leading: Icon(Icons.analytics,
                             color: theme.colorScheme.secondary),

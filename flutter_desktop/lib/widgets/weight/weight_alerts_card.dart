@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,9 +14,8 @@ class WeightAlertsCard extends StatefulWidget {
   State<WeightAlertsCard> createState() => _WeightAlertsCardState();
 }
 
-class _WeightAlertsCardState extends State<WeightAlertsCard> {
-  final List<StreamSubscription> _subscriptions = [];
-
+class _WeightAlertsCardState extends State<WeightAlertsCard>
+    with EventBusSubscriptions {
   @override
   void initState() {
     super.initState();
@@ -30,29 +28,21 @@ class _WeightAlertsCardState extends State<WeightAlertsCard> {
 
   void _setupEventListeners() {
     // Recarrega quando peso é adicionado (pode completar alertas)
-    _subscriptions.add(EventBus().listen<WeightAddedEvent>((_) => _reload()));
+    onEvent<WeightAddedEvent>((_) => _reload());
     
     // Recarrega quando alerta é completado
-    _subscriptions.add(EventBus().listen<WeightAlertCompletedEvent>((_) => _reload()));
+    onEvent<WeightAlertCompletedEvent>((_) => _reload());
     
     // Refresh geral de alertas
-    _subscriptions.add(EventBus().listen<AlertsRefreshRequestedEvent>((_) => _reload()));
+    onEvent<AlertsRefreshRequestedEvent>((_) => _reload());
     
     // Quando animal é criado (borrego gera alertas)
-    _subscriptions.add(EventBus().listen<AnimalCreatedEvent>((_) => _reload()));
+    onEvent<AnimalCreatedEvent>((_) => _reload());
   }
 
   void _reload() {
     if (!mounted) return;
     context.read<WeightAlertService>().loadPending();
-  }
-
-  @override
-  void dispose() {
-    for (final sub in _subscriptions) {
-      sub.cancel();
-    }
-    super.dispose();
   }
 
   @override

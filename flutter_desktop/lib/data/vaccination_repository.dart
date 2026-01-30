@@ -140,6 +140,7 @@ class VaccinationRepository {
         a.name as animal_name,
         a.code as animal_code,
         a.name_color as animal_color,
+        a.gender as animal_gender,
         a.species as animal_species,
         a.category as animal_category
       FROM vaccinations v
@@ -183,6 +184,7 @@ class VaccinationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM vaccinations v
@@ -226,6 +228,7 @@ class VaccinationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM vaccinations v
@@ -267,6 +270,7 @@ class VaccinationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM vaccinations v
@@ -308,6 +312,7 @@ class VaccinationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM vaccinations v
@@ -320,6 +325,87 @@ class VaccinationRepository {
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
+  Future<List<Map<String, dynamic>>> getVaccinationsOverdueWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getOverdueWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getVaccinationsScheduledFutureWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getScheduledWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getVaccinationsAppliedWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getAppliedWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getVaccinationsCanceledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getCancelledWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getPendingAlertsWithin(
       DateTime horizon) async {
     final limit = _isoDate(horizon);
@@ -328,7 +414,8 @@ class VaccinationRepository {
         v.*, 
         a.name AS animal_name, 
         a.code AS animal_code, 
-        a.name_color AS animal_color
+        a.name_color AS animal_color,
+        a.gender AS animal_gender
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE v.status NOT IN ('Aplicada', 'Cancelada')

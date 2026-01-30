@@ -7,6 +7,7 @@ import '../../models/animal.dart';
 import '../../services/animal_service.dart';
 import '../../services/note_service.dart';
 import '../../utils/animal_display_utils.dart';
+import '../../utils/responsive_utils.dart';
 
 class NotesFormDialog extends StatefulWidget {
   final String? animalId;
@@ -33,6 +34,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
   bool _loadingAnimals = true;
   Timer? _animalDebounce;
   Animal? _linkedAnimal;
+  Animal? _selectedAnimal;
 
   @override
   void initState() {
@@ -47,7 +49,8 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
       final animal = await animalService.getAnimalById(widget.animalId!);
       if (animal != null) {
         _linkedAnimal = animal;
-        _animalFieldText = '${animal.code} - ${animal.name}';
+        _selectedAnimal = animal;
+        _animalFieldText = AnimalDisplayUtils.getDisplayText(animal);
       }
     }
     await _loadAnimals();
@@ -79,6 +82,9 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = ResponsiveUtils.isMobile(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final optionsWidth = isMobile ? screenWidth * 0.9 : 520.0;
     return AlertDialog(
       title: const Text('Nova Anotação'),
       content: AnimatedPadding(
@@ -108,8 +114,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                           return name.contains(query) || code.contains(query);
                         });
                       },
-                      displayStringForOption: (Animal option) =>
-                          '${option.code} - ${option.name}',
+                      displayStringForOption: AnimalDisplayUtils.getDisplayText,
                       fieldViewBuilder:
                           (context, controller, focusNode, onSubmitted) {
                         if (controller.text != _animalFieldText) {
@@ -125,6 +130,27 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                             labelText: 'Animal (opcional)',
                             border: const OutlineInputBorder(),
                             hintText: 'Digite nome ou código',
+                            prefixIcon: _selectedAnimal != null
+                                ? Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Container(
+                                      width: 16,
+                                      height: 16,
+                                      decoration: BoxDecoration(
+                                        color: AnimalDisplayUtils.getColorValue(
+                                          _selectedAnimal!.nameColor,
+                                        ),
+                                        shape: BoxShape.circle,
+                                        border: _selectedAnimal!.nameColor == 'white'
+                                            ? Border.all(
+                                                color: Colors.grey,
+                                                width: 1,
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                             suffixIcon: _selectedAnimalId != null
                                 ? IconButton(
                                     icon: const Icon(Icons.clear),
@@ -132,6 +158,7 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                                       setState(() {
                                         _selectedAnimalId = null;
                                         _animalFieldText = '';
+                                        _selectedAnimal = null;
                                       });
                                       controller.clear();
                                     },
@@ -140,12 +167,45 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                           ),
                         );
                       },
-                      onSelected: (Animal animal) {
-                        setState(() {
-                          _selectedAnimalId = animal.id;
-                          _animalFieldText = '${animal.code} - ${animal.name}';
-                        });
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4,
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 240),
+                              width: optionsWidth,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                itemCount: options.length,
+                                itemBuilder: (context, index) {
+                                  final Animal animal = options.elementAt(index);
+                                  return InkWell(
+                                    onTap: () => onSelected(animal),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 6,
+                                        horizontal: 12,
+                                      ),
+                                      child: AnimalDisplayUtils.buildDropdownItem(
+                                        animal,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
                       },
+                          onSelected: (Animal animal) {
+                            setState(() {
+                              _selectedAnimalId = animal.id;
+                              _animalFieldText =
+                                  AnimalDisplayUtils.getDisplayText(animal);
+                              _selectedAnimal = animal;
+                            });
+                          },
                     ),
                     const SizedBox(height: 16),
                   ] else ...[
@@ -157,11 +217,37 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                           labelText: 'Animal vinculado',
                           border: OutlineInputBorder(),
                         ),
-                        child: Text(
-                          _linkedAnimal != null
-                              ? '${_linkedAnimal!.code} - ${_linkedAnimal!.name}'
-                              : 'Animal não encontrado',
-                        ),
+                        child: _linkedAnimal == null
+                            ? const Text('Animal não encontrado')
+                            : Row(
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: AnimalDisplayUtils.getColorValue(
+                                        _linkedAnimal!.nameColor,
+                                      ),
+                                      shape: BoxShape.circle,
+                                      border: _linkedAnimal!.nameColor == 'white'
+                                          ? Border.all(
+                                              color: Colors.grey,
+                                              width: 1,
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      AnimalDisplayUtils.getDisplayText(
+                                        _linkedAnimal!,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -184,79 +270,151 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                   const SizedBox(height: 16),
 
                   // Categoria + Prioridade
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _category,
-                          decoration: const InputDecoration(
-                            labelText: 'Categoria',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            'Geral',
-                            'Saúde',
-                            'Reprodução',
-                            'Vacinação',
-                            'Alimentação',
-                            'Manejo',
-                            'Financeiro',
-                            'Veterinário',
-                          ].map((c) {
-                            return DropdownMenuItem(
-                              value: c,
-                              child: Text(c),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _category = value);
-                          },
-                        ),
+                  if (isMobile) ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: _category,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria',
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _priority,
-                          decoration: const InputDecoration(
-                            labelText: 'Prioridade',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const ['Baixa', 'Média', 'Alta'].map((p) {
-                            IconData icon;
-                            Color color;
-                            switch (p) {
-                              case 'Baixa':
-                                icon = Icons.arrow_downward;
-                                color = Colors.green;
-                                break;
-                              case 'Alta':
-                                icon = Icons.arrow_upward;
-                                color = Colors.red;
-                                break;
-                              default:
-                                icon = Icons.drag_handle;
-                                color = Colors.orange;
-                            }
-                            return DropdownMenuItem(
-                              value: p,
-                              child: Row(
-                                children: [
-                                  Icon(icon, size: 18, color: color),
-                                  const SizedBox(width: 6),
-                                  Text(p),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() => _priority = value);
-                          },
-                        ),
+                      items: const [
+                        'Geral',
+                        'Saúde',
+                        'Reprodução',
+                        'Vacinação',
+                        'Alimentação',
+                        'Manejo',
+                        'Financeiro',
+                        'Veterinário',
+                      ].map((c) {
+                        return DropdownMenuItem(
+                          value: c,
+                          child: Text(c, overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _category = value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _priority,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Prioridade',
+                        border: OutlineInputBorder(),
                       ),
-                    ],
-                  ),
+                      items: const ['Baixa', 'Média', 'Alta'].map((p) {
+                        IconData icon;
+                        Color color;
+                        switch (p) {
+                          case 'Baixa':
+                            icon = Icons.arrow_downward;
+                            color = Colors.green;
+                            break;
+                          case 'Alta':
+                            icon = Icons.arrow_upward;
+                            color = Colors.red;
+                            break;
+                          default:
+                            icon = Icons.drag_handle;
+                            color = Colors.orange;
+                        }
+                        return DropdownMenuItem(
+                          value: p,
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 18, color: color),
+                              const SizedBox(width: 6),
+                              Text(p),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _priority = value);
+                      },
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _category,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Categoria',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              'Geral',
+                              'Saúde',
+                              'Reprodução',
+                              'Vacinação',
+                              'Alimentação',
+                              'Manejo',
+                              'Financeiro',
+                              'Veterinário',
+                            ].map((c) {
+                              return DropdownMenuItem(
+                                value: c,
+                                child: Text(c, overflow: TextOverflow.ellipsis),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _category = value);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _priority,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Prioridade',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const ['Baixa', 'Média', 'Alta'].map((p) {
+                              IconData icon;
+                              Color color;
+                              switch (p) {
+                                case 'Baixa':
+                                  icon = Icons.arrow_downward;
+                                  color = Colors.green;
+                                  break;
+                                case 'Alta':
+                                  icon = Icons.arrow_upward;
+                                  color = Colors.red;
+                                  break;
+                                default:
+                                  icon = Icons.drag_handle;
+                                  color = Colors.orange;
+                              }
+                              return DropdownMenuItem(
+                                value: p,
+                                child: Row(
+                                  children: [
+                                    Icon(icon, size: 18, color: color),
+                                    const SizedBox(width: 6),
+                                    Text(p),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _priority = value);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
 
                   // Data

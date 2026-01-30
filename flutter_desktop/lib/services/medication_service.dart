@@ -124,11 +124,50 @@ class MedicationService extends ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getMedicationsOverdueWithAnimalInfo({
+    MedicationQueryOptions options = const MedicationQueryOptions(),
+  }) async {
+    try {
+      return await _repository.getMedicationsOverdueWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
+      );
+    } catch (e) {
+      debugPrint('Erro ao buscar medicações atrasadas com info: $e');
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getScheduledMedicationsWithAnimalInfo({
     MedicationQueryOptions options = const MedicationQueryOptions(),
   }) async {
     try {
       return await _repository.getScheduledWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
+      );
+    } catch (e) {
+      debugPrint('Erro ao buscar medicações agendadas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getMedicationsScheduledFutureWithAnimalInfo({
+    MedicationQueryOptions options = const MedicationQueryOptions(),
+  }) async {
+    try {
+      return await _repository.getMedicationsScheduledFutureWithAnimalInfo(
         species: options.species,
         category: options.category,
         searchTerm: options.searchTerm,
@@ -162,11 +201,49 @@ class MedicationService extends ChangeNotifier {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getMedicationsAppliedWithAnimalInfo({
+    MedicationQueryOptions options = const MedicationQueryOptions(),
+  }) async {
+    try {
+      return await _repository.getMedicationsAppliedWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
+      );
+    } catch (e) {
+      debugPrint('Erro ao buscar medicações aplicadas com info: $e');
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getCancelledMedicationsWithAnimalInfo({
     MedicationQueryOptions options = const MedicationQueryOptions(),
   }) async {
     try {
       return await _repository.getCancelledWithAnimalInfo(
+        species: options.species,
+        category: options.category,
+        searchTerm: options.searchTerm,
+        startDate: options.startDate,
+        endDate: options.endDate,
+        limit: options.limit,
+        offset: options.offset,
+      );
+    } catch (e) {
+      debugPrint('Erro ao buscar medicações canceladas com info: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMedicationsCanceledWithAnimalInfo({
+    MedicationQueryOptions options = const MedicationQueryOptions(),
+  }) async {
+    try {
+      return await _repository.getMedicationsCanceledWithAnimalInfo(
         species: options.species,
         category: options.category,
         searchTerm: options.searchTerm,

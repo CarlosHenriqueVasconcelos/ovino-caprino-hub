@@ -41,7 +41,8 @@ class WeightAlertRepository {
         wa.*,
         a.name AS animal_name,
         a.code AS animal_code,
-        a.name_color AS animal_color
+        a.name_color AS animal_color,
+        a.gender AS animal_gender
       FROM weight_alerts wa
       LEFT JOIN animals a ON a.id = wa.animal_id
       WHERE wa.completed = 0

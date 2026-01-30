@@ -53,7 +53,7 @@ class PharmacyFiltersBar extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: selectedCategory,
+                initialValue: selectedCategory,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Categoria'),
                 items: categories
@@ -92,7 +92,7 @@ class PharmacyFiltersBar extends StatelessWidget {
                   SizedBox(
                     width: 200,
                     child: DropdownButtonFormField<String>(
-                      value: selectedCategory,
+                      initialValue: selectedCategory,
                       decoration: const InputDecoration(labelText: 'Categoria'),
                       items: categories
                           .map(

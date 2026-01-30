@@ -5,6 +5,7 @@ import '../../models/animal.dart';
 import '../../models/breeding_record.dart';
 import '../../services/animal_service.dart';
 import '../../services/breeding_service.dart';
+import '../../utils/animal_display_utils.dart';
 import 'breeding_wizard_dialog.dart';
 import 'breeding_stage_actions.dart';
 import 'breeding_import_dialog.dart';
@@ -568,7 +569,7 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                       const SizedBox(height: 4),
                       Text(
                         female != null
-                            ? '${female.code} - ${female.name}'
+                            ? AnimalDisplayUtils.getDisplayText(female)
                             : 'N/A',
                         style: const TextStyle(fontSize: 14),
                       ),
@@ -589,7 +590,9 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        male != null ? '${male.code} - ${male.name}' : 'N/A',
+                        male != null
+                            ? AnimalDisplayUtils.getDisplayText(male)
+                            : 'N/A',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],

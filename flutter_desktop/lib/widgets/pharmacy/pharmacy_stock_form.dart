@@ -184,7 +184,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                 if (isMobile) ...[
                   // Mobile: Stack dropdowns vertically
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tipo *',
@@ -203,7 +203,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedUnit,
+                    initialValue: _selectedUnit,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Unidade *',
@@ -225,7 +225,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _selectedType,
+                          initialValue: _selectedType,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Tipo *',
@@ -246,7 +246,7 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: _selectedUnit,
+                          initialValue: _selectedUnit,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Unidade *',

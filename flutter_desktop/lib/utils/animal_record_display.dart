@@ -10,23 +10,31 @@ class AnimalRecordDisplay {
     final color = (record['animal_color'] ?? '').toString().trim();
     final name = (record['animal_name'] ?? '').toString().trim();
     final code = (record['animal_code'] ?? '').toString().trim();
+    final gender = (record['animal_gender'] ??
+            record['gender'] ??
+            record['animal_sex'] ??
+            '')
+        .toString()
+        .trim();
 
     final buffer = StringBuffer();
-    if (color.isNotEmpty) {
-      buffer.write(translateColor(color));
-      if (name.isNotEmpty || code.isNotEmpty) {
-        buffer.write(' - ');
-      }
-    }
-
-    if (name.isNotEmpty) {
-      buffer.write(name);
-    } else {
-      buffer.write(fallbackName);
-    }
+    final colorName = translateColor(color);
+    final resolvedName = name.isNotEmpty ? name : fallbackName;
+    buffer.write(colorName);
+    buffer.write(' - ');
+    buffer.write(resolvedName);
 
     if (code.isNotEmpty) {
-      buffer.write(' ($code)');
+      buffer.write(' - $code');
+    }
+
+    final genderSuffix = _genderSuffix(
+      gender,
+      name: resolvedName,
+      code: code,
+    );
+    if (genderSuffix.isNotEmpty) {
+      buffer.write(genderSuffix);
     }
 
     return buffer.toString();
@@ -108,5 +116,18 @@ class AnimalRecordDisplay {
     if (lower.contains('roxo') || lower == 'purple') return 'purple';
     if (lower.contains('laranja') || lower == 'orange') return 'orange';
     return lower;
+  }
+
+  static String _genderSuffix(
+    String gender, {
+    required String name,
+    required String code,
+  }) {
+    final normalizedGender = gender.trim();
+    if (normalizedGender.isEmpty) return '';
+    final lowerGender = normalizedGender.toLowerCase();
+    final haystack = '$name $code'.toLowerCase();
+    if (haystack.contains(lowerGender)) return '';
+    return ' ($normalizedGender)';
   }
 }

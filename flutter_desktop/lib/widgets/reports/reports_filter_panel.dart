@@ -75,7 +75,7 @@ class ReportsFilterPanel extends StatelessWidget {
           if (isMobile) ...[
             // Mobile: layout vertical
             DropdownButtonFormField<String>(
-              value: periodPreset,
+              initialValue: periodPreset,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Período',
@@ -151,7 +151,7 @@ class ReportsFilterPanel extends StatelessWidget {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: periodPreset,
+                    initialValue: periodPreset,
                     decoration: const InputDecoration(
                       labelText: 'Período',
                       border: OutlineInputBorder(),
@@ -373,7 +373,7 @@ class ReportsFilterPanel extends StatelessWidget {
         return SizedBox(
           width: isMobile ? double.infinity : 200,
           child: DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: label,

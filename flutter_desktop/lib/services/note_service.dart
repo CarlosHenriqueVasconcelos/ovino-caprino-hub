@@ -8,7 +8,7 @@ import 'events/app_events.dart';
 ///
 /// Importante: Widgets NÃO falam direto com o NoteRepository ou AppDatabase.
 /// Sempre passam pelo NoteService.
-class NoteService extends ChangeNotifier {
+class NoteService {
   final NoteRepository _repository;
 
   NoteService(this._repository);

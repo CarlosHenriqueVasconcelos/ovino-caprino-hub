@@ -68,10 +68,13 @@ class AnimalDisplayUtils {
     });
   }
 
-  /// Retorna o texto formatado para exibição: "Cor - Nome (Código)"
+  /// Retorna o texto formatado para exibição: "Cor - Nome - Código (Sexo)"
   static String getDisplayText(Animal animal) {
     final colorName = getColorName(animal.nameColor);
-    return '$colorName - ${animal.name} (${animal.code})';
+    final name = animal.name.isNotEmpty ? animal.name : 'Sem nome';
+    final code = animal.code.isNotEmpty ? animal.code : 'Sem código';
+    final genderSuffix = _genderSuffix(animal.gender, name: name, code: code);
+    return '$colorName - $name - $code$genderSuffix';
   }
 
   /// Constrói um widget para dropdown com círculo de cor e texto formatado
@@ -81,6 +84,9 @@ class AnimalDisplayUtils {
   static Widget buildDropdownItem(Animal animal, {TextStyle? textStyle}) {
     final colorName = getColorName(animal.nameColor);
     final colorValue = getColorValue(animal.nameColor);
+    final name = animal.name.isNotEmpty ? animal.name : 'Sem nome';
+    final code = animal.code.isNotEmpty ? animal.code : 'Sem código';
+    final genderSuffix = _genderSuffix(animal.gender, name: name, code: code);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -108,11 +114,11 @@ class AnimalDisplayUtils {
               children: [
                 TextSpan(text: '$colorName - '),
                 TextSpan(
-                  text: animal.name,
+                  text: name,
                   style:
                       TextStyle(color: colorValue, fontWeight: FontWeight.bold),
                 ),
-                TextSpan(text: ' (${animal.code})'),
+                TextSpan(text: ' - $code$genderSuffix'),
               ],
             ),
           ),
@@ -125,6 +131,9 @@ class AnimalDisplayUtils {
   static Widget buildColoredNameText(Animal animal, {TextStyle? baseStyle}) {
     final colorName = getColorName(animal.nameColor);
     final colorValue = getColorValue(animal.nameColor);
+    final name = animal.name.isNotEmpty ? animal.name : 'Sem nome';
+    final code = animal.code.isNotEmpty ? animal.code : 'Sem código';
+    final genderSuffix = _genderSuffix(animal.gender, name: name, code: code);
 
     return RichText(
       text: TextSpan(
@@ -132,12 +141,25 @@ class AnimalDisplayUtils {
         children: [
           TextSpan(text: '$colorName - '),
           TextSpan(
-            text: animal.name,
+            text: name,
             style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
           ),
-          TextSpan(text: ' (${animal.code})'),
+          TextSpan(text: ' - $code$genderSuffix'),
         ],
       ),
     );
+  }
+
+  static String _genderSuffix(
+    String? gender, {
+    required String name,
+    required String code,
+  }) {
+    final normalizedGender = (gender ?? '').trim();
+    if (normalizedGender.isEmpty) return '';
+    final lowerGender = normalizedGender.toLowerCase();
+    final haystack = '$name $code'.toLowerCase();
+    if (haystack.contains(lowerGender)) return '';
+    return ' ($normalizedGender)';
   }
 }

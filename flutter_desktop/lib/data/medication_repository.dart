@@ -155,6 +155,7 @@ class MedicationRepository {
         a.name as animal_name,
         a.code as animal_code,
         a.name_color as animal_color,
+        a.gender as animal_gender,
         a.species as animal_species,
         a.category as animal_category
       FROM medications m
@@ -198,6 +199,7 @@ class MedicationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM medications m
@@ -241,6 +243,7 @@ class MedicationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM medications m
@@ -282,6 +285,7 @@ class MedicationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM medications m
@@ -323,6 +327,7 @@ class MedicationRepository {
              a.name AS animal_name, 
              a.code AS animal_code, 
              a.name_color AS animal_color,
+             a.gender AS animal_gender,
              a.species AS animal_species,
              a.category AS animal_category
       FROM medications m
@@ -333,6 +338,87 @@ class MedicationRepository {
       ${offset != null ? 'OFFSET $offset' : ''}
     ''', args);
     return rows.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getMedicationsOverdueWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getOverdueWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>>
+      getMedicationsScheduledFutureWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getScheduledWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getMedicationsAppliedWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getAppliedWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getMedicationsCanceledWithAnimalInfo({
+    String? species,
+    String? category,
+    String? searchTerm,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+    int? offset,
+  }) async {
+    return getCancelledWithAnimalInfo(
+      species: species,
+      category: category,
+      searchTerm: searchTerm,
+      startDate: startDate,
+      endDate: endDate,
+      limit: limit,
+      offset: offset,
+    );
   }
 
   /// Retorna medicações relacionadas a um item do estoque
@@ -355,6 +441,7 @@ class MedicationRepository {
         a.name AS animal_name, 
         a.code AS animal_code, 
         a.name_color AS animal_color,
+        a.gender AS animal_gender,
         COALESCE(m.next_date, m.date) AS due_date
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id

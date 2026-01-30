@@ -8,6 +8,7 @@ import '../../services/animal_service.dart';
 import '../../services/medication_service.dart';
 import '../../services/pharmacy_service.dart';
 import '../../services/vaccination_service.dart';
+import '../../utils/animal_display_utils.dart';
 import '../../utils/responsive_utils.dart';
 
 class AddMedicationDialog extends StatefulWidget {
@@ -104,7 +105,7 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _type,
+                    initialValue: _type,
                     decoration: const InputDecoration(labelText: 'Tipo *'),
                     items: const [
                       DropdownMenuItem(value: 'Vacinação', child: Text('Vacinação')),
@@ -124,14 +125,14 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
                     const Text('Cadastre um animal antes de agendar a aplicação.')
                   else
                     DropdownButtonFormField<String>(
-                      value: _selectedAnimalId,
+                      initialValue: _selectedAnimalId,
                       decoration: const InputDecoration(labelText: 'Animal *'),
                       items: _animals
                           .map(
                             (animal) => DropdownMenuItem(
                               value: animal.id,
                               child: Text(
-                                '${animal.name} (${animal.code})',
+                                AnimalDisplayUtils.getDisplayText(animal),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -158,7 +159,7 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
                   const SizedBox(height: 16),
                   if (_type == 'Vacinação')
                     DropdownButtonFormField<String>(
-                      value: _vaccineType,
+                      initialValue: _vaccineType,
                       decoration: const InputDecoration(labelText: 'Tipo de vacina'),
                       items: const [
                         'Obrigatória',

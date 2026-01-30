@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/animal.dart';
+import '../../services/animal_service.dart';
 import '../../utils/animal_display_utils.dart';
 
 class AnimalBasicInfoSection extends StatelessWidget {
@@ -226,8 +229,6 @@ class AnimalBasicInfoSection extends StatelessWidget {
 }
 
 class AnimalOriginSection extends StatelessWidget {
-  final List<Animal> availableMothers;
-  final List<Animal> availableFathers;
   final String motherInitialText;
   final String fatherInitialText;
   final void Function(TextEditingController controller,
@@ -242,8 +243,6 @@ class AnimalOriginSection extends StatelessWidget {
 
   const AnimalOriginSection({
     super.key,
-    required this.availableMothers,
-    required this.availableFathers,
     required this.motherInitialText,
     required this.fatherInitialText,
     required this.seedParentField,
@@ -258,8 +257,8 @@ class AnimalOriginSection extends StatelessWidget {
       children: [
         _ParentAutocomplete(
           label: 'Mãe',
+          isMother: true,
           initialText: motherInitialText,
-          animals: availableMothers,
           seedField: (controller) =>
               seedParentField(controller, isMother: true),
           formatParentLabel: formatParentLabel,
@@ -268,8 +267,8 @@ class AnimalOriginSection extends StatelessWidget {
         const SizedBox(height: 16),
         _ParentAutocomplete(
           label: 'Pai',
+          isMother: false,
           initialText: fatherInitialText,
-          animals: availableFathers,
           seedField: (controller) =>
               seedParentField(controller, isMother: false),
           formatParentLabel: formatParentLabel,
@@ -280,10 +279,10 @@ class AnimalOriginSection extends StatelessWidget {
   }
 }
 
-class _ParentAutocomplete extends StatelessWidget {
+class _ParentAutocomplete extends StatefulWidget {
   final String label;
+  final bool isMother;
   final String initialText;
-  final List<Animal> animals;
   final ValueChanged<TextEditingController> seedField;
   final String? Function({
     String? name,
@@ -294,84 +293,185 @@ class _ParentAutocomplete extends StatelessWidget {
 
   const _ParentAutocomplete({
     required this.label,
+    required this.isMother,
     required this.initialText,
-    required this.animals,
     required this.seedField,
     required this.formatParentLabel,
     required this.onSelected,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Autocomplete<Animal>(
-      initialValue: TextEditingValue(text: initialText),
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        if (textEditingValue.text.isEmpty) {
-          return animals;
-        }
-        final query = textEditingValue.text.toLowerCase();
-        return animals.where((animal) {
-          final name = animal.name.toLowerCase();
-          final code = animal.code.toLowerCase();
-          final colorName = AnimalDisplayUtils.getColorName(
-            animal.nameColor,
-          ).toLowerCase();
-          return name.contains(query) ||
-              code.contains(query) ||
-              colorName.contains(query);
+  State<_ParentAutocomplete> createState() => _ParentAutocompleteState();
+}
+
+class _ParentAutocompleteState extends State<_ParentAutocomplete> {
+  static const _debounceDuration = Duration(milliseconds: 250);
+  static const _pageLimit = 50;
+  static const _excludeCategories = ['Borrego'];
+
+  final List<Animal> _options = [];
+  bool _isLoading = false;
+  Timer? _debounce;
+  int _requestId = 0;
+  String _currentQuery = '';
+  TextEditingController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoading = true;
+    _fetchOptions('');
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _controller?.removeListener(_handleQueryChanged);
+    super.dispose();
+  }
+
+  void _attachController(TextEditingController controller) {
+    if (_controller != controller) {
+      _controller?.removeListener(_handleQueryChanged);
+      _controller = controller;
+    }
+    _controller?.removeListener(_handleQueryChanged);
+    widget.seedField(controller);
+    _currentQuery = controller.text;
+    _controller?.addListener(_handleQueryChanged);
+  }
+
+  void _handleQueryChanged() {
+    final query = _controller?.text ?? '';
+    if (query == _currentQuery) return;
+    _currentQuery = query;
+    _debounce?.cancel();
+    setState(() {
+      _isLoading = true;
+      _options.clear();
+    });
+    final requestId = ++_requestId;
+    _debounce = Timer(_debounceDuration, () async {
+      try {
+        final animals = await _searchAnimals(query);
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _options
+            ..clear()
+            ..addAll(animals);
+          _isLoading = false;
         });
-      },
-      displayStringForOption: (Animal option) =>
-          formatParentLabel(
-            name: option.name,
-            code: option.code,
-            color: option.nameColor,
-          ) ??
-          option.name,
-      fieldViewBuilder:
-          (context, textEditingController, focusNode, onFieldSubmitted) {
-        seedField(textEditingController);
-        return TextFormField(
-          controller: textEditingController,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            labelText: label,
-            border: const OutlineInputBorder(),
-            hintText: 'Digite para buscar',
-            prefixIcon: const Icon(Icons.search),
-          ),
-        );
-      },
-      optionsViewBuilder: (context, onOptionSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 260),
-              color: Colors.white,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final Animal option = options.elementAt(index);
-                  return InkWell(
-                    onTap: () => onOptionSelected(option),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 6,
-                        horizontal: 12,
-                      ),
-                      child: AnimalDisplayUtils.buildDropdownItem(option),
-                    ),
-                  );
-                },
+      } catch (_) {
+        if (!mounted || requestId != _requestId) return;
+        setState(() => _isLoading = false);
+      }
+    });
+  }
+
+  Future<void> _fetchOptions(String query) async {
+    final requestId = ++_requestId;
+    try {
+      final animals = await _searchAnimals(query);
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _options
+          ..clear()
+          ..addAll(animals);
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _requestId) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<List<Animal>> _searchAnimals(String query) async {
+    final animalService = context.read<AnimalService>();
+    final animals = await animalService.searchAnimals(
+      gender: widget.isMother ? 'Fêmea' : 'Macho',
+      excludeCategories: _excludeCategories,
+      searchQuery: query.trim().isEmpty ? null : query.trim(),
+      limit: _pageLimit,
+    );
+    AnimalDisplayUtils.sortAnimalsList(animals);
+    return animals;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showStatus =
+        _isLoading || (_currentQuery.isNotEmpty && _options.isEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Autocomplete<Animal>(
+          initialValue: TextEditingValue(text: widget.initialText),
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (_isLoading) return const Iterable<Animal>.empty();
+            return _options;
+          },
+          displayStringForOption: (Animal option) =>
+              widget.formatParentLabel(
+                name: option.name,
+                code: option.code,
+                color: option.nameColor,
+              ) ??
+              option.name,
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            _attachController(textEditingController);
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: widget.label,
+                border: const OutlineInputBorder(),
+                hintText: 'Digite para buscar',
+                prefixIcon: const Icon(Icons.search),
               ),
+            );
+          },
+          optionsViewBuilder: (context, onOptionSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  color: Colors.white,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      final Animal option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onOptionSelected(option),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 6,
+                            horizontal: 12,
+                          ),
+                          child: AnimalDisplayUtils.buildDropdownItem(option),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          onSelected: widget.onSelected,
+        ),
+        if (showStatus)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              _isLoading ? 'Carregando...' : 'Nenhum resultado',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        );
-      },
-      onSelected: onSelected,
+      ],
     );
   }
 }

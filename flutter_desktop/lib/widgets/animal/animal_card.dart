@@ -193,6 +193,7 @@ class AnimalCard extends StatelessWidget {
                           ],
                         ),
                       );
+                      if (!context.mounted) return;
                       if (ok == true) {
                         try {
                           final deceasedService = context.read<DeceasedService>();
@@ -204,6 +205,7 @@ class AnimalCard extends StatelessWidget {
                           );
                           if (!context.mounted) return;
                           await animalService.refreshAlerts();
+                          if (!context.mounted) return;
                           EventBus().emit(AnimalMarkedAsDeceasedEvent(
                             animalId: animal.id,
                             deathDate: DateTime.now(),
@@ -248,15 +250,15 @@ class AnimalCard extends StatelessWidget {
                           ],
                         ),
                       );
+                      if (!context.mounted) return;
                       if (ok == true) {
                         await onDeleteCascade!(animal);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Animal e registros excluídos'),
-                            ),
-                          );
-                        }
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Animal e registros excluídos'),
+                          ),
+                        );
                       }
                     } else if (value == 'edit' && onEdit != null) {
                       onEdit!(animal);

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../controllers/medication_management_controller.dart';
 import '../../services/animal_service.dart';
 import '../../services/medication_service.dart';
 import '../../services/vaccination_service.dart';
@@ -20,22 +21,9 @@ class MedicationManagementScreen extends StatefulWidget {
 
 class _MedicationManagementScreenState
     extends State<MedicationManagementScreen> with AutomaticKeepAliveClientMixin {
-  List<Map<String, dynamic>> _vaccinations = [];
-  List<Map<String, dynamic>> _medications = [];
-  bool _isLoading = true;
-  bool _isLoadingMoreVacc = false;
-  bool _isLoadingMoreMed = false;
-  bool _hasMoreVacc = false;
-  bool _hasMoreMed = false;
-  int _vaccPage = 0;
-  int _medPage = 0;
-  static const int _pageSize = 50;
+  late final MedicationManagementController _controller;
   late final ScrollController _vaccScroll;
   late final ScrollController _medScroll;
-
-  // Filtros de status
-  String _vaccinationFilter = 'Atrasadas';
-  String _medicationFilter = 'Atrasados';
 
   @override
   void initState() {
@@ -44,192 +32,49 @@ class _MedicationManagementScreenState
     _medScroll = ScrollController();
     _vaccScroll.addListener(_handleVaccScroll);
     _medScroll.addListener(_handleMedScroll);
-    _loadData();
+    _controller = MedicationManagementController(
+      context.read<VaccinationService>(),
+      context.read<MedicationService>(),
+    );
+    _controller.initLoad();
   }
 
   @override
   void dispose() {
     _vaccScroll.dispose();
     _medScroll.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    try {
-      final vaccinationService =
-          Provider.of<VaccinationService>(context, listen: false);
-      final medicationService =
-          Provider.of<MedicationService>(context, listen: false);
-
-      final vaccinations = await vaccinationService.getVaccinations(
-        limit: _pageSize,
-        offset: 0,
-      );
-      final medications = await medicationService.getMedications(
-        limit: _pageSize,
-        offset: 0,
-      );
-
-      setState(() {
-        _vaccinations = List<Map<String, dynamic>>.from(vaccinations);
-        _medications = List<Map<String, dynamic>>.from(medications);
-        _vaccPage = 0;
-        _medPage = 0;
-        _hasMoreVacc = vaccinations.length == _pageSize;
-        _hasMoreMed = medications.length == _pageSize;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  List<Map<String, dynamic>> _filterVaccinations() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (_vaccinationFilter) {
-      case 'Atrasadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return scheduledDate.isBefore(today);
-        }).toList();
-      case 'Agendadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return !scheduledDate.isBefore(today);
-        }).toList();
-      case 'Aplicadas':
-        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
-      case 'Canceladas':
-        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
-      default:
-        return _vaccinations;
-    }
-  }
-
-  List<Map<String, dynamic>> _filterMedications() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (_medicationFilter) {
-      case 'Atrasados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return date.isBefore(today);
-        }).toList();
-      case 'Agendados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return !date.isBefore(today);
-        }).toList();
-      case 'Aplicados':
-        return _medications.where((m) => m['status'] == 'Aplicado').toList();
-      case 'Cancelados':
-        return _medications.where((m) => m['status'] == 'Cancelado').toList();
-      default:
-        return _medications;
-    }
-  }
-
-  int _countVaccinationsByStatus(String status) {
-    return _filterVaccinationsForCount(status).length;
-  }
-
-  List<Map<String, dynamic>> _filterVaccinationsForCount(String status) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (status) {
-      case 'Atrasadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return scheduledDate.isBefore(today);
-        }).toList();
-      case 'Agendadas':
-        return _vaccinations.where((v) {
-          if (v['status'] != 'Agendada') return false;
-          final scheduledDate = DateTime.tryParse(v['scheduled_date'] ?? '');
-          if (scheduledDate == null) return false;
-          return !scheduledDate.isBefore(today);
-        }).toList();
-      case 'Aplicadas':
-        return _vaccinations.where((v) => v['status'] == 'Aplicada').toList();
-      case 'Canceladas':
-        return _vaccinations.where((v) => v['status'] == 'Cancelada').toList();
-      default:
-        return _vaccinations;
-    }
-  }
-
-  int _countMedicationsByStatus(String status) {
-    return _filterMedicationsForCount(status).length;
-  }
-
-  List<Map<String, dynamic>> _filterMedicationsForCount(String status) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    switch (status) {
-      case 'Atrasados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return date.isBefore(today);
-        }).toList();
-      case 'Agendados':
-        return _medications.where((m) {
-          if (m['status'] != 'Agendado') return false;
-          final date = DateTime.tryParse(m['date'] ?? '');
-          if (date == null) return false;
-          return !date.isBefore(today);
-        }).toList();
-      case 'Aplicados':
-        return _medications.where((m) => m['status'] == 'Aplicado').toList();
-      case 'Cancelados':
-        return _medications.where((m) => m['status'] == 'Cancelado').toList();
-      default:
-        return _medications;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Vacinações e Medicamentos'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.vaccines), text: 'Vacinações'),
-              Tab(icon: Icon(Icons.medication), text: 'Medicamentos'),
+    return ChangeNotifierProvider.value(
+      value: _controller,
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Vacinações e Medicamentos'),
+            bottom: const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.vaccines), text: 'Vacinações'),
+                Tab(icon: Icon(Icons.medication), text: 'Medicamentos'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              _buildVaccinationsList(),
+              _buildMedicationsList(),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildVaccinationsList(),
-            _buildMedicationsList(),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showAddDialog(),
-          icon: const Icon(Icons.add),
-          label: const Text('Agendar'),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Agendar'),
+          ),
         ),
       ),
     );
@@ -239,197 +84,227 @@ class _MedicationManagementScreenState
   bool get wantKeepAlive => true;
 
   Widget _buildVaccinationsList() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return Selector<MedicationManagementController, _VaccinationListState>(
+      selector: (_, controller) => _VaccinationListState(
+        isLoading: controller.isLoading,
+        isLoadingMore: controller.isLoadingMoreVacc,
+        hasMore: controller.hasMoreVacc,
+        filter: controller.vaccinationFilter,
+        items: controller.vaccinations,
+      ),
+      builder: (context, state, _) {
+        if (state.isLoading ||
+            (state.items.isEmpty && state.isLoadingMore)) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    final filteredVaccinations = _filterVaccinations();
+        final filteredVaccinations = state.items;
 
-    return Column(
-      children: [
-        // Sub-tabs para filtros
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  label:
-                      'Atrasadas (${_countVaccinationsByStatus('Atrasadas')})',
-                  isSelected: _vaccinationFilter == 'Atrasadas',
-                  color: Colors.red,
-                  onTap: () => setState(() => _vaccinationFilter = 'Atrasadas'),
+        return Column(
+          children: [
+            // Sub-tabs para filtros
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip(
+                      label: 'Atrasadas',
+                      isSelected: state.filter == 'Atrasadas',
+                      color: Colors.red,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setVaccFilter('Atrasadas'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Agendadas',
+                      isSelected: state.filter == 'Agendadas',
+                      color: Colors.orange,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setVaccFilter('Agendadas'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Aplicadas',
+                      isSelected: state.filter == 'Aplicadas',
+                      color: Colors.green,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setVaccFilter('Aplicadas'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Canceladas',
+                      isSelected: state.filter == 'Canceladas',
+                      color: Colors.grey,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setVaccFilter('Canceladas'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Agendadas (${_countVaccinationsByStatus('Agendadas')})',
-                  isSelected: _vaccinationFilter == 'Agendadas',
-                  color: Colors.orange,
-                  onTap: () => setState(() => _vaccinationFilter = 'Agendadas'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Aplicadas (${_countVaccinationsByStatus('Aplicadas')})',
-                  isSelected: _vaccinationFilter == 'Aplicadas',
-                  color: Colors.green,
-                  onTap: () => setState(() => _vaccinationFilter = 'Aplicadas'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Canceladas (${_countVaccinationsByStatus('Canceladas')})',
-                  isSelected: _vaccinationFilter == 'Canceladas',
-                  color: Colors.grey,
-                  onTap: () =>
-                      setState(() => _vaccinationFilter = 'Canceladas'),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
 
-        // Lista filtrada
-        Expanded(
-          child: filteredVaccinations.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.vaccines_outlined,
-                        size: 64,
-                        color: Colors.grey[400],
+            // Lista filtrada
+            Expanded(
+              child: filteredVaccinations.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.vaccines_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhuma vacinação ${state.filter}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Nenhuma vacinação $_vaccinationFilter',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  controller: _vaccScroll,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredVaccinations.length +
-                      ((_isLoadingMoreVacc || _hasMoreVacc) ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if ((_isLoadingMoreVacc || _hasMoreVacc) &&
-                        index >= filteredVaccinations.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final vaccination = filteredVaccinations[index];
-                    return _buildVaccinationCard(vaccination);
-                  },
-                ),
-        ),
-      ],
+                    )
+                  : ListView.builder(
+                      controller: _vaccScroll,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredVaccinations.length +
+                          ((state.isLoadingMore || state.hasMore) ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if ((state.isLoadingMore || state.hasMore) &&
+                            index >= filteredVaccinations.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final vaccination = filteredVaccinations[index];
+                        return _buildVaccinationCard(vaccination);
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildMedicationsList() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return Selector<MedicationManagementController, _MedicationListState>(
+      selector: (_, controller) => _MedicationListState(
+        isLoading: controller.isLoading,
+        isLoadingMore: controller.isLoadingMoreMed,
+        hasMore: controller.hasMoreMed,
+        filter: controller.medicationFilter,
+        items: controller.medications,
+      ),
+      builder: (context, state, _) {
+        if (state.isLoading || (state.items.isEmpty && state.isLoadingMore)) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    final filteredMedications = _filterMedications();
+        final filteredMedications = state.items;
 
-    return Column(
-      children: [
-        // Sub-tabs para filtros
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  label:
-                      'Atrasados (${_countMedicationsByStatus('Atrasados')})',
-                  isSelected: _medicationFilter == 'Atrasados',
-                  color: Colors.red,
-                  onTap: () => setState(() => _medicationFilter = 'Atrasados'),
+        return Column(
+          children: [
+            // Sub-tabs para filtros
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip(
+                      label: 'Atrasados',
+                      isSelected: state.filter == 'Atrasados',
+                      color: Colors.red,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setMedFilter('Atrasados'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Agendados',
+                      isSelected: state.filter == 'Agendados',
+                      color: Colors.orange,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setMedFilter('Agendados'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Aplicados',
+                      isSelected: state.filter == 'Aplicados',
+                      color: Colors.green,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setMedFilter('Aplicados'),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip(
+                      label: 'Cancelados',
+                      isSelected: state.filter == 'Cancelados',
+                      color: Colors.grey,
+                      onTap: () => context
+                          .read<MedicationManagementController>()
+                          .setMedFilter('Cancelados'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Agendados (${_countMedicationsByStatus('Agendados')})',
-                  isSelected: _medicationFilter == 'Agendados',
-                  color: Colors.orange,
-                  onTap: () => setState(() => _medicationFilter = 'Agendados'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Aplicados (${_countMedicationsByStatus('Aplicados')})',
-                  isSelected: _medicationFilter == 'Aplicados',
-                  color: Colors.green,
-                  onTap: () => setState(() => _medicationFilter = 'Aplicados'),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  label:
-                      'Cancelados (${_countMedicationsByStatus('Cancelados')})',
-                  isSelected: _medicationFilter == 'Cancelados',
-                  color: Colors.grey,
-                  onTap: () => setState(() => _medicationFilter = 'Cancelados'),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
 
-        // Lista filtrada
-        Expanded(
-          child: filteredMedications.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.medication_outlined,
-                        size: 64,
-                        color: Colors.grey[400],
+            // Lista filtrada
+            Expanded(
+              child: filteredMedications.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.medication_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum medicamento ${state.filter}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Nenhum medicamento $_medicationFilter',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  controller: _medScroll,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredMedications.length +
-                      ((_isLoadingMoreMed || _hasMoreMed) ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if ((_isLoadingMoreMed || _hasMoreMed) &&
-                        index >= filteredMedications.length) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                    final medication = filteredMedications[index];
-                    return _buildMedicationCard(medication);
-                  },
-                ),
-        ),
-      ],
+                    )
+                  : ListView.builder(
+                      controller: _medScroll,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredMedications.length +
+                          ((state.isLoadingMore || state.hasMore) ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if ((state.isLoadingMore || state.hasMore) &&
+                            index >= filteredMedications.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        final medication = filteredMedications[index];
+                        return _buildMedicationCard(medication);
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -464,64 +339,20 @@ class _MedicationManagementScreenState
   }
 
   void _handleVaccScroll() {
-    if (!_vaccScroll.hasClients || _isLoadingMoreVacc || !_hasMoreVacc) return;
+    if (!_vaccScroll.hasClients) return;
+    if (_controller.isLoadingMoreVacc || !_controller.hasMoreVacc) return;
     final position = _vaccScroll.position;
     if (position.pixels >= position.maxScrollExtent - 200) {
-      _loadMoreVaccinations();
+      _controller.loadMoreVacc();
     }
   }
 
   void _handleMedScroll() {
-    if (!_medScroll.hasClients || _isLoadingMoreMed || !_hasMoreMed) return;
+    if (!_medScroll.hasClients) return;
+    if (_controller.isLoadingMoreMed || !_controller.hasMoreMed) return;
     final position = _medScroll.position;
     if (position.pixels >= position.maxScrollExtent - 200) {
-      _loadMoreMedications();
-    }
-  }
-
-  Future<void> _loadMoreVaccinations() async {
-    setState(() => _isLoadingMoreVacc = true);
-    try {
-      final nextPage = _vaccPage + 1;
-      final service =
-          Provider.of<VaccinationService>(context, listen: false);
-      final result = await service.getVaccinations(
-        limit: _pageSize,
-        offset: nextPage * _pageSize,
-      );
-      if (!mounted) return;
-      setState(() {
-        _vaccinations.addAll(result);
-        _vaccPage = nextPage;
-        _hasMoreVacc = result.length == _pageSize;
-      });
-    } catch (_) {
-      // mantém estado atual
-    } finally {
-      if (mounted) setState(() => _isLoadingMoreVacc = false);
-    }
-  }
-
-  Future<void> _loadMoreMedications() async {
-    setState(() => _isLoadingMoreMed = true);
-    try {
-      final nextPage = _medPage + 1;
-      final service =
-          Provider.of<MedicationService>(context, listen: false);
-      final result = await service.getMedications(
-        limit: _pageSize,
-        offset: nextPage * _pageSize,
-      );
-      if (!mounted) return;
-      setState(() {
-        _medications.addAll(result);
-        _medPage = nextPage;
-        _hasMoreMed = result.length == _pageSize;
-      });
-    } catch (_) {
-      // mantém estado atual
-    } finally {
-      if (mounted) setState(() => _isLoadingMoreMed = false);
+      _controller.loadMoreMed();
     }
   }
 
@@ -569,7 +400,7 @@ class _MedicationManagementScreenState
                       builder: (context, snapshot) {
                         final animal = snapshot.data;
                         final animalDisplay = animal != null
-                            ? '${animal.nameColor} - ${animal.name}(${animal.code})'
+                            ? AnimalDisplayUtils.getDisplayText(animal)
                             : 'Animal não encontrado';
 
                         // Converter cor do texto para Color
@@ -775,7 +606,7 @@ class _MedicationManagementScreenState
                       builder: (context, snapshot) {
                         final animal = snapshot.data;
                         final animalDisplay = animal != null
-                            ? '${animal.nameColor} - ${animal.name}(${animal.code})'
+                            ? AnimalDisplayUtils.getDisplayText(animal)
                             : 'Animal não encontrado';
 
                         // Converter cor do texto para Color
@@ -984,7 +815,7 @@ class _MedicationManagementScreenState
       context: context,
       builder: (context) => _AddMedicationDialog(
         onSaved: () {
-          _loadData();
+          _controller.reload();
         },
       ),
     );
@@ -1035,7 +866,7 @@ class _MedicationManagementScreenState
         }
       }
 
-      await _loadData();
+      await _controller.reload();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -1074,7 +905,7 @@ class _MedicationManagementScreenState
         });
       }
 
-      await _loadData();
+      await _controller.reload();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
@@ -1167,6 +998,38 @@ class _MedicationManagementScreenState
       ),
     );
   }
+}
+
+class _VaccinationListState {
+  const _VaccinationListState({
+    required this.isLoading,
+    required this.isLoadingMore,
+    required this.hasMore,
+    required this.filter,
+    required this.items,
+  });
+
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final String filter;
+  final List<Map<String, dynamic>> items;
+}
+
+class _MedicationListState {
+  const _MedicationListState({
+    required this.isLoading,
+    required this.isLoadingMore,
+    required this.hasMore,
+    required this.filter,
+    required this.items,
+  });
+
+  final bool isLoading;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final String filter;
+  final List<Map<String, dynamic>> items;
 }
 
 class _AddMedicationDialog extends StatefulWidget {

@@ -1,5 +1,4 @@
 // lib/widgets/vaccination/vaccination_alerts.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/vaccination_service.dart';
@@ -15,7 +14,8 @@ class VaccinationAlerts extends StatefulWidget {
   State<VaccinationAlerts> createState() => _VaccinationAlertsState();
 }
 
-class _VaccinationAlertsState extends State<VaccinationAlerts> {
+class _VaccinationAlertsState extends State<VaccinationAlerts>
+    with EventBusSubscriptions {
   bool _loading = true;
   String? _error;
 
@@ -28,9 +28,6 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
   int _vacPage = 0;
   int _medPage = 0;
 
-  // EventBus subscriptions
-  final List<StreamSubscription> _subscriptions = [];
-
   @override
   void initState() {
     super.initState();
@@ -40,25 +37,17 @@ class _VaccinationAlertsState extends State<VaccinationAlerts> {
 
   void _setupEventListeners() {
     // Recarrega quando vacinas são criadas/atualizadas/deletadas
-    _subscriptions.add(EventBus().listen<VaccinationCreatedEvent>((_) => _loadAlerts()));
-    _subscriptions.add(EventBus().listen<VaccinationUpdatedEvent>((_) => _loadAlerts()));
-    _subscriptions.add(EventBus().listen<VaccinationDeletedEvent>((_) => _loadAlerts()));
+    onEvent<VaccinationCreatedEvent>((_) => _loadAlerts());
+    onEvent<VaccinationUpdatedEvent>((_) => _loadAlerts());
+    onEvent<VaccinationDeletedEvent>((_) => _loadAlerts());
     
     // Recarrega quando medicações são criadas/atualizadas/deletadas
-    _subscriptions.add(EventBus().listen<MedicationCreatedEvent>((_) => _loadAlerts()));
-    _subscriptions.add(EventBus().listen<MedicationUpdatedEvent>((_) => _loadAlerts()));
-    _subscriptions.add(EventBus().listen<MedicationDeletedEvent>((_) => _loadAlerts()));
+    onEvent<MedicationCreatedEvent>((_) => _loadAlerts());
+    onEvent<MedicationUpdatedEvent>((_) => _loadAlerts());
+    onEvent<MedicationDeletedEvent>((_) => _loadAlerts());
     
     // Refresh geral de alertas
-    _subscriptions.add(EventBus().listen<AlertsRefreshRequestedEvent>((_) => _loadAlerts()));
-  }
-
-  @override
-  void dispose() {
-    for (final sub in _subscriptions) {
-      sub.cancel();
-    }
-    super.dispose();
+    onEvent<AlertsRefreshRequestedEvent>((_) => _loadAlerts());
   }
 
   Future<void> _loadAlerts() async {

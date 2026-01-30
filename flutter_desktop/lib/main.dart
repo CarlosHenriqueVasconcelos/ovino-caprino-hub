@@ -285,7 +285,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
             context.read<MedicationRepository>(),
           ),
         ),
-        ChangeNotifierProvider(
+        Provider<NoteService>(
           create: (context) => NoteService(
             context.read<NoteRepository>(),
           ),
@@ -336,7 +336,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ),
 
         // ✅ Vendidos (sold_animals)
-        ChangeNotifierProvider(
+        Provider<SoldAnimalsService>(
           create: (context) => SoldAnimalsService(
             context.read<SoldAnimalsRepository>(),
           ),

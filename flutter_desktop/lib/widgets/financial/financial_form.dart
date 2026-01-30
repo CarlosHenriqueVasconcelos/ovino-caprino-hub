@@ -273,7 +273,10 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
                 items: _animals.map((animal) {
                   return DropdownMenuItem(
                     value: animal.id,
-                    child: Text('${animal.code} - ${animal.name}'),
+                    child: Text(
+                      AnimalDisplayUtils.getDisplayText(animal),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   );
                 }).toList(),
                 onChanged: (value) {

@@ -66,8 +66,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   bool _fatherFieldInitialized = false;
   String? _motherPrefillLabel;
   String? _fatherPrefillLabel;
-  List<Animal> _availableMothers = [];
-  List<Animal> _availableFathers = [];
 
   final List<String> _categories = [
     'Reprodutor',
@@ -144,40 +142,48 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
         _category = widget.presetCategory!;
       }
     }
-    _loadAvailableMothers();
+    _loadParentPrefills();
   }
 
-  void _loadAvailableMothers() async {
+  Future<void> _loadParentPrefills() async {
     final animalService = Provider.of<AnimalService>(context, listen: false);
-    final animals = await animalService.getAllAnimals();
-    bool isEligible(
-      Animal a, {
-      required bool expectFemale,
-    }) {
-      final gender = a.gender.toLowerCase();
-      final category = a.category.toLowerCase();
-      final isBorrego = category.contains('borreg');
-      if (isBorrego) return false;
-      return expectFemale
-          ? gender.contains('fêmea') ||
-              gender.contains('femea') ||
-              gender == 'f'
-          : gender.contains('macho') || gender == 'm';
+    String? motherLabel = _motherPrefillLabel;
+    String? fatherLabel = _fatherPrefillLabel;
+
+    if ((motherLabel == null || motherLabel.isEmpty) &&
+        _motherId != null &&
+        _motherId!.isNotEmpty) {
+      final mother = await animalService.getAnimalById(_motherId!);
+      if (mother != null) {
+        motherLabel = _formatParentLabel(
+          name: mother.name,
+          code: mother.code,
+          color: mother.nameColor,
+        );
+      }
     }
 
-    final mothers =
-        animals.where((a) => isEligible(a, expectFemale: true)).toList();
-    final fathers =
-        animals.where((a) => isEligible(a, expectFemale: false)).toList();
+    if ((fatherLabel == null || fatherLabel.isEmpty) &&
+        _fatherId != null &&
+        _fatherId!.isNotEmpty) {
+      final father = await animalService.getAnimalById(_fatherId!);
+      if (father != null) {
+        fatherLabel = _formatParentLabel(
+          name: father.name,
+          code: father.code,
+          color: father.nameColor,
+        );
+      }
+    }
 
-    AnimalDisplayUtils.sortAnimalsList(mothers);
-    AnimalDisplayUtils.sortAnimalsList(fathers);
-
+    if (!mounted) return;
     setState(() {
-      _availableMothers = mothers;
-      _availableFathers = fathers;
-      _motherPrefillLabel ??= _labelFromParents(_motherId, mothers);
-      _fatherPrefillLabel ??= _labelFromParents(_fatherId, fathers);
+      if (motherLabel != null && motherLabel.isNotEmpty) {
+        _motherPrefillLabel = motherLabel;
+      }
+      if (fatherLabel != null && fatherLabel.isNotEmpty) {
+        _fatherPrefillLabel = fatherLabel;
+      }
     });
   }
 
@@ -219,22 +225,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     final resolvedName = normalizedName.isEmpty ? 'Sem nome' : normalizedName;
     final resolvedCode = normalizedCode.isEmpty ? 'Sem código' : normalizedCode;
     final colorName = AnimalDisplayUtils.getColorName(color);
-
     return '$colorName - $resolvedName ($resolvedCode)';
-  }
-
-  String? _labelFromParents(String? parentId, List<Animal> parents) {
-    if (parentId == null) return null;
-    try {
-      final parent = parents.firstWhere((animal) => animal.id == parentId);
-      return _formatParentLabel(
-        name: parent.name,
-        code: parent.code,
-        color: parent.nameColor,
-      );
-    } catch (_) {
-      return null;
-    }
   }
 
   void _seedParentField(
@@ -294,12 +285,8 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final motherInitialText = _motherPrefillLabel ??
-        _labelFromParents(_motherId, _availableMothers) ??
-        '';
-    final fatherInitialText = _fatherPrefillLabel ??
-        _labelFromParents(_fatherId, _availableFathers) ??
-        '';
+    final motherInitialText = _motherPrefillLabel ?? '';
+    final fatherInitialText = _fatherPrefillLabel ?? '';
     final showCustomBreedField = !_breeds.contains(_breedController.text) ||
         _breedController.text.isEmpty;
     final breedDropdownValue = _breeds.contains(_breedController.text)
@@ -336,8 +323,6 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 const SizedBox(height: 16),
                 if (_category == 'Borrego') ...[
                   AnimalOriginSection(
-                    availableMothers: _availableMothers,
-                    availableFathers: _availableFathers,
                     motherInitialText: motherInitialText,
                     fatherInitialText: fatherInitialText,
                     seedParentField: _seedParentField,

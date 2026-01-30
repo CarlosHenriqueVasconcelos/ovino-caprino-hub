@@ -290,7 +290,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<String>(
-                              value: _status,
+                              initialValue: _status,
                               isExpanded: true,
                               decoration: const InputDecoration(
                                 labelText: 'Status',
@@ -349,7 +349,7 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: _status,
+                                initialValue: _status,
                                 decoration: const InputDecoration(
                                   labelText: 'Status',
                                   border: OutlineInputBorder(),
