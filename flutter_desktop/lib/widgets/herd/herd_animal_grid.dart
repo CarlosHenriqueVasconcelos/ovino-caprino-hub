@@ -10,6 +10,7 @@ class HerdAnimalGrid extends StatelessWidget {
   final List<Animal> Function(String) resolveOffspring;
   final void Function(Animal)? onEdit;
   final Future<void> Function(Animal)? onDeleteCascade;
+  final ScrollController? controller;
 
   const HerdAnimalGrid({
     super.key,
@@ -18,6 +19,7 @@ class HerdAnimalGrid extends StatelessWidget {
     required this.resolveOffspring,
     this.onEdit,
     this.onDeleteCascade,
+    this.controller,
   });
 
   @override
@@ -35,8 +37,10 @@ class HerdAnimalGrid extends StatelessWidget {
     }
     
     return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      key: const PageStorageKey('herd_grid'),
+      controller: controller,
+      primary: false,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       addAutomaticKeepAlives: false, // Reduz memória
       addRepaintBoundaries: true,    // Evita repaint desnecessário
       cacheExtent: 500,              // Pre-carrega itens próximos
@@ -49,13 +53,16 @@ class HerdAnimalGrid extends StatelessWidget {
       itemCount: animals.length,
       itemBuilder: (context, index) {
         final animal = animals[index];
-        return AnimalCard(
-          animal: animal,
-          onEdit: onEdit,
-          onDeleteCascade: onDeleteCascade,
-          mother: resolveParent(animal.motherId),
-          father: resolveParent(animal.fatherId),
-          offspring: resolveOffspring(animal.id),
+        return RepaintBoundary(
+          key: ValueKey('animal_${animal.id}'),
+          child: AnimalCard(
+            animal: animal,
+            onEdit: onEdit,
+            onDeleteCascade: onDeleteCascade,
+            mother: resolveParent(animal.motherId),
+            father: resolveParent(animal.fatherId),
+            offspring: resolveOffspring(animal.id),
+          ),
         );
       },
     );

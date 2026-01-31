@@ -1,12 +1,17 @@
 // lib/widgets/system/system_settings_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../devtools/devtools_screen.dart';
 import '../../models/animal.dart';
 import '../../services/animal_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/system_maintenance_service.dart';
 import '../../main.dart' show logService;
+
+const bool _enableDevtools =
+    kDebugMode || bool.fromEnvironment('ENABLE_DEVTOOLS');
 
 class SystemSettingsScreen extends StatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -477,6 +482,21 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       subtitle: const Text('Enviar feedback ou relatar bugs'),
                       onTap: _reportIssue,
                     ),
+                    if (_enableDevtools)
+                      ListTile(
+                        leading:
+                            Icon(Icons.biotech, color: theme.colorScheme.primary),
+                        title: const Text('Ferramentas de Diagnóstico'),
+                        subtitle:
+                            const Text('Seed + cenários críticos (debug-only)'),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DevToolsScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     const Divider(),
                     ListTile(
                       leading: Icon(Icons.delete_forever,

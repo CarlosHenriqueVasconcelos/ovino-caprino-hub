@@ -42,21 +42,26 @@ class HerdFiltersBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: searchController,
-          decoration: InputDecoration(
-            labelText:
-                'Buscar por nome, código, categoria ou raça (filtra em tempo real)',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: onClearSearch,
-                  )
-                : null,
-          ),
-          onChanged: onSearchChanged,
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: searchController,
+          builder: (_, value, __) {
+            return TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText:
+                    'Buscar por nome, código, categoria ou raça (filtra em tempo real)',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: value.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: onClearSearch,
+                      )
+                    : null,
+              ),
+              onChanged: onSearchChanged,
+            );
+          },
         ),
         const SizedBox(height: 24),
         FilterChip(

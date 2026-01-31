@@ -54,20 +54,25 @@ class WeightTrackingFiltersBar extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    decoration: InputDecoration(
-                      labelText: searchLabel,
-                      hintText: searchHint,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: onClearSearch,
-                            )
-                          : null,
-                    ),
-                    onChanged: onSearchChanged,
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: searchController,
+                    builder: (_, value, __) {
+                      return TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          labelText: searchLabel,
+                          hintText: searchHint,
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: value.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: onClearSearch,
+                                )
+                              : null,
+                        ),
+                        onChanged: onSearchChanged,
+                      );
+                    },
                   ),
                 ),
                 if (onSelectDateRange != null) ...[

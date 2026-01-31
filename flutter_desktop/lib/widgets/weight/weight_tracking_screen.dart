@@ -4,6 +4,7 @@ import '../../services/animal_service.dart';
 import '../../models/animal.dart';
 import '../../utils/animal_display_utils.dart';
 import '../../utils/animal_record_display.dart';
+import '../../utils/debouncer.dart';
 import 'lamb_weight_tracking.dart';
 import 'adult_weight_tracking.dart';
 import 'weight_tracking_filters_bar.dart';
@@ -23,7 +24,10 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   String _selectedCategory = 'Todos';
   String? _selectedColor;
   String _searchQuery = '';
+  String _pendingSearch = '';
   final TextEditingController _searchController = TextEditingController();
+  final Debouncer _searchDebouncer =
+      Debouncer(delay: const Duration(milliseconds: 300));
   Future<WeightTrackingResult>? _future;
   List<String> _availableColors = [];
 
@@ -49,6 +53,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _searchDebouncer.dispose();
     super.dispose();
   }
 
@@ -166,11 +171,14 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                   searchLabel: 'Pesquisar animal',
                   searchHint: 'Digite o nome ou código do animal...',
                   onSearchChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                      _currentPage = 0;
+                    _pendingSearch = value.toLowerCase();
+                    _searchDebouncer.run(() {
+                      setState(() {
+                        _searchQuery = _pendingSearch;
+                        _currentPage = 0;
+                      });
+                      _refresh();
                     });
-                    _refresh();
                   },
                   onClearSearch: () {
                     setState(() {

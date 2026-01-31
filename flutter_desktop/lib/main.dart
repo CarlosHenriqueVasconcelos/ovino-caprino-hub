@@ -11,6 +11,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'screens/complete_dashboard_screen.dart';
 import 'theme/app_theme.dart';
 import 'config/app_config.dart';
+import 'utils/app_scroll_behavior.dart';
 
 // Services
 import 'services/animal_service.dart';
@@ -357,6 +358,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
+        scrollBehavior: const AppScrollBehavior(),
         home: const CompleteDashboardScreen(),
       ),
     );

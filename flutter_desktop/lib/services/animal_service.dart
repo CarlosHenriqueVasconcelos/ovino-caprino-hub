@@ -71,10 +71,15 @@ class AnimalService extends ChangeNotifier {
     scheduleMicrotask(() => loadData());
   }
 
+  void _setLoading(bool value) {
+    if (_loading == value) return;
+    _loading = value;
+    notifyListeners();
+  }
+
   // ----------------- Ciclo de vida / carga -----------------
   Future<void> loadData() async {
-    _loading = true;
-    notifyListeners();
+    _setLoading(true);
     try {
       // Estatísticas
       await _scheduleStatsRefresh(immediate: true);
@@ -84,8 +89,7 @@ class AnimalService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error loading data: $e');
     } finally {
-      _loading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
@@ -153,7 +157,6 @@ class AnimalService extends ChangeNotifier {
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
-    notifyListeners();
   }
 
   // Helper para verificar se é categoria de borrego
@@ -249,7 +252,6 @@ class AnimalService extends ChangeNotifier {
       );
       await _scheduleStatsRefresh();
       await refreshAlerts();
-      notifyListeners();
       return;
     }
 
@@ -282,7 +284,6 @@ class AnimalService extends ChangeNotifier {
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
-    notifyListeners();
   }
 
   Future<void> deleteAnimal(String id) async {
@@ -294,7 +295,6 @@ class AnimalService extends ChangeNotifier {
 
     await _scheduleStatsRefresh();
     await refreshAlerts();
-    notifyListeners();
   }
 
   @Deprecated('Cache no longer maintained - refresh UI directly')
@@ -663,7 +663,11 @@ class AnimalService extends ChangeNotifier {
 
   Future<void> _refreshStatsSafe() async {
     try {
-      _stats = await AnimalStatsCalculator(_animalRepository).calculate();
+      final next = await AnimalStatsCalculator(_animalRepository).calculate();
+      if (!identical(_stats, next)) {
+        _stats = next;
+        notifyListeners();
+      }
     } catch (e) {
       debugPrint('Erro ao atualizar stats: $e');
     }
