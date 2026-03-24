@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/animal.dart';
+import '../../models/kinship_report.dart';
 import '../../services/animal_service.dart';
 import '../../services/breeding_service.dart';
 import '../../utils/animal_display_utils.dart';
@@ -28,6 +29,8 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   bool _isLoading = true;
   Timer? _femaleDebounce;
   Timer? _maleDebounce;
+  bool _checkingKinship = false;
+  KinshipReport? _kinshipReport;
 
   Animal? _selectedFemale;
   Animal? _selectedMale;
@@ -131,6 +134,42 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     _matingEndDate = _matingStartDate.add(const Duration(days: 60));
   }
 
+  bool get _hasKinshipConflict => _kinshipReport?.isBlocking ?? false;
+  bool get _hasKinshipWarning =>
+      _kinshipReport != null && !_kinshipReport!.isBlocking;
+
+  Future<void> _refreshKinshipValidation() async {
+    final female = _selectedFemale;
+    final male = _selectedMale;
+
+    if (female == null || male == null) {
+      if (!mounted) return;
+      setState(() {
+        _checkingKinship = false;
+        _kinshipReport = null;
+      });
+      return;
+    }
+
+    setState(() => _checkingKinship = true);
+
+    final breedingService = context.read<BreedingService>();
+    final report = await breedingService.getKinshipReport(
+      femaleId: female.id,
+      maleId: male.id,
+    );
+
+    if (!mounted) return;
+    if (_selectedFemale?.id != female.id || _selectedMale?.id != male.id) {
+      return;
+    }
+
+    setState(() {
+      _checkingKinship = false;
+      _kinshipReport = report;
+    });
+  }
+
   @override
   void dispose() {
     _femaleDebounce?.cancel();
@@ -146,6 +185,18 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       );
       return;
     }
+    if (_checkingKinship) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aguarde a validação de parentesco.')),
+      );
+      return;
+    }
+    if (_hasKinshipConflict) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_kinshipReport!.buildMessage())),
+      );
+      return;
+    }
 
     _formKey.currentState!.save();
 
@@ -153,6 +204,19 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
     final animalService = context.read<AnimalService>();
 
     try {
+      final report = await breedingService.getKinshipReport(
+        femaleId: _selectedFemale!.id,
+        maleId: _selectedMale!.id,
+      );
+      if (report != null && report.isBlocking) {
+        if (!mounted) return;
+        setState(() => _kinshipReport = report);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(report.buildMessage())),
+        );
+        return;
+      }
+
       // ✅ Usa o service de reprodução, que centraliza a regra
       await breedingService.novaCobertura(
         femaleId: _selectedFemale!.id,
@@ -246,9 +310,15 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         },
                         onSelected: (Animal animal) {
                           setState(() => _selectedFemale = animal);
+                          _refreshKinshipValidation();
                         },
                         fieldViewBuilder:
                             (context, controller, focusNode, onSubmitted) {
+                          if (_selectedFemale != null &&
+                              controller.text.isEmpty) {
+                            controller.text =
+                                _getAnimalDisplayText(_selectedFemale!);
+                          }
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -263,6 +333,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                       onPressed: () {
                                         setState(() => _selectedFemale = null);
                                         controller.clear();
+                                        _refreshKinshipValidation();
                                       },
                                     )
                                   : null,
@@ -321,9 +392,15 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         },
                         onSelected: (Animal animal) {
                           setState(() => _selectedMale = animal);
+                          _refreshKinshipValidation();
                         },
                         fieldViewBuilder:
                             (context, controller, focusNode, onSubmitted) {
+                          if (_selectedMale != null &&
+                              controller.text.isEmpty) {
+                            controller.text =
+                                _getAnimalDisplayText(_selectedMale!);
+                          }
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
@@ -338,6 +415,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                                       onPressed: () {
                                         setState(() => _selectedMale = null);
                                         controller.clear();
+                                        _refreshKinshipValidation();
                                       },
                                     )
                                   : null,
@@ -376,6 +454,93 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                         },
                       ),
                       const SizedBox(height: 16),
+                      if (_checkingKinship) ...[
+                        const Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Validando parentesco...'),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                      ] else if (_hasKinshipConflict || _hasKinshipWarning) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _hasKinshipConflict
+                                ? Theme.of(context).colorScheme.errorContainer
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _hasKinshipConflict
+                                    ? 'Cruzamento bloqueado'
+                                    : 'Parentesco detectado (atenção)',
+                                style: TextStyle(
+                                  color: _hasKinshipConflict
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .onErrorContainer
+                                      : Colors.amber.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  Chip(
+                                    label: Text(
+                                      'Grau: ${_kinshipReport!.degreeLabel}',
+                                    ),
+                                  ),
+                                  Chip(
+                                    label: Text(
+                                      'Relação: ${_kinshipReport!.relationLabel}',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Animais: ${_kinshipReport!.animalsLabel}',
+                                style: TextStyle(
+                                  color: _hasKinshipConflict
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .onErrorContainer
+                                      : Colors.amber.shade900,
+                                ),
+                              ),
+                              if (_kinshipReport!.detail != null &&
+                                  _kinshipReport!.detail!.trim().isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    _kinshipReport!.detail!,
+                                    style: TextStyle(
+                                      color: _hasKinshipConflict
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .onErrorContainer
+                                          : Colors.amber.shade900,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       // Data de início
                       ListTile(
@@ -465,7 +630,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             ElevatedButton.icon(
-                              onPressed: _submit,
+                              onPressed: (_checkingKinship || _hasKinshipConflict)
+                                  ? null
+                                  : _submit,
                               icon: const Icon(Icons.check, size: 18),
                               label: const Text('Iniciar Encabritamento'),
                               style: ElevatedButton.styleFrom(
@@ -494,7 +661,9 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
                             ),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
-                              onPressed: _submit,
+                              onPressed: (_checkingKinship || _hasKinshipConflict)
+                                  ? null
+                                  : _submit,
                               icon: const Icon(Icons.check),
                               label: const Text('Iniciar Encabritamento'),
                               style: ElevatedButton.styleFrom(

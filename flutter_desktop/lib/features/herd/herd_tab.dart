@@ -14,6 +14,7 @@ import '../../services/events/event_bus.dart';
 import '../../services/sold_animals_service.dart';
 import '../../utils/debouncer.dart';
 import '../../utils/responsive_utils.dart';
+import '../../utils/animal_display_utils.dart';
 import '../../widgets/animal/animal_form.dart';
 import '../../widgets/herd/herd_actions_bar.dart';
 import '../../widgets/herd/herd_animal_grid.dart';
@@ -69,7 +70,7 @@ class _HerdViewState extends State<HerdView>
 
   bool _includeSold = false;
   String?
-      _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Vendido' | 'Óbito'
+      _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Ferido' | especiais: 'Vendido'/'Óbito'
   String? _colorFilter;
   String? _categoryFilter;
 
@@ -157,21 +158,9 @@ class _HerdViewState extends State<HerdView>
 
   Future<List<Animal>> _loadSoldAnimals(BuildContext context) async {
     final soldService = context.read<SoldAnimalsService>();
-    final animalService = context.read<AnimalService>();
-    final soldFromTable = await soldService.getSoldAnimals();
-    final fromMain = await animalService.herdQuery(
-      includeSold: true,
-      statusEquals: 'Vendido',
-      pageSize: 500,
-    );
-    final merged = <String, Animal>{};
-    for (final a in soldFromTable) {
-      merged[a.id] = a;
-    }
-    for (final a in fromMain.items) {
-      merged[a.id] = a;
-    }
-    return merged.values.toList();
+    final sorted = await soldService.getSoldAnimals();
+    AnimalDisplayUtils.sortAnimalsList(sorted);
+    return sorted;
   }
 
   @override
@@ -190,144 +179,154 @@ class _HerdViewState extends State<HerdView>
               deceasedSnapshot.connectionState == ConnectionState.waiting &&
                   deceasedSnapshot.data == null;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HerdActionsBar(
-                onAddAnimal: () => _showAnimalFormDialog(context),
-              ),
-              const SizedBox(height: 16),
-              HerdFiltersBar(
-                searchController: _search,
-                onSearchChanged: (value) {
-                  _queryPending = value.trim().toLowerCase();
-                  _searchDebouncer.run(() {
-                    _query = _queryPending;
-                    _applyFilters(refresh: true);
-                  });
-                },
-                onClearSearch: () {
-                  _query = '';
-                  _search.clear();
-                  _applyFilters(refresh: true);
-                  setState(() {});
-                },
-                includeSold: _includeSold,
-                onIncludeSoldChanged: (value) {
-                  setState(() {
-                    _includeSold = value;
-                  });
-                  _applyFilters(refresh: true);
-                },
-                statusFilter: _statusFilter,
-                statusOptions: const [
-                  'Saudável',
-                  'Em tratamento',
-                  'Vendido',
-                  'Óbito',
-                ],
-                onStatusChanged: (value) {
-                  setState(() {
-                    _statusFilter = value;
-                  });
-                  _applyFilters(refresh: true);
-                },
-                colorFilter: _colorFilter,
-                colorOptions: _availableColors,
-                onColorChanged: (value) {
-                  setState(() {
-                    _colorFilter = value;
-                  });
-                  _applyFilters(refresh: true);
-                },
-                categoryFilter: _categoryFilter,
-                categoryOptions: _availableCategories,
-                onCategoryChanged: (value) {
-                  setState(() {
-                    _categoryFilter = value;
-                  });
-                  _applyFilters(refresh: true);
-                },
-              ),
-              const SizedBox(height: 12),
-              Selector<HerdController, String?>(
-                selector: (_, c) => c.error,
-                builder: (_, error, __) {
-                  if (error == null || error.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return _ErrorBanner(message: error);
-                },
-              ),
-              Selector<HerdController, ({bool isRefreshing, bool hasItems})>(
-                selector: (_, c) => (
-                  isRefreshing: c.isRefreshing,
-                  hasItems: c.items.isNotEmpty,
-                ),
-                builder: (_, state, __) {
-                  if (_isSpecialStatus()) {
-                    return const SizedBox.shrink();
-                  }
-                  if (state.isRefreshing && state.hasItems) {
-                    return const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: LinearProgressIndicator(minHeight: 2),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-              Expanded(
-                child: Selector<HerdController, ({bool isRefreshing, List<Animal> items})>(
-                  selector: (_, c) => (isRefreshing: c.isRefreshing, items: c.items),
-                  builder: (_, state, __) {
-                    if (!_isSpecialStatus() &&
-                        state.isRefreshing &&
-                        state.items.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+          return Scrollbar(
+            controller: _scrollCtrl,
+            thumbVisibility: !ResponsiveUtils.isMobile(context),
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HerdActionsBar(
+                    onAddAnimal: () => _showAnimalFormDialog(context),
+                  ),
+                  const SizedBox(height: 16),
+                  HerdFiltersBar(
+                    searchController: _search,
+                    onSearchChanged: (value) {
+                      _queryPending = value.trim().toLowerCase();
+                      _searchDebouncer.run(() {
+                        _query = _queryPending;
+                        _applyFilters(refresh: true);
+                      });
+                    },
+                    onClearSearch: () {
+                      _query = '';
+                      _search.clear();
+                      _applyFilters(refresh: true);
+                      setState(() {});
+                    },
+                    includeSold: _includeSold,
+                    onIncludeSoldChanged: (value) {
+                      setState(() {
+                        _includeSold = value;
+                      });
+                      _applyFilters(refresh: true);
+                    },
+                    statusFilter: _statusFilter,
+                    statusOptions: const [
+                      'Saudável',
+                      'Em tratamento',
+                      'Ferido',
+                      'Vendido',
+                      'Óbito',
+                    ],
+                    onStatusChanged: (value) {
+                      setState(() {
+                        _statusFilter = value;
+                      });
+                      _applyFilters(refresh: true);
+                    },
+                    colorFilter: _colorFilter,
+                    colorOptions: _availableColors,
+                    onColorChanged: (value) {
+                      setState(() {
+                        _colorFilter = value;
+                      });
+                      _applyFilters(refresh: true);
+                    },
+                    categoryFilter: _categoryFilter,
+                    categoryOptions: _availableCategories,
+                    onCategoryChanged: (value) {
+                      setState(() {
+                        _categoryFilter = value;
+                      });
+                      _applyFilters(refresh: true);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Selector<HerdController, String?>(
+                    selector: (_, c) => c.error,
+                    builder: (_, error, __) {
+                      if (error == null || error.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return _ErrorBanner(message: error);
+                    },
+                  ),
+                  Selector<HerdController, ({bool isRefreshing, bool hasItems})>(
+                    selector: (_, c) => (
+                      isRefreshing: c.isRefreshing,
+                      hasItems: c.items.isNotEmpty,
+                    ),
+                    builder: (_, state, __) {
+                      if (_isSpecialStatus()) {
+                        return const SizedBox.shrink();
+                      }
+                      if (state.isRefreshing && state.hasItems) {
+                        return const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  Selector<HerdController, ({bool isRefreshing, List<Animal> items})>(
+                    selector: (_, c) =>
+                        (isRefreshing: c.isRefreshing, items: c.items),
+                    builder: (_, state, __) {
+                      if (!_isSpecialStatus() &&
+                          state.isRefreshing &&
+                          state.items.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-                    return Scrollbar(
-                      controller: _scrollCtrl,
-                      thumbVisibility: !ResponsiveUtils.isMobile(context),
-                      child: _buildGridContent(
+                      return _buildGridContent(
                         theme: theme,
                         items: state.items,
                         deceasedAnimals: deceasedAnimals,
                         deceasedLoading: deceasedLoading,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Selector<HerdController, ({bool hasMore, bool isLoadingMore})>(
-                selector: (_, c) => (
-                  hasMore: c.hasMore,
-                  isLoadingMore: c.isLoadingMore,
-                ),
-                builder: (_, state, __) {
-                  if (_isSpecialStatus()) {
-                    return const SizedBox.shrink();
-                  }
-                  if (!state.hasMore && !state.isLoadingMore) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Center(
-                      child: state.isLoadingMore
-                          ? const _LoadingFooter()
-                          : OutlinedButton(
-                              onPressed: () {
-                                context.read<HerdController>().loadMore();
-                              },
-                              child: const Text('Carregar mais'),
-                            ),
+                      );
+                    },
+                  ),
+                  Selector<HerdController, ({bool hasMore, bool isLoadingMore})>(
+                    selector: (_, c) => (
+                      hasMore: c.hasMore,
+                      isLoadingMore: c.isLoadingMore,
                     ),
-                  );
-                },
+                    builder: (_, state, __) {
+                      if (_isSpecialStatus()) {
+                        return const SizedBox.shrink();
+                      }
+                      if (!state.hasMore && !state.isLoadingMore) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Center(
+                          child: state.isLoadingMore
+                              ? const _LoadingFooter()
+                              : OutlinedButton(
+                                  onPressed: () {
+                                    context.read<HerdController>().loadMore();
+                                  },
+                                  child: const Text('Carregar mais'),
+                                ),
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(
+                    height: ResponsiveUtils.isMobile(context) ? 88 : 24,
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -347,12 +346,15 @@ class _HerdViewState extends State<HerdView>
       if (deceasedAnimals.isEmpty) {
         return _emptyState(theme);
       }
-      final relations = _AnimalRelations([], deceasedAnimals);
+      final sortedDeceased = List<Animal>.of(deceasedAnimals);
+      AnimalDisplayUtils.sortAnimalsList(sortedDeceased);
+      final relations = _AnimalRelations([], sortedDeceased);
       return HerdAnimalGrid(
-        animals: deceasedAnimals,
+        animals: sortedDeceased,
         resolveParent: relations.parentOf,
         resolveOffspring: relations.offspringOf,
-        controller: _scrollCtrl,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
       );
     }
 
@@ -372,7 +374,8 @@ class _HerdViewState extends State<HerdView>
             animals: list,
             resolveParent: relations.parentOf,
             resolveOffspring: relations.offspringOf,
-            controller: _scrollCtrl,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
           );
         },
       );
@@ -394,7 +397,8 @@ class _HerdViewState extends State<HerdView>
         if (!mounted) return;
         _refreshActiveList();
       },
-      controller: _scrollCtrl,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
     );
   }
 

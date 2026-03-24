@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/animal.dart';
+import '../../models/kinship_report.dart';
 import '../../services/animal_service.dart';
 import '../../services/breeding_service.dart';
 import '../../utils/animal_display_utils.dart';
@@ -38,6 +39,8 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   bool _loadingAnimals = true;
   Timer? _femaleDebounce;
   Timer? _maleDebounce;
+  bool _checkingKinship = false;
+  KinshipReport? _kinshipReport;
 
   @override
   void initState() {
@@ -160,12 +163,58 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     }
   }
 
+  bool get _hasKinshipConflict => _kinshipReport?.isBlocking ?? false;
+  bool get _hasKinshipWarning =>
+      _kinshipReport != null && !_kinshipReport!.isBlocking;
+
+  Future<void> _refreshKinshipValidation() async {
+    final female = _female;
+    final male = _male;
+
+    if (female == null || male == null) {
+      if (!mounted) return;
+      setState(() {
+        _checkingKinship = false;
+        _kinshipReport = null;
+      });
+      return;
+    }
+
+    setState(() => _checkingKinship = true);
+
+    final breedingService = context.read<BreedingService>();
+    final report = await breedingService.getKinshipReport(
+      femaleId: female.id,
+      maleId: male.id,
+    );
+
+    if (!mounted) return;
+    if (_female?.id != female.id || _male?.id != male.id) return;
+
+    setState(() {
+      _checkingKinship = false;
+      _kinshipReport = report;
+    });
+  }
+
   // ----------- salvar (com cálculo de stage) -----------
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_female == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione a fêmea.')),
+      );
+      return;
+    }
+    if (_checkingKinship) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aguarde a validação de parentesco.')),
+      );
+      return;
+    }
+    if (_hasKinshipConflict) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_kinshipReport!.buildMessage())),
       );
       return;
     }
@@ -176,6 +225,21 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     final animalService = context.read<AnimalService>();
 
     try {
+      if (_female != null && _male != null) {
+        final report = await breedingService.getKinshipReport(
+          femaleId: _female!.id,
+          maleId: _male!.id,
+        );
+        if (report != null && report.isBlocking) {
+          if (!mounted) return;
+          setState(() => _kinshipReport = report);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(report.buildMessage())),
+          );
+          return;
+        }
+      }
+
       // 1) Determinar stage coerente com os dados informados
       String stage;
       if (_ultrasoundResult == 'confirmada') {
@@ -226,10 +290,15 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
             await animalService.getAnimalById(femaleId) ?? _female;
 
         if (female != null) {
+          final currentHealthStatus =
+              (female.status == 'Gestante' || female.status == 'Reprodutor')
+                  ? 'Saudável'
+                  : female.status;
           final updatedFemale = female.copyWith(
             pregnant: true,
             expectedDelivery: expectedBirth,
-            status: 'Gestante',
+            status: currentHealthStatus,
+            reproductiveStatus: 'Gestante',
           );
           await animalService.updateAnimal(updatedFemale);
         }
@@ -301,9 +370,23 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Fêmea *',
-                              prefixIcon: Icon(Icons.search),
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _female != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() {
+                                          _female = null;
+                                          _femaleCtrl.clear();
+                                        });
+                                        controller.clear();
+                                        state.didChange(null);
+                                        _refreshKinshipValidation();
+                                      },
+                                    )
+                                  : null,
                             ),
                           );
                         },
@@ -329,6 +412,7 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                             _femaleCtrl.text = _labelOf(a);
                           });
                           state.didChange(a);
+                          _refreshKinshipValidation();
                         },
                       ),
                       if (state.hasError)
@@ -368,9 +452,23 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Macho (opcional)',
-                              prefixIcon: Icon(Icons.search),
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: _male != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() {
+                                          _male = null;
+                                          _maleCtrl.clear();
+                                        });
+                                        controller.clear();
+                                        state.didChange(null);
+                                        _refreshKinshipValidation();
+                                      },
+                                    )
+                                  : null,
                             ),
                           );
                         },
@@ -396,12 +494,94 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
                             _maleCtrl.text = _labelOf(a);
                           });
                           state.didChange(a);
+                          _refreshKinshipValidation();
                         },
                       ),
                     ],
                   );
                 },
               ),
+              const SizedBox(height: 8),
+              if (_checkingKinship)
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Validando parentesco...'),
+                  ],
+                )
+              else if (_hasKinshipConflict || _hasKinshipWarning)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _hasKinshipConflict
+                        ? Theme.of(context).colorScheme.errorContainer
+                        : Colors.amber.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _hasKinshipConflict
+                            ? 'Cruzamento bloqueado'
+                            : 'Parentesco detectado (atenção)',
+                        style: TextStyle(
+                          color: _hasKinshipConflict
+                              ? Theme.of(context).colorScheme.onErrorContainer
+                              : Colors.amber.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          Chip(
+                            label: Text(
+                              'Grau: ${_kinshipReport!.degreeLabel}',
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Relação: ${_kinshipReport!.relationLabel}',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Animais: ${_kinshipReport!.animalsLabel}',
+                        style: TextStyle(
+                          color: _hasKinshipConflict
+                              ? Theme.of(context).colorScheme.onErrorContainer
+                              : Colors.amber.shade900,
+                        ),
+                      ),
+                      if (_kinshipReport!.detail != null &&
+                          _kinshipReport!.detail!.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _kinshipReport!.detail!,
+                            style: TextStyle(
+                              color: _hasKinshipConflict
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer
+                                  : Colors.amber.shade900,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 12),
 
               // Datas
@@ -472,7 +652,9 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _saving ? null : _save,
+          onPressed: (_saving || _checkingKinship || _hasKinshipConflict)
+              ? null
+              : _save,
           child: const Text('Salvar'),
         ),
       ],

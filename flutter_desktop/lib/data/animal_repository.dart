@@ -97,9 +97,10 @@ class AnimalRepository {
       buffer.write("LOWER(category) LIKE '%reprodutor%'");
     }
 
-    if (!includeSold) {
-      if (buffer.isNotEmpty) buffer.write(' AND ');
-      buffer.write("status != 'Vendido'");
+    // Sold é mantido em sold_animals; manter parâmetro por compatibilidade.
+    // Fluxo legado com status='Vendido' é migrado no startup (Migration v14).
+    if (includeSold) {
+      // no-op: filtros de vendidos são tratados fora de `animals`.
     }
 
     if (statusEquals != null && statusEquals.isNotEmpty) {
@@ -246,9 +247,10 @@ class AnimalRepository {
       buffer.write("LOWER(category) LIKE '%reprodutor%'");
     }
 
-    if (!includeSold) {
-      if (buffer.isNotEmpty) buffer.write(' AND ');
-      buffer.write("status != 'Vendido'");
+    // Sold é mantido em sold_animals; manter parâmetro por compatibilidade.
+    // Fluxo legado com status='Vendido' é migrado no startup (Migration v14).
+    if (includeSold) {
+      // no-op: filtros de vendidos são tratados fora de `animals`.
     }
 
     if (statusEquals != null && statusEquals.isNotEmpty) {
@@ -404,6 +406,138 @@ class AnimalRepository {
       where: 'id = ?',
       whereArgs: [animalId],
     );
+  }
+
+  /// Garante que os marcos de peso cacheados em `animals`
+  /// existam no histórico `animal_weights`.
+  ///
+  /// É idempotente: só insere quando não existe registro do marco.
+  Future<void> ensureMilestoneWeightsInHistory({String? animalId}) async {
+    final nowIso = DateTime.now().toIso8601String();
+    final animalFilter = animalId == null ? '' : ' AND a.id = ?';
+    final args = animalId == null ? const <Object?>[] : <Object?>[animalId];
+
+    await _db.db.transaction((txn) async {
+      await txn.rawInsert('''
+        INSERT OR IGNORE INTO animal_weights(id, animal_id, date, weight, milestone, created_at, updated_at)
+        SELECT
+          'wtm_' || a.id || '_birth',
+          a.id,
+          date(a.birth_date),
+          a.birth_weight,
+          'birth',
+          ?,
+          ?
+        FROM animals a
+        WHERE a.birth_date IS NOT NULL
+          AND trim(a.birth_date) != ''
+          AND a.birth_weight IS NOT NULL
+          AND a.birth_weight > 0
+          $animalFilter
+          AND NOT EXISTS (
+            SELECT 1
+            FROM animal_weights w
+            WHERE w.animal_id = a.id
+              AND w.milestone = 'birth'
+          );
+      ''', [nowIso, nowIso, ...args]);
+
+      await txn.rawInsert('''
+        INSERT OR IGNORE INTO animal_weights(id, animal_id, date, weight, milestone, created_at, updated_at)
+        SELECT
+          'wtm_' || a.id || '_30d',
+          a.id,
+          date(a.birth_date, '+30 day'),
+          a.weight_30_days,
+          '30d',
+          ?,
+          ?
+        FROM animals a
+        WHERE a.birth_date IS NOT NULL
+          AND trim(a.birth_date) != ''
+          AND a.weight_30_days IS NOT NULL
+          AND a.weight_30_days > 0
+          $animalFilter
+          AND NOT EXISTS (
+            SELECT 1
+            FROM animal_weights w
+            WHERE w.animal_id = a.id
+              AND w.milestone = '30d'
+          );
+      ''', [nowIso, nowIso, ...args]);
+
+      await txn.rawInsert('''
+        INSERT OR IGNORE INTO animal_weights(id, animal_id, date, weight, milestone, created_at, updated_at)
+        SELECT
+          'wtm_' || a.id || '_60d',
+          a.id,
+          date(a.birth_date, '+60 day'),
+          a.weight_60_days,
+          '60d',
+          ?,
+          ?
+        FROM animals a
+        WHERE a.birth_date IS NOT NULL
+          AND trim(a.birth_date) != ''
+          AND a.weight_60_days IS NOT NULL
+          AND a.weight_60_days > 0
+          $animalFilter
+          AND NOT EXISTS (
+            SELECT 1
+            FROM animal_weights w
+            WHERE w.animal_id = a.id
+              AND w.milestone = '60d'
+          );
+      ''', [nowIso, nowIso, ...args]);
+
+      await txn.rawInsert('''
+        INSERT OR IGNORE INTO animal_weights(id, animal_id, date, weight, milestone, created_at, updated_at)
+        SELECT
+          'wtm_' || a.id || '_90d',
+          a.id,
+          date(a.birth_date, '+90 day'),
+          a.weight_90_days,
+          '90d',
+          ?,
+          ?
+        FROM animals a
+        WHERE a.birth_date IS NOT NULL
+          AND trim(a.birth_date) != ''
+          AND a.weight_90_days IS NOT NULL
+          AND a.weight_90_days > 0
+          $animalFilter
+          AND NOT EXISTS (
+            SELECT 1
+            FROM animal_weights w
+            WHERE w.animal_id = a.id
+              AND w.milestone = '90d'
+          );
+      ''', [nowIso, nowIso, ...args]);
+
+      await txn.rawInsert('''
+        INSERT OR IGNORE INTO animal_weights(id, animal_id, date, weight, milestone, created_at, updated_at)
+        SELECT
+          'wtm_' || a.id || '_120d',
+          a.id,
+          date(a.birth_date, '+120 day'),
+          a.weight_120_days,
+          '120d',
+          ?,
+          ?
+        FROM animals a
+        WHERE a.birth_date IS NOT NULL
+          AND trim(a.birth_date) != ''
+          AND a.weight_120_days IS NOT NULL
+          AND a.weight_120_days > 0
+          $animalFilter
+          AND NOT EXISTS (
+            SELECT 1
+            FROM animal_weights w
+            WHERE w.animal_id = a.id
+              AND w.milestone = '120d'
+          );
+      ''', [nowIso, nowIso, ...args]);
+    });
   }
 
   Future<double?> latestWeight(String animalId) async {
@@ -597,6 +731,7 @@ class AnimalRepository {
       'birth_date': animalData['birth_date'],
       'weight': animalData['weight'],
       'location': animalData['location'],
+      'reproductive_status': animalData['reproductive_status'],
       'name_color': animalData['name_color'],
       'category': animalData['category'],
       'birth_weight': animalData['birth_weight'],
@@ -608,6 +743,7 @@ class AnimalRepository {
       'lote': animalData['lote'],
       'mother_id': animalData['mother_id'],
       'father_id': animalData['father_id'],
+      'registration_note': animalData['registration_note'],
       'sale_date': saleDate.toIso8601String().split('T').first,
       'sale_price': salePrice,
       'buyer': buyer,
@@ -646,6 +782,7 @@ class AnimalRepository {
           'birth_date': animalData['birth_date'],
           'weight': animalData['weight'],
           'location': animalData['location'],
+          'reproductive_status': animalData['reproductive_status'],
           'name_color': animalData['name_color'],
           'category': animalData['category'],
           'birth_weight': animalData['birth_weight'],
@@ -657,6 +794,7 @@ class AnimalRepository {
           'lote': animalData['lote'],
           'mother_id': animalData['mother_id'],
           'father_id': animalData['father_id'],
+          'registration_note': animalData['registration_note'],
           'death_date': deathDate.toIso8601String().split('T').first,
           'cause_of_death': causeOfDeath,
           'death_notes': notes,

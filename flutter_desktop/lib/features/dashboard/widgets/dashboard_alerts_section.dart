@@ -14,7 +14,7 @@ class DashboardAlertsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        VaccinationAlerts(onGoToVaccinations: () => onGoToTab(5)),
+        VaccinationAlerts(onGoToVaccinations: () => onGoToTab(6)),
         const SizedBox(height: 16),
         const ReproAlertsCard(daysAhead: 30),
         const SizedBox(height: 16),

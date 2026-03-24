@@ -102,10 +102,15 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         final female = await animalService.getAnimalById(femaleId);
 
         if (female != null) {
+          final currentHealthStatus =
+              (female.status == 'Gestante' || female.status == 'Reprodutor')
+                  ? 'Saudável'
+                  : female.status;
           final updatedFemale = female.copyWith(
             pregnant: isConfirmed,
             expectedDelivery: isConfirmed ? birthEta : null,
-            status: isConfirmed ? 'Gestante' : 'Saudável',
+            status: currentHealthStatus,
+            reproductiveStatus: isConfirmed ? 'Gestante' : 'Vazia',
           );
           await animalService.updateAnimal(updatedFemale);
         }
@@ -177,10 +182,15 @@ class _BreedingStageActionsState extends State<BreedingStageActions> {
         final mother = await animalService.getAnimalById(femaleId);
 
         if (mother != null) {
+          final currentHealthStatus =
+              (mother.status == 'Gestante' || mother.status == 'Reprodutor')
+                  ? 'Saudável'
+                  : mother.status;
           final updatedMother = mother.copyWith(
             pregnant: false,
             expectedDelivery: null,
-            status: 'Saudável',
+            status: currentHealthStatus,
+            reproductiveStatus: 'Lactação',
           );
           await animalService.updateAnimal(updatedMother);
         }

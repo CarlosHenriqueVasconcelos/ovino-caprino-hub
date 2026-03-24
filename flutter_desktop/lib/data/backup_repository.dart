@@ -23,9 +23,11 @@ class BackupRepository {
     'animals',
     'sold_animals',
     'deceased_animals',
+    'app_settings',
     'financial_accounts',
     'financial_records',
     'notes',
+    'matrix_evaluations',
     'pharmacy_stock',
     'pharmacy_stock_movements',
     'vaccinations',
@@ -44,10 +46,12 @@ class BackupRepository {
     'breeding_records',
     'vaccinations',
     'notes',
+    'matrix_evaluations',
     'financial_records',
     'financial_accounts',
     'reports',
     'push_tokens',
+    'app_settings',
     'sold_animals',
     'deceased_animals',
     'animals',
@@ -63,6 +67,7 @@ class BackupRepository {
       _FkRef('medications', 'animal_id'),
       _FkRef('vaccinations', 'animal_id'),
       _FkRef('notes', 'animal_id'),
+      _FkRef('matrix_evaluations', 'animal_id'),
     ],
     'financial_accounts': const [
       _FkRef('financial_accounts', 'parent_id'),
@@ -70,6 +75,9 @@ class BackupRepository {
     'pharmacy_stock': const [
       _FkRef('pharmacy_stock_movements', 'pharmacy_stock_id'),
       _FkRef('medications', 'pharmacy_stock_id'),
+    ],
+    'medications': const [
+      _FkRef('pharmacy_stock_movements', 'medication_id'),
     ],
   };
 
@@ -84,11 +92,13 @@ class BackupRepository {
       'birth_date',
       'weight',
       'status',
+      'reproductive_status',
       'location',
       'last_vaccination',
       'pregnant',
       'expected_delivery',
       'health_issue',
+      'registration_note',
       'created_at',
       'updated_at',
       'name_color',
@@ -108,6 +118,7 @@ class BackupRepository {
       'animal_id',
       'date',
       'weight',
+      'milestone',
       'created_at',
       'updated_at',
     },
@@ -175,6 +186,8 @@ class BackupRepository {
       'updated_at',
       'status',
       'applied_date',
+      'pharmacy_stock_id',
+      'quantity_used',
     },
     'notes': {
       'id',
@@ -188,6 +201,30 @@ class BackupRepository {
       'created_at',
       'updated_at',
       'is_read',
+    },
+    'matrix_evaluations': {
+      'id',
+      'animal_id',
+      'evaluation_date',
+      'fertility_score',
+      'maternal_score',
+      'health_score',
+      'temperament_score',
+      'growth_score',
+      'hoof_condition',
+      'verminosis_level',
+      'twinning_history',
+      'lambing_weight',
+      'weaning_weight',
+      'lactation_score',
+      'body_condition_score',
+      'dentition_score',
+      'age_months',
+      'final_score',
+      'recommendation',
+      'notes',
+      'created_at',
+      'updated_at',
     },
     'push_tokens': {
       'id',
@@ -215,6 +252,7 @@ class BackupRepository {
       'birth_date',
       'weight',
       'location',
+      'reproductive_status',
       'name_color',
       'category',
       'birth_weight',
@@ -226,6 +264,7 @@ class BackupRepository {
       'lote',
       'mother_id',
       'father_id',
+      'registration_note',
       'sale_date',
       'sale_price',
       'buyer',
@@ -244,6 +283,7 @@ class BackupRepository {
       'birth_date',
       'weight',
       'location',
+      'reproductive_status',
       'name_color',
       'category',
       'birth_weight',
@@ -255,10 +295,16 @@ class BackupRepository {
       'lote',
       'mother_id',
       'father_id',
+      'registration_note',
       'death_date',
       'cause_of_death',
       'death_notes',
       'created_at',
+      'updated_at',
+    },
+    'app_settings': {
+      'setting_key',
+      'setting_value',
       'updated_at',
     },
     'vaccinations': {
@@ -334,6 +380,7 @@ class BackupRepository {
 
   Future<void> _sanitizeLocalIds() async {
     for (final table in _pushOrder) {
+      if (!_tableHasIdColumn(table)) continue;
       await _fixInvalidIdsCascade(table);
     }
   }
@@ -349,8 +396,11 @@ class BackupRepository {
       if (rows.isEmpty) continue;
 
       final payload = rows.map((r) => _toRemote(table, r)).toList();
+      final hasIdColumn = _tableHasIdColumn(table);
       for (final r in payload) {
-        if (_missingId(r['id'])) r['id'] = _uuidV4();
+        if (hasIdColumn && _missingId(r['id'])) {
+          r['id'] = _uuidV4();
+        }
       }
 
       onProgress?.call('Enviando $table (${payload.length})…');
@@ -365,6 +415,7 @@ class BackupRepository {
   Future<void> _syncRemoteDeletions({Progress? onProgress}) async {
     final db = _appDb.db;
     for (final table in _deleteChildFirst) {
+      if (!_tableHasIdColumn(table)) continue;
       onProgress?.call('Sincronizando exclusões em $table…');
 
       final localIds = (await db.query(table, columns: ['id']))
@@ -388,6 +439,12 @@ class BackupRepository {
         await _client.from(table).delete().or(orExpr);
       }
     }
+  }
+
+  static bool _tableHasIdColumn(String table) {
+    final cols = _cols[table];
+    if (cols == null) return false;
+    return cols.contains('id');
   }
 
   Future<void> _clearLocalTables(Database db) async {

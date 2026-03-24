@@ -136,6 +136,15 @@ class WeightAlertService extends ChangeNotifier {
     return List<WeightAlert>.unmodifiable(_pendingAlerts);
   }
 
+  /// Busca pendências sem alterar o cache interno/estado observado.
+  /// Útil para telas que precisam de uma listagem completa independente do
+  /// horizonte padrão do dashboard.
+  Future<List<WeightAlert>> fetchPendingAlertsSnapshot({
+    int horizonDays = 3650,
+  }) async {
+    return _repository.getPendingAlerts(horizonDays);
+  }
+
   /// Busca alertas de um animal específico
   Future<List<WeightAlert>> getAnimalAlerts(String animalId) async {
     return _repository.getAnimalAlerts(animalId);

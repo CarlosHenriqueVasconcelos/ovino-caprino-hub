@@ -268,7 +268,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Animal *',
                   border: OutlineInputBorder(),
-                  helperText: 'O status do animal será alterado para "Vendido"',
+                  helperText: 'Quando a conta for paga, o animal será movido para a tabela de vendidos',
                 ),
                 items: _animals.map((animal) {
                   return DropdownMenuItem(

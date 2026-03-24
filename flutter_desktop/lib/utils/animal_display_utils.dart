@@ -4,6 +4,7 @@ import '../models/animal.dart';
 class AnimalDisplayUtils {
   // Tradução de cores
   static const Map<String, String> _colorNames = {
+    // Inglês -> Português
     'blue': 'Azul',
     'red': 'Vermelho',
     'green': 'Verde',
@@ -12,12 +13,34 @@ class AnimalDisplayUtils {
     'purple': 'Roxo',
     'pink': 'Rosa',
     'grey': 'Cinza',
-    'white': 'Branca',
+    'white': 'Branco',
     'black': 'Preto',
+    'cyan': 'Ciano',
+    'teal': 'Verde-azulado',
+    'indigo': 'Índigo',
+    'lime': 'Lima',
+    'amber': 'Âmbar',
+    // Português (normaliza para exibição consistente)
+    'azul': 'Azul',
+    'vermelho': 'Vermelho',
+    'verde': 'Verde',
+    'amarelo': 'Amarelo',
+    'laranja': 'Laranja',
+    'roxo': 'Roxo',
+    'rosa': 'Rosa',
+    'cinza': 'Cinza',
+    'branco': 'Branco',
+    'preto': 'Preto',
+    'ciano': 'Ciano',
+    'anil': 'Índigo',
+    'lima': 'Lima',
+    'ambar': 'Âmbar',
+    'âmbar': 'Âmbar',
   };
 
   // Cores do Flutter para cada nome de cor
   static const Map<String, Color> _colorValues = {
+    // Inglês
     'blue': Colors.blue,
     'red': Colors.red,
     'green': Colors.green,
@@ -28,18 +51,72 @@ class AnimalDisplayUtils {
     'grey': Colors.grey,
     'white': Colors.white,
     'black': Colors.black,
+    'cyan': Colors.cyan,
+    'teal': Colors.teal,
+    'indigo': Colors.indigo,
+    'lime': Colors.lime,
+    'amber': Colors.amber,
+    // Português
+    'azul': Colors.blue,
+    'vermelho': Colors.red,
+    'verde': Colors.green,
+    'amarelo': Colors.yellow,
+    'laranja': Colors.orange,
+    'roxo': Colors.purple,
+    'rosa': Colors.pink,
+    'cinza': Colors.grey,
+    'branco': Colors.white,
+    'preto': Colors.black,
+    'ciano': Colors.cyan,
+    'anil': Colors.indigo,
+    'lima': Colors.lime,
+    'ambar': Colors.amber,
+    'âmbar': Colors.amber,
   };
+
+  // Paleta canônica usada nos dropdowns de cadastro.
+  static const Map<String, Color> _pickerColorValues = {
+    'blue': Colors.blue,
+    'red': Colors.red,
+    'green': Colors.green,
+    'yellow': Colors.yellow,
+    'orange': Colors.orange,
+    'purple': Colors.purple,
+    'pink': Colors.pink,
+    'grey': Colors.grey,
+    'white': Colors.white,
+    'black': Colors.black,
+    'cyan': Colors.cyan,
+    'teal': Colors.teal,
+    'indigo': Colors.indigo,
+    'lime': Colors.lime,
+    'amber': Colors.amber,
+  };
+
+  static String _normalizeColor(String? colorKey) =>
+      (colorKey ?? '').trim().toLowerCase();
+
+  static String _titleCase(String text) {
+    if (text.isEmpty) return text;
+    return text
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1))
+        .join(' ');
+  }
 
   /// Traduz a chave de cor para português
   static String getColorName(String? colorKey) {
-    if (colorKey == null || colorKey.isEmpty) return 'Sem cor';
-    return _colorNames[colorKey] ?? colorKey;
+    final normalized = _normalizeColor(colorKey);
+    if (normalized.isEmpty) return 'Sem cor';
+    return _colorNames[normalized] ?? _titleCase(normalized);
   }
 
   /// Obtém a cor Flutter da chave de cor
   static Color getColorValue(String? colorKey) {
-    if (colorKey == null || colorKey.isEmpty) return Colors.grey;
-    return _colorValues[colorKey] ?? Colors.grey;
+    final normalized = _normalizeColor(colorKey);
+    if (normalized.isEmpty) return Colors.grey;
+    return _colorValues[normalized] ?? Colors.grey;
   }
 
   /// Extrai o número de uma string (nome ou código)
@@ -79,7 +156,7 @@ class AnimalDisplayUtils {
 
   /// Constrói um widget para dropdown com círculo de cor e texto formatado
   static Iterable<MapEntry<String, Color>> get colorEntries =>
-      _colorValues.entries;
+      _pickerColorValues.entries;
 
   static Widget buildDropdownItem(Animal animal, {TextStyle? textStyle}) {
     final colorName = getColorName(animal.nameColor);

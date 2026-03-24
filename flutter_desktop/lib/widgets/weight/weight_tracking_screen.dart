@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/animal_service.dart';
 import '../../models/animal.dart';
+import '../../models/weight_alert.dart';
+import '../../services/weight_alert_service.dart';
+import '../../services/weight_service.dart';
 import '../../utils/animal_display_utils.dart';
 import '../../utils/animal_record_display.dart';
 import '../../utils/debouncer.dart';
@@ -29,6 +32,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
   final Debouncer _searchDebouncer =
       Debouncer(delay: const Duration(milliseconds: 300));
   Future<WeightTrackingResult>? _future;
+  Future<List<WeightAlert>>? _alertsFuture;
   List<String> _availableColors = [];
 
   final List<String> _categories = [
@@ -47,6 +51,7 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     _tabController = TabController(length: 3, vsync: this);
     _loadColors();
     _refresh();
+    _refreshAlertsList();
   }
 
   @override
@@ -295,6 +300,8 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else ...[
+                  _buildPendingAlertsPanel(theme),
+                  const SizedBox(height: 24),
                   // Weight Statistics + List
                   _buildWeightStats(theme, items),
                   const SizedBox(height: 24),
@@ -432,12 +439,273 @@ class _WeightTrackingScreenState extends State<WeightTrackingScreen>
     });
   }
 
+  void _refreshAlertsList() {
+    final weightAlertService = context.read<WeightAlertService>();
+    setState(() {
+      _alertsFuture = weightAlertService.fetchPendingAlertsSnapshot(
+        horizonDays: 3650,
+      );
+    });
+  }
+
   @override
   bool get wantKeepAlive => true;
 
   int _getAgeInMonths(DateTime birthDate) {
     final now = DateTime.now();
     return (now.year - birthDate.year) * 12 + (now.month - birthDate.month);
+  }
+
+  Widget _buildPendingAlertsPanel(ThemeData theme) {
+    return FutureBuilder<List<WeightAlert>>(
+      future: _alertsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        final alerts = snapshot.data ?? const <WeightAlert>[];
+        if (alerts.isEmpty) {
+          return Card(
+            child: ListTile(
+              leading: Icon(
+                Icons.check_circle,
+                color: theme.colorScheme.tertiary,
+              ),
+              title: const Text('Alertas de pesagem'),
+              subtitle: const Text('Nenhuma pesagem pendente no momento.'),
+            ),
+          );
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.notifications_active,
+                        color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Todos os alertas de pesagem (${alerts.length})',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: alerts.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final alert = alerts[index];
+                    return _buildPendingAlertItem(theme, alert);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPendingAlertItem(ThemeData theme, WeightAlert alert) {
+    final dueDate = DateTime(alert.dueDate.year, alert.dueDate.month, alert.dueDate.day);
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final overdueDays = todayDate.difference(dueDate).inDays;
+    final isOverdue = overdueDays > 0;
+    final label = AnimalRecordDisplay.labelFromRecord(alert.extra);
+    final color = AnimalRecordDisplay.colorFromRecord(alert.extra);
+
+    String timingLabel;
+    if (isOverdue) {
+      timingLabel = '$overdueDays dia(s) atrasado';
+    } else if (overdueDays == 0) {
+      timingLabel = 'Vence hoje';
+    } else {
+      timingLabel = 'Vence em ${-overdueDays} dia(s)';
+    }
+
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      leading: Icon(
+        Icons.monitor_weight,
+        color: isOverdue ? theme.colorScheme.error : theme.colorScheme.primary,
+      ),
+      title: Text(
+        label,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Text(
+        '${_alertTypeLabel(alert.alertType)} • ${_formatDate(dueDate)} • $timingLabel',
+      ),
+      trailing: OutlinedButton.icon(
+        onPressed: () => _openWeightRegistrationFromAlert(alert),
+        icon: const Icon(Icons.edit, size: 16),
+        label: const Text('Registrar'),
+      ),
+    );
+  }
+
+  String _alertTypeLabel(String type) {
+    switch (type) {
+      case '30d':
+        return 'Pesagem 30 dias';
+      case '60d':
+        return 'Pesagem 60 dias';
+      case '90d':
+        return 'Pesagem 90 dias';
+      case '120d':
+        return 'Pesagem 120 dias';
+      case 'monthly':
+        return 'Pesagem mensal';
+      default:
+        return 'Pesagem';
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    final yyyy = date.year.toString().padLeft(4, '0');
+    return '$dd/$mm/$yyyy';
+  }
+
+  String _resolveMilestoneFromAlert(WeightAlert alert) {
+    switch (alert.alertType) {
+      case '30d':
+      case '60d':
+      case '90d':
+      case '120d':
+        return alert.alertType;
+      case 'monthly':
+        final match = RegExp(r'monthly_(\d+)$').firstMatch(alert.id);
+        if (match != null) {
+          final month = int.tryParse(match.group(1)!);
+          if (month != null && month > 0) return 'monthly_$month';
+        }
+        return 'monthly_1';
+      default:
+        return 'manual';
+    }
+  }
+
+  Future<void> _openWeightRegistrationFromAlert(WeightAlert alert) async {
+    final animalService = context.read<AnimalService>();
+    final weightService = context.read<WeightService>();
+    final weightAlertService = context.read<WeightAlertService>();
+
+    final animal = await animalService.getAnimalById(alert.animalId);
+    if (!mounted) return;
+    if (animal == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Animal do alerta não encontrado.')),
+      );
+      return;
+    }
+
+    final weightController = TextEditingController(
+      text: animal.weight.toStringAsFixed(1),
+    );
+    final milestone = _resolveMilestoneFromAlert(alert);
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+        title: Text('${_alertTypeLabel(alert.alertType)} - ${animal.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Código: ${animal.code}'),
+            const SizedBox(height: 8),
+            Text('Lote: ${animal.lote ?? "N/I"}'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: weightController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Peso (kg)',
+                border: OutlineInputBorder(),
+                suffixText: 'kg',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final weight = double.tryParse(
+                weightController.text.replaceAll(',', '.'),
+              );
+              if (weight == null || weight <= 0) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Informe um peso válido.')),
+                );
+                return;
+              }
+
+              final now = DateTime.now();
+              await weightService.addWeight(
+                animal.id,
+                now,
+                weight,
+                milestone: milestone,
+              );
+              await animalService.updateAnimal(
+                animal.copyWith(
+                  weight: weight,
+                  updatedAt: now,
+                ),
+              );
+              await weightAlertService.completeAlert(
+                alert.id,
+                animalId: animal.id,
+              );
+
+              if (!context.mounted) return;
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Pesagem registrada e alerta concluído.'),
+                ),
+              );
+
+              if (!mounted) return;
+              _refresh();
+              _refreshAlertsList();
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+        ),
+      );
+    } finally {
+      weightController.dispose();
+    }
   }
 
   Widget _buildWeightStats(ThemeData theme, List<Animal> animals) {

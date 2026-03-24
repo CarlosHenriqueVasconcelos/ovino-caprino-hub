@@ -31,8 +31,15 @@ class ResponsiveActions extends StatelessWidget {
       spacing: spacing,
       runSpacing: spacing,
       alignment: _getWrapAlignment(mainAxisAlignment),
-      children: actions,
+      children: actions.map(_normalizeForWrap).toList(),
     );
+  }
+
+  // Wrap cannot receive Flex-only parent data widgets like Expanded/Flexible.
+  Widget _normalizeForWrap(Widget action) {
+    if (action is Expanded) return action.child;
+    if (action is Flexible) return action.child;
+    return action;
   }
 
   List<Widget> _addVerticalSpacing(List<Widget> children, double spacing) {

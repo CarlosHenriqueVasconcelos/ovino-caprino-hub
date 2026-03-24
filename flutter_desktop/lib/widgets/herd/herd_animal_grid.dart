@@ -11,6 +11,8 @@ class HerdAnimalGrid extends StatelessWidget {
   final void Function(Animal)? onEdit;
   final Future<void> Function(Animal)? onDeleteCascade;
   final ScrollController? controller;
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
 
   const HerdAnimalGrid({
     super.key,
@@ -20,26 +22,33 @@ class HerdAnimalGrid extends StatelessWidget {
     this.onEdit,
     this.onDeleteCascade,
     this.controller,
+    this.shrinkWrap = false,
+    this.physics,
   });
 
   @override
   Widget build(BuildContext context) {
     final crossAxisCount = ResponsiveUtils.getAnimalGridCrossAxisCount(context);
-    
-    // Ajustar aspect ratio para mobile: cards mais altos para acomodar conteúdo
+
+    // Cards do rebanho têm conteúdo variável; usa proporções mais altas em altura
+    // para evitar overflow quando há chips/infos adicionais.
     double aspectRatio;
     if (crossAxisCount == 1) {
-      aspectRatio = 0.55; // Mobile: bem mais alto para acomodar todo conteúdo e botões
+      aspectRatio = 0.80;
     } else if (crossAxisCount == 2) {
-      aspectRatio = 0.50; // Tablet: ainda mais alto
+      aspectRatio = 0.72;
+    } else if (crossAxisCount == 3) {
+      aspectRatio = 1.18;
     } else {
-      aspectRatio = ResponsiveUtils.getCardAspectRatio(context);
+      aspectRatio = 1.15;
     }
     
     return GridView.builder(
       key: const PageStorageKey('herd_grid'),
       controller: controller,
       primary: false,
+      shrinkWrap: shrinkWrap,
+      physics: physics,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       addAutomaticKeepAlives: false, // Reduz memória
       addRepaintBoundaries: true,    // Evita repaint desnecessário

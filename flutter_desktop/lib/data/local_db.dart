@@ -72,11 +72,13 @@ class AppDatabase {
         birth_date TEXT NOT NULL,
         weight REAL NOT NULL,
         status TEXT NOT NULL DEFAULT 'Saudável',
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
         location TEXT NOT NULL,
         last_vaccination TEXT,
         pregnant INTEGER DEFAULT 0,
         expected_delivery TEXT,
         health_issue TEXT,
+        registration_note TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         name_color TEXT,
@@ -101,6 +103,8 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animals_reproductive_status ON animals(reproductive_status);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);');
     await db.execute(
@@ -158,6 +162,46 @@ class AppDatabase {
         'CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_milestone ON animal_weights(animal_id, milestone);');
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);');
+
+    // -------- animal_lineage (fechamento ancestral para parentesco)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS animal_lineage (
+        descendant_id TEXT NOT NULL,
+        ancestor_id TEXT NOT NULL,
+        depth INTEGER NOT NULL CHECK (depth > 0),
+        line_type TEXT NOT NULL DEFAULT 'unknown'
+          CHECK (line_type IN ('maternal','paternal','mixed','unknown')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (descendant_id, ancestor_id)
+      );
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS animal_lineage_meta (
+        meta_key TEXT PRIMARY KEY,
+        meta_value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_lineage_descendant ON animal_lineage(descendant_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_lineage_ancestor ON animal_lineage(ancestor_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_lineage_depth ON animal_lineage(depth);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_animal_lineage_desc_depth ON animal_lineage(descendant_id, depth);');
+
+    // -------- app_settings (configurações de regra de negócio)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    ''');
+    await db.execute(
+        "INSERT OR IGNORE INTO app_settings(setting_key, setting_value) VALUES ('block_cousin_breeding', '1');");
 
     // -------- breeding_records
     await db.execute('''
@@ -588,6 +632,7 @@ class AppDatabase {
         birth_date TEXT NOT NULL,
         weight REAL NOT NULL,
         location TEXT NOT NULL,
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
         name_color TEXT,
         category TEXT,
         birth_weight REAL,
@@ -599,6 +644,7 @@ class AppDatabase {
         lote TEXT,
         mother_id TEXT,
         father_id TEXT,
+        registration_note TEXT,
         sale_date TEXT NOT NULL,
         sale_price REAL,
         buyer TEXT,
@@ -630,6 +676,7 @@ class AppDatabase {
         birth_date TEXT NOT NULL,
         weight REAL NOT NULL,
         location TEXT NOT NULL,
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
         name_color TEXT,
         category TEXT,
         birth_weight REAL,
@@ -641,6 +688,7 @@ class AppDatabase {
         lote TEXT,
         mother_id TEXT,
         father_id TEXT,
+        registration_note TEXT,
         death_date TEXT NOT NULL,
         cause_of_death TEXT,
         death_notes TEXT,

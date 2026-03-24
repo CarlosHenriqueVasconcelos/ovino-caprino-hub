@@ -7,6 +7,7 @@ import '../../services/animal_service.dart';
 import '../../services/breeding_service.dart';
 import '../../models/animal.dart';
 import '../../models/breeding_record.dart';
+import '../../models/kinship_report.dart';
 import '../../utils/animal_display_utils.dart';
 import '../../utils/responsive_utils.dart';
 
@@ -34,6 +35,8 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   List<Animal> _maleOptions = [];
   Timer? _femaleDebounce;
   Timer? _maleDebounce;
+  bool _checkingKinship = false;
+  KinshipReport? _kinshipReport;
 
   @override
   void initState() {
@@ -171,6 +174,40 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
     }
   }
 
+  bool get _hasKinshipConflict => _kinshipReport?.isBlocking ?? false;
+  bool get _hasKinshipWarning =>
+      _kinshipReport != null && !_kinshipReport!.isBlocking;
+
+  Future<void> _refreshKinshipValidation() async {
+    final femaleId = _femaleAnimalId;
+    final maleId = _maleAnimalId;
+
+    if (femaleId == null || maleId == null) {
+      if (!mounted) return;
+      setState(() {
+        _checkingKinship = false;
+        _kinshipReport = null;
+      });
+      return;
+    }
+
+    setState(() => _checkingKinship = true);
+
+    final breedingService = context.read<BreedingService>();
+    final report = await breedingService.getKinshipReport(
+      femaleId: femaleId,
+      maleId: maleId,
+    );
+
+    if (!mounted) return;
+    if (_femaleAnimalId != femaleId || _maleAnimalId != maleId) return;
+
+    setState(() {
+      _checkingKinship = false;
+      _kinshipReport = report;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loadingRecords || _loadingAnimals) {
@@ -220,6 +257,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     },
                     onSelected: (Animal animal) {
                       setState(() => _femaleAnimalId = animal.id);
+                      _refreshKinshipValidation();
                     },
                     fieldViewBuilder:
                         (context, controller, focusNode, onSubmitted) {
@@ -237,6 +275,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                                   onPressed: () {
                                     setState(() => _femaleAnimalId = null);
                                     controller.clear();
+                                    _refreshKinshipValidation();
                                   },
                                 )
                               : null,
@@ -306,6 +345,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     },
                     onSelected: (Animal animal) {
                       setState(() => _maleAnimalId = animal.id);
+                      _refreshKinshipValidation();
                     },
                     fieldViewBuilder:
                         (context, controller, focusNode, onSubmitted) {
@@ -323,6 +363,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                                   onPressed: () {
                                     setState(() => _maleAnimalId = null);
                                     controller.clear();
+                                    _refreshKinshipValidation();
                                   },
                                 )
                               : null,
@@ -372,6 +413,93 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  if (_checkingKinship) ...[
+                    const Row(
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Validando parentesco...'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ] else if (_hasKinshipConflict || _hasKinshipWarning) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _hasKinshipConflict
+                            ? Theme.of(context).colorScheme.errorContainer
+                            : Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _hasKinshipConflict
+                                ? 'Cruzamento bloqueado'
+                                : 'Parentesco detectado (atenção)',
+                            style: TextStyle(
+                              color: _hasKinshipConflict
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer
+                                  : Colors.amber.shade900,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Chip(
+                                label: Text(
+                                  'Grau: ${_kinshipReport!.degreeLabel}',
+                                ),
+                              ),
+                              Chip(
+                                label: Text(
+                                  'Relação: ${_kinshipReport!.relationLabel}',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Animais: ${_kinshipReport!.animalsLabel}',
+                            style: TextStyle(
+                              color: _hasKinshipConflict
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer
+                                  : Colors.amber.shade900,
+                            ),
+                          ),
+                          if (_kinshipReport!.detail != null &&
+                              _kinshipReport!.detail!.trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                _kinshipReport!.detail!,
+                                style: TextStyle(
+                                  color: _hasKinshipConflict
+                                      ? Theme.of(context)
+                                          .colorScheme
+                                          .onErrorContainer
+                                      : Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Breeding Date
                   InkWell(
@@ -483,7 +611,9 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
           child: const Text('Cancelar'),
         ),
         ElevatedButton(
-          onPressed: _saveBreeding,
+          onPressed: (_checkingKinship || _hasKinshipConflict)
+              ? null
+              : _saveBreeding,
           child: const Text('Salvar'),
         ),
       ],
@@ -507,10 +637,39 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   Future<void> _saveBreeding() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_checkingKinship) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aguarde a validação de parentesco.')),
+      );
+      return;
+    }
+    if (_hasKinshipConflict) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_kinshipReport!.buildMessage())),
+      );
+      return;
+    }
 
     try {
       final breedingService = context.read<BreedingService>();
       final animalService = Provider.of<AnimalService>(context, listen: false);
+      final femaleId = _femaleAnimalId;
+      final maleId = _maleAnimalId;
+
+      if (femaleId != null && maleId != null) {
+        final report = await breedingService.getKinshipReport(
+          femaleId: femaleId,
+          maleId: maleId,
+        );
+        if (report != null && report.isBlocking) {
+          if (!mounted) return;
+          setState(() => _kinshipReport = report);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(report.buildMessage())),
+          );
+          return;
+        }
+      }
 
       final stageEnum = _mapStatusToStage(_status);
       final notes = _notesController.text.trim();
@@ -538,9 +697,15 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
             await animalService.getAnimalById(_femaleAnimalId!) ?? fallbackFemale;
 
         if (female != null) {
+          final currentHealthStatus =
+              (female.status == 'Gestante' || female.status == 'Reprodutor')
+                  ? 'Saudável'
+                  : female.status;
           final updatedFemale = female.copyWith(
             pregnant: true,
             expectedDelivery: _expectedBirth,
+            status: currentHealthStatus,
+            reproductiveStatus: 'Gestante',
           );
 
           await animalService.updateAnimal(updatedFemale);

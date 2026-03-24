@@ -130,11 +130,15 @@ class _AnimalCardState extends State<AnimalCard> {
         .map((child) =>
             '• ${child.name} (${child.category.isEmpty ? "Sem categoria" : child.category})')
         .toList(growable: false);
+    final reproductiveStatus = animal.reproductiveStatus.trim().isEmpty
+        ? 'Não aplicável'
+        : animal.reproductiveStatus.trim();
 
     return _DisplayCache(
       name: animal.name,
       code: animal.code,
       status: animal.status,
+      reproductiveStatus: reproductiveStatus,
       category: animal.category,
       breed: animal.breed,
       ageText: animal.ageText,
@@ -172,6 +176,8 @@ class _AnimalCardState extends State<AnimalCard> {
         return theme.colorScheme.primary;
       case 'em tratamento':
         return theme.colorScheme.error;
+      case 'ferido':
+        return Colors.deepOrange;
       case 'reprodutor':
         return theme.colorScheme.tertiary;
       default:
@@ -409,7 +415,7 @@ class _AnimalCardState extends State<AnimalCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Status Badges
               Wrap(
@@ -444,6 +450,20 @@ class _AnimalCardState extends State<AnimalCard> {
                         color: theme.colorScheme.secondary.withValues(alpha: 0.2),
                       ),
                     ),
+
+                  Chip(
+                    label: Text('Rep.: ${_cache.reproductiveStatus}'),
+                    backgroundColor:
+                        theme.colorScheme.tertiary.withValues(alpha: 0.1),
+                    labelStyle: TextStyle(
+                      color: theme.colorScheme.tertiary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                    side: BorderSide(
+                      color: theme.colorScheme.tertiary.withValues(alpha: 0.2),
+                    ),
+                  ),
 
                   if (_cache.pregnant)
                     Chip(
@@ -487,7 +507,7 @@ class _AnimalCardState extends State<AnimalCard> {
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Animal Info
               LayoutBuilder(
@@ -822,7 +842,7 @@ class _AnimalCardState extends State<AnimalCard> {
                     ),
                   ],
                 ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Actions - responsivas
               ResponsiveActions(
@@ -889,6 +909,7 @@ class _DisplayCache {
   final String name;
   final String code;
   final String status;
+  final String reproductiveStatus;
   final String category;
   final String breed;
   final String ageText;
@@ -918,6 +939,7 @@ class _DisplayCache {
     required this.name,
     required this.code,
     required this.status,
+    required this.reproductiveStatus,
     required this.category,
     required this.breed,
     required this.ageText,

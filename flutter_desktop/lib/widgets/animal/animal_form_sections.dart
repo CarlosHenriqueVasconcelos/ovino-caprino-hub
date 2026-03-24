@@ -746,6 +746,7 @@ class AnimalCategorySection extends StatelessWidget {
 
 class AnimalNotesSection extends StatelessWidget {
   final TextEditingController locationController;
+  final TextEditingController registrationNoteController;
   final String status;
   final List<String> statusOptions;
   final ValueChanged<String?> onStatusChanged;
@@ -753,6 +754,7 @@ class AnimalNotesSection extends StatelessWidget {
   const AnimalNotesSection({
     super.key,
     required this.locationController,
+    required this.registrationNoteController,
     required this.status,
     required this.statusOptions,
     required this.onStatusChanged,
@@ -790,40 +792,68 @@ class AnimalNotesSection extends StatelessWidget {
                 .toList(),
             onChanged: onStatusChanged,
           ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: registrationNoteController,
+            decoration: const InputDecoration(
+              labelText: 'Anotação Cadastral (opcional)',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
+              hintText: 'Informações de perfil/ficha do animal',
+            ),
+            minLines: 2,
+            maxLines: 4,
+          ),
         ],
       );
     }
-    
-    return Row(
+
+    return Column(
       children: [
-        Expanded(
-          child: TextFormField(
-            controller: locationController,
-            decoration: const InputDecoration(
-              labelText: 'Localização',
-              border: OutlineInputBorder(),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: locationController,
+                decoration: const InputDecoration(
+                  labelText: 'Localização',
+                  border: OutlineInputBorder(),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: status,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: statusOptions
+                    .map(
+                      (option) => DropdownMenuItem(
+                        value: option,
+                        child: Text(option, overflow: TextOverflow.ellipsis),
+                      ),
+                    )
+                    .toList(),
+                onChanged: onStatusChanged,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            initialValue: status,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Status',
-              border: OutlineInputBorder(),
-            ),
-            items: statusOptions
-                .map(
-                  (option) => DropdownMenuItem(
-                    value: option,
-                    child: Text(option, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: onStatusChanged,
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: registrationNoteController,
+          decoration: const InputDecoration(
+            labelText: 'Anotação Cadastral (opcional)',
+            border: OutlineInputBorder(),
+            alignLabelWithHint: true,
+            hintText: 'Informações de perfil/ficha do animal',
           ),
+          minLines: 2,
+          maxLines: 4,
         ),
       ],
     );
@@ -831,6 +861,9 @@ class AnimalNotesSection extends StatelessWidget {
 }
 
 class AnimalReproductionSection extends StatelessWidget {
+  final String reproductiveStatus;
+  final List<String> reproductiveStatusOptions;
+  final ValueChanged<String?> onReproductiveStatusChanged;
   final bool pregnant;
   final ValueChanged<bool?> onPregnantChanged;
   final String expectedDeliveryLabel;
@@ -838,6 +871,9 @@ class AnimalReproductionSection extends StatelessWidget {
 
   const AnimalReproductionSection({
     super.key,
+    required this.reproductiveStatus,
+    required this.reproductiveStatusOptions,
+    required this.onReproductiveStatusChanged,
     required this.pregnant,
     required this.onPregnantChanged,
     required this.expectedDeliveryLabel,
@@ -849,6 +885,23 @@ class AnimalReproductionSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        DropdownButtonFormField<String>(
+          initialValue: reproductiveStatus,
+          decoration: const InputDecoration(
+            labelText: 'Status Reprodutivo',
+            border: OutlineInputBorder(),
+          ),
+          items: reproductiveStatusOptions
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option,
+                  child: Text(option, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: onReproductiveStatusChanged,
+        ),
+        const SizedBox(height: 12),
         CheckboxListTile(
           title: const Text('Gestante'),
           value: pregnant,

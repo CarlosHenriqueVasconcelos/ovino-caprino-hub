@@ -20,6 +20,10 @@ const dashboardTabs = <TabData>[
       title: 'Peso & Crescimento', icon: Icons.monitor_weight, label: 'Peso'),
   TabData(title: 'Reprodução', icon: Icons.favorite, label: 'Reprodução'),
   TabData(
+      title: 'Seleção de Matrizes',
+      icon: Icons.workspace_premium,
+      label: 'Matrizes'),
+  TabData(
       title: 'Vacinações e Medicamentos',
       icon: Icons.medication,
       label: 'Vacinas'),

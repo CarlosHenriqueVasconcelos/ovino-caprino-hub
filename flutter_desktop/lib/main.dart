@@ -30,6 +30,8 @@ import 'services/financial_service.dart'; // Financeiro
 import 'services/animal_delete_cascade.dart';
 import 'services/deceased_service.dart';
 import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
+import 'services/kinship_service.dart';
+import 'services/matrix_selection_service.dart';
 import 'services/reports_controller.dart';
 import 'services/reports_service.dart';
 
@@ -39,6 +41,8 @@ import 'data/animal_cascade_repository.dart';
 import 'data/animal_history_repository.dart';
 import 'data/animal_lifecycle_repository.dart';
 import 'data/animal_repository.dart';
+import 'data/kinship_repository.dart';
+import 'data/matrix_evaluation_repository.dart';
 import 'data/pharmacy_repository.dart';
 import 'data/breeding_repository.dart';
 import 'data/finance_repository.dart';
@@ -216,6 +220,16 @@ class FazendaSaoPetronioApp extends StatelessWidget {
 
         // Repositórios
         Provider<AnimalRepository>.value(value: animalRepository),
+        Provider<KinshipRepository>(
+          create: (context) => KinshipRepository(
+            context.read<AppDatabase>(),
+          ),
+        ),
+        Provider<MatrixEvaluationRepository>(
+          create: (context) => MatrixEvaluationRepository(
+            context.read<AppDatabase>(),
+          ),
+        ),
         Provider<AnimalCascadeRepository>.value(
           value: animalCascadeRepository,
         ),
@@ -242,6 +256,16 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<ReportsService>(
           create: (context) => ReportsService(
             context.read<ReportsRepository>(),
+          ),
+        ),
+        Provider<KinshipService>(
+          create: (context) => KinshipService(
+            context.read<KinshipRepository>(),
+          ),
+        ),
+        Provider<MatrixSelectionService>(
+          create: (context) => MatrixSelectionService(
+            context.read<MatrixEvaluationRepository>(),
           ),
         ),
 
@@ -297,6 +321,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
           create: (context) => BreedingService(
             context.read<BreedingRepository>(),
             context.read<AnimalRepository>(),
+            kinshipService: context.read<KinshipService>(),
           ),
         ),
 

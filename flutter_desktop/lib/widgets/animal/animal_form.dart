@@ -48,12 +48,14 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   final _breedController = TextEditingController();
   final _weightController = TextEditingController();
   final _locationController = TextEditingController();
+  final _registrationNoteController = TextEditingController();
   final _yearController = TextEditingController();
   final _loteController = TextEditingController();
 
   String _species = 'Ovino';
   String _gender = 'Fêmea';
   String _status = 'Saudável';
+  String _reproductiveStatus = 'Vazia';
   String _category = 'Não especificado';
   String _nameColor = 'blue';
   DateTime _birthDate = DateTime.now();
@@ -68,10 +70,10 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   String? _fatherPrefillLabel;
 
   final List<String> _categories = [
+    'Matriz',
     'Reprodutor',
     'Borrego',
     'Adulto',
-    'Vazia',
     'Venda',
     'Não especificado',
   ];
@@ -93,13 +95,48 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
   final List<String> _statusOptions = [
     'Saudável',
     'Em tratamento',
-    'Reprodutor',
-    'Vendido',
+    'Ferido',
+  ];
+
+  final List<String> _reproductiveStatusOptions = [
+    'Não aplicável',
+    'Vazia',
+    'Coberta',
     'Gestante',
+    'Lactação',
+    'Seca',
   ];
 
   static const List<String> _speciesOptions = ['Ovino', 'Caprino'];
   static const List<String> _genderOptions = ['Macho', 'Fêmea'];
+
+  String _normalizeHealthStatus(String? rawStatus) {
+    final value = (rawStatus ?? '').trim();
+    if (_statusOptions.contains(value)) return value;
+    switch (value) {
+      case 'Gestante':
+      case 'Reprodutor':
+      case 'Vendido':
+        return 'Saudável';
+      default:
+        return 'Saudável';
+    }
+  }
+
+  String _normalizeCategory(String? rawCategory) {
+    final value = (rawCategory ?? '').trim();
+    if (_categories.contains(value)) return value;
+    if (value == 'Vazia') return 'Matriz';
+    return 'Não especificado';
+  }
+
+  String _normalizeReproductiveStatus(String? rawStatus, {required bool female}) {
+    final value = (rawStatus ?? '').trim();
+    if (_reproductiveStatusOptions.contains(value)) return value;
+    if (!female) return 'Não aplicável';
+    if (value.isEmpty || value == 'Não aplicável') return 'Vazia';
+    return 'Vazia';
+  }
 
   @override
   void initState() {
@@ -139,7 +176,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
         );
       }
       if (widget.presetCategory != null) {
-        _category = widget.presetCategory!;
+        _category = _normalizeCategory(widget.presetCategory);
       }
     }
     _loadParentPrefills();
@@ -199,15 +236,28 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _loteController.text = animal.lote ?? '';
     _species = animal.species;
     _gender = animal.gender;
-    _status = animal.status;
-    _category = animal.category;
+    _status = _normalizeHealthStatus(animal.status);
+    _reproductiveStatus = _normalizeReproductiveStatus(
+      animal.reproductiveStatus,
+      female: animal.gender == 'Fêmea',
+    );
+    _category = _normalizeCategory(animal.category);
     _nameColor = animal.nameColor;
     _birthDate = animal.birthDate;
     _pregnant = animal.pregnant;
     _expectedDelivery = animal.expectedDelivery;
     _lastVaccination = animal.lastVaccination;
+    _registrationNoteController.text = animal.registrationNote ?? '';
     _motherId = animal.motherId;
     _fatherId = animal.fatherId;
+    if (_gender != 'Fêmea') {
+      _reproductiveStatus = 'Não aplicável';
+    } else if (_reproductiveStatus.trim().isEmpty ||
+        _reproductiveStatus == 'Não aplicável') {
+      final wasPregnantStatus = animal.status == 'Gestante';
+      _reproductiveStatus =
+          (_pregnant || wasPregnantStatus) ? 'Gestante' : 'Vazia';
+    }
   }
 
   String? _formatParentLabel({
@@ -371,7 +421,16 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                   genderOptions: _genderOptions,
                   onGenderChanged: (value) {
                     if (value == null) return;
-                    setState(() => _gender = value);
+                    setState(() {
+                      _gender = value;
+                      if (_gender != 'Fêmea') {
+                        _reproductiveStatus = 'Não aplicável';
+                        _pregnant = false;
+                        _expectedDelivery = null;
+                      } else if (_reproductiveStatus == 'Não aplicável') {
+                        _reproductiveStatus = 'Vazia';
+                      }
+                    });
                   },
                   breedController: _breedController,
                   breedOptions: _breeds,
@@ -393,6 +452,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 const SizedBox(height: 16),
                 AnimalNotesSection(
                   locationController: _locationController,
+                  registrationNoteController: _registrationNoteController,
                   status: _status,
                   statusOptions: _statusOptions,
                   onStatusChanged: (value) {
@@ -403,12 +463,31 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
                 if (_gender == 'Fêmea') ...[
                   const SizedBox(height: 16),
                   AnimalReproductionSection(
+                    reproductiveStatus: _reproductiveStatus,
+                    reproductiveStatusOptions: _reproductiveStatusOptions,
+                    onReproductiveStatusChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _reproductiveStatus = value;
+                        if (_reproductiveStatus == 'Gestante') {
+                          _pregnant = true;
+                        } else {
+                          _pregnant = false;
+                          _expectedDelivery = null;
+                        }
+                      });
+                    },
                     pregnant: _pregnant,
                     expectedDeliveryLabel: expectedDeliveryLabel,
                     onPregnantChanged: (value) {
                       setState(() {
                         _pregnant = value ?? false;
-                        if (!_pregnant) {
+                        if (_pregnant) {
+                          _reproductiveStatus = 'Gestante';
+                        } else {
+                          if (_reproductiveStatus == 'Gestante') {
+                            _reproductiveStatus = 'Vazia';
+                          }
                           _expectedDelivery = null;
                         }
                       });
@@ -468,7 +547,13 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       birthDate: _birthDate,
       weight: double.parse(_weightController.text),
       status: _status,
+      reproductiveStatus: _gender == 'Fêmea'
+          ? _reproductiveStatus
+          : 'Não aplicável',
       location: _locationController.text,
+      registrationNote: _registrationNoteController.text.trim().isEmpty
+          ? null
+          : _registrationNoteController.text.trim(),
       pregnant: _pregnant,
       expectedDelivery: _expectedDelivery,
       lastVaccination: _lastVaccination,
@@ -519,6 +604,7 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
     _breedController.dispose();
     _weightController.dispose();
     _locationController.dispose();
+    _registrationNoteController.dispose();
     _yearController.dispose();
     _loteController.dispose();
     super.dispose();

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../../data/animal_repository.dart';
 import '../../models/animal.dart';
+import '../../utils/animal_display_utils.dart';
 
 class HerdController extends ChangeNotifier {
   HerdController({required AnimalRepository animalRepository})
@@ -138,7 +139,9 @@ class HerdController extends ChangeNotifier {
 
       if (token != _requestToken) return;
 
-      _items = List<Animal>.unmodifiable(results);
+      final sorted = List<Animal>.of(results);
+      AnimalDisplayUtils.sortAnimalsList(sorted);
+      _items = List<Animal>.unmodifiable(sorted);
       _rebuildIndexes(_items);
       _hasMore = results.length == _pageSize;
     } catch (e) {
@@ -177,13 +180,14 @@ class HerdController extends ChangeNotifier {
 
       if (results.isEmpty) {
         _hasMore = false;
-        } else {
-          final merged = List<Animal>.of(_items)..addAll(results);
-          _items = List<Animal>.unmodifiable(merged);
-          _rebuildIndexes(_items);
-          _page = nextPage;
-          _hasMore = results.length == _pageSize;
-        }
+      } else {
+        final merged = List<Animal>.of(_items)..addAll(results);
+        AnimalDisplayUtils.sortAnimalsList(merged);
+        _items = List<Animal>.unmodifiable(merged);
+        _rebuildIndexes(_items);
+        _page = nextPage;
+        _hasMore = results.length == _pageSize;
+      }
     } catch (e) {
       if (token != _requestToken) return;
       _error = e.toString();

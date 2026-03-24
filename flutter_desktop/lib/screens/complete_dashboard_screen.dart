@@ -8,6 +8,7 @@ import '../models/animal.dart';
 import '../utils/responsive_utils.dart';
 import '../widgets/animal/animal_form.dart';
 import '../widgets/breeding/breeding_management_screen.dart';
+import '../widgets/breeding/matrix_selection_tab.dart';
 import '../widgets/feeding/feeding_screen.dart';
 import '../widgets/financial/financial_complete_screen.dart';
 import '../widgets/medication/medication_management_screen.dart';
@@ -83,6 +84,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen>
                   const FeedingScreen(),
                   const WeightTrackingScreen(),
                   const BreedingManagementScreen(),
+                  const MatrixSelectionTab(),
                   const MedicationManagementScreen(),
                   const NotesManagementScreen(),
                   const PharmacyManagementScreen(),

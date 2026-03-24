@@ -310,6 +310,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           ),
           const SizedBox(height: 20),
 
+          _buildInitialMilestonesPanel(theme, adult),
+          const SizedBox(height: 16),
+
           // Monthly Weight Control
           Container(
             padding: const EdgeInsets.all(16),
@@ -382,6 +385,85 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInitialMilestonesPanel(ThemeData theme, Animal adult) {
+    final milestones = <({String label, double? weight})>[
+      (label: 'Nascimento', weight: adult.birthWeight),
+      (label: '30d', weight: adult.weight30Days),
+      (label: '60d', weight: adult.weight60Days),
+      (label: '90d', weight: adult.weight90Days),
+      (label: '120d', weight: adult.weight120Days),
+    ];
+    final hasAny = milestones.any((m) => (m.weight ?? 0) > 0);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Marcos Iniciais (Histórico)',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (!hasAny)
+            Text(
+              'Nenhum marco inicial registrado.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: milestones
+                  .map(
+                    (m) => _buildInitialMilestoneChip(
+                      theme,
+                      m.label,
+                      m.weight,
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInitialMilestoneChip(
+    ThemeData theme,
+    String label,
+    double? weight,
+  ) {
+    final hasValue = (weight ?? 0) > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: hasValue
+            ? theme.colorScheme.primary.withValues(alpha: 0.12)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '$label: ${hasValue ? '${weight!.toStringAsFixed(1)} kg' : '—'}',
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+        ),
       ),
     );
   }

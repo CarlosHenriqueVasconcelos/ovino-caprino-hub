@@ -5,8 +5,11 @@ import 'package:flutter/foundation.dart';
 
 import '../data/animal_repository.dart';
 import '../data/breeding_repository.dart';
+import '../data/kinship_repository.dart';
 import '../models/animal.dart';
 import '../models/breeding_record.dart';
+import '../models/kinship_report.dart';
+import 'kinship_service.dart';
 import 'events/event_bus.dart';
 import 'events/app_events.dart';
 
@@ -46,11 +49,55 @@ class ReproBoardData {
         ].where((e) => e.overdue).length;
 }
 
+class BreedingValidationException implements Exception {
+  final String message;
+  const BreedingValidationException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+class KinshipConflict {
+  final String degreeLabel;
+  final String relationLabel;
+  final String femaleLabel;
+  final String maleLabel;
+  final String? detail;
+
+  const KinshipConflict({
+    required this.degreeLabel,
+    required this.relationLabel,
+    required this.femaleLabel,
+    required this.maleLabel,
+    this.detail,
+  });
+
+  String get animalsLabel => '$femaleLabel x $maleLabel';
+
+  String get message {
+    final detailText =
+        (detail != null && detail!.trim().isNotEmpty) ? '\n$detail' : '';
+    return 'Cruzamento bloqueado.\n'
+        'Grau detectado: $degreeLabel.\n'
+        'Relação: $relationLabel.\n'
+        'Animais: $animalsLabel.$detailText';
+  }
+}
+
 class BreedingService extends ChangeNotifier {
   final BreedingRepository _repository;
   final AnimalRepository _animalRepository;
+  final KinshipService _kinshipService;
 
-  BreedingService(this._repository, this._animalRepository);
+  BreedingService(
+    this._repository,
+    this._animalRepository, {
+    KinshipService? kinshipService,
+  }) : _kinshipService =
+           kinshipService ??
+           KinshipService(
+             KinshipRepository.fromAnimalRepository(_animalRepository),
+           );
 
   ReproBoardData? _boardCache;
   bool _isBoardLoading = false;
@@ -176,6 +223,15 @@ class BreedingService extends ChangeNotifier {
     final now = DateTime.now();
     final stageCanon = _canonStage(stage);
     final stageEnum = BreedingStage.fromString(stageCanon);
+    final maleIdNormalized =
+        (maleId != null && maleId.trim().isNotEmpty) ? maleId.trim() : null;
+
+    if (maleIdNormalized != null) {
+      await _validateKinshipForBreeding(
+        femaleId: femaleId,
+        maleId: maleIdNormalized,
+      );
+    }
 
     // Somente em gestação confirmada persistimos expected_birth/ultrasound_result
     DateTime? safeExpectedBirth;
@@ -190,7 +246,7 @@ class BreedingService extends ChangeNotifier {
     final record = BreedingRecord(
       id: _uuidV4(),
       femaleAnimalId: femaleId,
-      maleAnimalId: maleId,
+      maleAnimalId: maleIdNormalized,
       breedingDate: breedingDate ?? now,
       matingStartDate: matingStartDate,
       matingEndDate: matingEndDate,
@@ -216,6 +272,58 @@ class BreedingService extends ChangeNotifier {
     ));
     
     notifyListeners();
+  }
+
+  Future<void> _validateKinshipForBreeding({
+    required String femaleId,
+    required String maleId,
+  }) async {
+    final conflict = await getKinshipConflict(
+      femaleId: femaleId,
+      maleId: maleId,
+    );
+    if (conflict != null) {
+      throw BreedingValidationException(conflict.message);
+    }
+  }
+
+  Future<KinshipConflict?> getKinshipConflict({
+    required String femaleId,
+    required String maleId,
+  }) async {
+    final report = await getKinshipReport(
+      femaleId: femaleId,
+      maleId: maleId,
+    );
+    if (report == null || !report.isBlocking) return null;
+    return KinshipConflict(
+      degreeLabel: report.degreeLabel,
+      relationLabel: report.relationLabel,
+      femaleLabel: report.femaleLabel,
+      maleLabel: report.maleLabel,
+      detail: report.detail,
+    );
+  }
+
+  Future<String?> getKinshipConflictMessage({
+    required String femaleId,
+    required String maleId,
+  }) async {
+    final conflict = await getKinshipConflict(
+      femaleId: femaleId,
+      maleId: maleId,
+    );
+    return conflict?.message;
+  }
+
+  Future<KinshipReport?> getKinshipReport({
+    required String femaleId,
+    required String maleId,
+  }) async {
+    return _kinshipService.getKinshipReport(
+      femaleId: femaleId,
+      maleId: maleId,
+    );
   }
 
   /// Botão "Nova cobertura" → começa em encabritamento.
@@ -626,5 +734,3 @@ class BreedingService extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-/// Label amigável de estágio (se você usa em algum lugar da UI).

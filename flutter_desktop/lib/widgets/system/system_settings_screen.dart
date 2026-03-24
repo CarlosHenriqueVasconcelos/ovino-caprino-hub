@@ -7,6 +7,7 @@ import '../../devtools/devtools_screen.dart';
 import '../../models/animal.dart';
 import '../../services/animal_service.dart';
 import '../../services/backup_service.dart';
+import '../../services/kinship_service.dart';
 import '../../services/system_maintenance_service.dart';
 import '../../main.dart' show logService;
 
@@ -25,8 +26,59 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   bool _vaccinationReminders = true;
   bool _birthReminders = true;
   bool _weightTracking = true;
+  bool _loadingKinshipPolicy = true;
+  bool _blockCousinBreeding = true;
   bool _autoBackup = false;
   String _backupFrequency = 'daily';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKinshipPolicy();
+  }
+
+  Future<void> _loadKinshipPolicy() async {
+    try {
+      final kinshipService = context.read<KinshipService>();
+      final enabled = await kinshipService.getBlockCousinBreedingEnabled();
+      if (!mounted) return;
+      setState(() {
+        _blockCousinBreeding = enabled;
+        _loadingKinshipPolicy = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingKinshipPolicy = false);
+    }
+  }
+
+  Future<void> _setBlockCousinBreeding(bool enabled) async {
+    final previous = _blockCousinBreeding;
+    setState(() => _blockCousinBreeding = enabled);
+
+    try {
+      final kinshipService = context.read<KinshipService>();
+      await kinshipService.setBlockCousinBreedingEnabled(enabled);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'Bloqueio entre primos ativado.'
+                : 'Bloqueio entre primos desativado.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _blockCousinBreeding = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível salvar a regra de parentesco.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +203,48 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         onChanged: (v) => setState(() => _weightTracking = v),
                       ),
                     ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Genética e Reprodução
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.account_tree,
+                            color: theme.colorScheme.primary,
+                            size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Genética e Reprodução',
+                              style: (MediaQuery.of(context).size.width < 600
+                                  ? theme.textTheme.titleMedium
+                                  : theme.textTheme.titleLarge)
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    if (_loadingKinshipPolicy)
+                      const LinearProgressIndicator(minHeight: 2)
+                    else
+                      SwitchListTile(
+                        title: const Text('Bloquear cruzamento entre primos'),
+                        subtitle: const Text(
+                          'Impede coberturas quando há avô/avó em comum.',
+                        ),
+                        value: _blockCousinBreeding,
+                        onChanged: _setBlockCousinBreeding,
+                      ),
                   ],
                 ),
               ),

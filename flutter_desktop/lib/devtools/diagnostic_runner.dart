@@ -184,14 +184,17 @@ class DiagnosticRunner {
   Future<void> _scenarioMarkSold(DiagnosticLog log) async {
     log.info('[SCENARIO] mark sold');
     try {
-      final animals = await animalRepo.all(limit: 1);
-      if (animals.isEmpty) {
+      final target = await _pickSafeAnimalForMove();
+      if (target == null) {
         log.warn('No animals to mark as sold');
         return;
       }
-      final target = animals.first;
-      final sold = _copyAnimal(target, status: 'Vendido');
-      await animalService.updateAnimal(sold);
+      await lifecycleRepo.moveToSoldManual(
+        animalId: target.id,
+        saleDate: DateTime.now(),
+        salePrice: 0,
+        notes: 'Diagnóstico automático',
+      );
 
       final soldRows = await appDb.db.query(
         'sold_animals',
@@ -217,14 +220,17 @@ class DiagnosticRunner {
   Future<void> _scenarioMarkDeceased(DiagnosticLog log) async {
     log.info('[SCENARIO] mark deceased');
     try {
-      final animals = await animalRepo.all(limit: 1, offset: 1);
-      if (animals.isEmpty) {
+      final target = await _pickSafeAnimalForDelete();
+      if (target == null) {
         log.warn('No animals to mark as deceased');
         return;
       }
-      final target = animals.first;
-      final deceased = _copyAnimal(target, status: 'Óbito');
-      await animalService.updateAnimal(deceased);
+      await deceasedService.markAsDeceased(
+        animalId: target.id,
+        deathDate: DateTime.now(),
+        causeOfDeath: 'Diagnóstico',
+        notes: 'Marcado pelo diagnóstico automático',
+      );
 
       final deceasedRows = await appDb.db.query(
         'deceased_animals',
@@ -273,6 +279,35 @@ class DiagnosticRunner {
     } catch (e, st) {
       log.error('[FAIL] FK integrity', e, st);
     }
+  }
+
+  Future<Animal?> _pickSafeAnimalForMove() async {
+    // Prefer an animal with no external deps to avoid conflicts.
+    final safe = await _pickSafeAnimalForDelete();
+    if (safe != null) return safe;
+    final animals = await animalRepo.all(limit: 1);
+    if (animals.isEmpty) return null;
+    return animals.first;
+  }
+
+  Future<Animal?> _pickSafeAnimalForDelete() async {
+    final rows = await appDb.db.rawQuery('''
+      SELECT a.id
+      FROM animals a
+      WHERE
+        NOT EXISTS (SELECT 1 FROM animal_weights w WHERE w.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM vaccinations v WHERE v.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM medications m WHERE m.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM notes n WHERE n.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM financial_records f WHERE f.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM financial_accounts fa WHERE fa.animal_id = a.id)
+        AND NOT EXISTS (SELECT 1 FROM breeding_records b WHERE b.female_animal_id = a.id OR b.male_animal_id = a.id)
+      LIMIT 1;
+    ''');
+    if (rows.isEmpty) return null;
+    final id = rows.first['id']?.toString();
+    if (id == null || id.isEmpty) return null;
+    return animalRepo.getAnimalById(id);
   }
 
   Future<String> _writeLogToFile(String text) async {

@@ -141,6 +141,7 @@ class AnimalService extends ChangeNotifier {
     final saved = Animal.fromMap(map);
     await _validateUniqueness(saved, isUpdate: false);
     await _animalRepository.upsert(saved);
+    await _animalRepository.ensureMilestoneWeightsInHistory(animalId: saved.id);
     _animalCacheById[saved.id] = saved;
 
     // Cria alertas de pesagem se for borrego
@@ -257,22 +258,20 @@ class AnimalService extends ChangeNotifier {
 
     final existing = await _animalRepository.getAnimalById(updated.id);
 
-    // Move para vendidos se status mudou para Vendido e ainda existe no rebanho
+    // Compat legado: se algum fluxo antigo mandar status "Vendido",
+    // converte para o fluxo oficial (move para sold_animals).
     if (updated.status == 'Vendido' && existing != null) {
       await _animalLifecycleRepository.moveToSoldManual(
         animalId: updated.id,
         saleDate: DateTime.now(),
-        notes: 'Status marcado como Vendido',
+        notes: 'Migração de status legado para venda',
       );
       _animalCacheById.remove(updated.id);
-      
-      // Emite evento reativo
-      EventBus().emit(AnimalMarkedAsSoldEvent(
-        animalId: updated.id,
-        saleDate: DateTime.now(),
-      ));
     } else {
       await _animalRepository.upsert(updated);
+      await _animalRepository.ensureMilestoneWeightsInHistory(
+        animalId: updated.id,
+      );
       _animalCacheById[updated.id] = updated;
       
       // Emite evento reativo
@@ -441,7 +440,8 @@ class AnimalService extends ChangeNotifier {
       map['expected_delivery'] = expectedBirth != null
           ? expectedBirth.toIso8601String().split('T')[0]
           : null;
-      map['status'] = 'Gestante';
+      map['status'] = _normalizeHealthStatus(map['status']?.toString());
+      map['reproductive_status'] = 'Gestante';
 
       final updated = Animal.fromMap(map);
       await updateAnimal(updated);
@@ -471,10 +471,8 @@ class AnimalService extends ChangeNotifier {
       map['pregnant'] = 0;
       map['expected_delivery'] = null;
 
-      final currentStatus = (map['status'] ?? '').toString();
-      if (currentStatus == 'Gestante') {
-        map['status'] = 'Saudável';
-      }
+      map['status'] = _normalizeHealthStatus(map['status']?.toString());
+      map['reproductive_status'] = 'Vazia';
 
       final updated = Animal.fromMap(map);
       await updateAnimal(updated);
@@ -487,6 +485,18 @@ class AnimalService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Erro em markAsNotPregnant: $e');
       rethrow;
+    }
+  }
+
+  String _normalizeHealthStatus(String? rawStatus) {
+    final value = (rawStatus ?? '').trim();
+    switch (value) {
+      case 'Em tratamento':
+      case 'Ferido':
+      case 'Saudável':
+        return value;
+      default:
+        return 'Saudável';
     }
   }
 

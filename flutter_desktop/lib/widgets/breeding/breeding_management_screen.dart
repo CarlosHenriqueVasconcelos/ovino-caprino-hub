@@ -147,8 +147,8 @@ class _BreedingManagementScreenState extends State<BreedingManagementScreen>
     return records;
   }
 
-  void _showBreedingWizard() {
-    showDialog(
+  Future<void> _showBreedingWizard() async {
+    await showDialog(
       context: context,
       builder: (context) => BreedingWizardDialog(
         onComplete: _loadData,

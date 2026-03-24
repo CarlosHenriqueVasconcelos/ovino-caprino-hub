@@ -113,6 +113,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                       Text('Sexo: ${a.gender}'),
                       Text('Peso: ${a.weight} kg'),
                       Text('Status: ${a.status}'),
+                      Text('Status reprodutivo: ${a.reproductiveStatus}'),
                       if (a.location.isNotEmpty) Text('Local: ${a.location}'),
                     ],
                   ),
@@ -142,6 +143,25 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
             ),
           ),
         ),
+        if ((a.registrationNote ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Anotação Cadastral',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(a.registrationNote!.trim()),
+                ],
+              ),
+            ),
+          ),
+        ],
         // Pais (mãe e pai)
         if (_mother != null || _father != null) ...[
           const SizedBox(height: 8),

@@ -12,11 +12,13 @@ class Animal {
   final DateTime birthDate;
   final double weight;
   final String status;
+  final String reproductiveStatus;
   final String location;
   final DateTime? lastVaccination;
   final bool pregnant;
   final DateTime? expectedDelivery;
   final String? healthIssue;
+  final String? registrationNote;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -45,11 +47,13 @@ class Animal {
     required this.birthDate,
     required this.weight,
     required this.status,
+    this.reproductiveStatus = 'Não aplicável',
     required this.location,
     this.lastVaccination,
     this.pregnant = false,
     this.expectedDelivery,
     this.healthIssue,
+    this.registrationNote,
     required this.createdAt,
     required this.updatedAt,
     this.birthWeight,
@@ -136,6 +140,10 @@ class Animal {
       birthDate: parseDate(map['birth_date'] ?? map['birthDate']),
       weight: (toDoubleValue(map['weight']) ?? 0.0),
       status: map['status'] ?? 'Saudável',
+      reproductiveStatus:
+          map['reproductive_status']?.toString() ??
+              map['reproductiveStatus']?.toString() ??
+              'Não aplicável',
       location: map['location'] ?? '',
       lastVaccination:
           parseDateOrNull(map['last_vaccination'] ?? map['lastVaccination']),
@@ -143,6 +151,8 @@ class Animal {
       expectedDelivery:
           parseDateOrNull(map['expected_delivery'] ?? map['expectedDelivery']),
       healthIssue: map['health_issue'] ?? map['healthIssue'],
+      registrationNote:
+          map['registration_note'] ?? map['registrationNote'],
       createdAt: parseDate(map['created_at'] ?? map['createdAt']),
       updatedAt: parseDate(map['updated_at'] ?? map['updatedAt']),
       birthWeight: readBirthWeight(),
@@ -178,6 +188,7 @@ class Animal {
       'birth_date': dateOnlyOrNull(birthDate), // nunca null aqui
       'weight': weight,
       'status': status,
+      'reproductive_status': reproductiveStatus,
       'location': location,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -194,6 +205,7 @@ class Animal {
     put('last_vaccination', dateOnlyOrNull(lastVaccination));
     put('expected_delivery', dateOnlyOrNull(expectedDelivery));
     put('health_issue', healthIssue);
+    put('registration_note', registrationNote);
     put('birth_weight', birthWeight);
     put('weight_30_days', weight30Days);
     put('weight_60_days', weight60Days);
@@ -295,6 +307,7 @@ extension AnimalCopy on Animal {
     DateTime? birthDate,
     double? weight,
     String? status,
+    String? reproductiveStatus,
     String? location,
     DateTime? lastVaccination,
     bool? pregnant,
@@ -324,6 +337,7 @@ extension AnimalCopy on Animal {
       birthDate: birthDate ?? this.birthDate,
       weight: weight ?? this.weight,
       status: status ?? this.status,
+      reproductiveStatus: reproductiveStatus ?? this.reproductiveStatus,
       location: location ?? this.location,
       lastVaccination: lastVaccination ?? this.lastVaccination,
       pregnant: pregnant ?? this.pregnant,
