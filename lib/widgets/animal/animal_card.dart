@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/animal.dart';
-import '../../utils/responsive_utils.dart';
-import '../responsive/responsive_actions.dart';
 import 'animal_history_dialog.dart';
 import '../../services/animal_service.dart';
 import '../../services/deceased_service.dart';
@@ -818,7 +816,7 @@ class _AnimalCardState extends State<AnimalCard> {
                 const SizedBox(height: 8),
 
               // Last Vaccination
-              if (_cache.lastVaccinationText != null)
+              if (_cache.lastVaccinationText != null) ...[
                 Row(
                   children: [
                     Icon(
@@ -835,60 +833,77 @@ class _AnimalCardState extends State<AnimalCard> {
                     ),
                   ],
                 ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 6),
+              ] else
+                const SizedBox(height: 4),
 
-              // Actions - responsivas
-              ResponsiveActions(
-                actions: [
-                  if (ResponsiveUtils.isMobile(context)) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AnimalHistoryDialog(animal: widget.animal),
-                          );
-                        },
-                        icon: const Icon(Icons.history),
-                        label: const Text('Ver Histórico'),
+              // Ações: usa linha única quando possível para reduzir altura total do card.
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackActions = constraints.maxWidth < 230;
+
+                  final historyButton = OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
                       ),
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: widget.onEdit != null
-                            ? () => widget.onEdit!(widget.animal)
-                            : null,
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Editar'),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AnimalHistoryDialog(animal: widget.animal),
+                      );
+                    },
+                    child: const Text(
+                      'Ver Histórico',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+
+                  final editButton = ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
                       ),
                     ),
-                  ] else ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AnimalHistoryDialog(animal: widget.animal),
-                          );
-                        },
-                        child: const Text('Ver Histórico'),
-                      ),
+                    onPressed: widget.onEdit != null
+                        ? () => widget.onEdit!(widget.animal)
+                        : null,
+                    child: const Text(
+                      'Editar',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: widget.onEdit != null
-                            ? () => widget.onEdit!(widget.animal)
-                            : null,
-                        child: const Text('Editar'),
-                      ),
-                    ),
-                  ],
-                ],
+                  );
+
+                  if (stackActions) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        historyButton,
+                        const SizedBox(height: 6),
+                        editButton,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: historyButton),
+                      const SizedBox(width: 8),
+                      Expanded(child: editButton),
+                    ],
+                  );
+                },
               ),
             ],
           ),

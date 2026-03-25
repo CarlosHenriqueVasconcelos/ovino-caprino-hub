@@ -30,17 +30,17 @@ class HerdAnimalGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final crossAxisCount = ResponsiveUtils.getAnimalGridCrossAxisCount(context);
 
-    // Cards do rebanho têm conteúdo variável; usa proporções mais altas em altura
-    // para evitar overflow quando há chips/infos adicionais.
+    // Cards do rebanho têm conteúdo variável (chips extras, pais, crias, ações).
+    // Em telas menores, reservar mais altura evita RenderFlex overflow no eixo vertical.
     double aspectRatio;
     if (crossAxisCount == 1) {
-      aspectRatio = 0.80;
+      aspectRatio = 0.56;
     } else if (crossAxisCount == 2) {
-      aspectRatio = 0.72;
+      aspectRatio = 0.54;
     } else if (crossAxisCount == 3) {
-      aspectRatio = 1.18;
+      aspectRatio = 0.9;
     } else {
-      aspectRatio = 1.15;
+      aspectRatio = 0.95;
     }
     
     return GridView.builder(
