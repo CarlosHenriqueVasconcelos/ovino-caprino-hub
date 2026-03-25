@@ -105,6 +105,123 @@ class AnimalDisplayUtils {
         .join(' ');
   }
 
+  static String _normalizeSearchText(String? input) {
+    return (input ?? '')
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ã', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ì', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ò', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ù', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ç', 'c');
+  }
+
+  static bool matchesSearchQuery(Animal animal, String query) {
+    final q = _normalizeSearchText(query);
+    if (q.isEmpty) return true;
+
+    final colorPt = getColorName(animal.nameColor);
+    final haystack = _normalizeSearchText(
+      '${animal.name} ${animal.code} ${animal.nameColor} $colorPt '
+      '${animal.category} ${animal.lote}',
+    );
+    return haystack.contains(q);
+  }
+
+  static int _defaultAnimalCompare(Animal a, Animal b) {
+    final colorA = a.nameColor.toLowerCase();
+    final colorB = b.nameColor.toLowerCase();
+    final colorCompare = colorA.compareTo(colorB);
+    if (colorCompare != 0) return colorCompare;
+
+    final numA = extractNumber(a.name);
+    final numB = extractNumber(b.name);
+    if (numA != numB) return numA.compareTo(numB);
+
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
+  static double _matchScore(Animal animal, String query) {
+    final q = _normalizeSearchText(query);
+    if (q.isEmpty) return 1000;
+
+    final code = _normalizeSearchText(animal.code);
+    final name = _normalizeSearchText(animal.name);
+    final colorKey = _normalizeSearchText(animal.nameColor);
+    final colorPt = _normalizeSearchText(getColorName(animal.nameColor));
+    final lote = _normalizeSearchText(animal.lote);
+    final category = _normalizeSearchText(animal.category);
+
+    if (code == q) return 0;
+    if (name == q) return 1;
+    if (code.startsWith(q)) return 2;
+    if (name.startsWith(q)) return 3;
+    if (colorKey == q || colorPt == q) return 4;
+    if (lote == q) return 5;
+    if (category == q) return 6;
+
+    final codeIdx = code.indexOf(q);
+    if (codeIdx >= 0) return 10 + (codeIdx / 100);
+
+    final nameIdx = name.indexOf(q);
+    if (nameIdx >= 0) return 20 + (nameIdx / 100);
+
+    final colorKeyIdx = colorKey.indexOf(q);
+    if (colorKeyIdx >= 0) return 30 + (colorKeyIdx / 100);
+
+    final colorPtIdx = colorPt.indexOf(q);
+    if (colorPtIdx >= 0) return 31 + (colorPtIdx / 100);
+
+    final loteIdx = lote.indexOf(q);
+    if (loteIdx >= 0) return 40 + (loteIdx / 100);
+
+    final catIdx = category.indexOf(q);
+    if (catIdx >= 0) return 50 + (catIdx / 100);
+
+    return 99999;
+  }
+
+  static List<Animal> filterAndRankAnimals(
+    Iterable<Animal> animals,
+    String query,
+  ) {
+    final q = _normalizeSearchText(query);
+    final list = animals.toList(growable: true);
+
+    if (q.isEmpty) {
+      list.sort(_defaultAnimalCompare);
+      return list;
+    }
+
+    final filtered = list.where((a) => matchesSearchQuery(a, q)).toList();
+    filtered.sort((a, b) {
+      final scoreA = _matchScore(a, q);
+      final scoreB = _matchScore(b, q);
+      final scoreCompare = scoreA.compareTo(scoreB);
+      if (scoreCompare != 0) return scoreCompare;
+      return _defaultAnimalCompare(a, b);
+    });
+    return filtered;
+  }
+
   /// Traduz a chave de cor para português
   static String getColorName(String? colorKey) {
     final normalized = _normalizeColor(colorKey);

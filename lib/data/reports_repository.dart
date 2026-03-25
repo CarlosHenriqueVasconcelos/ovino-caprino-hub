@@ -88,6 +88,178 @@ class _ReportsQueries {
   static String _asLower(dynamic v) =>
       (v == null ? '' : v.toString()).trim().toLowerCase();
 
+  static bool _isAll(String? value) =>
+      value == null || value.trim().isEmpty || value.trim() == 'Todos';
+
+  static String _normText(dynamic v) {
+    return _asLower(v)
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('ã', 'a')
+        .replaceAll('ä', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('è', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('ë', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ì', 'i')
+        .replaceAll('î', 'i')
+        .replaceAll('ï', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ò', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('ö', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ù', 'u')
+        .replaceAll('û', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll('ç', 'c');
+  }
+
+  static String _normColor(dynamic color) {
+    final c = _normText(color);
+    switch (c) {
+      case 'blue':
+      case 'azul':
+        return 'azul';
+      case 'red':
+      case 'vermelho':
+      case 'vermelha':
+        return 'vermelho';
+      case 'green':
+      case 'verde':
+        return 'verde';
+      case 'yellow':
+      case 'amarelo':
+      case 'amarela':
+        return 'amarelo';
+      case 'orange':
+      case 'laranja':
+        return 'laranja';
+      case 'purple':
+      case 'roxo':
+      case 'roxa':
+        return 'roxo';
+      case 'pink':
+      case 'rosa':
+        return 'rosa';
+      case 'grey':
+      case 'gray':
+      case 'cinza':
+        return 'cinza';
+      case 'white':
+      case 'branco':
+      case 'branca':
+        return 'branco';
+      case 'black':
+      case 'preto':
+      case 'preta':
+        return 'preto';
+      default:
+        return c;
+    }
+  }
+
+  static bool _animalMatchesReportFilters(
+    Animal animal,
+    ReportFilters filters, {
+    bool includeStatus = true,
+  }) {
+    if (!_isAll(filters.species) &&
+        _normText(animal.species) != _normText(filters.species)) {
+      return false;
+    }
+    if (!_isAll(filters.gender) &&
+        _normText(animal.gender) != _normText(filters.gender)) {
+      return false;
+    }
+    if (includeStatus &&
+        !_isAll(filters.status) &&
+        _normText(animal.status) != _normText(filters.status)) {
+      return false;
+    }
+    if (!_isAll(filters.category) &&
+        _normText(animal.category) != _normText(filters.category)) {
+      return false;
+    }
+    if (!_isAll(filters.reproductiveStatus) &&
+        _normText(animal.reproductiveStatus) !=
+            _normText(filters.reproductiveStatus)) {
+      return false;
+    }
+    if (!_isAll(filters.color) &&
+        _normColor(animal.nameColor) != _normColor(filters.color)) {
+      return false;
+    }
+    final loteFilter = (filters.lote ?? '').trim();
+    if (loteFilter.isNotEmpty &&
+        !_normText(animal.lote).contains(_normText(loteFilter))) {
+      return false;
+    }
+    return true;
+  }
+
+  static bool _rowAnimalMatchesReportFilters(
+    Map<String, dynamic> row,
+    ReportFilters filters, {
+    bool includeStatus = true,
+  }
+  ) {
+    if (!_isAll(filters.species) &&
+        _normText(row['animal_species']) != _normText(filters.species)) {
+      return false;
+    }
+    if (!_isAll(filters.gender) &&
+        _normText(row['animal_gender']) != _normText(filters.gender)) {
+      return false;
+    }
+    if (includeStatus &&
+        !_isAll(filters.status) &&
+        _normText(row['animal_status']) != _normText(filters.status)) {
+      return false;
+    }
+    if (!_isAll(filters.category) &&
+        _normText(row['animal_category']) != _normText(filters.category)) {
+      return false;
+    }
+    if (!_isAll(filters.reproductiveStatus) &&
+        _normText(row['animal_reproductive_status']) !=
+            _normText(filters.reproductiveStatus)) {
+      return false;
+    }
+    if (!_isAll(filters.color) &&
+        _normColor(row['animal_color']) != _normColor(filters.color)) {
+      return false;
+    }
+    final loteFilter = (filters.lote ?? '').trim();
+    if (loteFilter.isNotEmpty &&
+        !_normText(row['animal_lote']).contains(_normText(loteFilter))) {
+      return false;
+    }
+    return true;
+  }
+
+  static String _stagePtLabel(dynamic stage) {
+    switch (_normText(stage)) {
+      case 'encabritamento':
+        return 'Encabritamento';
+      case 'separacao':
+        return 'Separação';
+      case 'aguardando_ultrassom':
+        return 'Aguardando Ultrassom';
+      case 'gestacao_confirmada':
+        return 'Gestação Confirmada';
+      case 'parto_realizado':
+        return 'Parto Realizado';
+      case 'falhou':
+        return 'Falhou';
+      default:
+        return (stage ?? '').toString();
+    }
+  }
+
   static double _toDouble(dynamic v) {
     if (v == null) return 0.0;
     if (v is num) return v.toDouble();
@@ -216,7 +388,8 @@ class _ReportsQueries {
     Database? db,
   }) async {
     final database = await _resolveDatabase(db);
-    final animals = await _loadAnimals(database);
+    var animals = await _loadAnimals(database);
+    animals = _applyAnimalReportFilters(animals, filters);
     final animalMap = {for (var a in animals) a.id: a};
     final weights =
         await _readWeightRows(database, filters.startDate, filters.endDate);
@@ -240,7 +413,13 @@ class _ReportsQueries {
     Database? db,
   }) async {
     final database = await _resolveDatabase(db);
-    final vaccinations = await _fetchVaccinationsWithAnimals(database, filters);
+    final vaccinations = (await _fetchVaccinationsWithAnimals(database, filters))
+        .where((row) => _rowAnimalMatchesReportFilters(
+              row,
+              filters,
+              includeStatus: false,
+            ))
+        .toList();
     final map = <String, dynamic>{};
     final paged = _paginate(vaccinations, filters, map);
 
@@ -257,7 +436,13 @@ class _ReportsQueries {
     Database? db,
   }) async {
     final database = await _resolveDatabase(db);
-    final medications = await _fetchMedicationsWithAnimals(database, filters);
+    final medications = (await _fetchMedicationsWithAnimals(database, filters))
+        .where((row) => _rowAnimalMatchesReportFilters(
+              row,
+              filters,
+              includeStatus: false,
+            ))
+        .toList();
     final map = <String, dynamic>{};
     final paged = _paginate(medications, filters, map);
 
@@ -278,15 +463,18 @@ class _ReportsQueries {
     final breeding = await _fetchBreedingRecords(database, filters);
     final animals = await _loadAnimals(database);
     final animalMap = {for (var a in animals) a.id: a};
+    final filteredBreeding = breeding
+        .where((row) => _breedingMatchesFilters(row, animalMap, filters))
+        .toList();
 
-    final summary = _stageSummary(breeding);
+    final summary = _stageSummary(filteredBreeding);
     final map = <String, dynamic>{};
-    final paged = _paginate(breeding, filters, map);
+    final paged = _paginate(filteredBreeding, filters, map);
 
     return {
       'summary': summary,
       'data': paged.map((b) => _mapBreedingRow(b, animalMap)).toList(),
-      'total': map['total'] ?? breeding.length,
+      'total': map['total'] ?? filteredBreeding.length,
     };
   }
 
@@ -358,9 +546,24 @@ class _ReportsQueries {
   }) async {
     final database = await _resolveDatabase(db);
 
-    final notes = await _fetchNotes(database, filters);
+    var notes = await _fetchNotes(database, filters);
     final animals = await _loadAnimals(database);
     final animalMap = {for (var a in animals) a.id: a};
+    notes = notes.where((note) {
+      final animalId = note['animal_id']?.toString();
+      if (animalId == null || animalId.isEmpty) {
+        return _isAll(filters.species) &&
+            _isAll(filters.gender) &&
+            _isAll(filters.status) &&
+            _isAll(filters.category) &&
+            _isAll(filters.color) &&
+            _isAll(filters.reproductiveStatus) &&
+            (filters.lote ?? '').trim().isEmpty;
+      }
+      final animal = animalMap[animalId];
+      if (animal == null) return false;
+      return _animalMatchesReportFilters(animal, filters);
+    }).toList();
 
     final summary = _buildNotesSummary(notes);
     final map = <String, dynamic>{};
@@ -405,28 +608,10 @@ class _ReportsQueries {
   ) async {
     final startDate = _yyyyMmDd(filters.startDate);
     final endDate = _yyyyMmDd(filters.endDate);
-    final whereClauses = <String>[
-      'DATE(created_at) >= ?',
-      'DATE(created_at) <= ?',
-    ];
-    final args = <dynamic>[startDate, endDate];
-
-    void addFilter(String column, String? value) {
-      if (value != null && value != 'Todos') {
-        whereClauses.add('$column = ?');
-        args.add(value);
-      }
-    }
-
-    addFilter('species', filters.species);
-    addFilter('gender', filters.gender);
-    addFilter('status', filters.status);
-    addFilter('category', filters.category);
-
     final rows = await db.query(
       'animals',
-      where: whereClauses.join(' AND '),
-      whereArgs: args,
+      where: 'DATE(created_at) >= ? AND DATE(created_at) <= ?',
+      whereArgs: [startDate, endDate],
       orderBy: 'name COLLATE NOCASE',
     );
     return rows.map(Animal.fromMap).toList();
@@ -436,20 +621,9 @@ class _ReportsQueries {
     List<Animal> animals,
     ReportFilters filters,
   ) {
-    var result = animals;
-    if (filters.species != null && filters.species != 'Todos') {
-      result = result.where((a) => a.species == filters.species).toList();
-    }
-    if (filters.gender != null && filters.gender != 'Todos') {
-      result = result.where((a) => a.gender == filters.gender).toList();
-    }
-    if (filters.status != null && filters.status != 'Todos') {
-      result = result.where((a) => a.status == filters.status).toList();
-    }
-    if (filters.category != null && filters.category != 'Todos') {
-      result = result.where((a) => a.category == filters.category).toList();
-    }
-    return result;
+    return animals
+        .where((a) => _animalMatchesReportFilters(a, filters))
+        .toList();
   }
 
   static Map<String, dynamic> _buildAnimalSummary(List<Animal> animals) {
@@ -476,9 +650,12 @@ class _ReportsQueries {
               'species': a.species,
               'breed': a.breed,
               'gender': a.gender,
+              'name_color': a.nameColor,
+              'lote': a.lote ?? '',
               'birth_date': _yyyyMmDd(a.birthDate),
               'weight': a.weight,
               'status': a.status,
+              'reproductive_status': a.reproductiveStatus,
               'location': a.location,
               'category': a.category,
               'pregnant': a.pregnant,
@@ -493,10 +670,12 @@ class _ReportsQueries {
     List<Animal> animals,
     ReportFilters filters,
   ) {
+    final allowedAnimalIds = animals.map((a) => a.id).toSet();
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (var w in weights) {
       final animalId = (w['animal_id'] ?? '').toString();
       if (animalId.isEmpty) continue;
+      if (!allowedAnimalIds.contains(animalId)) continue;
       grouped.putIfAbsent(animalId, () => []);
       grouped[animalId]!.add(w);
     }
@@ -547,6 +726,13 @@ class _ReportsQueries {
         'animal_id': animalId,
         'animal_code': animal?.code ?? 'N/A',
         'animal_name': animal?.name ?? 'N/A',
+        'animal_color': animal?.nameColor ?? '',
+        'animal_gender': animal?.gender ?? '',
+        'animal_species': animal?.species ?? '',
+        'animal_status': animal?.status ?? '',
+        'animal_category': animal?.category ?? '',
+        'animal_reproductive_status': animal?.reproductiveStatus ?? '',
+        'animal_lote': animal?.lote ?? '',
         'count': weightValues.length,
         'min': weightValues.isEmpty
             ? 0
@@ -612,7 +798,12 @@ class _ReportsQueries {
         a.name AS animal_name,
         a.code AS animal_code,
         a.name_color AS animal_color,
-        a.gender AS animal_gender
+        a.gender AS animal_gender,
+        a.species AS animal_species,
+        a.status AS animal_status,
+        a.category AS animal_category,
+        a.reproductive_status AS animal_reproductive_status,
+        a.lote AS animal_lote
       FROM vaccinations v
       LEFT JOIN animals a ON a.id = v.animal_id
       WHERE $where
@@ -648,7 +839,12 @@ class _ReportsQueries {
         a.name AS animal_name,
         a.code AS animal_code,
         a.name_color AS animal_color,
-        a.gender AS animal_gender
+        a.gender AS animal_gender,
+        a.species AS animal_species,
+        a.status AS animal_status,
+        a.category AS animal_category,
+        a.reproductive_status AS animal_reproductive_status,
+        a.lote AS animal_lote
       FROM medications m
       LEFT JOIN animals a ON a.id = m.animal_id
       WHERE $where
@@ -676,6 +872,10 @@ class _ReportsQueries {
       'animal_name': row['animal_name'] ?? 'N/A',
       'animal_color': row['animal_color'] ?? '',
       'animal_gender': row['animal_gender'] ?? '',
+      'animal_species': row['animal_species'] ?? '',
+      'animal_category': row['animal_category'] ?? '',
+      'animal_reproductive_status': row['animal_reproductive_status'] ?? '',
+      'animal_lote': row['animal_lote'] ?? '',
       'vaccine_name': row['vaccine_name'],
       'vaccine_type': row['vaccine_type'],
       'scheduled_date': row['scheduled_date'],
@@ -692,6 +892,10 @@ class _ReportsQueries {
       'animal_name': row['animal_name'] ?? 'N/A',
       'animal_color': row['animal_color'] ?? '',
       'animal_gender': row['animal_gender'] ?? '',
+      'animal_species': row['animal_species'] ?? '',
+      'animal_category': row['animal_category'] ?? '',
+      'animal_reproductive_status': row['animal_reproductive_status'] ?? '',
+      'animal_lote': row['animal_lote'] ?? '',
       'medication_name': row['medication_name'],
       'date': row['date'],
       'next_date': row['next_date'] ?? '',
@@ -733,7 +937,9 @@ class _ReportsQueries {
   static Map<String, dynamic> _stageSummary(List<Map<String, dynamic>> rows) {
     final byStage = <String, int>{};
     for (var b in rows) {
-      final stage = (b['stage'] ?? 'nao_definido').toString();
+      final stage = _stagePtLabel(b['stage']).trim().isEmpty
+          ? 'Não definido'
+          : _stagePtLabel(b['stage']);
       byStage[stage] = (byStage[stage] ?? 0) + 1;
     }
     return {
@@ -751,11 +957,15 @@ class _ReportsQueries {
     return {
       'female_code': female?.code ?? 'N/A',
       'female_name': female?.name ?? 'N/A',
+      'female_color': female?.nameColor ?? '',
+      'female_lote': female?.lote ?? '',
       'male_code': male?.code ?? 'N/A',
       'male_name': male?.name ?? 'N/A',
+      'male_color': male?.nameColor ?? '',
+      'male_lote': male?.lote ?? '',
       'breeding_date': row['breeding_date'] ?? '',
       'expected_birth': row['expected_birth'] ?? '',
-      'stage': row['stage'] ?? '',
+      'stage': _stagePtLabel(row['stage']),
       'status': row['status'] ?? '',
       'mating_start_date': row['mating_start_date'] ?? '',
       'mating_end_date': row['mating_end_date'] ?? '',
@@ -764,6 +974,50 @@ class _ReportsQueries {
       'ultrasound_result': row['ultrasound_result'] ?? '',
       'birth_date': row['birth_date'] ?? '',
     };
+  }
+
+  static bool _breedingMatchesFilters(
+    Map<String, dynamic> row,
+    Map<String, Animal> animals,
+    ReportFilters filters,
+  ) {
+    final female = animals[row['female_animal_id']];
+    final male = animals[row['male_animal_id']];
+    final pair = <Animal>[if (female != null) female, if (male != null) male];
+    bool anyMatch(bool Function(Animal a) test) => pair.any(test);
+
+    if (!_isAll(filters.species) &&
+        !anyMatch((a) => _normText(a.species) == _normText(filters.species))) {
+      return false;
+    }
+    if (!_isAll(filters.gender) &&
+        !anyMatch((a) => _normText(a.gender) == _normText(filters.gender))) {
+      return false;
+    }
+    if (!_isAll(filters.status) &&
+        !anyMatch((a) => _normText(a.status) == _normText(filters.status))) {
+      return false;
+    }
+    if (!_isAll(filters.category) &&
+        !anyMatch((a) => _normText(a.category) == _normText(filters.category))) {
+      return false;
+    }
+    if (!_isAll(filters.reproductiveStatus) &&
+        !anyMatch((a) =>
+            _normText(a.reproductiveStatus) ==
+            _normText(filters.reproductiveStatus))) {
+      return false;
+    }
+    if (!_isAll(filters.color) &&
+        !anyMatch((a) => _normColor(a.nameColor) == _normColor(filters.color))) {
+      return false;
+    }
+    final loteFilter = (filters.lote ?? '').trim();
+    if (loteFilter.isNotEmpty &&
+        !anyMatch((a) => _normText(a.lote).contains(_normText(loteFilter)))) {
+      return false;
+    }
+    return true;
   }
 
   // ---------- Financial helpers ----------
@@ -816,6 +1070,14 @@ class _ReportsQueries {
         'description':
             (map['description'] ?? map['descricao'] ?? '').toString(),
         'animal_code': animal?.code ?? '',
+        'animal_name': animal?.name ?? '',
+        'animal_color': animal?.nameColor ?? '',
+        'animal_gender': animal?.gender ?? '',
+        'animal_species': animal?.species ?? '',
+        'animal_status': animal?.status ?? '',
+        'animal_category': animal?.category ?? '',
+        'animal_reproductive_status': animal?.reproductiveStatus ?? '',
+        'animal_lote': animal?.lote ?? '',
       });
     }
     return normalized;
@@ -836,10 +1098,19 @@ class _ReportsQueries {
     }
     if (filters.financialCategory != null &&
         filters.financialCategory != 'Todos') {
+      final catFilter = _normText(filters.financialCategory);
       result = result
-          .where((m) => (m['category'] ?? '') == filters.financialCategory)
+          .where((m) => _normText(m['category']).contains(catFilter))
           .toList();
     }
+
+    result = result
+        .where((row) => _rowAnimalMatchesReportFilters(
+              row,
+              filters,
+              includeStatus: false,
+            ))
+        .toList();
     return result;
   }
 
@@ -871,15 +1142,27 @@ class _ReportsQueries {
   }
 
   static Map<String, dynamic> _mapFinancialRow(Map<String, dynamic> row) {
+    final type = (row['type'] ?? '').toString().toLowerCase();
     return {
       'date': row['date'] ?? '',
-      'type': row['type'],
+      'type': type == 'receita'
+          ? 'Receita'
+          : type == 'despesa'
+              ? 'Despesa'
+              : row['type'],
       'category': row['category'],
       'amount': row['amount'],
       'description': row['description'],
       'status':
           (row['status'] as String?)?.isEmpty ?? true ? '' : row['status'],
       'animal_code': row['animal_code'],
+      'animal_name': row['animal_name'] ?? '',
+      'animal_color': row['animal_color'] ?? '',
+      'animal_gender': row['animal_gender'] ?? '',
+      'animal_species': row['animal_species'] ?? '',
+      'animal_category': row['animal_category'] ?? '',
+      'animal_reproductive_status': row['animal_reproductive_status'] ?? '',
+      'animal_lote': row['animal_lote'] ?? '',
     };
   }
 
@@ -941,6 +1224,14 @@ class _ReportsQueries {
       'priority': row['priority'],
       'is_read': row['is_read'] == 1,
       'animal_code': animal?.code ?? '',
+      'animal_name': animal?.name ?? '',
+      'animal_color': animal?.nameColor ?? '',
+      'animal_gender': animal?.gender ?? '',
+      'animal_species': animal?.species ?? '',
+      'animal_status': animal?.status ?? '',
+      'animal_category': animal?.category ?? '',
+      'animal_reproductive_status': animal?.reproductiveStatus ?? '',
+      'animal_lote': animal?.lote ?? '',
     };
   }
 }

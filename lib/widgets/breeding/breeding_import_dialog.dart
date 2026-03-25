@@ -1,5 +1,4 @@
 // lib/widgets/breeding/breeding_import_dialog.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -37,8 +36,6 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
   bool _saving = false;
   bool _loadingAnimals = true;
-  Timer? _femaleDebounce;
-  Timer? _maleDebounce;
   bool _checkingKinship = false;
   KinshipReport? _kinshipReport;
 
@@ -56,13 +53,15 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
         gender: 'Fêmea',
         excludePregnant: true,
         excludeCategories: const ['borrego', 'borrega', 'venda'],
-        limit: 50,
+        limit: 2000,
       );
       final males = await animalService.searchAnimals(
         gender: 'Macho',
         excludeCategories: const ['borrego', 'venda'],
-        limit: 50,
+        limit: 2000,
       );
+      AnimalDisplayUtils.sortAnimalsList(females);
+      AnimalDisplayUtils.sortAnimalsList(males);
       if (!mounted) return;
       setState(() {
         _femaleOptions = females;
@@ -91,77 +90,16 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
   }
 
   List<Animal> _filterForFemale(String query) {
-    _scheduleFemaleSearch(query);
-    final q = query.trim().toLowerCase();
-    return _femaleOptions.where((a) {
-      if (!_isFemaleAllowed(a)) return false;
-      if (q.isEmpty) return true;
-      final code = a.code.toLowerCase();
-      final name = a.name.toLowerCase();
-      return code.contains(q) || name.contains(q);
-    }).toList();
+    final candidates = _femaleOptions.where(_isFemaleAllowed);
+    return AnimalDisplayUtils.filterAndRankAnimals(candidates, query);
   }
 
   List<Animal> _filterForMale(String query) {
-    _scheduleMaleSearch(query);
-    final q = query.trim().toLowerCase();
-    return _maleOptions.where((a) {
-      if (!_isMaleAllowed(a)) return false;
-      if (q.isEmpty) return true;
-      final code = a.code.toLowerCase();
-      final name = a.name.toLowerCase();
-      return code.contains(q) || name.contains(q);
-    }).toList();
+    final candidates = _maleOptions.where(_isMaleAllowed);
+    return AnimalDisplayUtils.filterAndRankAnimals(candidates, query);
   }
 
   String _labelOf(Animal a) => AnimalDisplayUtils.getDisplayText(a);
-
-  void _scheduleFemaleSearch(String query) {
-    _femaleDebounce?.cancel();
-    _femaleDebounce = Timer(const Duration(milliseconds: 250), () {
-      _fetchFemales(query);
-    });
-  }
-
-  void _scheduleMaleSearch(String query) {
-    _maleDebounce?.cancel();
-    _maleDebounce = Timer(const Duration(milliseconds: 250), () {
-      _fetchMales(query);
-    });
-  }
-
-  Future<void> _fetchFemales(String query) async {
-    final animalService = context.read<AnimalService>();
-    try {
-      final females = await animalService.searchAnimals(
-        gender: 'Fêmea',
-        excludePregnant: true,
-        excludeCategories: const ['borrego', 'borrega', 'venda'],
-        searchQuery: query,
-        limit: 50,
-      );
-      if (!mounted) return;
-      setState(() => _femaleOptions = females);
-    } catch (_) {
-      // mantém opções atuais em caso de erro
-    }
-  }
-
-  Future<void> _fetchMales(String query) async {
-    final animalService = context.read<AnimalService>();
-    try {
-      final males = await animalService.searchAnimals(
-        gender: 'Macho',
-        excludeCategories: const ['borrego', 'venda'],
-        searchQuery: query,
-        limit: 50,
-      );
-      if (!mounted) return;
-      setState(() => _maleOptions = males);
-    } catch (_) {
-      // mantém opções atuais em caso de erro
-    }
-  }
 
   bool get _hasKinshipConflict => _kinshipReport?.isBlocking ?? false;
   bool get _hasKinshipWarning =>
@@ -322,8 +260,6 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
 
   @override
   void dispose() {
-    _femaleDebounce?.cancel();
-    _maleDebounce?.cancel();
     _femaleCtrl.dispose();
     _maleCtrl.dispose();
     super.dispose();

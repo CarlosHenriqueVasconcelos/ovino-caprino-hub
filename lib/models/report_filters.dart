@@ -5,6 +5,9 @@ class ReportFilters {
   final String? gender;
   final String? status;
   final String? category;
+  final String? color;
+  final String? lote;
+  final String? reproductiveStatus;
   final String? vaccineType;
   final String? medicationStatus;
   final String? breedingStage;
@@ -22,6 +25,9 @@ class ReportFilters {
     this.gender,
     this.status,
     this.category,
+    this.color,
+    this.lote,
+    this.reproductiveStatus,
     this.vaccineType,
     this.medicationStatus,
     this.breedingStage,

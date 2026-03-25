@@ -1,5 +1,5 @@
-import '../models/report_filters.dart';
-import '../services/reports_service.dart';
+import '../../../models/report_filters.dart';
+import '../../../services/reports_service.dart';
 
 /// Camada intermediária para impedir que widgets acessem o banco diretamente
 /// quando geram ou salvam relatórios.

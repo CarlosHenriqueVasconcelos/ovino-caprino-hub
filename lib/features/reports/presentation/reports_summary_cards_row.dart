@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../utils/labels_ptbr.dart';
+import '../../../utils/labels_ptbr.dart';
 
 class ReportsSummaryCardsRow extends StatelessWidget {
   final Map<String, dynamic> summary;

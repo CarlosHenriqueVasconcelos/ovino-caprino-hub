@@ -414,17 +414,38 @@ class BackupRepository {
     int pageSize = 1000,
   }) async {
     final db = _appDb.db;
-    onProgress?.call('Limpando base local…');
-    await _clearLocalTables(db);
-
+    onProgress?.call('Validando estrutura remota e baixando dados…');
+    final remoteByTable = <String, List<Map<String, dynamic>>>{};
     for (final table in _pushOrder) {
       onProgress?.call('Baixando $table…');
       final rows = await _fetchRemoteTableRows(table, pageSize);
-      if (rows.isEmpty) continue;
+      remoteByTable[table] = rows;
+    }
 
-      final toLocal = rows.map((r) => _toLocal(table, r)).toList();
-      onProgress?.call('Gravando $table (${toLocal.length})…');
-      await _insertRows(db, table, toLocal);
+    onProgress?.call('Aplicando restauração local…');
+    await db.execute('PRAGMA foreign_keys = OFF');
+    try {
+      await db.transaction((txn) async {
+        for (final table in _deleteChildFirst) {
+          await txn.delete(table);
+        }
+
+        for (final table in _pushOrder) {
+          final rows = remoteByTable[table] ?? const <Map<String, dynamic>>[];
+          if (rows.isEmpty) continue;
+          final toLocal = rows.map((r) => _toLocal(table, r)).toList();
+          onProgress?.call('Gravando $table (${toLocal.length})…');
+          for (final row in toLocal) {
+            await txn.insert(
+              table,
+              row,
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+      });
+    } finally {
+      await db.execute('PRAGMA foreign_keys = ON');
     }
 
     onProgress?.call('Download finalizado.');
@@ -488,29 +509,115 @@ class BackupRepository {
   Future<void> _syncRemoteDeletions({Progress? onProgress}) async {
     final db = _appDb.db;
     for (final table in _deleteChildFirst) {
-      if (!_tableHasIdColumn(table)) continue;
       onProgress?.call('Sincronizando exclusões em $table…');
-
-      final localIds = (await db.query(table, columns: ['id']))
-          .map((m) => (m['id'] ?? '').toString())
-          .where((s) => s.isNotEmpty)
-          .toSet();
-
-      final remoteIds = (await _client.from(table).select('id'))
-          .map<String>((e) => (e['id'] ?? '').toString())
-          .where((s) => s.isNotEmpty)
-          .toSet();
-
-      final toDelete = remoteIds.difference(localIds).toList();
-      if (toDelete.isEmpty) continue;
-
-      const batch = 300;
-      for (var i = 0; i < toDelete.length; i += batch) {
-        final end = (i + batch) > toDelete.length ? toDelete.length : i + batch;
-        final part = toDelete.sublist(i, end);
-        final orExpr = part.map((id) => 'id.eq.$id').join(',');
-        await _client.from(table).delete().or(orExpr);
+      if (_tableHasIdColumn(table)) {
+        await _syncRemoteDeletionsById(table, db);
+        continue;
       }
+
+      if (table == 'app_settings') {
+        await _syncRemoteDeletionsBySingleKey(
+          table: table,
+          keyColumn: 'setting_key',
+          db: db,
+        );
+        continue;
+      }
+
+      if (table == 'animal_lineage_meta') {
+        await _syncRemoteDeletionsBySingleKey(
+          table: table,
+          keyColumn: 'meta_key',
+          db: db,
+        );
+        continue;
+      }
+
+      if (table == 'animal_lineage') {
+        await _syncRemoteDeletionsLineage(db);
+      }
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsById(String table, Database db) async {
+    final localIds = (await db.query(table, columns: ['id']))
+        .map((m) => (m['id'] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final remoteIds = (await _client.from(table).select('id'))
+        .map<String>((e) => (e['id'] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final toDelete = remoteIds.difference(localIds).toList();
+    if (toDelete.isEmpty) return;
+
+    const batch = 300;
+    for (var i = 0; i < toDelete.length; i += batch) {
+      final end = (i + batch) > toDelete.length ? toDelete.length : i + batch;
+      final part = toDelete.sublist(i, end);
+      final orExpr = part.map((id) => 'id.eq.$id').join(',');
+      await _client.from(table).delete().or(orExpr);
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsBySingleKey({
+    required String table,
+    required String keyColumn,
+    required Database db,
+  }) async {
+    final localKeys = (await db.query(table, columns: [keyColumn]))
+        .map((m) => (m[keyColumn] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final remoteKeys = (await _client.from(table).select(keyColumn))
+        .map<String>((e) => (e[keyColumn] ?? '').toString())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final toDelete = remoteKeys.difference(localKeys);
+    for (final key in toDelete) {
+      await _client.from(table).delete().eq(keyColumn, key);
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsLineage(Database db) async {
+    final localRows = await db.query(
+      'animal_lineage',
+      columns: ['descendant_id', 'ancestor_id'],
+    );
+    final localKeys = localRows
+        .map(
+          (m) =>
+              '${(m['descendant_id'] ?? '').toString()}|${(m['ancestor_id'] ?? '').toString()}',
+        )
+        .where((s) => !s.startsWith('|') && !s.endsWith('|'))
+        .toSet();
+
+    final remoteRows = await _client
+        .from('animal_lineage')
+        .select('descendant_id,ancestor_id');
+    final remoteKeys = remoteRows
+        .map<String>(
+          (e) =>
+              '${(e['descendant_id'] ?? '').toString()}|${(e['ancestor_id'] ?? '').toString()}',
+        )
+        .where((s) => !s.startsWith('|') && !s.endsWith('|'))
+        .toSet();
+
+    final toDelete = remoteKeys.difference(localKeys);
+    for (final key in toDelete) {
+      final parts = key.split('|');
+      if (parts.length != 2) continue;
+      final descendantId = parts[0];
+      final ancestorId = parts[1];
+      await _client
+          .from('animal_lineage')
+          .delete()
+          .eq('descendant_id', descendantId)
+          .eq('ancestor_id', ancestorId);
     }
   }
 
@@ -520,47 +627,25 @@ class BackupRepository {
     return cols.contains('id');
   }
 
-  Future<void> _clearLocalTables(Database db) async {
-    await db.transaction((txn) async {
-      await txn.execute('PRAGMA foreign_keys = OFF');
-      for (final table in _deleteChildFirst) {
-        await txn.delete(table);
-      }
-      await txn.execute('PRAGMA foreign_keys = ON');
-    });
-  }
-
   Future<List<Map<String, dynamic>>> _fetchRemoteTableRows(
     String table,
     int pageSize,
   ) async {
-    final out = <Map<String, dynamic>>[];
-    int from = 0;
-    while (true) {
-      final to = from + pageSize - 1;
-      final page = await _client.from(table).select('*').range(from, to);
-      if (page.isEmpty) break;
-      out.addAll(page.map((e) => Map<String, dynamic>.from(e)));
-      if (page.length < pageSize) break;
-      from += pageSize;
-    }
-    return out;
-  }
-
-  Future<void> _insertRows(
-    Database db,
-    String table,
-    List<Map<String, dynamic>> rows,
-  ) async {
-    await db.transaction((txn) async {
-      for (final row in rows) {
-        await txn.insert(
-          table,
-          row,
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+    try {
+      final out = <Map<String, dynamic>>[];
+      int from = 0;
+      while (true) {
+        final to = from + pageSize - 1;
+        final page = await _client.from(table).select('*').range(from, to);
+        if (page.isEmpty) break;
+        out.addAll(page.map((e) => Map<String, dynamic>.from(e)));
+        if (page.length < pageSize) break;
+        from += pageSize;
       }
-    });
+      return out;
+    } catch (e) {
+      throw Exception('Falha ao baixar tabela "$table": $e');
+    }
   }
 
   Future<void> _fixInvalidIdsCascade(String table) async {
@@ -588,27 +673,28 @@ class BackupRepository {
 
     if (fixes.isEmpty) return;
 
-    await db.transaction((txn) async {
-      await txn.execute('PRAGMA foreign_keys = OFF');
-
-      final refs = _fkMap[table] ?? const <_FkRef>[];
-      for (final fix in fixes) {
-        if (fix.oldId != null && fix.oldId!.isNotEmpty) {
-          for (final ref in refs) {
-            await txn.update(
-              ref.childTable,
-              {ref.childColumn: fix.newId},
-              where: '${ref.childColumn} = ?',
-              whereArgs: [fix.oldId],
-            );
+    await db.execute('PRAGMA foreign_keys = OFF');
+    try {
+      await db.transaction((txn) async {
+        final refs = _fkMap[table] ?? const <_FkRef>[];
+        for (final fix in fixes) {
+          if (fix.oldId != null && fix.oldId!.isNotEmpty) {
+            for (final ref in refs) {
+              await txn.update(
+                ref.childTable,
+                {ref.childColumn: fix.newId},
+                where: '${ref.childColumn} = ?',
+                whereArgs: [fix.oldId],
+              );
+            }
           }
+
+          await _updateId(txn, table, fix);
         }
-
-        await _updateId(txn, table, fix);
-      }
-
-      await txn.execute('PRAGMA foreign_keys = ON');
-    });
+      });
+    } finally {
+      await db.execute('PRAGMA foreign_keys = ON');
+    }
   }
 
   Future<void> _updateId(

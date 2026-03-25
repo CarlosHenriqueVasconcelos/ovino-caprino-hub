@@ -4,22 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../data/animal_repository.dart';
-import '../../models/animal.dart';
-import '../../services/animal_delete_cascade.dart';
-import '../../services/animal_service.dart';
-import '../../services/deceased_service.dart';
-import '../../services/events/app_events.dart';
-import '../../services/events/event_bus.dart';
-import '../../services/sold_animals_service.dart';
-import '../../utils/debouncer.dart';
-import '../../utils/responsive_utils.dart';
-import '../../utils/animal_display_utils.dart';
-import '../../widgets/animal/animal_form.dart';
-import '../../widgets/herd/herd_actions_bar.dart';
-import '../../widgets/herd/herd_animal_grid.dart';
-import '../../widgets/herd/herd_filters_bar.dart';
-import 'herd_controller.dart';
+import '../../../data/animal_repository.dart';
+import '../../../models/animal.dart';
+import '../../../services/animal_delete_cascade.dart';
+import '../../../services/animal_service.dart';
+import '../../../services/deceased_service.dart';
+import '../../../services/events/app_events.dart';
+import '../../../services/events/event_bus.dart';
+import '../../../services/sold_animals_service.dart';
+import '../../../utils/debouncer.dart';
+import '../../../utils/responsive_utils.dart';
+import '../../../utils/animal_display_utils.dart';
+import '../../../widgets/animal/animal_form.dart';
+import 'widgets/herd_actions_bar.dart';
+import 'widgets/herd_animal_grid.dart';
+import 'widgets/herd_filters_bar.dart';
+import '../application/herd_controller.dart';
 
 class HerdTab extends StatelessWidget {
   const HerdTab({super.key});

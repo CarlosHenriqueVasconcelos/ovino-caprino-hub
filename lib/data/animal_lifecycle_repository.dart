@@ -23,7 +23,11 @@ class AnimalLifecycleRepository {
         whereArgs: [animalId],
         limit: 1,
       );
-      if (rows.isEmpty) return;
+      if (rows.isEmpty) {
+        throw Exception(
+          'Animal não encontrado na tabela ativa para registrar óbito.',
+        );
+      }
       final animalData = rows.first;
       final nowIso = DateTime.now().toIso8601String();
       final deathDateOnly =
@@ -80,7 +84,17 @@ class AnimalLifecycleRepository {
         whereArgs: [animalId],
       );
       await txn.delete(
+        'weight_alerts',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+      await txn.delete(
         'vaccinations',
+        where: 'animal_id = ?',
+        whereArgs: [animalId],
+      );
+      await txn.delete(
+        'matrix_evaluations',
         where: 'animal_id = ?',
         whereArgs: [animalId],
       );
@@ -231,7 +245,17 @@ class AnimalLifecycleRepository {
           whereArgs: [animalId],
         );
         await txn.delete(
+          'weight_alerts',
+          where: 'animal_id = ?',
+          whereArgs: [animalId],
+        );
+        await txn.delete(
           'vaccinations',
+          where: 'animal_id = ?',
+          whereArgs: [animalId],
+        );
+        await txn.delete(
+          'matrix_evaluations',
           where: 'animal_id = ?',
           whereArgs: [animalId],
         );
@@ -374,7 +398,17 @@ class AnimalLifecycleRepository {
           whereArgs: [animalId],
         );
         await txn.delete(
+          'weight_alerts',
+          where: 'animal_id = ?',
+          whereArgs: [animalId],
+        );
+        await txn.delete(
           'vaccinations',
+          where: 'animal_id = ?',
+          whereArgs: [animalId],
+        );
+        await txn.delete(
+          'matrix_evaluations',
           where: 'animal_id = ?',
           whereArgs: [animalId],
         );

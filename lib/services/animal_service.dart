@@ -16,7 +16,7 @@ import 'weight_alert_service.dart'; // WeightAlertService
 import 'events/event_bus.dart';
 import 'events/app_events.dart';
 
-enum WeightCategoryFilter { all, juveniles, adults, reproducers }
+enum WeightCategoryFilter { all, juveniles, nonLambs, reproducers }
 
 class WeightTrackingResult {
   final List<Animal> items;
@@ -331,18 +331,20 @@ class AnimalService extends ChangeNotifier {
       case WeightCategoryFilter.juveniles:
         ageMaxMonths = 12;
         break;
-      case WeightCategoryFilter.adults:
+      case WeightCategoryFilter.nonLambs:
         break;
       case WeightCategoryFilter.reproducers:
         final total = await _animalRepository.countFilteredAnimals(
           nameColor: colorFilter,
           searchQuery: searchQuery.trim(),
           onlyReproducers: true,
+          excludeLambs: true,
         );
         final filtered = await _animalRepository.getFilteredAnimals(
           nameColor: colorFilter,
           searchQuery: searchQuery.trim(),
           onlyReproducers: true,
+          excludeLambs: true,
           limit: pageSize,
           offset: page * pageSize,
         );
@@ -356,10 +358,8 @@ class AnimalService extends ChangeNotifier {
       ageMinMonths: ageMinMonths,
       ageMaxMonths: ageMaxMonths,
       excludeReproducers: excludeReproducers,
+      excludeLambs: true,
       nameColor: colorFilter,
-      categoryLikeAny: category == WeightCategoryFilter.adults
-          ? const ['adult', 'reprodutor']
-          : null,
       searchQuery: searchQuery.trim(),
     );
 
@@ -367,10 +367,8 @@ class AnimalService extends ChangeNotifier {
       ageMinMonths: ageMinMonths,
       ageMaxMonths: ageMaxMonths,
       excludeReproducers: excludeReproducers,
+      excludeLambs: true,
       nameColor: colorFilter,
-      categoryLikeAny: category == WeightCategoryFilter.adults
-          ? const ['adult', 'reprodutor']
-          : null,
       searchQuery: searchQuery.trim(),
       limit: pageSize,
       offset: page * pageSize,

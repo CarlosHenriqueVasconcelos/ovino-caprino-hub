@@ -80,7 +80,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
     final animalService = context.read<AnimalService>();
     try {
       final animals =
-          await animalService.searchAnimals(searchQuery: '', limit: 100);
+          await animalService.searchAnimals(limit: 2000);
       AnimalDisplayUtils.sortAnimalsList(animals);
       if (!mounted) return;
       setState(() {

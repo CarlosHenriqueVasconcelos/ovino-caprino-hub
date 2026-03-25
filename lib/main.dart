@@ -32,7 +32,7 @@ import 'services/deceased_service.dart';
 import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
 import 'services/kinship_service.dart';
 import 'services/matrix_selection_service.dart';
-import 'services/reports_controller.dart';
+import 'features/reports/application/reports_controller.dart';
 import 'services/reports_service.dart';
 
 // Data / DB

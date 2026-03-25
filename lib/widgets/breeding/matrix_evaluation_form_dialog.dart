@@ -118,7 +118,7 @@ class _MatrixEvaluationFormDialogState extends State<MatrixEvaluationFormDialog>
     final items = await animalService.searchAnimals(
       gender: 'Fêmea',
       excludeCategories: const ['Borrego', 'Borrega', 'Venda'],
-      limit: 300,
+      limit: 2000,
     );
     AnimalDisplayUtils.sortAnimalsList(items);
     return items;
@@ -251,12 +251,10 @@ class _MatrixEvaluationFormDialogState extends State<MatrixEvaluationFormDialog>
     return Autocomplete<Animal>(
       displayStringForOption: (a) => AnimalDisplayUtils.getDisplayText(a),
       optionsBuilder: (text) {
-        final q = text.text.trim().toLowerCase();
-        if (q.isEmpty) return animals;
-        return animals.where((a) {
-          return a.name.toLowerCase().contains(q) ||
-              a.code.toLowerCase().contains(q);
-        });
+        return AnimalDisplayUtils.filterAndRankAnimals(
+          animals,
+          text.text,
+        );
       },
       onSelected: (animal) {
         setState(() {

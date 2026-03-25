@@ -1,8 +1,8 @@
 // lib/screens/complete_dashboard_screen.dart
 import 'package:flutter/material.dart';
 
-import '../features/dashboard/dashboard_tab.dart';
-import '../features/herd/herd_tab.dart';
+import '../features/dashboard/presentation/dashboard_tab.dart';
+import '../features/herd/presentation/herd_tab.dart';
 import '../features/navigation/dashboard_tabs.dart';
 import '../models/animal.dart';
 import '../utils/responsive_utils.dart';
@@ -14,7 +14,7 @@ import '../widgets/financial/financial_complete_screen.dart';
 import '../widgets/medication/medication_management_screen.dart';
 import '../widgets/notes/notes_management_screen.dart';
 import '../widgets/pharmacy/pharmacy_management_screen.dart';
-import '../widgets/reports/reports_hub_screen.dart';
+import '../features/reports/presentation/reports_hub_screen.dart';
 import '../widgets/system/system_settings_screen.dart';
 import '../widgets/weight/weight_tracking_screen.dart';
 

@@ -1,5 +1,4 @@
 // lib/widgets/breeding/breeding_form.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -33,8 +32,6 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   bool _loadingAnimals = true;
   List<Animal> _femaleOptions = [];
   List<Animal> _maleOptions = [];
-  Timer? _femaleDebounce;
-  Timer? _maleDebounce;
   bool _checkingKinship = false;
   KinshipReport? _kinshipReport;
 
@@ -70,13 +67,15 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         gender: 'Fêmea',
         excludePregnant: true,
         excludeCategories: const ['Borrego', 'Borrega', 'Venda'],
-        limit: 50,
+        limit: 2000,
       );
       final males = await animalService.searchAnimals(
         gender: 'Macho',
         excludeCategories: const ['Borrego', 'Venda'],
-        limit: 50,
+        limit: 2000,
       );
+      AnimalDisplayUtils.sortAnimalsList(females);
+      AnimalDisplayUtils.sortAnimalsList(males);
 
       if (!mounted) return;
       setState(() {
@@ -117,61 +116,6 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
       final stage = BreedingStage.fromString(record['stage'] as String?);
       return stage == BreedingStage.encabritamento;
     });
-  }
-
-  void _scheduleFemaleSearch(String query) {
-    _femaleDebounce?.cancel();
-    _femaleDebounce = Timer(const Duration(milliseconds: 250), () {
-      _fetchFemales(query);
-    });
-  }
-
-  void _scheduleMaleSearch(String query) {
-    _maleDebounce?.cancel();
-    _maleDebounce = Timer(const Duration(milliseconds: 250), () {
-      _fetchMales(query);
-    });
-  }
-
-  Future<void> _fetchFemales(String query) async {
-    final animalService = context.read<AnimalService>();
-    try {
-      final females = await animalService.searchAnimals(
-        gender: 'Fêmea',
-        excludePregnant: true,
-        excludeCategories: const ['Borrego', 'Borrega', 'Venda'],
-        searchQuery: query,
-        limit: 50,
-      );
-      if (!mounted) return;
-      setState(() => _femaleOptions = females
-        ..sort(
-          (a, b) => AnimalDisplayUtils.getDisplayText(a)
-              .compareTo(AnimalDisplayUtils.getDisplayText(b)),
-        ));
-    } catch (_) {
-      // mantém opções atuais em caso de erro
-    }
-  }
-
-  Future<void> _fetchMales(String query) async {
-    final animalService = context.read<AnimalService>();
-    try {
-      final males = await animalService.searchAnimals(
-        gender: 'Macho',
-        excludeCategories: const ['Borrego', 'Venda'],
-        searchQuery: query,
-        limit: 50,
-      );
-      if (!mounted) return;
-      setState(() => _maleOptions = males
-        ..sort(
-          (a, b) => AnimalDisplayUtils.getDisplayText(a)
-              .compareTo(AnimalDisplayUtils.getDisplayText(b)),
-        ));
-    } catch (_) {
-      // mantém opções atuais em caso de erro
-    }
   }
 
   bool get _hasKinshipConflict => _kinshipReport?.isBlocking ?? false;
@@ -245,15 +189,10 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   Autocomplete<Animal>(
                     displayStringForOption: _getAnimalDisplayText,
                     optionsBuilder: (TextEditingValue textEditingValue) {
-                      _scheduleFemaleSearch(textEditingValue.text);
-                      if (textEditingValue.text.isEmpty) {
-                        return femaleAnimals;
-                      }
-                      return femaleAnimals.where((animal) {
-                        final searchText = textEditingValue.text.toLowerCase();
-                        return animal.code.toLowerCase().contains(searchText) ||
-                            animal.name.toLowerCase().contains(searchText);
-                      });
+                      return AnimalDisplayUtils.filterAndRankAnimals(
+                        femaleAnimals,
+                        textEditingValue.text,
+                      );
                     },
                     onSelected: (Animal animal) {
                       setState(() => _femaleAnimalId = animal.id);
@@ -333,15 +272,10 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
                   Autocomplete<Animal>(
                     displayStringForOption: _getAnimalDisplayText,
                     optionsBuilder: (TextEditingValue textEditingValue) {
-                      _scheduleMaleSearch(textEditingValue.text);
-                      if (textEditingValue.text.isEmpty) {
-                        return maleAnimals;
-                      }
-                      return maleAnimals.where((animal) {
-                        final searchText = textEditingValue.text.toLowerCase();
-                        return animal.code.toLowerCase().contains(searchText) ||
-                            animal.name.toLowerCase().contains(searchText);
-                      });
+                      return AnimalDisplayUtils.filterAndRankAnimals(
+                        maleAnimals,
+                        textEditingValue.text,
+                      );
                     },
                     onSelected: (Animal animal) {
                       setState(() => _maleAnimalId = animal.id);
@@ -733,8 +667,6 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
 
   @override
   void dispose() {
-    _femaleDebounce?.cancel();
-    _maleDebounce?.cancel();
     _notesController.dispose();
     super.dispose();
   }

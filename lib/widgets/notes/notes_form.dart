@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -32,7 +31,6 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
   DateTime _date = DateTime.now();
   List<Animal> _animalOptions = [];
   bool _loadingAnimals = true;
-  Timer? _animalDebounce;
   Animal? _linkedAnimal;
   Animal? _selectedAnimal;
 
@@ -56,11 +54,10 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
     await _loadAnimals();
   }
 
-  Future<void> _loadAnimals([String query = '']) async {
+  Future<void> _loadAnimals() async {
     try {
       final animalService = context.read<AnimalService>();
-      final animals =
-          await animalService.searchAnimals(searchQuery: query, limit: 50);
+      final animals = await animalService.searchAnimals(limit: 2000);
       AnimalDisplayUtils.sortAnimalsList(animals);
       if (!mounted) return;
       setState(() {
@@ -71,13 +68,6 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
       if (!mounted) return;
       setState(() => _loadingAnimals = false);
     }
-  }
-
-  void _scheduleAnimalSearch(String query) {
-    _animalDebounce?.cancel();
-    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
-      _loadAnimals(query);
-    });
   }
 
   @override
@@ -105,14 +95,11 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                   if (widget.animalId == null) ...[
                     Autocomplete<Animal>(
                       optionsBuilder: (textEditingValue) {
-                        _scheduleAnimalSearch(textEditingValue.text);
                         if (_loadingAnimals) return const Iterable<Animal>.empty();
-                        final query = textEditingValue.text.toLowerCase();
-                        return _animalOptions.where((animal) {
-                          final name = animal.name.toLowerCase();
-                          final code = animal.code.toLowerCase();
-                          return name.contains(query) || code.contains(query);
-                        });
+                        return AnimalDisplayUtils.filterAndRankAnimals(
+                          _animalOptions,
+                          textEditingValue.text,
+                        );
                       },
                       displayStringForOption: AnimalDisplayUtils.getDisplayText,
                       fieldViewBuilder:
@@ -541,7 +528,6 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
 
   @override
   void dispose() {
-    _animalDebounce?.cancel();
     _titleController.dispose();
     _contentController.dispose();
     _createdByController.dispose();

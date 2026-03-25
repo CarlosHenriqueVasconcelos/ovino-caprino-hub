@@ -1,4 +1,4 @@
-// lib/widgets/reports/reports_hub_screen.dart
+// lib/features/reports/presentation/reports_hub_screen.dart
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,10 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../../services/reports_controller.dart';
-import '../../models/report_filters.dart';
-import '../../utils/animal_record_display.dart';
-import '../../utils/labels_ptbr.dart';
+import '../application/reports_controller.dart';
+import '../../../models/report_filters.dart';
+import '../../../utils/animal_record_display.dart';
+import '../../../utils/labels_ptbr.dart';
 
 import 'reports_chart_area.dart';
 import 'reports_empty_state.dart';
@@ -19,7 +19,7 @@ import 'reports_models.dart';
 import 'reports_summary_cards_row.dart';
 import 'reports_table_area.dart';
 import 'reports_view_switcher.dart';
-import '../common/pagination_bar.dart';
+import '../../../widgets/common/pagination_bar.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});
@@ -47,8 +47,12 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   // Contextual filters
   String _speciesFilter = 'Todos';
   String _genderFilter = 'Todos';
-  String _statusFilter = 'Todos';
-  final String _categoryFilter = 'Todos';
+  String _animalStatusFilter = 'Todos';
+  String _vaccinationStatusFilter = 'Todos';
+  String _categoryFilter = 'Todos';
+  String _colorFilter = 'Todos';
+  String _reproductiveStatusFilter = 'Todos';
+  final TextEditingController _loteController = TextEditingController();
   final String _vaccineTypeFilter = 'Todos';
   String _medicationStatusFilter = 'Todos';
 
@@ -56,7 +60,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
   String _breedingStageFilter = 'Todos';
 
   String _financialTypeFilter = 'Todos';
-  final String _financialCategoryFilter = 'Todos';
+  final TextEditingController _financialCategoryController =
+      TextEditingController();
   String _notesPriorityFilter = 'Todos';
   String _notesIsReadFilter = 'Todos';
 
@@ -121,6 +126,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
   @override
   void dispose() {
+    _loteController.dispose();
+    _financialCategoryController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -173,18 +180,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
 
     try {
       final period = _getPeriodRange();
+      final reportType = _reportTypes[_tabController.index];
+      final effectiveStatus = reportType == 'Vacinações'
+          ? _vaccinationStatusFilter
+          : _animalStatusFilter;
       final filters = ReportFilters(
         startDate: period.startDate,
         endDate: period.endDate,
         species: _speciesFilter,
         gender: _genderFilter,
-        status: _statusFilter,
+        status: effectiveStatus,
         category: _categoryFilter,
+        color: _colorFilter,
+        lote: _loteController.text.trim(),
+        reproductiveStatus: _reproductiveStatusFilter,
         vaccineType: _vaccineTypeFilter,
         medicationStatus: _medicationStatusFilter,
         breedingStage: _breedingStageFilter,
         financialType: _financialTypeFilter,
-        financialCategory: _financialCategoryFilter,
+        financialCategory: _financialCategoryController.text.trim().isEmpty
+            ? 'Todos'
+            : _financialCategoryController.text.trim(),
         notesPriority: _notesPriorityFilter,
         notesIsRead: _notesIsReadFilter == 'Lidas'
             ? true
@@ -195,7 +211,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         offset: _currentPage * _pageSize,
       );
 
-      final reportType = _reportTypes[_tabController.index];
       final reportsController = context.read<ReportsController>();
       final data = await reportsController.generateReport(
         reportType,
@@ -364,18 +379,27 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     try {
       // Busca todos os dados paginados via nova chamada
       final period = _getPeriodRange();
+      final reportType = _reportTypes[_tabController.index];
+      final effectiveStatus = reportType == 'Vacinações'
+          ? _vaccinationStatusFilter
+          : _animalStatusFilter;
       final filters = ReportFilters(
         startDate: period.startDate,
         endDate: period.endDate,
         species: _speciesFilter,
         gender: _genderFilter,
-        status: _statusFilter,
+        status: effectiveStatus,
         category: _categoryFilter,
+        color: _colorFilter,
+        lote: _loteController.text.trim(),
+        reproductiveStatus: _reproductiveStatusFilter,
         vaccineType: _vaccineTypeFilter,
         medicationStatus: _medicationStatusFilter,
         breedingStage: _breedingStageFilter,
         financialType: _financialTypeFilter,
-        financialCategory: _financialCategoryFilter,
+        financialCategory: _financialCategoryController.text.trim().isEmpty
+            ? 'Todos'
+            : _financialCategoryController.text.trim(),
         notesPriority: _notesPriorityFilter,
         notesIsRead: _notesIsReadFilter == 'Lidas'
             ? true
@@ -385,7 +409,6 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         limit: null,
         offset: null,
       );
-      final reportType = _reportTypes[_tabController.index];
       final reportsController = context.read<ReportsController>();
       final fullData = await reportsController.generateReport(
         reportType,
@@ -461,13 +484,17 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
         'filters': {
           'species': _speciesFilter,
           'gender': _genderFilter,
-          'status': _statusFilter,
+          'animal_status': _animalStatusFilter,
+          'vaccination_status': _vaccinationStatusFilter,
           'category': _categoryFilter,
+          'color': _colorFilter,
+          'lote': _loteController.text.trim(),
+          'reproductive_status': _reproductiveStatusFilter,
           'vaccine_type': _vaccineTypeFilter,
           'medication_status': _medicationStatusFilter,
           'breeding_stage': _breedingStageFilter,
           'financial_type': _financialTypeFilter,
-          'financial_category': _financialCategoryFilter,
+          'financial_category': _financialCategoryController.text.trim(),
           'notes_priority': _notesPriorityFilter,
           'notes_is_read': _notesIsReadFilter,
         },
@@ -631,9 +658,36 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
               setState(() => _genderFilter = value);
               _loadReport();
             },
-            statusFilter: _statusFilter,
+            statusFilter: _currentReportType == 'Vacinações'
+                ? _vaccinationStatusFilter
+                : _animalStatusFilter,
             onStatusChanged: (value) {
-              setState(() => _statusFilter = value);
+              setState(() {
+                if (_currentReportType == 'Vacinações') {
+                  _vaccinationStatusFilter = value;
+                } else {
+                  _animalStatusFilter = value;
+                }
+              });
+              _loadReport();
+            },
+            categoryFilter: _categoryFilter,
+            onCategoryChanged: (value) {
+              setState(() => _categoryFilter = value);
+              _loadReport();
+            },
+            colorFilter: _colorFilter,
+            onColorChanged: (value) {
+              setState(() => _colorFilter = value);
+              _loadReport();
+            },
+            reproductiveStatusFilter: _reproductiveStatusFilter,
+            onReproductiveStatusChanged: (value) {
+              setState(() => _reproductiveStatusFilter = value);
+              _loadReport();
+            },
+            loteController: _loteController,
+            onLoteChanged: (_) {
               _loadReport();
             },
             medicationStatusFilter: _medicationStatusFilter,
@@ -649,6 +703,10 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             financialTypeFilter: _financialTypeFilter,
             onFinancialTypeChanged: (value) {
               setState(() => _financialTypeFilter = value);
+              _loadReport();
+            },
+            financialCategoryController: _financialCategoryController,
+            onFinancialCategoryChanged: (_) {
               _loadReport();
             },
             notesIsReadFilter: _notesIsReadFilter,
@@ -737,7 +795,9 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       );
     }
 
-    final columns = rows.first.keys.where((k) => k != 'animal_color').toList();
+    final hiddenColumns = {'animal_color', 'female_color', 'male_color'};
+    final columns =
+        rows.first.keys.where((k) => !hiddenColumns.contains(k)).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -779,6 +839,42 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     if (key == 'animal_name') {
       final label = AnimalRecordDisplay.labelFromRecord(row);
       final color = AnimalRecordDisplay.colorFromRecord(row);
+      return DataCell(
+        Text(
+          label,
+          style: color != null
+              ? TextStyle(color: color, fontWeight: FontWeight.w600)
+              : null,
+        ),
+      );
+    }
+
+    if (key == 'female_name') {
+      final femaleRow = <String, dynamic>{
+        'animal_name': row['female_name'] ?? '',
+        'animal_code': row['female_code'] ?? '',
+        'animal_color': row['female_color'] ?? '',
+      };
+      final label = AnimalRecordDisplay.labelFromRecord(femaleRow);
+      final color = AnimalRecordDisplay.colorFromRecord(femaleRow);
+      return DataCell(
+        Text(
+          label,
+          style: color != null
+              ? TextStyle(color: color, fontWeight: FontWeight.w600)
+              : null,
+        ),
+      );
+    }
+
+    if (key == 'male_name') {
+      final maleRow = <String, dynamic>{
+        'animal_name': row['male_name'] ?? '',
+        'animal_code': row['male_code'] ?? '',
+        'animal_color': row['male_color'] ?? '',
+      };
+      final label = AnimalRecordDisplay.labelFromRecord(maleRow);
+      final color = AnimalRecordDisplay.colorFromRecord(maleRow);
       return DataCell(
         Text(
           label,

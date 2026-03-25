@@ -68,7 +68,9 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                isMobile ? 'Peso - Adultos' : 'Controle de Peso - Animais Adultos',
+                                isMobile
+                                    ? 'Peso - Geral'
+                                    : 'Controle de Peso - Animais (exceto borregos)',
                                 style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: theme.colorScheme.primary,
@@ -82,7 +84,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                         if (!isMobile) ...[
                           const SizedBox(height: 16),
                           Text(
-                            'Acompanhe o desenvolvimento dos animais adultos com controle de 24 meses (2 anos). '
+                            'Acompanhe o desenvolvimento dos animais não-borregos com controle de 24 meses (2 anos). '
                             'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
@@ -99,7 +101,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
 
             WeightTrackingFiltersBar(
               searchController: _searchController,
-              searchLabel: 'Pesquisar animal adulto',
+              searchLabel: 'Pesquisar animal',
               searchHint: 'Digite o nome ou código do animal...',
               onSearchChanged: (value) {
                 setState(() {
@@ -125,7 +127,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
               future: _future ??= context
                   .read<AnimalService>()
                   .weightTrackingQuery(
-                    category: WeightCategoryFilter.adults,
+                    category: WeightCategoryFilter.nonLambs,
                     searchQuery: _searchQuery,
                     page: _currentPage,
                     pageSize: _itemsPerPage,
@@ -140,7 +142,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   );
                 }
                 final result = snapshot.data;
-                final adults = result?.items ?? const <Animal>[];
+                final nonLambAnimals = result?.items ?? const <Animal>[];
                 final total = result?.total ?? 0;
                 final totalPages =
                     (total / _itemsPerPage).ceil().clamp(1, 9999);
@@ -159,7 +161,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Animais Adultos',
+                                        'Animais (exceto borregos)',
                                         style: theme.textTheme.titleLarge?.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -175,7 +177,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                                 : Row(
                                     children: [
                                       Text(
-                                        'Animais Adultos',
+                                        'Animais (exceto borregos)',
                                         style: theme.textTheme.headlineSmall?.copyWith(
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -193,7 +195,7 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                         ),
                         const SizedBox(height: 24),
                         WeightTrackingTable<Animal>(
-                          items: adults,
+                          items: nonLambAnimals,
                           mode: WeightTrackingTableMode.list,
                           itemBuilder: (context, adult) =>
                               _buildAdultCard(context, adult),
@@ -240,14 +242,14 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             const SizedBox(height: 16),
             Text(
               _searchQuery.isEmpty
-                  ? 'Nenhum animal adulto cadastrado'
+                  ? 'Nenhum animal encontrado'
                   : 'Nenhum animal encontrado',
               style: theme.textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
               _searchQuery.isEmpty
-                  ? 'Cadastre animais adultos ou promova borregos'
+                  ? 'Cadastre animais fora da categoria Borrego'
                   : 'Tente outra pesquisa',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(

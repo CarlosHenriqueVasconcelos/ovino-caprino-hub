@@ -380,7 +380,8 @@ class _AnimalCardState extends State<AnimalCard> {
                             ],
                           ),
                         ),
-                      if (widget.animal.status != 'Óbito')
+                      if (widget.animal.status != 'Óbito' &&
+                          widget.animal.status != 'Vendido')
                         const PopupMenuItem(
                           value: 'deceased',
                           child: Row(
@@ -408,8 +409,14 @@ class _AnimalCardState extends State<AnimalCard> {
               ),
               const SizedBox(height: 12),
 
-              // Status Badges
-              Wrap(
+              Expanded(
+                child: SingleChildScrollView(
+                  primary: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Status Badges
+                      Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
@@ -836,6 +843,11 @@ class _AnimalCardState extends State<AnimalCard> {
                 const SizedBox(height: 6),
               ] else
                 const SizedBox(height: 4),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
 
               // Ações: usa linha única quando possível para reduzir altura total do card.
               LayoutBuilder(

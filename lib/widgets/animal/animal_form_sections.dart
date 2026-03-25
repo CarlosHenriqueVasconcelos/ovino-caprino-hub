@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -305,15 +304,11 @@ class _ParentAutocomplete extends StatefulWidget {
 }
 
 class _ParentAutocompleteState extends State<_ParentAutocomplete> {
-  static const _debounceDuration = Duration(milliseconds: 250);
-  static const _pageLimit = 200;
-  static const _fallbackLimit = 1200;
+  static const _fetchLimit = 2000;
   static const _excludeCategories = ['Borrego'];
 
   final List<Animal> _options = [];
   bool _isLoading = false;
-  Timer? _debounce;
-  int _requestId = 0;
   String _currentQuery = '';
   TextEditingController? _controller;
 
@@ -321,12 +316,11 @@ class _ParentAutocompleteState extends State<_ParentAutocomplete> {
   void initState() {
     super.initState();
     _isLoading = true;
-    _fetchOptions('');
+    _fetchBaseOptions();
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _controller?.removeListener(_handleQueryChanged);
     super.dispose();
   }
@@ -345,35 +339,20 @@ class _ParentAutocompleteState extends State<_ParentAutocomplete> {
   void _handleQueryChanged() {
     final query = _controller?.text ?? '';
     if (query == _currentQuery) return;
-    _currentQuery = query;
-    _debounce?.cancel();
-    setState(() {
-      _isLoading = true;
-      _options.clear();
-    });
-    final requestId = ++_requestId;
-    _debounce = Timer(_debounceDuration, () async {
-      try {
-        final animals = await _searchAnimals(query);
-        if (!mounted || requestId != _requestId) return;
-        setState(() {
-          _options
-            ..clear()
-            ..addAll(animals);
-          _isLoading = false;
-        });
-      } catch (_) {
-        if (!mounted || requestId != _requestId) return;
-        setState(() => _isLoading = false);
-      }
-    });
+    setState(() => _currentQuery = query);
   }
 
-  Future<void> _fetchOptions(String query) async {
-    final requestId = ++_requestId;
+  Future<void> _fetchBaseOptions() async {
     try {
-      final animals = await _searchAnimals(query);
-      if (!mounted || requestId != _requestId) return;
+      final animalService = context.read<AnimalService>();
+      final animals = await animalService.searchAnimals(
+        gender: widget.isMother ? 'Fêmea' : 'Macho',
+        excludeCategories: _excludeCategories,
+        includeArchived: true,
+        limit: _fetchLimit,
+      );
+      AnimalDisplayUtils.sortAnimalsList(animals);
+      if (!mounted) return;
       setState(() {
         _options
           ..clear()
@@ -381,81 +360,18 @@ class _ParentAutocompleteState extends State<_ParentAutocomplete> {
         _isLoading = false;
       });
     } catch (_) {
-      if (!mounted || requestId != _requestId) return;
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
-  Future<List<Animal>> _searchAnimals(String query) async {
-    final animalService = context.read<AnimalService>();
-    final trimmedQuery = query.trim();
-    final animals = await animalService.searchAnimals(
-      gender: widget.isMother ? 'Fêmea' : 'Macho',
-      excludeCategories: _excludeCategories,
-      searchQuery: trimmedQuery.isEmpty ? null : trimmedQuery,
-      includeArchived: true,
-      limit: _pageLimit,
-    );
-
-    if (trimmedQuery.isNotEmpty && animals.isEmpty) {
-      final fallbackAnimals = await animalService.searchAnimals(
-        gender: widget.isMother ? 'Fêmea' : 'Macho',
-        excludeCategories: _excludeCategories,
-        includeArchived: true,
-        limit: _fallbackLimit,
-      );
-      final queryNorm = _normalizeForMatch(trimmedQuery);
-      final filtered = fallbackAnimals
-          .where((animal) {
-            final colorPt = AnimalDisplayUtils.getColorName(animal.nameColor);
-            final haystack = _normalizeForMatch(
-              '${animal.name} ${animal.code} ${animal.nameColor} $colorPt',
-            );
-            return haystack.contains(queryNorm);
-          })
-          .take(_pageLimit)
-          .toList(growable: false);
-      AnimalDisplayUtils.sortAnimalsList(filtered);
-      return filtered;
-    }
-
-    AnimalDisplayUtils.sortAnimalsList(animals);
-    return animals;
-  }
-
-  String _normalizeForMatch(String input) {
-    return input
-        .trim()
-        .toLowerCase()
-        .replaceAll('á', 'a')
-        .replaceAll('à', 'a')
-        .replaceAll('â', 'a')
-        .replaceAll('ã', 'a')
-        .replaceAll('ä', 'a')
-        .replaceAll('é', 'e')
-        .replaceAll('è', 'e')
-        .replaceAll('ê', 'e')
-        .replaceAll('ë', 'e')
-        .replaceAll('í', 'i')
-        .replaceAll('ì', 'i')
-        .replaceAll('î', 'i')
-        .replaceAll('ï', 'i')
-        .replaceAll('ó', 'o')
-        .replaceAll('ò', 'o')
-        .replaceAll('ô', 'o')
-        .replaceAll('õ', 'o')
-        .replaceAll('ö', 'o')
-        .replaceAll('ú', 'u')
-        .replaceAll('ù', 'u')
-        .replaceAll('û', 'u')
-        .replaceAll('ü', 'u')
-        .replaceAll('ç', 'c');
-  }
-
   @override
   Widget build(BuildContext context) {
+    final hasMatches = _options.any(
+      (animal) => AnimalDisplayUtils.matchesSearchQuery(animal, _currentQuery),
+    );
     final showStatus =
-        _isLoading || (_currentQuery.isNotEmpty && _options.isEmpty);
+        _isLoading || (_currentQuery.trim().isNotEmpty && !hasMatches);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,7 +380,10 @@ class _ParentAutocompleteState extends State<_ParentAutocomplete> {
           initialValue: TextEditingValue(text: widget.initialText),
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (_isLoading) return const Iterable<Animal>.empty();
-            return _options;
+            return AnimalDisplayUtils.filterAndRankAnimals(
+              _options,
+              textEditingValue.text,
+            );
           },
           displayStringForOption: (Animal option) =>
               widget.formatParentLabel(

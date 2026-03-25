@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../services/animal_service.dart';
 import '../../services/weight_service.dart';
 import '../../models/animal.dart';
+import '../../utils/animal_display_utils.dart';
+import '../../utils/animal_record_display.dart';
 import '../animal/animal_form.dart';
 import 'weight_tracking_pagination_bar.dart';
 
@@ -188,7 +190,8 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
                 }
 
                 final result = snapshot.data;
-                final lambs = result?.items ?? const <Animal>[];
+                final lambs = (result?.items ?? const <Animal>[]).toList();
+                AnimalDisplayUtils.sortAnimalsList(lambs);
                 final total = result?.total ?? 0;
                 final totalPages =
                     (total / _itemsPerPage).ceil().clamp(1, 9999);
@@ -714,44 +717,21 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   }
 
   Widget _buildAnimalNameText(Animal lamb, ThemeData theme) {
-    final colorKey = lamb.nameColor;
-    final colorName = _getColorNameTranslated(colorKey);
-    final colorValue = _getColorFromName(colorKey);
+    final record = {
+      'animal_name': lamb.name,
+      'animal_code': lamb.code,
+      'animal_color': lamb.nameColor,
+    };
+    final label = AnimalRecordDisplay.labelFromRecord(record);
+    final accent = AnimalRecordDisplay.colorFromDescriptor(lamb.nameColor);
 
-    return RichText(
-      text: TextSpan(
-        style:
-            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        children: [
-          TextSpan(
-              text: '$colorName - ',
-              style: const TextStyle(color: Colors.black)),
-          TextSpan(
-            text: lamb.name,
-            style: TextStyle(color: colorValue, fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-              text: ' (${lamb.code})',
-              style: const TextStyle(color: Colors.black)),
-        ],
+    return Text(
+      label,
+      style: theme.textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: accent ?? theme.colorScheme.onSurface,
       ),
     );
-  }
-
-  String _getColorNameTranslated(String colorKey) {
-    const colorNames = {
-      'blue': 'Azul',
-      'red': 'Vermelho',
-      'green': 'Verde',
-      'yellow': 'Amarelo',
-      'orange': 'Laranja',
-      'purple': 'Roxo',
-      'pink': 'Rosa',
-      'grey': 'Cinza',
-      'white': 'Branca',
-      'black': 'Preto',
-    };
-    return colorNames[colorKey] ?? 'Sem cor';
   }
 
   void _showWeightEditDialog(Animal lamb) async {

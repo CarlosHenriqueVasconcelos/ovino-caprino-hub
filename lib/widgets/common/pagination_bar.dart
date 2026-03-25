@@ -106,109 +106,143 @@ class _PaginationBarState extends State<PaginationBar> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Navegação
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final shouldStack = constraints.maxWidth < 980;
+          final navigation = SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: _buildNavigationControls(theme),
+          );
+          final selector = widget.onItemsPerPageChanged != null
+              ? _buildItemsPerPageSelector(theme)
+              : null;
+
+          if (shouldStack) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                navigation,
+                if (selector != null) ...[
+                  const SizedBox(height: 10),
+                  selector,
+                ],
+              ],
+            );
+          }
+
+          return Row(
             children: [
-              IconButton.filled(
-                icon: const Icon(Icons.first_page),
-                onPressed: widget.currentPage > 0 
-                    ? () => widget.onPageChanged(0) 
-                    : null,
-                tooltip: 'Primeira página',
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: widget.currentPage > 0
-                    ? () => widget.onPageChanged(widget.currentPage - 1)
-                    : null,
-                tooltip: 'Página anterior',
-              ),
-              const SizedBox(width: 16),
-              
-              // Contador + botão "Ir para"
-              InkWell(
-                onTap: _showGoToPageDialog,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Página ${widget.currentPage + 1} de ${widget.totalPages}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.edit_outlined,
-                        size: 16,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              IconButton.filled(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: widget.currentPage < widget.totalPages - 1
-                    ? () => widget.onPageChanged(widget.currentPage + 1)
-                    : null,
-                tooltip: 'Próxima página',
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                icon: const Icon(Icons.last_page),
-                onPressed: widget.currentPage < widget.totalPages - 1
-                    ? () => widget.onPageChanged(widget.totalPages - 1)
-                    : null,
-                tooltip: 'Última página',
-              ),
+              Expanded(child: navigation),
+              if (selector != null) ...[
+                const SizedBox(width: 12),
+                selector,
+              ],
             ],
-          ),
-          
-          // Seletor de itens por página
-          if (widget.onItemsPerPageChanged != null)
-            Row(
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNavigationControls(ThemeData theme) {
+    return Row(
+      children: [
+        IconButton.filled(
+          icon: const Icon(Icons.first_page),
+          onPressed: widget.currentPage > 0
+              ? () => widget.onPageChanged(0)
+              : null,
+          tooltip: 'Primeira página',
+        ),
+        const SizedBox(width: 8),
+        IconButton.filled(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: widget.currentPage > 0
+              ? () => widget.onPageChanged(widget.currentPage - 1)
+              : null,
+          tooltip: 'Página anterior',
+        ),
+        const SizedBox(width: 16),
+
+        // Contador + botão "Ir para"
+        InkWell(
+          onTap: _showGoToPageDialog,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
               children: [
                 Text(
-                  'Itens por página:',
-                  style: theme.textTheme.bodyMedium,
+                  'Página ${widget.currentPage + 1} de ${widget.totalPages}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: theme.colorScheme.outlineVariant),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: widget.itemsPerPage,
-                      items: widget.itemsPerPageOptions
-                          .map(
-                            (value) => DropdownMenuItem(
-                              value: value,
-                              child: Text('$value'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) widget.onItemsPerPageChanged!(value);
-                      },
-                    ),
-                  ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 16,
+                  color: theme.colorScheme.primary,
                 ),
               ],
             ),
-        ],
-      ),
+          ),
+        ),
+
+        const SizedBox(width: 16),
+        IconButton.filled(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: widget.currentPage < widget.totalPages - 1
+              ? () => widget.onPageChanged(widget.currentPage + 1)
+              : null,
+          tooltip: 'Próxima página',
+        ),
+        const SizedBox(width: 8),
+        IconButton.filled(
+          icon: const Icon(Icons.last_page),
+          onPressed: widget.currentPage < widget.totalPages - 1
+              ? () => widget.onPageChanged(widget.totalPages - 1)
+              : null,
+          tooltip: 'Última página',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemsPerPageSelector(ThemeData theme) {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 6,
+      children: [
+        Text(
+          'Itens por página:',
+          style: theme.textTheme.bodyMedium,
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: widget.itemsPerPage,
+              items: widget.itemsPerPageOptions
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text('$value'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) widget.onItemsPerPageChanged!(value);
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 

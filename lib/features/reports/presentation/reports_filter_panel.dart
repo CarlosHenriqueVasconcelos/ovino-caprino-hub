@@ -17,12 +17,22 @@ class ReportsFilterPanel extends StatelessWidget {
   final ValueChanged<String> onGenderChanged;
   final String statusFilter;
   final ValueChanged<String> onStatusChanged;
+  final String categoryFilter;
+  final ValueChanged<String> onCategoryChanged;
+  final String colorFilter;
+  final ValueChanged<String> onColorChanged;
+  final String reproductiveStatusFilter;
+  final ValueChanged<String> onReproductiveStatusChanged;
+  final TextEditingController loteController;
+  final ValueChanged<String> onLoteChanged;
   final String medicationStatusFilter;
   final ValueChanged<String> onMedicationStatusChanged;
   final String breedingStageFilter;
   final ValueChanged<String> onBreedingStageChanged;
   final String financialTypeFilter;
   final ValueChanged<String> onFinancialTypeChanged;
+  final TextEditingController financialCategoryController;
+  final ValueChanged<String> onFinancialCategoryChanged;
   final String notesIsReadFilter;
   final ValueChanged<String> onNotesReadChanged;
   final String notesPriorityFilter;
@@ -45,12 +55,22 @@ class ReportsFilterPanel extends StatelessWidget {
     required this.onGenderChanged,
     required this.statusFilter,
     required this.onStatusChanged,
+    required this.categoryFilter,
+    required this.onCategoryChanged,
+    required this.colorFilter,
+    required this.onColorChanged,
+    required this.reproductiveStatusFilter,
+    required this.onReproductiveStatusChanged,
+    required this.loteController,
+    required this.onLoteChanged,
     required this.medicationStatusFilter,
     required this.onMedicationStatusChanged,
     required this.breedingStageFilter,
     required this.onBreedingStageChanged,
     required this.financialTypeFilter,
     required this.onFinancialTypeChanged,
+    required this.financialCategoryController,
+    required this.onFinancialCategoryChanged,
     required this.notesIsReadFilter,
     required this.onNotesReadChanged,
     required this.notesPriorityFilter,
@@ -60,6 +80,13 @@ class ReportsFilterPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
+    final hasAnimalContext = currentReport == 'Animais' ||
+        currentReport == 'Pesos' ||
+        currentReport == 'Reprodução' ||
+        currentReport == 'Financeiro' ||
+        currentReport == 'Vacinações' ||
+        currentReport == 'Medicações' ||
+        currentReport == 'Anotações';
     
     return Container(
       width: double.infinity,
@@ -216,7 +243,10 @@ class ReportsFilterPanel extends StatelessWidget {
             children: [
               if (currentReport == 'Animais' ||
                   currentReport == 'Pesos' ||
-                  currentReport == 'Reprodução')
+                  currentReport == 'Reprodução' ||
+                  currentReport == 'Vacinações' ||
+                  currentReport == 'Medicações' ||
+                  currentReport == 'Anotações')
                 _dropdown(
                   label: 'Espécie',
                   value: speciesFilter,
@@ -229,9 +259,12 @@ class ReportsFilterPanel extends StatelessWidget {
                 ),
               if (currentReport == 'Animais' ||
                   currentReport == 'Pesos' ||
-                  currentReport == 'Reprodução')
+                  currentReport == 'Reprodução' ||
+                  currentReport == 'Vacinações' ||
+                  currentReport == 'Medicações' ||
+                  currentReport == 'Anotações')
                 _dropdown(
-                  label: 'Gênero',
+                  label: 'Sexo',
                   value: genderFilter,
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
@@ -240,26 +273,93 @@ class ReportsFilterPanel extends StatelessWidget {
                   ],
                   onChanged: onGenderChanged,
                 ),
+              if (hasAnimalContext)
+                _dropdown(
+                  label: 'Categoria',
+                  value: categoryFilter,
+                  items: const [
+                    DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                    DropdownMenuItem(value: 'Borrego', child: Text('Borrego')),
+                    DropdownMenuItem(value: 'Adulto', child: Text('Adulto')),
+                    DropdownMenuItem(value: 'Matriz', child: Text('Matriz')),
+                    DropdownMenuItem(
+                      value: 'Reprodutor',
+                      child: Text('Reprodutor'),
+                    ),
+                    DropdownMenuItem(value: 'Venda', child: Text('Venda')),
+                    DropdownMenuItem(
+                      value: 'Não especificado',
+                      child: Text('Não especificado'),
+                    ),
+                  ],
+                  onChanged: onCategoryChanged,
+                ),
+              if (hasAnimalContext)
+                _dropdown(
+                  label: 'Cor',
+                  value: colorFilter,
+                  items: const [
+                    DropdownMenuItem(value: 'Todos', child: Text('Todas')),
+                    DropdownMenuItem(value: 'Azul', child: Text('Azul')),
+                    DropdownMenuItem(value: 'Verde', child: Text('Verde')),
+                    DropdownMenuItem(value: 'Amarelo', child: Text('Amarelo')),
+                    DropdownMenuItem(value: 'Laranja', child: Text('Laranja')),
+                    DropdownMenuItem(value: 'Roxo', child: Text('Roxo')),
+                    DropdownMenuItem(value: 'Vermelho', child: Text('Vermelho')),
+                    DropdownMenuItem(value: 'Rosa', child: Text('Rosa')),
+                    DropdownMenuItem(value: 'Cinza', child: Text('Cinza')),
+                    DropdownMenuItem(value: 'Branco', child: Text('Branco')),
+                    DropdownMenuItem(value: 'Preto', child: Text('Preto')),
+                  ],
+                  onChanged: onColorChanged,
+                ),
+              if (hasAnimalContext)
+                _textFilter(
+                  label: 'Lote',
+                  hint: 'Digite o lote (ex.: LT01)',
+                  controller: loteController,
+                  onChanged: onLoteChanged,
+                ),
               if (currentReport == 'Animais' ||
                   currentReport == 'Pesos' ||
-                  currentReport == 'Reprodução')
+                  currentReport == 'Reprodução' ||
+                  currentReport == 'Financeiro' ||
+                  currentReport == 'Anotações')
                 _dropdown(
-                  label: 'Status',
+                  label: 'Status animal',
                   value: statusFilter,
                   items: const [
                     DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                     DropdownMenuItem(
                         value: 'Saudável', child: Text('Saudável')),
                     DropdownMenuItem(
-                      value: 'Em tratamento',
-                      child: Text('Em tratamento'),
+                        value: 'Em tratamento',
+                        child: Text('Em tratamento'),
                     ),
-                    DropdownMenuItem(
-                      value: 'Reprodutor',
-                      child: Text('Reprodutor'),
-                    ),
+                    DropdownMenuItem(value: 'Ferido', child: Text('Ferido')),
                   ],
                   onChanged: onStatusChanged,
+                ),
+              if (currentReport == 'Animais' ||
+                  currentReport == 'Pesos' ||
+                  currentReport == 'Reprodução' ||
+                  currentReport == 'Financeiro')
+                _dropdown(
+                  label: 'Status reprodutivo',
+                  value: reproductiveStatusFilter,
+                  items: const [
+                    DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                    DropdownMenuItem(
+                      value: 'Não aplicável',
+                      child: Text('Não aplicável'),
+                    ),
+                    DropdownMenuItem(value: 'Vazia', child: Text('Vazia')),
+                    DropdownMenuItem(value: 'Coberta', child: Text('Coberta')),
+                    DropdownMenuItem(value: 'Gestante', child: Text('Gestante')),
+                    DropdownMenuItem(value: 'Lactação', child: Text('Lactação')),
+                    DropdownMenuItem(value: 'Seca', child: Text('Seca')),
+                  ],
+                  onChanged: onReproductiveStatusChanged,
                 ),
               if (currentReport == 'Vacinações')
                 _dropdown(
@@ -302,7 +402,9 @@ class ReportsFilterPanel extends StatelessWidget {
                       child: Text('Encabritamento'),
                     ),
                     DropdownMenuItem(
-                        value: 'cobertura', child: Text('Cobertura')),
+                      value: 'separacao',
+                      child: Text('Separação'),
+                    ),
                     DropdownMenuItem(
                       value: 'aguardando_ultrassom',
                       child: Text('Aguardando Ultrassom'),
@@ -329,6 +431,13 @@ class ReportsFilterPanel extends StatelessWidget {
                     DropdownMenuItem(value: 'despesa', child: Text('Despesa')),
                   ],
                   onChanged: onFinancialTypeChanged,
+                ),
+              if (currentReport == 'Financeiro')
+                _textFilter(
+                  label: 'Categoria financeira',
+                  hint: 'Digite parte da categoria',
+                  controller: financialCategoryController,
+                  onChanged: onFinancialCategoryChanged,
                 ),
               if (currentReport == 'Anotações') ...[
                 _dropdown(
@@ -388,6 +497,36 @@ class ReportsFilterPanel extends StatelessWidget {
             onChanged: (v) {
               if (v != null) onChanged(v);
             },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _textFilter({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = MediaQuery.of(context).size.width < 600;
+        return SizedBox(
+          width: isMobile ? double.infinity : 240,
+          child: TextFormField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: hint,
+              border: const OutlineInputBorder(),
+              isDense: isMobile,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: isMobile ? 10 : 16,
+              ),
+            ),
+            onChanged: onChanged,
           ),
         );
       },

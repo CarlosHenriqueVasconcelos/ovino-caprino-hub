@@ -50,6 +50,7 @@ class AnimalRepository {
     int? ageMaxMonths,
     bool? excludeReproducers,
     bool? onlyReproducers,
+    bool excludeLambs = false,
     bool includeSold = true,
     String? statusEquals,
     String? nameColor,
@@ -95,6 +96,11 @@ class AnimalRepository {
     if (onlyReproducers == true) {
       if (buffer.isNotEmpty) buffer.write(' AND ');
       buffer.write("LOWER(category) LIKE '%reprodutor%'");
+    }
+
+    if (excludeLambs) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      buffer.write("LOWER(category) NOT LIKE '%borrego%'");
     }
 
     // Sold é mantido em sold_animals; manter parâmetro por compatibilidade.
@@ -326,6 +332,7 @@ class AnimalRepository {
     int? ageMaxMonths,
     bool? excludeReproducers,
     bool? onlyReproducers,
+    bool excludeLambs = false,
     bool includeSold = true,
     String? statusEquals,
     String? nameColor,
@@ -366,6 +373,11 @@ class AnimalRepository {
     if (onlyReproducers == true) {
       if (buffer.isNotEmpty) buffer.write(' AND ');
       buffer.write("LOWER(category) LIKE '%reprodutor%'");
+    }
+
+    if (excludeLambs) {
+      if (buffer.isNotEmpty) buffer.write(' AND ');
+      buffer.write("LOWER(category) NOT LIKE '%borrego%'");
     }
 
     // Sold é mantido em sold_animals; manter parâmetro por compatibilidade.

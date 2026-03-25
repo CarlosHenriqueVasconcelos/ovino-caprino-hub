@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import '../../data/animal_repository.dart';
-import '../../models/animal.dart';
-import '../../utils/animal_display_utils.dart';
+import '../../../data/animal_repository.dart';
+import '../../../models/animal.dart';
+import '../../../utils/animal_display_utils.dart';
 
 class HerdController extends ChangeNotifier {
   HerdController({required AnimalRepository animalRepository})

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../utils/labels_ptbr.dart';
+import '../../../utils/labels_ptbr.dart';
 
 class ReportsTableArea extends StatelessWidget {
   final ThemeData theme;

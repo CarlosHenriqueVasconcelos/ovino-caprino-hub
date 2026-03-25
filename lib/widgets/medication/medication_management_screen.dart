@@ -1054,7 +1054,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   String? _selectedAnimalId;
   List<Animal> _animalOptions = [];
   bool _loadingAnimals = true;
-  Timer? _animalDebounce;
 
   // INTEGRAÇÃO COM FARMÁCIA
   List<PharmacyStock> _pharmacyStock = [];
@@ -1084,14 +1083,11 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     }
   }
 
-  Future<void> _loadAnimals([String query = '']) async {
+  Future<void> _loadAnimals() async {
     try {
       final animalService =
           Provider.of<AnimalService>(context, listen: false);
-      final animals = await animalService.searchAnimals(
-        searchQuery: query,
-        limit: 50,
-      );
+      final animals = await animalService.searchAnimals(limit: 2000);
       AnimalDisplayUtils.sortAnimalsList(animals);
       if (!mounted) return;
       setState(() {
@@ -1102,13 +1098,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       if (!mounted) return;
       setState(() => _loadingAnimals = false);
     }
-  }
-
-  void _scheduleAnimalSearch(String query) {
-    _animalDebounce?.cancel();
-    _animalDebounce = Timer(const Duration(milliseconds: 250), () {
-      _loadAnimals(query);
-    });
   }
 
   String _getAnimalDisplayText(Animal animal) {
@@ -1150,16 +1139,11 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
                   optionsBuilder: (TextEditingValue textEditingValue) {
-                    _scheduleAnimalSearch(textEditingValue.text);
                     if (_loadingAnimals) return const Iterable<Animal>.empty();
-                    if (textEditingValue.text.isEmpty) {
-                      return _animalOptions;
-                    }
-                    return _animalOptions.where((animal) {
-                      final searchText = textEditingValue.text.toLowerCase();
-                      return animal.code.toLowerCase().contains(searchText) ||
-                          animal.name.toLowerCase().contains(searchText);
-                    });
+                    return AnimalDisplayUtils.filterAndRankAnimals(
+                      _animalOptions,
+                      textEditingValue.text,
+                    );
                   },
                   onSelected: (Animal animal) {
                     setState(() => _selectedAnimalId = animal.id);
@@ -1664,7 +1648,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   @override
   void dispose() {
-    _animalDebounce?.cancel();
     _nameController.dispose();
     _veterinarianController.dispose();
     _notesController.dispose();

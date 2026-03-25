@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../utils/responsive_utils.dart';
+import '../../../../utils/responsive_utils.dart';
 
 class HerdActionsBar extends StatelessWidget {
   final VoidCallback onAddAnimal;
