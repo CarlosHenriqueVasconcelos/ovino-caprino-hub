@@ -2,17 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-
+	
 import '../../../models/animal.dart';
 import '../../../models/pharmacy_stock.dart';
-import '../../../services/animal_service.dart';
-import '../../../services/medication_service.dart';
-import '../../../services/pharmacy_service.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../utils/responsive_utils.dart';
 import '../../../widgets/animal/animal_form.dart';
 import '../../../widgets/system/history_screen.dart';
 import '../../../widgets/vaccination/vaccination_form.dart';
+import '../data/dashboard_repository.dart';
 
 class DashboardQuickActions extends StatelessWidget {
   final void Function(int) onGoToTab;
@@ -21,7 +19,7 @@ class DashboardQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final animalService = context.read<AnimalService>();
+    final dashboardRepository = context.read<DashboardRepository>();
 
     void showAnimalForm({Animal? animal}) {
       showDialog(
@@ -41,7 +39,7 @@ class DashboardQuickActions extends StatelessWidget {
       showDialog(
         context: context,
         builder: (context) => _MedicationFormDialog(
-          onSaved: () => animalService.loadData(),
+          onSaved: () => dashboardRepository.refreshDashboardData(),
         ),
       );
     }
@@ -234,8 +232,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   Future<void> _loadPharmacyStock() async {
     setState(() => _loadingStock = true);
     try {
-      final pharmacyService = context.read<PharmacyService>();
-      final stock = await pharmacyService.getPharmacyStock();
+      final dashboardRepository = context.read<DashboardRepository>();
+      final stock = await dashboardRepository.getPharmacyStock();
       if (!mounted) return;
       final available = stock
           .where((s) =>
@@ -253,9 +251,9 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   }
 
   Future<void> _loadAnimals([String query = '']) async {
-    final animalService = context.read<AnimalService>();
+    final dashboardRepository = context.read<DashboardRepository>();
     try {
-      final animals = await animalService.searchAnimals(
+      final animals = await dashboardRepository.searchAnimals(
         searchQuery: query,
         limit: 50,
       );
@@ -657,8 +655,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     };
 
     try {
-      final medicationService = context.read<MedicationService>();
-      await medicationService.createMedication(medication);
+      final dashboardRepository = context.read<DashboardRepository>();
+      await dashboardRepository.createMedication(medication);
       if (!mounted) return;
       Navigator.pop(context);
       widget.onSaved();

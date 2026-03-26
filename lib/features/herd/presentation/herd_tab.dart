@@ -16,6 +16,7 @@ import '../../../utils/debouncer.dart';
 import '../../../utils/responsive_utils.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../widgets/animal/animal_form.dart';
+import '../data/herd_repository.dart';
 import 'widgets/herd_actions_bar.dart';
 import 'widgets/herd_animal_grid.dart';
 import 'widgets/herd_filters_bar.dart';
@@ -28,10 +29,22 @@ class HerdTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
 
-    return ChangeNotifierProvider(
-      create: (context) => HerdController(
-        animalRepository: context.read<AnimalRepository>(),
-      )..refreshAll(),
+    return MultiProvider(
+      providers: [
+        Provider<HerdRepository>(
+          create: (context) => HerdRepository(
+            animalRepository: context.read<AnimalRepository>(),
+            animalService: context.read<AnimalService>(),
+            soldAnimalsService: context.read<SoldAnimalsService>(),
+            deceasedService: context.read<DeceasedService>(),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => HerdController(
+            herdRepository: context.read<HerdRepository>(),
+          )..refreshAll(),
+        ),
+      ],
       child: Stack(
         children: [
           const HerdView(),
@@ -152,15 +165,13 @@ class _HerdViewState extends State<HerdView>
   }
 
   Future<List<Animal>> _loadDeceasedAnimals(BuildContext context) async {
-    final deceasedService = context.read<DeceasedService>();
-    return deceasedService.getDeceasedAnimals();
+    final herdRepository = context.read<HerdRepository>();
+    return herdRepository.getDeceasedAnimals();
   }
 
   Future<List<Animal>> _loadSoldAnimals(BuildContext context) async {
-    final soldService = context.read<SoldAnimalsService>();
-    final sorted = await soldService.getSoldAnimals();
-    AnimalDisplayUtils.sortAnimalsList(sorted);
-    return sorted;
+    final herdRepository = context.read<HerdRepository>();
+    return herdRepository.getSoldAnimals();
   }
 
   @override
@@ -456,9 +467,9 @@ class _HerdViewState extends State<HerdView>
   }
 
   Future<void> _loadFilters() async {
-    final service = context.read<AnimalService>();
-    final colors = await service.getAvailableColors();
-    final categories = await service.getAvailableCategories();
+    final herdRepository = context.read<HerdRepository>();
+    final colors = await herdRepository.getAvailableColors();
+    final categories = await herdRepository.getAvailableCategories();
     if (!mounted) return;
     setState(() {
       _availableColors = colors;

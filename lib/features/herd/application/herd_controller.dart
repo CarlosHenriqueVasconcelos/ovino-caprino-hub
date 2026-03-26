@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
-import '../../../data/animal_repository.dart';
 import '../../../models/animal.dart';
 import '../../../utils/animal_display_utils.dart';
+import '../data/herd_repository.dart';
 
 class HerdController extends ChangeNotifier {
-  HerdController({required AnimalRepository animalRepository})
-      : _repo = animalRepository;
+  HerdController({required HerdRepository herdRepository})
+      : _repo = herdRepository;
 
-  final AnimalRepository _repo;
+  final HerdRepository _repo;
 
   List<Animal> _items = const [];
   Map<String, Animal> _byId = const {};

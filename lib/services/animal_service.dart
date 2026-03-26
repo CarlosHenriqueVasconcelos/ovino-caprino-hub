@@ -9,7 +9,7 @@ import '../data/medication_repository.dart';
 import '../data/vaccination_repository.dart';
 import '../models/animal.dart'; // Animal e AnimalStats
 import '../models/alert_item.dart'; // AlertItem
-import '../utils/animal_display_utils.dart';
+import 'animal/animal_query_coordinator.dart';
 import 'animal/animal_stats_calculator.dart';
 import 'deceased_hooks.dart'; // handleAnimalDeathIfApplicable
 import 'weight_alert_service.dart'; // WeightAlertService
@@ -48,6 +48,7 @@ class AnimalService extends ChangeNotifier {
   final VaccinationRepository _vaccinationRepository;
   final MedicationRepository _medicationRepository;
   final WeightAlertService _weightAlertService;
+  final AnimalQueryCoordinator _queryCoordinator;
 
   // ----------------- Getters públicos -----------------
   @Deprecated('Use getAllAnimals() or repository queries instead')
@@ -67,7 +68,7 @@ class AnimalService extends ChangeNotifier {
     this._vaccinationRepository,
     this._medicationRepository,
     this._weightAlertService,
-  ) {
+  ) : _queryCoordinator = AnimalQueryCoordinator(_animalRepository) {
     scheduleMicrotask(() => loadData());
   }
 
@@ -323,67 +324,22 @@ class AnimalService extends ChangeNotifier {
     int page = 0,
     int pageSize = 50,
   }) async {
-    int? ageMinMonths;
-    int? ageMaxMonths;
-    bool? excludeReproducers;
-
-    switch (category) {
-      case WeightCategoryFilter.juveniles:
-        ageMaxMonths = 12;
-        break;
-      case WeightCategoryFilter.nonLambs:
-        break;
-      case WeightCategoryFilter.reproducers:
-        final total = await _animalRepository.countFilteredAnimals(
-          nameColor: colorFilter,
-          searchQuery: searchQuery.trim(),
-          onlyReproducers: true,
-          excludeLambs: true,
-        );
-        final filtered = await _animalRepository.getFilteredAnimals(
-          nameColor: colorFilter,
-          searchQuery: searchQuery.trim(),
-          onlyReproducers: true,
-          excludeLambs: true,
-          limit: pageSize,
-          offset: page * pageSize,
-        );
-        AnimalDisplayUtils.sortAnimalsList(filtered);
-        return WeightTrackingResult(items: filtered, total: total);
-      case WeightCategoryFilter.all:
-        break;
-    }
-
-    final total = await _animalRepository.countFilteredAnimals(
-      ageMinMonths: ageMinMonths,
-      ageMaxMonths: ageMaxMonths,
-      excludeReproducers: excludeReproducers,
-      excludeLambs: true,
-      nameColor: colorFilter,
-      searchQuery: searchQuery.trim(),
+    final result = await _queryCoordinator.weightTrackingQueryData(
+      categoryKey: category.name,
+      colorFilter: colorFilter,
+      searchQuery: searchQuery,
+      page: page,
+      pageSize: pageSize,
     );
-
-    final items = await _animalRepository.getFilteredAnimals(
-      ageMinMonths: ageMinMonths,
-      ageMaxMonths: ageMaxMonths,
-      excludeReproducers: excludeReproducers,
-      excludeLambs: true,
-      nameColor: colorFilter,
-      searchQuery: searchQuery.trim(),
-      limit: pageSize,
-      offset: page * pageSize,
-    );
-
-    AnimalDisplayUtils.sortAnimalsList(items);
-    return WeightTrackingResult(items: items, total: total);
+    return WeightTrackingResult(items: result.items, total: result.total);
   }
 
   Future<List<String>> getAvailableColors() {
-    return _animalRepository.getDistinctColors();
+    return _queryCoordinator.getAvailableColors();
   }
 
   Future<List<String>> getAvailableCategories() {
-    return _animalRepository.getDistinctCategories();
+    return _queryCoordinator.getAvailableCategories();
   }
 
   Future<HerdQueryResult> herdQuery({
@@ -395,28 +351,16 @@ class AnimalService extends ChangeNotifier {
     int page = 0,
     int pageSize = 50,
   }) async {
-    final total = await _animalRepository.countFilteredAnimals(
+    final result = await _queryCoordinator.herdQueryData(
       includeSold: includeSold,
       statusEquals: statusEquals,
-      nameColor: colorFilter,
-      categoryEquals: categoryFilter,
-      searchQuery: searchQuery.trim(),
-      onlyReproducers: false,
-      excludeReproducers: false,
+      colorFilter: colorFilter,
+      categoryFilter: categoryFilter,
+      searchQuery: searchQuery,
+      page: page,
+      pageSize: pageSize,
     );
-
-    final items = await _animalRepository.getFilteredAnimals(
-      includeSold: includeSold,
-      statusEquals: statusEquals,
-      nameColor: colorFilter,
-      categoryEquals: categoryFilter,
-      searchQuery: searchQuery.trim(),
-      limit: pageSize,
-      offset: page * pageSize,
-    );
-
-    AnimalDisplayUtils.sortAnimalsList(items);
-    return HerdQueryResult(items: items, total: total);
+    return HerdQueryResult(items: result.items, total: result.total);
   }
 
   // ----------------- Helpers de gestação (para Reprodução) -----------------
@@ -696,7 +640,7 @@ class AnimalService extends ChangeNotifier {
     int limit = 50,
     int offset = 0,
   }) async {
-    final result = await _animalRepository.searchAnimals(
+    final result = await _queryCoordinator.searchAnimals(
       gender: gender,
       excludePregnant: excludePregnant,
       excludeCategories: excludeCategories,

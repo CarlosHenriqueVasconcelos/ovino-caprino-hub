@@ -33,6 +33,7 @@ import 'services/sold_animals_service.dart'; // ✅ novo service de vendidos
 import 'services/kinship_service.dart';
 import 'services/matrix_selection_service.dart';
 import 'features/reports/application/reports_controller.dart';
+import 'features/reports/data/reports_repository.dart';
 import 'services/reports_service.dart';
 
 // Data / DB
@@ -258,6 +259,11 @@ class FazendaSaoPetronioApp extends StatelessWidget {
             context.read<ReportsRepository>(),
           ),
         ),
+        Provider<ReportsFeatureRepository>(
+          create: (context) => ReportsFeatureRepository(
+            reportsService: context.read<ReportsService>(),
+          ),
+        ),
         Provider<KinshipService>(
           create: (context) => KinshipService(
             context.read<KinshipRepository>(),
@@ -339,7 +345,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ),
         Provider<ReportsController>(
           create: (context) => ReportsController(
-            context.read<ReportsService>(),
+            context.read<ReportsFeatureRepository>(),
           ),
         ),
         Provider<SystemMaintenanceService>(

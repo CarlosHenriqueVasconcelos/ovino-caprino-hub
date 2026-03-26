@@ -1,19 +1,19 @@
 import '../../../models/report_filters.dart';
-import '../../../services/reports_service.dart';
+import '../data/reports_repository.dart';
 
 /// Camada intermediária para impedir que widgets acessem o banco diretamente
 /// quando geram ou salvam relatórios.
 class ReportsController {
-  final ReportsService _service;
+  final ReportsFeatureRepository _repository;
 
-  ReportsController(this._service);
+  ReportsController(this._repository);
 
   /// Gera o relatório com base no tipo selecionado no dashboard.
   Future<Map<String, dynamic>> generateReport(
     String reportType,
     ReportFilters filters,
   ) =>
-      _service.generateReport(reportType, filters);
+      _repository.generateReport(reportType, filters);
 
   /// Persiste o histórico de geração de relatórios.
   Future<void> saveReport({
@@ -22,7 +22,7 @@ class ReportsController {
     required Map<String, dynamic> parameters,
     String generatedBy = 'Dashboard',
   }) =>
-      _service.saveReport(
+      _repository.saveReport(
         title: title,
         reportType: reportType,
         parameters: parameters,
