@@ -5,11 +5,11 @@ import 'package:flutter/foundation.dart';
 
 import '../data/animal_repository.dart';
 import '../data/breeding_repository.dart';
-import '../data/kinship_repository.dart';
+import '../features/breeding/data/kinship_repository.dart';
+import '../features/breeding/application/kinship_service.dart';
 import '../models/animal.dart';
 import '../models/breeding_record.dart';
 import '../models/kinship_report.dart';
-import 'kinship_service.dart';
 import 'events/event_bus.dart';
 import 'events/app_events.dart';
 

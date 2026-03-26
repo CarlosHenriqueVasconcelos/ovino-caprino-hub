@@ -15,7 +15,7 @@ import '../../../services/sold_animals_service.dart';
 import '../../../utils/debouncer.dart';
 import '../../../utils/responsive_utils.dart';
 import '../../../utils/animal_display_utils.dart';
-import '../../../widgets/animal/animal_form.dart';
+import '../../../shared/widgets/animal/animal_form.dart';
 import '../data/herd_repository.dart';
 import 'widgets/herd_actions_bar.dart';
 import 'widgets/herd_animal_grid.dart';

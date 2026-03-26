@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 	
 import '../../../models/animal.dart';
-import '../../../widgets/animal/animal_form.dart';
+import '../../../shared/widgets/animal/animal_form.dart';
 import '../application/dashboard_controller.dart';
 import '../data/dashboard_repository.dart';
 import '../widgets/dashboard_alerts_section.dart';

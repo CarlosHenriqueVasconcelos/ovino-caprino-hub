@@ -19,7 +19,7 @@ import 'reports_models.dart';
 import 'reports_summary_cards_row.dart';
 import 'reports_table_area.dart';
 import 'reports_view_switcher.dart';
-import '../../../widgets/common/pagination_bar.dart';
+import 'widgets/pagination_bar.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});

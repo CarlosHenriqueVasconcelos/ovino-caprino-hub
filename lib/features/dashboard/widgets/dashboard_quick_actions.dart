@@ -5,11 +5,11 @@ import 'package:uuid/uuid.dart';
 	
 import '../../../models/animal.dart';
 import '../../../models/pharmacy_stock.dart';
+import '../../../shared/widgets/animal/animal_form.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../utils/responsive_utils.dart';
-import '../../../widgets/animal/animal_form.dart';
-import '../../../widgets/system/history_screen.dart';
-import '../../../widgets/vaccination/vaccination_form.dart';
+import '../../system/presentation/history_screen.dart';
+import '../../medication/presentation/widgets/vaccination_form.dart';
 import '../data/dashboard_repository.dart';
 
 class DashboardQuickActions extends StatelessWidget {

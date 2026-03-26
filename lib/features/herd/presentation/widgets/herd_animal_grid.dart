@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../models/animal.dart';
 import '../../../../utils/responsive_utils.dart';
-import '../../../../widgets/animal/animal_card.dart';
+import 'animal_card.dart';
 
 class HerdAnimalGrid extends StatelessWidget {
   final List<Animal> animals;
