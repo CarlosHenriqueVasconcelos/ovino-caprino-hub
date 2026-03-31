@@ -24,6 +24,7 @@ import '../../shared/widgets/common/section_header.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/responsive_utils.dart';
 import 'widgets/app_bottom_nav.dart';
 import 'widgets/app_section_switcher.dart';
 import 'widgets/app_shell_container.dart';
@@ -277,6 +278,8 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shellHorizontalInset = ResponsiveUtils.getShellHorizontalInset(context);
+
     return Scaffold(
       body: AppShellContainer(
         child: SafeArea(
@@ -297,7 +300,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
               const SizedBox(height: AppSpacing.xs),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                  padding: EdgeInsets.symmetric(horizontal: shellHorizontalInset),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: AppColors.surface.withValues(alpha: 0.94),

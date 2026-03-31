@@ -8,6 +8,7 @@ import '../../../shared/widgets/common/section_header.dart';
 import '../../../shared/widgets/common/status_chip.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
+import 'dashboard_visual_style.dart';
 
 class DashboardHeader extends StatelessWidget {
   final VoidCallback onRefresh;
@@ -25,26 +26,26 @@ class DashboardHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < 700;
+    final panelPadding = DashboardVisualStyle.panelPadding(width);
+    final sectionGap = DashboardVisualStyle.sectionGap(width);
 
     return AppCard(
       variant: AppCardVariant.outlined,
-      backgroundColor: AppColors.surface.withValues(alpha: 0.95),
-      borderColor: AppColors.borderNeutral.withValues(alpha: 0.78),
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      backgroundColor: DashboardVisualStyle.panelBackground(),
+      borderColor: DashboardVisualStyle.panelBorder(),
+      padding: panelPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Visão Geral',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
+            style: DashboardVisualStyle.eyebrowStyle(Theme.of(context)),
           ),
           const SizedBox(height: AppSpacing.xs),
           SectionHeader(
             title: 'Início',
             subtitle: 'Acompanhe o estado atual da operação diária',
+            subtitleMaxLines: 1,
             action: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
@@ -85,10 +86,10 @@ class DashboardHeader extends StatelessWidget {
                 label: '${stats.vaccinesThisMonth} vacinas no mês',
                 variant: StatusChipVariant.info,
                 icon: Icons.vaccines_outlined,
-                  ),
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: sectionGap),
           if (compact)
             Column(
               children: [

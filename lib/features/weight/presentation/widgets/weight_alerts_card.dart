@@ -65,6 +65,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard>
             child: SectionHeader(
               title: 'Alertas de Pesagem',
               subtitle: 'Todas as pesagens estão em dia.',
+              collapseBreakpoint: 520,
               action: StatusChip(
                 label: 'Em dia',
                 icon: Icons.check_circle,
@@ -82,6 +83,7 @@ class _WeightAlertsCardState extends State<WeightAlertsCard>
               SectionHeader(
                 title: 'Alertas de Pesagem',
                 subtitle: 'Atenção para pesagens pendentes e vencidas',
+                collapseBreakpoint: 560,
                 action: StatusChip(
                   label: '${alerts.length} pendente(s)',
                   variant: StatusChipVariant.danger,
@@ -122,39 +124,10 @@ class _WeightAlertsCardState extends State<WeightAlertsCard>
       borderColor: isOverdue
           ? AppColors.error.withValues(alpha: 0.35)
           : AppColors.primary.withValues(alpha: 0.25),
-      child: Row(
-        children: [
-          Icon(
-            Icons.monitor_weight,
-            size: 18,
-            color: isOverdue ? AppColors.error : AppColors.primary,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: color,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          StatusChip(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 380;
+          final statusChip = StatusChip(
             label: isOverdue
                 ? 'Vencido'
                 : daysUntil == 0
@@ -162,8 +135,90 @@ class _WeightAlertsCardState extends State<WeightAlertsCard>
                     : '$daysUntil dias',
             variant:
                 isOverdue ? StatusChipVariant.danger : StatusChipVariant.info,
-          ),
-        ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.monitor_weight,
+                      size: 18,
+                      color: isOverdue ? AppColors.error : AppColors.primary,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: color,
+                                    ),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            title,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                statusChip,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Icon(
+                Icons.monitor_weight,
+                size: 18,
+                color: isOverdue ? AppColors.error : AppColors.primary,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: color,
+                          ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              statusChip,
+            ],
+          );
+        },
       ),
     );
   }

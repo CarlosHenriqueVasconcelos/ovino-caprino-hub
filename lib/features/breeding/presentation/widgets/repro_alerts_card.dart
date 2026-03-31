@@ -52,6 +52,20 @@ class _ReproAlertsCardState extends State<ReproAlertsCard>
     });
   }
 
+  Widget _buildRefreshAction({
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      icon: const Icon(Icons.refresh),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<BreedingService>(
@@ -76,10 +90,10 @@ class _ReproAlertsCardState extends State<ReproAlertsCard>
             child: SectionHeader(
               title: 'Alertas de Reprodução',
               subtitle: 'Erro ao carregar: $error',
-              action: IconButton(
+              collapseBreakpoint: 520,
+              action: _buildRefreshAction(
                 tooltip: 'Tentar novamente',
                 onPressed: () => _scheduleLoad(force: true),
-                icon: const Icon(Icons.refresh),
               ),
             ),
           );
@@ -91,10 +105,10 @@ class _ReproAlertsCardState extends State<ReproAlertsCard>
             child: SectionHeader(
               title: 'Alertas de Reprodução',
               subtitle: 'Sem dados disponíveis',
-              action: IconButton(
+              collapseBreakpoint: 520,
+              action: _buildRefreshAction(
                 tooltip: 'Atualizar',
                 onPressed: () => _scheduleLoad(force: true),
-                icon: const Icon(Icons.refresh),
               ),
             ),
           );
@@ -112,9 +126,12 @@ class _ReproAlertsCardState extends State<ReproAlertsCard>
               SectionHeader(
                 title: 'Alertas de Reprodução',
                 subtitle: 'Próximos ${widget.daysAhead} dias',
+                collapseBreakpoint: 620,
+                subtitleMaxLines: 1,
                 action: Wrap(
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   alignment: WrapAlignment.end,
                   children: [
                     if (data.overdueTotal > 0)
@@ -123,10 +140,9 @@ class _ReproAlertsCardState extends State<ReproAlertsCard>
                         variant: StatusChipVariant.danger,
                         icon: Icons.priority_high,
                       ),
-                    IconButton(
+                    _buildRefreshAction(
                       tooltip: 'Atualizar',
                       onPressed: () => _scheduleLoad(force: true),
-                      icon: const Icon(Icons.refresh),
                     ),
                   ],
                 ),
@@ -193,15 +209,34 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              StatusChip(label: title, variant: variant, icon: icon),
-              const Spacer(),
-              StatusChip(
-                label: '${events.length}',
-                variant: StatusChipVariant.neutral,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 380;
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StatusChip(label: title, variant: variant, icon: icon),
+                    const SizedBox(height: AppSpacing.xxs),
+                    StatusChip(
+                      label: '${events.length}',
+                      variant: StatusChipVariant.neutral,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  StatusChip(label: title, variant: variant, icon: icon),
+                  const Spacer(),
+                  StatusChip(
+                    label: '${events.length}',
+                    variant: StatusChipVariant.neutral,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.xs),
           if (events.isEmpty)

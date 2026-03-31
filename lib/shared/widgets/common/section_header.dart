@@ -10,6 +10,10 @@ class SectionHeader extends StatelessWidget {
   final VoidCallback? onActionTap;
   final String? actionLabel;
   final EdgeInsetsGeometry? padding;
+  final int titleMaxLines;
+  final int subtitleMaxLines;
+  final double collapseBreakpoint;
+  final bool forceVertical;
 
   const SectionHeader({
     super.key,
@@ -19,6 +23,10 @@ class SectionHeader extends StatelessWidget {
     this.onActionTap,
     this.actionLabel,
     this.padding,
+    this.titleMaxLines = 2,
+    this.subtitleMaxLines = 2,
+    this.collapseBreakpoint = 560,
+    this.forceVertical = false,
   });
 
   @override
@@ -33,39 +41,72 @@ class SectionHeader extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: padding ?? EdgeInsets.zero,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ],
+    final hasSubtitle = subtitle != null && subtitle!.trim().isNotEmpty;
+    final headerText = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: titleMaxLines,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (hasSubtitle) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            subtitle!,
+            maxLines: subtitleMaxLines,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            trailing,
-          ],
         ],
+      ],
+    );
+
+    return Padding(
+      padding: padding ?? EdgeInsets.zero,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final availableWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : MediaQuery.sizeOf(context).width;
+          final shouldUseVertical = forceVertical || availableWidth < collapseBreakpoint;
+
+          if (trailing == null) return headerText;
+
+          if (shouldUseVertical) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                headerText,
+                const SizedBox(height: AppSpacing.xs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: trailing,
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: headerText),
+              const SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: trailing,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

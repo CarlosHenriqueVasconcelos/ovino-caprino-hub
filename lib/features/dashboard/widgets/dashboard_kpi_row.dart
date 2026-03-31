@@ -5,6 +5,7 @@ import '../../../shared/widgets/common/app_card.dart';
 import '../../../shared/widgets/common/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
+import 'dashboard_visual_style.dart';
 import 'stats_card.dart';
 
 class DashboardKpiRow extends StatelessWidget {
@@ -14,41 +15,38 @@ class DashboardKpiRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = _buildCards();
-    return AppCard(
-      variant: AppCardVariant.outlined,
-      backgroundColor: AppColors.surface.withValues(alpha: 0.95),
-      borderColor: AppColors.borderNeutral.withValues(alpha: 0.78),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(
-            title: 'Indicadores do Rebanho',
-            subtitle: 'Métricas atuais para tomada de decisão',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final availableWidth = constraints.maxWidth;
-              const targetWidth = 220.0;
-              final crossAxis = availableWidth.isFinite && availableWidth > 0
-                  ? (availableWidth / targetWidth).floor().clamp(1, 4)
-                  : 4;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth =
+            constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width;
+        final metrics = _KpiGridMetrics.fromWidth(availableWidth);
+        final panelPadding = DashboardVisualStyle.panelPadding(availableWidth);
+        final sectionGap = DashboardVisualStyle.sectionGap(availableWidth);
 
-              final aspectRatio = crossAxis <= 1
-                  ? 2.55
-                  : crossAxis == 2
-                      ? 1.9
-                      : 1.48;
-
-              return GridView.builder(
+        return AppCard(
+          variant: AppCardVariant.outlined,
+          backgroundColor: DashboardVisualStyle.panelBackground(),
+          borderColor: DashboardVisualStyle.panelBorder(),
+          padding: panelPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(
+                title: 'Indicadores do Rebanho',
+                subtitle: 'Métricas atuais para tomada de decisão',
+                subtitleMaxLines: 1,
+              ),
+              SizedBox(height: sectionGap),
+              GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxis,
-                  crossAxisSpacing: AppSpacing.xs,
-                  mainAxisSpacing: AppSpacing.xs,
-                  childAspectRatio: aspectRatio,
+                  crossAxisCount: metrics.crossAxisCount,
+                  crossAxisSpacing: metrics.gridSpacing,
+                  mainAxisSpacing: metrics.gridSpacing,
+                  mainAxisExtent: metrics.cardHeight,
                 ),
                 itemCount: cards.length,
                 itemBuilder: (context, index) {
@@ -61,11 +59,11 @@ class DashboardKpiRow extends StatelessWidget {
                     color: card.color,
                   );
                 },
-              );
-            },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -128,13 +126,6 @@ class DashboardKpiRow extends StatelessWidget {
         color: const Color(0xFF3E8F7D),
       ),
       _StatCardData(
-        title: 'Receita',
-        value: 'R\$ ${stats.revenue.toStringAsFixed(2)}',
-        icon: Icons.paid_outlined,
-        trend: 'Resumo financeiro',
-        color: AppColors.goldSoft,
-      ),
-      _StatCardData(
         title: 'Machos Reprodutores',
         value: '${stats.maleReproducers}',
         icon: Icons.male_outlined,
@@ -157,6 +148,59 @@ class DashboardKpiRow extends StatelessWidget {
       ),
     ];
     return cards;
+  }
+}
+
+class _KpiGridMetrics {
+  final int crossAxisCount;
+  final double gridSpacing;
+  final double cardHeight;
+
+  const _KpiGridMetrics({
+    required this.crossAxisCount,
+    required this.gridSpacing,
+    required this.cardHeight,
+  });
+
+  factory _KpiGridMetrics.fromWidth(double width) {
+    final isNarrow = width <= 480;
+    final spacing = isNarrow ? 10.0 : AppSpacing.xs;
+    final columns = _resolveColumnCount(
+      width: width,
+      spacing: spacing,
+      minTileWidth: 190,
+    );
+
+    final cardHeight = _resolveCardHeight(width: width, columns: columns);
+
+    return _KpiGridMetrics(
+      crossAxisCount: columns,
+      gridSpacing: spacing,
+      cardHeight: cardHeight,
+    );
+  }
+
+  static int _resolveColumnCount({
+    required double width,
+    required double spacing,
+    required double minTileWidth,
+  }) {
+    for (var columns = 4; columns >= 1; columns--) {
+      final totalSpacing = spacing * (columns - 1);
+      final tileWidth = (width - totalSpacing) / columns;
+      if (tileWidth >= minTileWidth) return columns;
+    }
+    return 1;
+  }
+
+  static double _resolveCardHeight({
+    required double width,
+    required int columns,
+  }) {
+    if (columns == 1) return 170;
+    if (columns == 2) return width <= 560 ? 170 : 164;
+    if (columns == 4) return 154;
+    return 160;
   }
 }
 
