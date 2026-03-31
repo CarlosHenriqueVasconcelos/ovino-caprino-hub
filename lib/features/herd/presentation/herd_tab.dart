@@ -1,11 +1,16 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/animal_repository.dart';
 import '../../../models/animal.dart';
+import '../../../shared/widgets/buttons/primary_button.dart';
+import '../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/app_empty_state.dart';
+import '../../../shared/widgets/common/section_header.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../services/animal_delete_cascade.dart';
 import '../../../services/animal_service.dart';
 import '../../../services/deceased_service.dart';
@@ -177,175 +182,209 @@ class _HerdViewState extends State<HerdView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final theme = Theme.of(context);
     _deceasedFuture ??= _loadDeceasedAnimals(context);
+    final contentPadding = ResponsiveUtils.isMobile(context)
+        ? AppSpacing.sm
+        : AppSpacing.lg;
 
-    return Padding(
-      padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
-      child: FutureBuilder<List<Animal>>(
-        future: _deceasedFuture,
-        builder: (context, deceasedSnapshot) {
-          final deceasedAnimals = deceasedSnapshot.data ?? const <Animal>[];
-          final deceasedLoading =
-              deceasedSnapshot.connectionState == ConnectionState.waiting &&
-                  deceasedSnapshot.data == null;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: Padding(
+          padding: EdgeInsets.all(contentPadding),
+          child: FutureBuilder<List<Animal>>(
+            future: _deceasedFuture,
+            builder: (context, deceasedSnapshot) {
+              final deceasedAnimals = deceasedSnapshot.data ?? const <Animal>[];
+              final deceasedLoading =
+                  deceasedSnapshot.connectionState == ConnectionState.waiting &&
+                      deceasedSnapshot.data == null;
 
-          return Scrollbar(
-            controller: _scrollCtrl,
-            thumbVisibility: !ResponsiveUtils.isMobile(context),
-            child: SingleChildScrollView(
-              controller: _scrollCtrl,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  HerdActionsBar(
-                    onAddAnimal: () => _showAnimalFormDialog(context),
-                  ),
-                  const SizedBox(height: 16),
-                  HerdFiltersBar(
-                    searchController: _search,
-                    onSearchChanged: (value) {
-                      _queryPending = value.trim().toLowerCase();
-                      _searchDebouncer.run(() {
-                        _query = _queryPending;
-                        _applyFilters(refresh: true);
-                      });
-                    },
-                    onClearSearch: () {
-                      _query = '';
-                      _search.clear();
-                      _applyFilters(refresh: true);
-                      setState(() {});
-                    },
-                    includeSold: _includeSold,
-                    onIncludeSoldChanged: (value) {
-                      setState(() {
-                        _includeSold = value;
-                      });
-                      _applyFilters(refresh: true);
-                    },
-                    statusFilter: _statusFilter,
-                    statusOptions: const [
-                      'Saudável',
-                      'Em tratamento',
-                      'Ferido',
-                      'Vendido',
-                      'Óbito',
-                    ],
-                    onStatusChanged: (value) {
-                      setState(() {
-                        _statusFilter = value;
-                      });
-                      _applyFilters(refresh: true);
-                    },
-                    colorFilter: _colorFilter,
-                    colorOptions: _availableColors,
-                    onColorChanged: (value) {
-                      setState(() {
-                        _colorFilter = value;
-                      });
-                      _applyFilters(refresh: true);
-                    },
-                    categoryFilter: _categoryFilter,
-                    categoryOptions: _availableCategories,
-                    onCategoryChanged: (value) {
-                      setState(() {
-                        _categoryFilter = value;
-                      });
-                      _applyFilters(refresh: true);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Selector<HerdController, String?>(
-                    selector: (_, c) => c.error,
-                    builder: (_, error, __) {
-                      if (error == null || error.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return _ErrorBanner(message: error);
-                    },
-                  ),
-                  Selector<HerdController, ({bool isRefreshing, bool hasItems})>(
-                    selector: (_, c) => (
-                      isRefreshing: c.isRefreshing,
-                      hasItems: c.items.isNotEmpty,
-                    ),
-                    builder: (_, state, __) {
-                      if (_isSpecialStatus()) {
-                        return const SizedBox.shrink();
-                      }
-                      if (state.isRefreshing && state.hasItems) {
-                        return const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: LinearProgressIndicator(minHeight: 2),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  Selector<HerdController, ({bool isRefreshing, List<Animal> items})>(
-                    selector: (_, c) =>
-                        (isRefreshing: c.isRefreshing, items: c.items),
-                    builder: (_, state, __) {
-                      if (!_isSpecialStatus() &&
-                          state.isRefreshing &&
-                          state.items.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      return _buildGridContent(
-                        theme: theme,
-                        items: state.items,
-                        deceasedAnimals: deceasedAnimals,
-                        deceasedLoading: deceasedLoading,
-                      );
-                    },
-                  ),
-                  Selector<HerdController, ({bool hasMore, bool isLoadingMore})>(
-                    selector: (_, c) => (
-                      hasMore: c.hasMore,
-                      isLoadingMore: c.isLoadingMore,
-                    ),
-                    builder: (_, state, __) {
-                      if (_isSpecialStatus()) {
-                        return const SizedBox.shrink();
-                      }
-                      if (!state.hasMore && !state.isLoadingMore) {
-                        return const SizedBox.shrink();
-                      }
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Center(
-                          child: state.isLoadingMore
-                              ? const _LoadingFooter()
-                              : OutlinedButton(
-                                  onPressed: () {
-                                    context.read<HerdController>().loadMore();
-                                  },
-                                  child: const Text('Carregar mais'),
-                                ),
+              return Scrollbar(
+                controller: _scrollCtrl,
+                thumbVisibility: !ResponsiveUtils.isMobile(context),
+                child: SingleChildScrollView(
+                  controller: _scrollCtrl,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      HerdActionsBar(
+                        onAddAnimal: () => _showAnimalFormDialog(context),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      HerdFiltersBar(
+                        searchController: _search,
+                        onSearchChanged: (value) {
+                          _queryPending = value.trim().toLowerCase();
+                          _searchDebouncer.run(() {
+                            _query = _queryPending;
+                            _applyFilters(refresh: true);
+                          });
+                        },
+                        onClearSearch: () {
+                          _query = '';
+                          _search.clear();
+                          _applyFilters(refresh: true);
+                          setState(() {});
+                        },
+                        includeSold: _includeSold,
+                        onIncludeSoldChanged: (value) {
+                          setState(() {
+                            _includeSold = value;
+                          });
+                          _applyFilters(refresh: true);
+                        },
+                        statusFilter: _statusFilter,
+                        statusOptions: const [
+                          'Saudável',
+                          'Em tratamento',
+                          'Ferido',
+                          'Vendido',
+                          'Óbito',
+                        ],
+                        onStatusChanged: (value) {
+                          setState(() {
+                            _statusFilter = value;
+                          });
+                          _applyFilters(refresh: true);
+                        },
+                        colorFilter: _colorFilter,
+                        colorOptions: _availableColors,
+                        onColorChanged: (value) {
+                          setState(() {
+                            _colorFilter = value;
+                          });
+                          _applyFilters(refresh: true);
+                        },
+                        categoryFilter: _categoryFilter,
+                        categoryOptions: _availableCategories,
+                        onCategoryChanged: (value) {
+                          setState(() {
+                            _categoryFilter = value;
+                          });
+                          _applyFilters(refresh: true);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Selector<HerdController, ({int count, bool loading})>(
+                        selector: (_, c) => (
+                          count: c.items.length,
+                          loading: c.isRefreshing,
                         ),
-                      );
-                    },
+                        builder: (_, state, __) {
+                          final subtitle = _isSpecialStatus()
+                              ? 'Listagem filtrada por status especial'
+                              : state.loading
+                                  ? 'Atualizando lista de animais...'
+                                  : '${state.count} registro(s) nesta página';
+                          return SectionHeader(
+                            title: 'Animais do Rebanho',
+                            subtitle: subtitle,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Selector<HerdController, String?>(
+                        selector: (_, c) => c.error,
+                        builder: (_, error, __) {
+                          if (error == null || error.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return _ErrorBanner(message: error);
+                        },
+                      ),
+                      Selector<HerdController, ({bool isRefreshing, bool hasItems})>(
+                        selector: (_, c) => (
+                          isRefreshing: c.isRefreshing,
+                          hasItems: c.items.isNotEmpty,
+                        ),
+                        builder: (_, state, __) {
+                          if (_isSpecialStatus()) {
+                            return const SizedBox.shrink();
+                          }
+                          if (state.isRefreshing && state.hasItems) {
+                            return const Padding(
+                              padding: EdgeInsets.only(bottom: AppSpacing.xs),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                      Selector<HerdController, ({bool isRefreshing, List<Animal> items})>(
+                        selector: (_, c) =>
+                            (isRefreshing: c.isRefreshing, items: c.items),
+                        builder: (_, state, __) {
+                          if (!_isSpecialStatus() &&
+                              state.isRefreshing &&
+                              state.items.isEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          return AppCard(
+                            variant: AppCardVariant.outlined,
+                            backgroundColor: AppColors.surface.withValues(
+                              alpha: 0.94,
+                            ),
+                            borderColor: AppColors.borderNeutral.withValues(
+                              alpha: 0.72,
+                            ),
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            child: _buildGridContent(
+                              items: state.items,
+                              deceasedAnimals: deceasedAnimals,
+                              deceasedLoading: deceasedLoading,
+                            ),
+                          );
+                        },
+                      ),
+                      Selector<HerdController, ({bool hasMore, bool isLoadingMore})>(
+                        selector: (_, c) => (
+                          hasMore: c.hasMore,
+                          isLoadingMore: c.isLoadingMore,
+                        ),
+                        builder: (_, state, __) {
+                          if (_isSpecialStatus()) {
+                            return const SizedBox.shrink();
+                          }
+                          if (!state.hasMore && !state.isLoadingMore) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.sm),
+                            child: Center(
+                              child: state.isLoadingMore
+                                  ? const _LoadingFooter()
+                                  : SecondaryButton(
+                                      onPressed: () {
+                                        context.read<HerdController>().loadMore();
+                                      },
+                                      label: 'Carregar mais',
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(
+                        height: ResponsiveUtils.isMobile(context) ? 88 : 24,
+                      ),
+                    ],
                   ),
-                  SizedBox(
-                    height: ResponsiveUtils.isMobile(context) ? 88 : 24,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildGridContent({
-    required ThemeData theme,
     required List<Animal> items,
     required List<Animal> deceasedAnimals,
     required bool deceasedLoading,
@@ -355,7 +394,7 @@ class _HerdViewState extends State<HerdView>
         return const Center(child: CircularProgressIndicator());
       }
       if (deceasedAnimals.isEmpty) {
-        return _emptyState(theme);
+        return _emptyState();
       }
       final sortedDeceased = List<Animal>.of(deceasedAnimals);
       AnimalDisplayUtils.sortAnimalsList(sortedDeceased);
@@ -378,7 +417,7 @@ class _HerdViewState extends State<HerdView>
           }
           final list = snapshot.data!;
           if (list.isEmpty) {
-            return _emptyState(theme);
+            return _emptyState();
           }
           final relations = _AnimalRelations(list);
           return HerdAnimalGrid(
@@ -393,7 +432,7 @@ class _HerdViewState extends State<HerdView>
     }
 
     if (items.isEmpty) {
-      return _emptyState(theme);
+      return _emptyState();
     }
 
     final deleteCascade = context.read<AnimalDeleteCascade>();
@@ -413,28 +452,15 @@ class _HerdViewState extends State<HerdView>
     );
   }
 
-  Widget _emptyState(ThemeData theme) {
-    return Center(
-      child: Column(
-        children: [
-          Icon(Icons.pets, size: 64, color: theme.colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum animal cadastrado',
-            style: theme.textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Adicione o primeiro animal ao rebanho',
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => _showAnimalFormDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Adicionar Primeiro Animal'),
-          ),
-        ],
+  Widget _emptyState() {
+    return AppEmptyState(
+      icon: Icons.pets_outlined,
+      title: 'Nenhum animal encontrado',
+      description: 'Ajuste os filtros ou cadastre um novo animal no rebanho.',
+      action: PrimaryButton(
+        label: 'Adicionar Animal',
+        icon: Icons.add,
+        onPressed: () => _showAnimalFormDialog(context),
       ),
     );
   }
@@ -515,24 +541,25 @@ class _ErrorBanner extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: theme.colorScheme.onErrorContainer),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onErrorContainer,
+      child: AppCard(
+        variant: AppCardVariant.soft,
+        backgroundColor: theme.colorScheme.errorContainer.withValues(alpha: 0.8),
+        borderColor: theme.colorScheme.error.withValues(alpha: 0.3),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, color: theme.colorScheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

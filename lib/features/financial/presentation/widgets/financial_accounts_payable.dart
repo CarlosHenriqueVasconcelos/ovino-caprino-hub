@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../../../services/financial_service.dart';
-import '../../../../models/financial_account.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../models/financial_account.dart';
+import '../../../../services/financial_service.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/app_empty_state.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
 import 'financial_form.dart';
 
 class FinancialAccountsPayable extends StatefulWidget {
@@ -150,66 +158,129 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
     }
   }
 
+  StatusChipVariant _statusVariant(String status) {
+    switch (status) {
+      case 'Pago':
+        return StatusChipVariant.success;
+      case 'Vencido':
+        return StatusChipVariant.danger;
+      case 'Pendente':
+        return StatusChipVariant.warning;
+      case 'Cancelado':
+        return StatusChipVariant.neutral;
+      default:
+        return StatusChipVariant.info;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final loaderExtra = (isLoadingMore || hasMore) ? 1 : 0;
     final itemCount = filteredAccounts.length + loaderExtra;
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'Todos', label: Text('Todos')),
-                    ButtonSegment(value: 'Pendente', label: Text('Pendente')),
-                    ButtonSegment(value: 'Pago', label: Text('Pago')),
-                    ButtonSegment(value: 'Vencido', label: Text('Vencido')),
-                  ],
-                  selected: {filterStatus},
-                  onSelectionChanged: (Set<String> newSelection) {
-                    setState(() {
-                      filterStatus = newSelection.first;
-                    });
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.xs,
+          ),
+          child: AppCard(
+            variant: AppCardVariant.soft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(
+                  title: 'Contas a Pagar',
+                  subtitle: 'Despesas pendentes, vencidas e quitadas',
+                  action: Icon(Icons.arrow_downward, color: AppColors.error),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 760;
+                    final segments = SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'Todos', label: Text('Todos')),
+                          ButtonSegment(value: 'Pendente', label: Text('Pendente')),
+                          ButtonSegment(value: 'Pago', label: Text('Pago')),
+                          ButtonSegment(value: 'Vencido', label: Text('Vencido')),
+                        ],
+                        selected: {filterStatus},
+                        onSelectionChanged: (Set<String> newSelection) {
+                          setState(() {
+                            filterStatus = newSelection.first;
+                          });
+                          _loadAccounts();
+                        },
+                      ),
+                    );
+
+                    final addButton = PrimaryButton(
+                      label: 'Adicionar',
+                      icon: Icons.add,
+                      fullWidth: isCompact,
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const FinancialFormScreen(type: 'despesa'),
+                          ),
+                        );
+                        _loadAccounts();
+                        widget.onUpdate?.call();
+                      },
+                    );
+
+                    if (isCompact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          segments,
+                          const SizedBox(height: AppSpacing.sm),
+                          addButton,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: segments),
+                        const SizedBox(width: AppSpacing.sm),
+                        addButton,
+                      ],
+                    );
                   },
                 ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          const FinancialFormScreen(type: 'despesa'),
-                    ),
-                  );
-                  _loadAccounts();
-                  widget.onUpdate?.call();
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Adicionar'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         Expanded(
           child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : filteredAccounts.isEmpty
-                  ? Center(
-                      child: Text(
-                        'Nenhuma despesa encontrada',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.grey,
-                            ),
+                  ? const Padding(
+                      padding: EdgeInsets.all(AppSpacing.md),
+                      child: AppEmptyState(
+                        title: 'Nenhuma despesa encontrada',
+                        description: 'Cadastre uma conta para começar o controle financeiro.',
+                        icon: Icons.receipt_long_outlined,
                       ),
                     )
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        0,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                      ),
                       itemCount: itemCount,
                       itemBuilder: (context, index) {
                         if ((isLoadingMore || hasMore) &&
@@ -219,65 +290,88 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
                             child: Center(child: CircularProgressIndicator()),
                           );
                         }
+
                         final account = filteredAccounts[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            isThreeLine: true,
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.red.withValues(alpha: 0.2),
-                              child: const Icon(Icons.arrow_downward,
-                                  color: Colors.red),
-                            ),
-                            title:
-                                Text(account.description ?? account.category),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                    'Vencimento: ${_formatDate(account.dueDate)}'),
-                                if (account.supplierCustomer != null)
-                                  Text(
-                                      'Fornecedor: ${account.supplierCustomer}'),
-                              ],
-                            ),
-                            trailing: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  _formatCurrency(account.amount),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
-                                  ),
+                        return AppCard(
+                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          variant: AppCardVariant.elevated,
+                          onTap: () => _showAccountActions(account),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(account.status)
-                                        .withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    account.status,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: _getStatusColor(account.status),
-                                      fontWeight: FontWeight.bold,
+                                child: const Icon(
+                                  Icons.arrow_downward,
+                                  color: AppColors.error,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      account.description ?? account.category,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(fontWeight: FontWeight.w700),
                                     ),
-                                  ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Vencimento: ${_formatDate(account.dueDate)}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: AppColors.textSecondary),
+                                    ),
+                                    if (account.supplierCustomer != null &&
+                                        account.supplierCustomer!.trim().isNotEmpty)
+                                      Text(
+                                        'Fornecedor: ${account.supplierCustomer}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(color: AppColors.textSecondary),
+                                      ),
+                                    const SizedBox(height: AppSpacing.xxs),
+                                    StatusChip(
+                                      label: account.status,
+                                      variant: _statusVariant(account.status),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            onTap: () => _showAccountActions(account),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _formatCurrency(account.amount),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          color: AppColors.error,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                  const SizedBox(height: AppSpacing.xs),
+                                  const Icon(
+                                    Icons.more_horiz,
+                                    size: 18,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -290,8 +384,9 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
   void _showAccountActions(FinancialAccount account) {
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -334,20 +429,5 @@ class _FinancialAccountsPayableState extends State<FinancialAccountsPayable> {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pago':
-        return Colors.green;
-      case 'Vencido':
-        return Colors.red;
-      case 'Pendente':
-        return Colors.orange;
-      case 'Cancelado':
-        return Colors.grey;
-      default:
-        return Colors.blue;
-    }
   }
 }

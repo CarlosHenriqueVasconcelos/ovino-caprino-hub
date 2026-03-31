@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../theme/app_spacing.dart';
+import '../buttons/secondary_button.dart';
+import 'app_card.dart';
+
 class AlertCard extends StatelessWidget {
   final String title;
   final String description;
@@ -21,13 +25,11 @@ class AlertCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 600;
 
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 12 : 20),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
+    return AppCard(
+      variant: AppCardVariant.soft,
+      backgroundColor: color.withValues(alpha: 0.05),
+      borderColor: color.withValues(alpha: 0.2),
+      padding: EdgeInsets.all(isMobile ? AppSpacing.sm : AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -67,22 +69,11 @@ class AlertCard extends StatelessWidget {
             ],
           ),
           if (onTap != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: onTap,
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 8 : 12,
-                    vertical: isMobile ? 6 : 8,
-                  ),
-                ),
-                child: Text(
-                  'Ver Detalhes',
-                  style: TextStyle(fontSize: isMobile ? 12 : null),
-                ),
-              ),
+            const SizedBox(height: AppSpacing.sm),
+            SecondaryButton(
+              onPressed: onTap,
+              label: 'Ver detalhes',
+              fullWidth: true,
             ),
           ],
         ],

@@ -2,8 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../models/matrix_candidate_ranking.dart';
-import '../application/matrix_selection_service.dart';
+import '../../../shared/widgets/buttons/primary_button.dart';
+import '../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/app_empty_state.dart';
+import '../../../shared/widgets/common/section_header.dart';
+import '../../../shared/widgets/common/status_chip.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../utils/animal_display_utils.dart';
+import '../application/matrix_selection_service.dart';
 import 'widgets/matrix_evaluation_form_dialog.dart';
 
 class MatrixSelectionTab extends StatefulWidget {
@@ -198,188 +206,218 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final total = _ranking.length;
+    return Container(
+      color: AppColors.background,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: AppCard(
+              variant: AppCardVariant.soft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionHeader(
+                    title: 'Seleção de Matrizes',
+                    subtitle:
+                        'Ranking zootécnico com foco em tomada de decisão rápida',
+                    action: Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        SecondaryButton(
+                          label: 'Atualizar',
+                          icon: Icons.refresh,
+                          onPressed: _applyFilters,
+                        ),
+                        PrimaryButton(
+                          label: 'Nova avaliação',
+                          icon: Icons.add,
+                          onPressed: _openCreateEvaluation,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildFilters(),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Exibindo $total ${total == 1 ? 'matriz avaliada' : 'matrizes avaliadas'} na página ${_currentPage + 1}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters() {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.all(12),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: 140,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: _speciesFilter,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Espécie',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Todas'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Ovino',
-                      child: Text('Ovino'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Caprino',
-                      child: Text('Caprino'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    _speciesFilter = value;
-                    _applyFilters();
-                  },
-                ),
+        SizedBox(
+          width: 150,
+          child: DropdownButtonFormField<String?>(
+            initialValue: _speciesFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Espécie',
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Todas'),
               ),
-              SizedBox(
-                width: 160,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: _categoryFilter,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoria',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Todas'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Matriz',
-                      child: Text('Matriz'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Reprodutor',
-                      child: Text('Reprodutor'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Adulto',
-                      child: Text('Adulto'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Venda',
-                      child: Text('Venda'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Não especificado',
-                      child: Text('Não especificado'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    _categoryFilter = value;
-                    _applyFilters();
-                  },
-                ),
+              DropdownMenuItem<String?>(
+                value: 'Ovino',
+                child: Text('Ovino'),
               ),
-              SizedBox(
-                width: 190,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: _reproductiveStatusFilter,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Status Reprodutivo',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('Todos'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Vazia',
-                      child: Text('Vazia'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Coberta',
-                      child: Text('Coberta'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Gestante',
-                      child: Text('Gestante'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Lactação',
-                      child: Text('Lactação'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Seca',
-                      child: Text('Seca'),
-                    ),
-                    DropdownMenuItem<String?>(
-                      value: 'Não aplicável',
-                      child: Text('Não aplicável'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    _reproductiveStatusFilter = value;
-                    _applyFilters();
-                  },
-                ),
-              ),
-              SizedBox(
-                width: 130,
-                child: TextField(
-                  controller: _loteFilterController,
-                  decoration: const InputDecoration(
-                    labelText: 'Lote',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onSubmitted: (_) => _applyFilters(),
-                ),
-              ),
-              SizedBox(
-                width: 130,
-                child: DropdownButtonFormField<int>(
-                  initialValue: _itemsPerPage,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Por página',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 10, child: Text('10')),
-                    DropdownMenuItem(value: 20, child: Text('20')),
-                    DropdownMenuItem(value: 30, child: Text('30')),
-                    DropdownMenuItem(value: 50, child: Text('50')),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _itemsPerPage = value;
-                      _currentPage = 0;
-                    });
-                    _loadRanking();
-                  },
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _applyFilters,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Atualizar'),
-              ),
-              FilledButton.icon(
-                onPressed: _openCreateEvaluation,
-                icon: const Icon(Icons.add),
-                label: const Text('Nova Avaliação'),
+              DropdownMenuItem<String?>(
+                value: 'Caprino',
+                child: Text('Caprino'),
               ),
             ],
+            onChanged: (value) {
+              _speciesFilter = value;
+              _applyFilters();
+            },
           ),
         ),
-        const Divider(height: 1),
-        Expanded(
-          child: _buildContent(),
+        SizedBox(
+          width: 170,
+          child: DropdownButtonFormField<String?>(
+            initialValue: _categoryFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Categoria',
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Todas'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Matriz',
+                child: Text('Matriz'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Reprodutor',
+                child: Text('Reprodutor'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Adulto',
+                child: Text('Adulto'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Venda',
+                child: Text('Venda'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Não especificado',
+                child: Text('Não especificado'),
+              ),
+            ],
+            onChanged: (value) {
+              _categoryFilter = value;
+              _applyFilters();
+            },
+          ),
+        ),
+        SizedBox(
+          width: 210,
+          child: DropdownButtonFormField<String?>(
+            initialValue: _reproductiveStatusFilter,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Status reprodutivo',
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Todos'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Vazia',
+                child: Text('Vazia'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Coberta',
+                child: Text('Coberta'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Gestante',
+                child: Text('Gestante'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Lactação',
+                child: Text('Lactação'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Seca',
+                child: Text('Seca'),
+              ),
+              DropdownMenuItem<String?>(
+                value: 'Não aplicável',
+                child: Text('Não aplicável'),
+              ),
+            ],
+            onChanged: (value) {
+              _reproductiveStatusFilter = value;
+              _applyFilters();
+            },
+          ),
+        ),
+        SizedBox(
+          width: 130,
+          child: TextField(
+            controller: _loteFilterController,
+            decoration: const InputDecoration(
+              labelText: 'Lote',
+              isDense: true,
+            ),
+            onSubmitted: (_) => _applyFilters(),
+          ),
+        ),
+        SizedBox(
+          width: 120,
+          child: DropdownButtonFormField<int>(
+            initialValue: _itemsPerPage,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Por página',
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem(value: 10, child: Text('10')),
+              DropdownMenuItem(value: 20, child: Text('20')),
+              DropdownMenuItem(value: 30, child: Text('30')),
+              DropdownMenuItem(value: 50, child: Text('50')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _itemsPerPage = value;
+                _currentPage = 0;
+              });
+              _loadRanking();
+            },
+          ),
         ),
       ],
     );
@@ -390,11 +428,32 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null) {
-      return Center(child: Text('Erro ao carregar ranking: $_error'));
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: AppEmptyState(
+          title: 'Erro ao carregar ranking',
+          description: _error!,
+          icon: Icons.error_outline,
+          action: SecondaryButton(
+            label: 'Tentar novamente',
+            onPressed: _loadRanking,
+          ),
+        ),
+      );
     }
     if (_ranking.isEmpty) {
-      return const Center(
-        child: Text('Nenhuma matriz avaliada para os filtros atuais.'),
+      return Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: AppEmptyState(
+          title: 'Nenhuma matriz avaliada',
+          description: 'Ajuste os filtros ou cadastre uma nova avaliação.',
+          icon: Icons.workspace_premium_outlined,
+          action: PrimaryButton(
+            label: 'Nova avaliação',
+            icon: Icons.add,
+            onPressed: _openCreateEvaluation,
+          ),
+        ),
       );
     }
 
@@ -404,9 +463,14 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
         Expanded(
           child: ListView.separated(
             controller: _scrollController,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
             itemCount: _ranking.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               final row = _ranking[index];
               return _MatrixRankingCard(
@@ -417,26 +481,40 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
             },
           ),
         ),
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Página ${_currentPage + 1}'),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: _currentPage > 0 ? _goToPreviousPage : null,
-                    icon: const Icon(Icons.chevron_left),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            0,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: AppCard(
+            variant: AppCardVariant.elevated,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Página ${_currentPage + 1}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  IconButton(
-                    onPressed: _hasNextPage ? _goToNextPage : null,
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                IconButton(
+                  onPressed: _currentPage > 0 ? _goToPreviousPage : null,
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                IconButton(
+                  onPressed: _hasNextPage ? _goToNextPage : null,
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -458,201 +536,198 @@ class _MatrixRankingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final recommendationLabel =
-        _normalizeRecommendationLabel(row.recommendation);
-    final recommendationColor = _recommendationColor(recommendationLabel);
+    final recommendationLabel = _normalizeRecommendationLabel(row.recommendation);
     final rawColor = (row.nameColor ?? '').trim();
-    final colorLabel = rawColor.isEmpty
-        ? ''
-        : AnimalDisplayUtils.getColorName(rawColor);
+    final colorLabel = rawColor.isEmpty ? '' : AnimalDisplayUtils.getColorName(rawColor);
     final loteLabel = (row.lote ?? '').trim();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 640;
-                final identity = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      row.name,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      [
-                        'Código: ${row.code}',
-                        if (colorLabel.isNotEmpty) 'Cor: $colorLabel',
-                        'Lote: ${loteLabel.isEmpty ? "N/I" : loteLabel}',
-                      ].join('  •  '),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
-                      ),
-                    ),
-                  ],
-                );
-
-                final suggestionChip = Chip(
-                  backgroundColor: recommendationColor.withValues(alpha: 0.14),
-                  side: BorderSide(
-                    color: recommendationColor.withValues(alpha: 0.3),
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  label: Text(
-                    'Sugestão: $recommendationLabel',
-                    style: TextStyle(
-                      color: recommendationColor,
+    return AppCard(
+      variant: AppCardVariant.elevated,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 640;
+              final identity = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.name,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                );
-
-                final menu = PopupMenuButton<_RowAction>(
-                  onSelected: onSelectedAction,
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: _RowAction.edit,
-                      child: Text('Editar avaliação'),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    [
+                      'Código: ${row.code}',
+                      if (colorLabel.isNotEmpty) 'Cor: $colorLabel',
+                      'Lote: ${loteLabel.isEmpty ? 'N/I' : loteLabel}',
+                    ].join('  •  '),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
-                    PopupMenuItem(
-                      value: _RowAction.delete,
-                      child: Text('Excluir avaliação'),
-                    ),
-                  ],
-                );
+                  ),
+                ],
+              );
 
-                if (compact) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor:
-                                theme.colorScheme.primary.withValues(alpha: 0.12),
-                            child: Text(
-                              '$rank',
-                              style: TextStyle(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(child: identity),
-                          menu,
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: suggestionChip,
-                      ),
-                    ],
-                  );
-                }
+              final menu = PopupMenuButton<_RowAction>(
+                onSelected: onSelectedAction,
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: _RowAction.edit,
+                    child: Text('Editar avaliação'),
+                  ),
+                  PopupMenuItem(
+                    value: _RowAction.delete,
+                    child: Text('Excluir avaliação'),
+                  ),
+                ],
+              );
 
-                return Row(
+              final recommendation = StatusChip(
+                label: 'Sugestão: $recommendationLabel',
+                variant: _recommendationVariant(recommendationLabel),
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor:
-                          theme.colorScheme.primary.withValues(alpha: 0.12),
-                      child: Text(
-                        '$rank',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _rankBubble(context),
+                        const SizedBox(width: AppSpacing.xs),
+                        Expanded(child: identity),
+                        menu,
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(child: identity),
-                    suggestionChip,
-                    menu,
+                    const SizedBox(height: AppSpacing.xs),
+                    recommendation,
                   ],
                 );
-              },
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _infoChip(context, 'Recomendação: $recommendationLabel',
-                    color: recommendationColor),
-                _infoChip(context, 'Espécie: ${row.species}'),
-                _infoChip(context, 'Categoria: ${row.category}'),
-                _infoChip(context, 'Status reprodutivo: ${row.reproductiveStatus}'),
-                if (colorLabel.isNotEmpty)
-                  _infoChip(context, 'Cor: $colorLabel',
-                      color: AnimalDisplayUtils.getColorValue(rawColor)),
-                _infoChip(context, 'Casco: ${row.hoofCondition}',
-                    color: row.hoofCondition.toLowerCase().contains('problema')
-                        ? Colors.deepOrange
-                        : Colors.green),
-                _infoChip(context, 'Verminose: ${row.verminosisLevel}'),
-                _infoChip(context, 'Gemelaridade: ${row.twinningHistory}'),
+              }
+
+              return Row(
+                children: [
+                  _rankBubble(context),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: identity),
+                  recommendation,
+                  menu,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              _infoChip(context, 'Espécie: ${row.species}'),
+              _infoChip(context, 'Categoria: ${row.category}'),
+              _infoChip(context, 'Status: ${row.reproductiveStatus}'),
+              if (colorLabel.isNotEmpty)
                 _infoChip(
                   context,
-                  'Escore corporal: ${row.bodyConditionScore.toStringAsFixed(1)}',
+                  'Cor: $colorLabel',
+                  color: AnimalDisplayUtils.getColorValue(rawColor),
                 ),
+              _infoChip(
+                context,
+                'Casco: ${row.hoofCondition}',
+                color: row.hoofCondition.toLowerCase().contains('problema')
+                    ? AppColors.warning
+                    : AppColors.success,
+              ),
+              _infoChip(context, 'Verminose: ${row.verminosisLevel}'),
+              _infoChip(context, 'Gemelaridade: ${row.twinningHistory}'),
+              _infoChip(
+                context,
+                'Escore corporal: ${row.bodyConditionScore.toStringAsFixed(1)}',
+              ),
+              _infoChip(
+                context,
+                'Dentição: ${row.dentitionScore.toStringAsFixed(1)}',
+              ),
+              _infoChip(
+                context,
+                'Lactação: ${row.lactationScore.toStringAsFixed(1)}',
+              ),
+              if (row.ageMonths != null) _infoChip(context, 'Idade: ${row.ageMonths}m'),
+              if (row.lambingWeight != null)
                 _infoChip(
-                    context, 'Dentição: ${row.dentitionScore.toStringAsFixed(1)}'),
+                  context,
+                  'Peso ao parir: ${row.lambingWeight!.toStringAsFixed(1)}kg',
+                ),
+              if (row.weaningWeight != null)
                 _infoChip(
-                    context, 'Lactação: ${row.lactationScore.toStringAsFixed(1)}'),
-                if (row.ageMonths != null) _infoChip(context, 'Idade: ${row.ageMonths}m'),
-                if (row.lambingWeight != null)
-                  _infoChip(context,
-                      'Peso ao parir: ${row.lambingWeight!.toStringAsFixed(1)}kg'),
-                if (row.weaningWeight != null)
-                  _infoChip(context,
-                      'Peso desmama: ${row.weaningWeight!.toStringAsFixed(1)}kg'),
-                if ((row.lote ?? '').trim().isNotEmpty)
-                  _infoChip(context, 'Lote: ${row.lote}'),
-              ],
-            ),
-            if ((row.notes ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
+                  context,
+                  'Peso desmama: ${row.weaningWeight!.toStringAsFixed(1)}kg',
+                ),
+            ],
+          ),
+          if ((row.notes ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              variant: AppCardVariant.soft,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Text(
                 row.notes!,
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.75),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-            ],
+            ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _rankBubble(BuildContext context) {
+    final theme = Theme.of(context);
+    return CircleAvatar(
+      radius: 14,
+      backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      child: Text(
+        '$rank',
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 
-  Chip _infoChip(
+  Widget _infoChip(
     BuildContext context,
     String text, {
     Color? color,
   }) {
-    final base = color ?? Colors.blueGrey;
-    return Chip(
-      visualDensity: VisualDensity.compact,
-      backgroundColor: base.withValues(alpha: 0.1),
-      side: BorderSide(color: base.withValues(alpha: 0.22)),
-      label: Text(
+    final base = color ?? AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: base.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: base.withValues(alpha: 0.22)),
+      ),
+      child: Text(
         text,
         style: TextStyle(
           color: base.withValues(alpha: 0.95),
-          fontWeight: FontWeight.w500,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -660,14 +735,21 @@ class _MatrixRankingCard extends StatelessWidget {
 
   Color _recommendationColor(String recommendation) {
     final normalized = recommendation.trim().toLowerCase();
-    if (normalized.contains('descartar')) return Colors.red;
+    if (normalized.contains('descartar')) return AppColors.error;
     if (normalized.contains('aprovar') ||
         normalized.contains('aprovada') ||
         normalized.contains('apto') ||
         normalized.contains('selecionada')) {
-      return Colors.green;
+      return AppColors.success;
     }
-    return Colors.deepOrange;
+    return AppColors.warning;
+  }
+
+  StatusChipVariant _recommendationVariant(String recommendation) {
+    final color = _recommendationColor(recommendation);
+    if (color == AppColors.error) return StatusChipVariant.danger;
+    if (color == AppColors.success) return StatusChipVariant.success;
+    return StatusChipVariant.warning;
   }
 
   String _normalizeRecommendationLabel(String recommendation) {

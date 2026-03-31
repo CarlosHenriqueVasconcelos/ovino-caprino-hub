@@ -30,21 +30,22 @@ class HerdAnimalGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final crossAxisCount = ResponsiveUtils.getAnimalGridCrossAxisCount(context);
 
-    // Cards do rebanho têm conteúdo variável (chips extras, pais, crias, ações).
-    // Em telas menores, reservar mais altura evita RenderFlex overflow no eixo vertical.
     double aspectRatio;
     if (crossAxisCount == 1) {
-      aspectRatio = 0.56;
+      aspectRatio = 0.58;
     } else if (crossAxisCount == 2) {
-      aspectRatio = 0.54;
+      aspectRatio = 0.62;
     } else if (crossAxisCount == 3) {
-      aspectRatio = 0.9;
+      aspectRatio = 0.82;
     } else {
-      aspectRatio = 0.95;
+      aspectRatio = 0.9;
     }
-    
+
+    final spacing = ResponsiveUtils.getSpacing(context).clamp(12.0, 20.0);
+
     return GridView.builder(
       key: const PageStorageKey('herd_grid'),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       controller: controller,
       primary: false,
       shrinkWrap: shrinkWrap,
@@ -55,8 +56,8 @@ class HerdAnimalGrid extends StatelessWidget {
       cacheExtent: 500,              // Pre-carrega itens próximos
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
-        crossAxisSpacing: ResponsiveUtils.getSpacing(context),
-        mainAxisSpacing: ResponsiveUtils.getSpacing(context),
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
         childAspectRatio: aspectRatio,
       ),
       itemCount: animals.length,

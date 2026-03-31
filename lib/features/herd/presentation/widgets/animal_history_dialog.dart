@@ -1,10 +1,14 @@
-// lib/features/herd/presentation/widgets/animal_history_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../models/animal.dart';
 import '../../../../services/animal_history_service.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
 import '../../../../utils/animal_record_display.dart';
 
 class AnimalHistoryDialog extends StatefulWidget {
@@ -31,8 +35,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
     if (iso == null) return '-';
     try {
       final s = iso.toString();
-      final d = DateTime.tryParse(s) ??
-          DateTime.tryParse('${s}T00:00:00'); // data simples do SQLite
+      final d = DateTime.tryParse(s) ?? DateTime.tryParse('${s}T00:00:00');
       if (d == null) return s;
       return DateFormat('dd/MM/yyyy').format(d);
     } catch (_) {
@@ -68,12 +71,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(
-      length: 4,
-      vsync: this,
-      // Dados, Vacinas, Medicações, Anotações
-      // quer 5 abas incluindo "Pesos"? Troque length: 5 e inclua a Tab/conteúdo abaixo.
-    );
+    _tabs = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
@@ -83,200 +81,333 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
     super.dispose();
   }
 
+  StatusChipVariant _statusVariant(String status) {
+    final s = status.toLowerCase();
+    if (s == 'saudável') return StatusChipVariant.success;
+    if (s == 'em tratamento' || s == 'ferido') return StatusChipVariant.warning;
+    if (s == 'vendido') return StatusChipVariant.info;
+    if (s == 'óbito') return StatusChipVariant.danger;
+    return StatusChipVariant.neutral;
+  }
+
+  Widget _infoText(
+    BuildContext context, {
+    required String label,
+    required String value,
+    IconData? icon,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, size: 14, color: AppColors.textSecondary),
+          const SizedBox(width: AppSpacing.xxs),
+        ],
+        RichText(
+          text: TextSpan(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+            children: [
+              TextSpan(
+                text: '$label: ',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              TextSpan(
+                text: value,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _historyItem({
+    required BuildContext context,
+    IconData? icon,
+    Color? accent,
+    required List<Widget> lines,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: (accent ?? AppColors.borderNeutral).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (icon != null) ...[
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              decoration: BoxDecoration(
+                color: (accent ?? AppColors.primary).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 16, color: accent ?? AppColors.primary),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: lines,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _dadosCard(BuildContext context) {
     final a = widget.animal;
     final theme = Theme.of(context);
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: DefaultTextStyle.merge(
-              style: theme.textTheme.bodyMedium!,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        AppCard(
+          variant: AppCardVariant.elevated,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionHeader(
+                title: a.name,
+                subtitle: 'Código ${a.code} • ${a.species} • ${a.breed}',
+                action: Text(
+                  a.speciesIcon,
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
                 children: [
-                  Text(
-                    a.name,
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                  StatusChip(
+                    label: a.status,
+                    variant: _statusVariant(a.status),
+                    icon: Icons.flag_outlined,
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 6,
-                    children: [
-                      Text('Código: ${a.code}'),
-                      Text('Espécie: ${a.species}'),
-                      Text('Raça: ${a.breed}'),
-                      Text('Sexo: ${a.gender}'),
-                      Text('Peso: ${a.weight} kg'),
-                      Text('Status: ${a.status}'),
-                      Text('Status reprodutivo: ${a.reproductiveStatus}'),
-                      if (a.location.isNotEmpty) Text('Local: ${a.location}'),
-                    ],
+                  StatusChip(
+                    label: 'Rep.: ${a.reproductiveStatus}',
+                    variant: a.pregnant
+                        ? StatusChipVariant.warning
+                        : StatusChipVariant.info,
+                    icon: Icons.favorite_outline,
                   ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 6,
-                    children: [
-                      Text('Nascimento: ${_fmtDate(a.birthDate)}'),
-                      if (a.lastVaccination != null)
-                        Text(
-                          'Última Vacinação: '
-                          '${DateFormat('dd/MM/yyyy').format(a.lastVaccination!)}',
-                        ),
-                      if (a.pregnant) const Text('Gestante: Sim'),
-                      if (a.expectedDelivery != null)
-                        Text(
-                          'Parto previsto: '
-                          '${DateFormat('dd/MM/yyyy').format(a.expectedDelivery!)}',
-                        ),
-                      if ((a.healthIssue ?? '').isNotEmpty)
-                        Text('Saúde: ${a.healthIssue!}'),
-                    ],
+                  StatusChip(
+                    label: a.gender,
+                    variant: StatusChipVariant.neutral,
+                    icon: a.gender.toLowerCase().contains('f')
+                        ? Icons.female
+                        : Icons.male,
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  _infoText(context, label: 'Peso', value: '${a.weight} kg', icon: Icons.monitor_weight_outlined),
+                  _infoText(context, label: 'Nascimento', value: _fmtDate(a.birthDate), icon: Icons.cake_outlined),
+                  if (a.location.isNotEmpty)
+                    _infoText(context, label: 'Local', value: a.location, icon: Icons.location_on_outlined),
+                  if (a.lastVaccination != null)
+                    _infoText(
+                      context,
+                      label: 'Última vacina',
+                      value: DateFormat('dd/MM/yyyy').format(a.lastVaccination!),
+                      icon: Icons.vaccines_outlined,
+                    ),
+                  if (a.expectedDelivery != null)
+                    _infoText(
+                      context,
+                      label: 'Parto previsto',
+                      value: DateFormat('dd/MM/yyyy').format(a.expectedDelivery!),
+                      icon: Icons.event_outlined,
+                    ),
+                  if ((a.healthIssue ?? '').isNotEmpty)
+                    _infoText(
+                      context,
+                      label: 'Saúde',
+                      value: a.healthIssue!,
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
         if ((a.registrationNote ?? '').trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Anotação Cadastral',
-                    style: theme.textTheme.titleMedium,
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.soft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Anotação Cadastral',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 8),
-                  Text(a.registrationNote!.trim()),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(a.registrationNote!.trim()),
+              ],
             ),
           ),
         ],
-        // Pais (mãe e pai)
         if (_mother != null || _father != null) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Parentesco', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  if (_mother != null)
-                    ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.female),
-                      title: Text('Mãe: ${_mother!.name}'),
-                      subtitle: Text([
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Parentesco',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (_mother != null)
+                  _historyItem(
+                    context: context,
+                    icon: Icons.female,
+                    accent: const Color(0xFFD27CB3),
+                    lines: [
+                      Text(
+                        'Mãe: ${_mother!.name}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text([
                         'Código: ${_mother!.code}',
-                        if (_mother!.nameColor.isNotEmpty)
-                          'Cor: ${_mother!.nameColor}',
-                        if ((_mother!.lote ?? '').isNotEmpty)
-                          'Lote: ${_mother!.lote}',
+                        if (_mother!.nameColor.isNotEmpty) 'Cor: ${_mother!.nameColor}',
+                        if ((_mother!.lote ?? '').isNotEmpty) 'Lote: ${_mother!.lote}',
                       ].join(' • ')),
-                    ),
-                  if (_father != null)
-                    ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.male),
-                      title: Text('Pai: ${_father!.name}'),
-                      subtitle: Text([
+                    ],
+                  ),
+                if (_father != null)
+                  _historyItem(
+                    context: context,
+                    icon: Icons.male,
+                    accent: const Color(0xFF4B73C7),
+                    lines: [
+                      Text(
+                        'Pai: ${_father!.name}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text([
                         'Código: ${_father!.code}',
-                        if (_father!.nameColor.isNotEmpty)
-                          'Cor: ${_father!.nameColor}',
-                        if ((_father!.lote ?? '').isNotEmpty)
-                          'Lote: ${_father!.lote}',
+                        if (_father!.nameColor.isNotEmpty) 'Cor: ${_father!.nameColor}',
+                        if ((_father!.lote ?? '').isNotEmpty) 'Lote: ${_father!.lote}',
                       ].join(' • ')),
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ],
-        // Filhotes (todos, com status)
         if (_offspring.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Filhotes (${_offspring.length})',
-                    style: theme.textTheme.titleMedium,
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filhotes (${_offspring.length})',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 8),
-                  ..._offspring.map((child) {
-                    final status = child['status']?.toString() ?? 'ativo';
-                    Color statusColor = Colors.green;
-                    if (status == 'vendido') statusColor = Colors.blue;
-                    if (status == 'falecido') statusColor = Colors.red;
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ..._offspring.map((child) {
+                  final status = child['status']?.toString() ?? 'ativo';
+                  Color statusColor = AppColors.primary;
+                  if (status == 'vendido') statusColor = const Color(0xFF4B73C7);
+                  if (status == 'falecido') statusColor = AppColors.error;
 
-                    final color = child['name_color']?.toString();
-                    final lote = child['lote']?.toString();
-                    final label = AnimalRecordDisplay.labelFromRecord({
-                      'animal_name': child['name'] ?? '',
-                      'animal_code': child['code'] ?? '',
-                      'animal_color': color ?? '',
-                    });
-                    final accent =
-                        AnimalRecordDisplay.colorFromDescriptor(color);
+                  final color = child['name_color']?.toString();
+                  final lote = child['lote']?.toString();
+                  final label = AnimalRecordDisplay.labelFromRecord({
+                    'animal_name': child['name'] ?? '',
+                    'animal_code': child['code'] ?? '',
+                    'animal_color': color ?? '',
+                  });
+                  final accent = AnimalRecordDisplay.colorFromDescriptor(color);
 
-                    return ListTile(
-                      dense: true,
-                      leading: Icon(Icons.child_care, color: statusColor),
-                      title: Text(
+                  return _historyItem(
+                    context: context,
+                    icon: Icons.child_care_outlined,
+                    accent: statusColor,
+                    lines: [
+                      Text(
                         label,
                         style: accent != null
-                            ? TextStyle(
-                                color: accent, fontWeight: FontWeight.w600)
-                            : null,
+                            ? TextStyle(color: accent, fontWeight: FontWeight.w700)
+                            : theme.textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
                       ),
-                      subtitle: Text(
+                      const SizedBox(height: 2),
+                      Text(
                         '${child['category']} • Status: $status'
                         '${color != null ? ' • Cor: $color' : ''}'
                         '${lote != null ? ' • Lote: $lote' : ''}',
                       ),
-                    );
-                  }),
-                ],
-              ),
+                    ],
+                  );
+                }),
+              ],
             ),
           ),
         ],
-        // Pesos (resumo) — opcional
         if (_weights.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Pesagens', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ..._weights.map(
-                    (w) => ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.monitor_weight),
-                      title: Text('${(w['weight'] ?? '').toString()} kg'),
-                      subtitle: Text('Data: ${_fmtDate(w['date'])}'),
-                    ),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.outlined,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pesagens',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                ..._weights.map(
+                  (w) => _historyItem(
+                    context: context,
+                    icon: Icons.monitor_weight_outlined,
+                    accent: AppColors.primarySupport,
+                    lines: [
+                      Text(
+                        '${(w['weight'] ?? '').toString()} kg',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('Data: ${_fmtDate(w['date'])}'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -297,36 +428,51 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
       return empty ??
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Sem registros',
-                style: theme.textTheme.bodyMedium,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: AppCard(
+                variant: AppCardVariant.soft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon ?? Icons.inbox_outlined,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Sem registros',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
               ),
             ),
           );
     }
+
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                ...items.map(
-                  (r) => ListTile(
-                    leading: icon != null ? Icon(icon) : null,
-                    title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: lines(r),
-                    ),
-                  ),
+        AppCard(
+          variant: AppCardVariant.elevated,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionHeader(
+                title: title,
+                subtitle: '${items.length} registro(s)',
+                action: icon != null ? Icon(icon, color: AppColors.primary) : null,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              ...items.map(
+                (r) => _historyItem(
+                  context: context,
+                  icon: icon,
+                  accent: AppColors.primary,
+                  lines: lines(r),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -337,49 +483,95 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
-    final dialogWidth = (size.width * 0.95).clamp(320.0, 720.0).toDouble();
-    final dialogHeight = (size.height * 0.9).clamp(320.0, 520.0).toDouble();
+    final dialogWidth = (size.width * 0.95).clamp(320.0, 760.0).toDouble();
+    final dialogHeight = (size.height * 0.9).clamp(320.0, 560.0).toDouble();
+    final animal = widget.animal;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: SizedBox(
         width: dialogWidth,
         height: dialogHeight,
         child: Column(
           children: [
-            // Cabeçalho
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 14, 10, 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                border: Border(
+                  bottom: BorderSide(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                ),
+              ),
               child: Row(
                 children: [
-                  Text(
-                    'Histórico • ${widget.animal.name}',
-                    style: theme.textTheme.titleLarge,
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      animal.speciesIcon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Histórico • ${animal.name}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Código ${animal.code} • ${animal.breed}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   IconButton(
+                    tooltip: 'Fechar',
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
                 ],
               ),
             ),
-
-            // Abas
-            TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabs: const [
-                Tab(text: 'Dados'),
-                Tab(text: 'Vacinas'),
-                Tab(text: 'Medicações'),
-                Tab(text: 'Anotações'),
-                // Se quiser ativar Pesos como aba separada, remova o comentário:
-                // Tab(text: 'Pesos'),
-              ],
+            Container(
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: TabBar(
+                controller: _tabs,
+                isScrollable: true,
+                tabs: const [
+                  Tab(text: 'Dados'),
+                  Tab(text: 'Vacinas'),
+                  Tab(text: 'Medicações'),
+                  Tab(text: 'Anotações'),
+                ],
+              ),
             ),
             const Divider(height: 1),
-
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -390,16 +582,18 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         _listCard(
                           context: context,
                           title: 'Vacinas',
-                          icon: Icons.vaccines,
+                          icon: Icons.vaccines_outlined,
                           items: _vaccinations,
                           lines: (r) => [
                             Text(
-                              '${r['vaccine_name'] ?? ''} • '
-                              '${r['vaccine_type'] ?? ''}',
+                              '${r['vaccine_name'] ?? ''} • ${r['vaccine_type'] ?? ''}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
-                              'Agendada: ${_fmtDate(r['scheduled_date'])}  '
-                              '•  Aplicada: ${_fmtDate(r['applied_date'])}',
+                              'Agendada: ${_fmtDate(r['scheduled_date'])} • Aplicada: ${_fmtDate(r['applied_date'])}',
                             ),
                             if ((r['veterinarian'] ?? '').toString().isNotEmpty)
                               Text('Veterinário: ${r['veterinarian']}'),
@@ -410,13 +604,18 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         _listCard(
                           context: context,
                           title: 'Medicações',
-                          icon: Icons.medication_liquid,
+                          icon: Icons.medication_liquid_outlined,
                           items: _medications,
                           lines: (r) => [
-                            Text('${r['medication_name'] ?? ''}'),
                             Text(
-                              'Data: ${_fmtDate(r['date'])}  '
-                              '•  Aplicada: ${_fmtDate(r['applied_date'])}',
+                              '${r['medication_name'] ?? ''}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Data: ${_fmtDate(r['date'])} • Aplicada: ${_fmtDate(r['applied_date'])}',
                             ),
                             if ((r['dosage'] ?? '').toString().isNotEmpty)
                               Text('Dosagem: ${r['dosage']}'),
@@ -429,34 +628,24 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         _listCard(
                           context: context,
                           title: 'Anotações',
-                          icon: Icons.note,
+                          icon: Icons.note_alt_outlined,
                           items: _notes,
                           lines: (r) => [
                             Text(
-                              '${r['title'] ?? ''} • '
-                              '${_fmtDate(r['date'])}',
+                              '${r['title'] ?? ''} • ${_fmtDate(r['date'])}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             if ((r['content'] ?? '').toString().isNotEmpty)
                               Text('${r['content']}'),
                             if ((r['category'] ?? '').toString().isNotEmpty ||
                                 (r['priority'] ?? '').toString().isNotEmpty)
                               Text(
-                                'Categoria: ${r['category'] ?? '-'}  '
-                                '•  Prioridade: ${r['priority'] ?? '-'}',
+                                'Categoria: ${r['category'] ?? '-'} • Prioridade: ${r['priority'] ?? '-'}',
                               ),
                           ],
                         ),
-                        // Se liberar a aba Pesos separada, adicione aqui:
-                        // _listCard(
-                        //   context: context,
-                        //   title: 'Pesos',
-                        //   icon: Icons.monitor_weight,
-                        //   items: _weights,
-                        //   lines: (r) => [
-                        //     Text('${r['weight']} kg'),
-                        //     Text('Data: ${_fmtDate(r['date'])}'),
-                        //   ],
-                        // ),
                       ],
                     ),
             ),

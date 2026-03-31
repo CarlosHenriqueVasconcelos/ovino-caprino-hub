@@ -7,8 +7,9 @@ import '../application/dashboard_controller.dart';
 import '../data/dashboard_repository.dart';
 import '../widgets/dashboard_alerts_section.dart';
 import '../widgets/dashboard_header.dart';
-import '../widgets/dashboard_quick_actions.dart';
 import '../widgets/dashboard_kpi_row.dart';
+import '../widgets/dashboard_overview_section.dart';
+import '../widgets/dashboard_quick_actions.dart';
 import '../../../services/animal_service.dart';
 import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
@@ -37,8 +38,9 @@ class DashboardTab extends StatelessWidget {
       child: Builder(
         builder: (context) {
           final width = MediaQuery.of(context).size.width;
-          final horizontalPadding = width < 600 ? 12.0 : 24.0;
-          final verticalPadding = width < 600 ? 12.0 : 20.0;
+          final horizontalPadding = width < 600 ? 10.0 : 22.0;
+          final verticalPadding = width < 600 ? 10.0 : 18.0;
+          final sectionGap = width < 600 ? 20.0 : 28.0;
           final isLoading = context.select<DashboardController, bool>(
             (controller) => controller.isLoading,
           );
@@ -64,7 +66,7 @@ class DashboardTab extends StatelessWidget {
             ),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1280),
+                constraints: const BoxConstraints(maxWidth: 1120),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -72,13 +74,16 @@ class DashboardTab extends StatelessWidget {
                       onRefresh: () =>
                           context.read<DashboardController>().refresh(),
                       onAddAnimal: openAnimalForm,
+                      stats: stats,
                     ),
-                    SizedBox(height: width < 600 ? 16 : 24),
-                    DashboardQuickActions(onGoToTab: onGoToTab),
-                    SizedBox(height: width < 600 ? 24 : 32),
-                    DashboardAlertsSection(onGoToTab: onGoToTab),
-                    SizedBox(height: width < 600 ? 24 : 32),
+                    SizedBox(height: sectionGap),
                     DashboardKpiRow(stats: stats),
+                    SizedBox(height: sectionGap),
+                    DashboardAlertsSection(onGoToTab: onGoToTab),
+                    SizedBox(height: sectionGap),
+                    DashboardQuickActions(onGoToTab: onGoToTab),
+                    SizedBox(height: sectionGap),
+                    DashboardOverviewSection(stats: stats),
                   ],
                 ),
               ),

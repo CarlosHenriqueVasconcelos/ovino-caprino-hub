@@ -1,202 +1,130 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/animal.dart';
+import '../../../shared/widgets/buttons/primary_button.dart';
+import '../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/section_header.dart';
+import '../../../shared/widgets/common/status_chip.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
+
 class DashboardHeader extends StatelessWidget {
   final VoidCallback onRefresh;
   final VoidCallback onAddAnimal;
+  final AnimalStats stats;
 
   const DashboardHeader({
     super.key,
     required this.onRefresh,
     required this.onAddAnimal,
+    required this.stats,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final isCompact = width < 700;
-          final isMedium = width >= 700 && width < 1050;
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = width < 700;
 
-          return Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  theme.colorScheme.primary.withValues(alpha: 0.06),
-                  theme.colorScheme.surface,
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      backgroundColor: AppColors.surface.withValues(alpha: 0.95),
+      borderColor: AppColors.borderNeutral.withValues(alpha: 0.78),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Visão Geral',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SectionHeader(
+            title: 'Início',
+            subtitle: 'Acompanhe o estado atual da operação diária',
+            action: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('🐑'),
+                  SizedBox(width: AppSpacing.xxs),
+                  Text('🐐'),
                 ],
               ),
             ),
-            child: Padding(
-              padding: EdgeInsets.all(isCompact ? 12 : 20),
-              child: isCompact
-                  ? _buildCompactLayout(context, theme)
-                  : isMedium
-                      ? _buildMediumLayout(context, theme)
-                      : _buildLargeLayout(context, theme),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCompactLayout(BuildContext context, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBrandChip(theme, compact: true),
-            const SizedBox(width: 10),
-            Expanded(child: _buildTitleBlock(theme, compact: true)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text(
-                  'Atualizar',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: onAddAnimal,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text(
-                  'Novo Animal',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMediumLayout(BuildContext context, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildBrandChip(theme),
-            const SizedBox(width: 14),
-            Expanded(child: _buildTitleBlock(theme)),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            OutlinedButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Recarregar dados'),
-            ),
-            ElevatedButton.icon(
-              onPressed: onAddAnimal,
-              icon: const Icon(Icons.add),
-              label: const Text('Novo Animal'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLargeLayout(BuildContext context, ThemeData theme) {
-    return Row(
-      children: [
-        _buildBrandChip(theme),
-        const SizedBox(width: 16),
-        Expanded(child: _buildTitleBlock(theme)),
-        const SizedBox(width: 12),
-        OutlinedButton.icon(
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Recarregar dados'),
-        ),
-        const SizedBox(width: 10),
-        ElevatedButton.icon(
-          onPressed: onAddAnimal,
-          icon: const Icon(Icons.add),
-          label: const Text('Novo Animal'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBrandChip(ThemeData theme, {bool compact = false}) {
-    return Container(
-      padding: EdgeInsets.all(compact ? 8 : 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primary.withValues(alpha: 0.8),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(compact ? 8 : 12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('🐑', style: TextStyle(fontSize: compact ? 16 : 20)),
-          SizedBox(width: compact ? 3 : 4),
-          Icon(
-            Icons.agriculture,
-            color: Colors.white,
-            size: compact ? 16 : 20,
           ),
-          SizedBox(width: compact ? 3 : 4),
-          Text('🐐', style: TextStyle(fontSize: compact ? 16 : 20)),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              StatusChip(
+                label: '${stats.totalAnimals} animais ativos',
+                variant: StatusChipVariant.success,
+                icon: Icons.pets_outlined,
+              ),
+              StatusChip(
+                label: '${stats.underTreatment} em atenção',
+                variant: stats.underTreatment > 0
+                    ? StatusChipVariant.warning
+                    : StatusChipVariant.neutral,
+                icon: Icons.medical_services_outlined,
+              ),
+              StatusChip(
+                label: '${stats.vaccinesThisMonth} vacinas no mês',
+                variant: StatusChipVariant.info,
+                icon: Icons.vaccines_outlined,
+                  ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          if (compact)
+            Column(
+              children: [
+                PrimaryButton(
+                  label: 'Novo Animal',
+                  icon: Icons.add,
+                  onPressed: onAddAnimal,
+                  fullWidth: true,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                SecondaryButton(
+                  label: 'Atualizar painel',
+                  icon: Icons.refresh,
+                  onPressed: onRefresh,
+                  fullWidth: true,
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                PrimaryButton(
+                  label: 'Novo Animal',
+                  icon: Icons.add,
+                  onPressed: onAddAnimal,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                SecondaryButton(
+                  label: 'Atualizar painel',
+                  icon: Icons.refresh,
+                  onPressed: onRefresh,
+                ),
+              ],
+            ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTitleBlock(ThemeData theme, {bool compact = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Fazenda São Petronio',
-          style: (compact ? theme.textTheme.titleMedium : theme.textTheme.headlineSmall)
-              ?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Sistema completo de gestão para Ovinocultura e Caprinocultura',
-          style: (compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
-              ?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
-          ),
-          maxLines: compact ? 2 : 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }

@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../services/financial_service.dart';
-import '../../../../services/animal_service.dart';
-import '../../../../models/financial_account.dart';
-import '../../../../models/animal.dart';
-import '../../../../utils/animal_display_utils.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../../models/animal.dart';
+import '../../../../models/financial_account.dart';
+import '../../../../services/animal_service.dart';
+import '../../../../services/financial_service.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
+import '../../../../utils/animal_display_utils.dart';
 
 class FinancialFormScreen extends StatefulWidget {
   final String type;
@@ -79,8 +86,7 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   Future<void> _loadAnimals() async {
     final animalService = context.read<AnimalService>();
     try {
-      final animals =
-          await animalService.searchAnimals(limit: 2000);
+      final animals = await animalService.searchAnimals(limit: 2000);
       AnimalDisplayUtils.sortAnimalsList(animals);
       if (!mounted) return;
       setState(() {
@@ -153,7 +159,6 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
       return;
     }
 
-    // Validar animal se for venda de animais
     if (widget.type == 'receita' &&
         _selectedCategory == 'Venda de Animais' &&
         _selectedAnimalId == null) {
@@ -224,160 +229,168 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.account != null;
-    final categories =
-        widget.type == 'receita' ? _revenueCategories : _expenseCategories;
+    final isRevenue = widget.type == 'receita';
+    final categories = isRevenue ? _revenueCategories : _expenseCategories;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
           isEditing
-              ? 'Editar ${widget.type == 'receita' ? 'Receita' : 'Despesa'}'
-              : 'Nova ${widget.type == 'receita' ? 'Receita' : 'Despesa'}',
+              ? 'Editar ${isRevenue ? 'Receita' : 'Despesa'}'
+              : 'Nova ${isRevenue ? 'Receita' : 'Despesa'}',
         ),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Categoria *',
-                border: OutlineInputBorder(),
-              ),
-              items: categories.map((cat) {
-                return DropdownMenuItem(value: cat, child: Text(cat));
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value;
-                  if (value != 'Venda de Animais') {
-                    _selectedAnimalId = null;
-                  }
-                });
-              },
-              validator: (value) =>
-                  value == null ? 'Selecione uma categoria' : null,
-            ),
-            const SizedBox(height: 16),
-            if (widget.type == 'receita' &&
-                _selectedCategory == 'Venda de Animais')
-              DropdownButtonFormField<String>(
-                initialValue: _selectedAnimalId,
-                decoration: const InputDecoration(
-                  labelText: 'Animal *',
-                  border: OutlineInputBorder(),
-                  helperText: 'Quando a conta for paga, o animal será movido para a tabela de vendidos',
+            AppCard(
+              variant: AppCardVariant.soft,
+              child: SectionHeader(
+                title: isRevenue ? 'Lançamento de Receita' : 'Lançamento de Despesa',
+                subtitle: isRevenue
+                    ? 'Registre entradas financeiras com categoria e vencimento.'
+                    : 'Registre saídas financeiras para manter o controle atualizado.',
+                action: Icon(
+                  isRevenue ? Icons.arrow_upward : Icons.arrow_downward,
+                  color: isRevenue ? AppColors.success : AppColors.error,
                 ),
-                items: _animals.map((animal) {
-                  return DropdownMenuItem(
-                    value: animal.id,
-                    child: Text(
-                      AnimalDisplayUtils.getDisplayText(animal),
-                      overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppCard(
+              variant: AppCardVariant.elevated,
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCategory,
+                    decoration: const InputDecoration(labelText: 'Categoria *'),
+                    items: categories
+                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value;
+                        if (value != 'Venda de Animais') {
+                          _selectedAnimalId = null;
+                        }
+                      });
+                    },
+                    validator: (value) =>
+                        value == null ? 'Selecione uma categoria' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  if (isRevenue && _selectedCategory == 'Venda de Animais') ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedAnimalId,
+                      decoration: const InputDecoration(
+                        labelText: 'Animal *',
+                        helperText:
+                            'Quando a conta for paga, o animal será movido para a tabela de vendidos',
+                      ),
+                      items: _animals.map((animal) {
+                        return DropdownMenuItem(
+                          value: animal.id,
+                          child: Text(
+                            AnimalDisplayUtils.getDisplayText(animal),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedAnimalId = value;
+                        });
+                      },
+                      validator: (value) =>
+                          value == null ? 'Selecione o animal' : null,
                     ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedAnimalId = value;
-                  });
-                },
-                validator: (value) =>
-                    value == null ? 'Selecione o animal' : null,
-              ),
-            if (widget.type == 'receita' &&
-                _selectedCategory == 'Venda de Animais')
-              const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Descrição',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Valor *',
-                border: OutlineInputBorder(),
-                prefixText: 'R\$ ',
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
-              ],
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Informe o valor';
-                final amount = double.tryParse(value.replaceAll(',', '.'));
-                if (amount == null || amount <= 0) return 'Valor inválido';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _dueDateController,
-              decoration: const InputDecoration(
-                labelText: 'Data de Vencimento *',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.calendar_today),
-              ),
-              readOnly: true,
-              onTap: () => _selectDate(context),
-              validator: (value) =>
-                  value == null || value.isEmpty ? 'Selecione a data' : null,
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _selectedPaymentMethod,
-              decoration: const InputDecoration(
-                labelText: 'Forma de Pagamento',
-                border: OutlineInputBorder(),
-              ),
-              items: _paymentMethods.map((method) {
-                return DropdownMenuItem(value: method, child: Text(method));
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedPaymentMethod = value;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _supplierCustomerController,
-              decoration: InputDecoration(
-                labelText: widget.type == 'receita' ? 'Cliente' : 'Fornecedor',
-                border: const OutlineInputBorder(),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(labelText: 'Descrição'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextFormField(
+                    controller: _amountController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valor *',
+                      prefixText: 'R\$ ',
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.isEmpty) return 'Informe o valor';
+                      final amount = double.tryParse(value.replaceAll(',', '.'));
+                      if (amount == null || amount <= 0) return 'Valor inválido';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextFormField(
+                    controller: _dueDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Data de Vencimento *',
+                      suffixIcon: Icon(Icons.calendar_today),
+                    ),
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
+                    validator: (value) =>
+                        value == null || value.isEmpty ? 'Selecione a data' : null,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedPaymentMethod,
+                    decoration:
+                        const InputDecoration(labelText: 'Forma de Pagamento'),
+                    items: _paymentMethods
+                        .map((method) =>
+                            DropdownMenuItem(value: method, child: Text(method)))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedPaymentMethod = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextFormField(
+                    controller: _supplierCustomerController,
+                    decoration: InputDecoration(
+                      labelText: isRevenue ? 'Cliente' : 'Fornecedor',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: const InputDecoration(labelText: 'Observações'),
+                    maxLines: 3,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Observações',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: SecondaryButton(
+                    label: 'Cancelar',
+                    fullWidth: true,
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: ElevatedButton(
+                  child: PrimaryButton(
+                    label: 'Salvar',
+                    fullWidth: true,
                     onPressed: _saveAccount,
-                    child: const Text('Salvar'),
                   ),
                 ),
               ],

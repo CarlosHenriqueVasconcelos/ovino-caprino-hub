@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/search_field.dart';
+import '../../../../theme/app_spacing.dart';
 import '../../../../utils/responsive_utils.dart';
 
 class WeightFilterDropdownConfig {
@@ -44,92 +48,80 @@ class WeightTrackingFiltersBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = ResponsiveUtils.isMobile(context);
-    
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(ResponsiveUtils.getPadding(context)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: searchController,
-                    builder: (_, value, __) {
-                      return TextField(
-                        controller: searchController,
-                        decoration: InputDecoration(
-                          labelText: searchLabel,
-                          hintText: searchHint,
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: value.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: onClearSearch,
-                                )
-                              : null,
-                        ),
-                        onChanged: onSearchChanged,
-                      );
-                    },
+
+    return AppCard(
+      variant: AppCardVariant.elevated,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SearchField(
+                  controller: searchController,
+                  labelText: searchLabel,
+                  hintText: searchHint,
+                  onChanged: onSearchChanged,
+                  onClear: onClearSearch,
+                ),
+              ),
+              if (onSelectDateRange != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        dateRange == null ? onSelectDateRange : onClearDateRange,
+                    icon: const Icon(Icons.calendar_today, size: 18),
+                    label: Text(
+                      dateRange == null
+                          ? 'Período'
+                          : '${_formatDay(dateRange!.start)} - ${_formatDay(dateRange!.end)}',
+                    ),
                   ),
                 ),
-                if (onSelectDateRange != null) ...[
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: dateRange == null
-                          ? onSelectDateRange
-                          : onClearDateRange,
-                      icon: const Icon(Icons.calendar_today, size: 18),
-                      label: Text(
-                        dateRange == null
-                            ? 'Período'
-                            : '${_formatDay(dateRange!.start)} - ${_formatDay(dateRange!.end)}',
-                      ),
-                    ),
-                  ),
-                ],
               ],
+            ],
+          ),
+          if (dropdowns.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: dropdowns.map((dropdown) {
+                return SizedBox(
+                  width: isMobile ? double.infinity : 200,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: dropdown.value,
+                    decoration: InputDecoration(labelText: dropdown.label),
+                    items: dropdown.options
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) dropdown.onChanged(value);
+                    },
+                  ),
+                );
+              }).toList(),
             ),
-            if (dropdowns.isNotEmpty) ...[
-              SizedBox(height: ResponsiveUtils.getSpacing(context)),
-              Wrap(
-                spacing: ResponsiveUtils.getSpacing(context),
-                runSpacing: ResponsiveUtils.getSpacing(context),
-                children: dropdowns.map((dropdown) {
-                  return SizedBox(
-                    width: isMobile ? double.infinity : 200,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: dropdown.value,
-                      decoration: InputDecoration(labelText: dropdown.label),
-                      items: dropdown.options
-                          .map((value) => DropdownMenuItem(
-                                value: value,
-                                child: Text(value),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) dropdown.onChanged(value);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            if (extraFilters != null && extraFilters!.isNotEmpty) ...[
-              SizedBox(height: ResponsiveUtils.getSpacing(context)),
-              ...extraFilters!,
-            ],
           ],
-        ),
+          if (extraFilters != null && extraFilters!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ...extraFilters!,
+          ],
+        ],
       ),
     );
   }
 
   String _formatDay(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}';
   }
 }

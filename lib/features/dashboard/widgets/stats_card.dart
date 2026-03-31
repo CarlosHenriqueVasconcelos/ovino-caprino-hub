@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/widgets/common/app_card.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
+
 class StatsCard extends StatelessWidget {
   final String title;
   final String value;
@@ -19,70 +23,65 @@ class StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cardColor = color ?? theme.colorScheme.primary;
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final accent = color ?? theme.colorScheme.primary;
 
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                      fontSize: isMobile ? 11 : null,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      backgroundColor: AppColors.white.withValues(alpha: 0.92),
+      borderColor: AppColors.borderNeutral.withValues(alpha: 0.72),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: EdgeInsets.all(isMobile ? 5 : 8),
-                  decoration: BoxDecoration(
-                    color: cardColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: cardColor.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: isMobile ? 16 : 20,
-                    color: cardColor,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isMobile ? 8 : 12),
-            Text(
-              value,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onSurface,
-                fontSize: isMobile ? 20 : null,
               ),
-            ),
-            if (trend != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                trend!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontSize: isMobile ? 10 : null,
+              const SizedBox(width: AppSpacing.xs),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                child: Icon(icon, color: accent, size: 17),
               ),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.1,
+                ),
+          ),
+          if (trend != null && trend!.trim().isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              trend!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }

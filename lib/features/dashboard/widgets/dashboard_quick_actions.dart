@@ -2,14 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-	
+
 import '../../../models/animal.dart';
 import '../../../models/pharmacy_stock.dart';
 import '../../../shared/widgets/animal/animal_form.dart';
+import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/section_header.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../utils/responsive_utils.dart';
-import '../../system/presentation/history_screen.dart';
 import '../../medication/presentation/widgets/vaccination_form.dart';
+import '../../system/presentation/history_screen.dart';
 import '../data/dashboard_repository.dart';
 
 class DashboardQuickActions extends StatelessWidget {
@@ -18,7 +22,6 @@ class DashboardQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final dashboardRepository = context.read<DashboardRepository>();
 
     void showAnimalForm({Animal? animal}) {
@@ -44,82 +47,100 @@ class DashboardQuickActions extends StatelessWidget {
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Ações Rápidas',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final actions = [
-                  _QuickActionData(
-                    title: 'Novo Animal',
-                    icon: Icons.add,
-                    color: theme.colorScheme.primary,
-                    onTap: () => showAnimalForm(),
-                  ),
-                  _QuickActionData(
-                    title: 'Agendar Vacinação',
-                    icon: Icons.vaccines,
-                    color: Colors.blue,
-                    onTap: () => showVaccinationForm(),
-                  ),
-                  _QuickActionData(
-                    title: 'Agendar Medicamento',
-                    icon: Icons.medication,
-                    color: Colors.teal,
-                    onTap: showMedicationDialog,
-                  ),
-                  _QuickActionData(
-                    title: 'Histórico Completo',
-                    icon: Icons.history,
-                    color: Colors.orange,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const HistoryScreen(),
-                      ),
+    return AppCard(
+      variant: AppCardVariant.outlined,
+      backgroundColor: AppColors.surface.withValues(alpha: 0.95),
+      borderColor: AppColors.borderNeutral.withValues(alpha: 0.78),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Ações Rápidas',
+            subtitle: 'Atalhos para os fluxos mais usados no dia',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final actions = [
+                _QuickActionData(
+                  title: 'Novo Animal',
+                  subtitle: 'Cadastro completo',
+                  icon: Icons.add,
+                  color: AppColors.primary,
+                  onTap: () => showAnimalForm(),
+                ),
+                _QuickActionData(
+                  title: 'Agendar Vacinação',
+                  subtitle: 'Planejar aplicação',
+                  icon: Icons.vaccines,
+                  color: const Color(0xFF4B73C7),
+                  onTap: () => showVaccinationForm(),
+                ),
+                _QuickActionData(
+                  title: 'Agendar Medicamento',
+                  subtitle: 'Controle sanitário',
+                  icon: Icons.medication,
+                  color: const Color(0xFF3D9E8D),
+                  onTap: showMedicationDialog,
+                ),
+                _QuickActionData(
+                  title: 'Registrar Pesagem',
+                  subtitle: 'Atualizar ganho',
+                  icon: Icons.monitor_weight_outlined,
+                  color: const Color(0xFF6A8D42),
+                  onTap: () => onGoToTab(3),
+                ),
+                _QuickActionData(
+                  title: 'Lançar Cobertura',
+                  subtitle: 'Fluxo reprodutivo',
+                  icon: Icons.favorite_outline,
+                  color: const Color(0xFFB06496),
+                  onTap: () => onGoToTab(4),
+                ),
+                _QuickActionData(
+                  title: 'Histórico Completo',
+                  subtitle: 'Auditoria do sistema',
+                  icon: Icons.history,
+                  color: AppColors.goldSoft,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const HistoryScreen(),
                     ),
                   ),
-                ];
+                ),
+              ];
 
-                final width = constraints.maxWidth;
-                const desiredWidth = 200.0;
-                final crossAxisCount = width.isFinite && width > 0
-                    ? (width / desiredWidth).floor().clamp(1, 5)
-                    : 5;
+              final width = constraints.maxWidth;
+              const desiredWidth = 190.0;
+              final crossAxisCount = width.isFinite && width > 0
+                  ? (width / desiredWidth).floor().clamp(2, 4)
+                  : 4;
 
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.6,
-                  ),
-                  itemCount: actions.length,
-                  itemBuilder: (context, index) {
-                    final action = actions[index];
-                    return _ActionCard(
-                      title: action.title,
-                      icon: action.icon,
-                      color: action.color,
-                      onTap: action.onTap,
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: AppSpacing.sm,
+                  mainAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: width < 430 ? 1.62 : 1.48,
+                ),
+                itemCount: actions.length,
+                itemBuilder: (context, index) {
+                  final action = actions[index];
+                  return _ActionCard(
+                    title: action.title,
+                    subtitle: action.subtitle,
+                    icon: action.icon,
+                    color: action.color,
+                    onTap: action.onTap,
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -128,12 +149,14 @@ class DashboardQuickActions extends StatelessWidget {
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
@@ -142,27 +165,52 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          color: AppColors.white.withValues(alpha: 0.82),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: color.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.015),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 17),
+            ),
+            const Spacer(),
             Text(
               title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
                 fontSize: 11,
               ),
             ),
@@ -175,12 +223,14 @@ class _ActionCard extends StatelessWidget {
 
 class _QuickActionData {
   final String title;
+  final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   const _QuickActionData({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,

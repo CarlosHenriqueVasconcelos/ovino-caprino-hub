@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../models/animal.dart';
 import '../../../../services/animal_service.dart';
 import '../../../../services/weight_service.dart';
-import '../../../../models/animal.dart';
+import '../../../../shared/widgets/animal/animal_form.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/app_empty_state.dart';
+import '../../../../shared/widgets/common/metric_card.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
 import '../../../../utils/animal_display_utils.dart';
 import '../../../../utils/animal_record_display.dart';
-import '../../../../shared/widgets/animal/animal_form.dart';
+import 'weight_tracking_filters_bar.dart';
 import 'weight_tracking_pagination_bar.dart';
 
 class LambWeightTracking extends StatefulWidget {
@@ -33,321 +43,208 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
-        ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            // Header Card
-            Builder(
-              builder: (context) {
-                final isMobile = MediaQuery.of(context).size.width < 600;
-                return Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(isMobile ? 16 : 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.baby_changing_station,
-                              size: isMobile ? 22 : 28,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                isMobile ? 'Peso - Borregos' : 'Controle de Peso - Borregos',
-                                style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!isMobile) ...[
-                          const SizedBox(height: 16),
-                          Text(
-                            'Acompanhe o desenvolvimento dos borregos desde o nascimento até 120 dias. '
-                            'Monitore o ganho de peso e identifique animais com crescimento inadequado.',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Search Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    labelText: 'Pesquisar borrego',
-                    hintText: 'Digite o nome/número do borrego...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                                _searchQuery = '';
-                                _currentPage = 0;
-                                _future = null;
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value.toLowerCase();
-                      _currentPage = 0; // Reset para primeira página ao buscar
-                      _future = null;
-                    });
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Weight Gain Metrics Card
-            Card(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Métricas de Ganho de Peso Adequado',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMetricRow(theme, 'Nascimento', '3,5-7 kg',
-                        'Peso inicial saudável'),
-                    const Divider(),
-                    _buildMetricRow(
-                        theme, '30 dias', '10-15 kg', 'Ganho adequado'),
-                    const Divider(),
-                    _buildMetricRow(
-                        theme, '60 dias', '15-20 kg', 'Desenvolvimento normal'),
-                    const Divider(),
-                    _buildMetricRow(
-                        theme, '90 dias', '20-40 kg', 'Crescimento ideal'),
-                    const Divider(),
-                    _buildMetricRow(theme, '120 dias', '25-50 kg',
-                        'Próximo à idade adulta'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Lambs Weight List
-            FutureBuilder<HerdQueryResult>(
-              future: _future ??= context.read<AnimalService>().herdQuery(
-                    categoryFilter: 'Borrego',
-                    searchQuery: _searchQuery,
-                    page: _currentPage,
-                    pageSize: _itemsPerPage,
-                  ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-
-                final result = snapshot.data;
-                final lambs = (result?.items ?? const <Animal>[]).toList();
-                AnimalDisplayUtils.sortAnimalsList(lambs);
-                final total = result?.total ?? 0;
-                final totalPages =
-                    (total / _itemsPerPage).ceil().clamp(1, 9999);
-
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final isMobile = MediaQuery.of(context).size.width < 600;
-                            return isMobile
-                                ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Borregos',
-                                        style: theme.textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '$total cadastrados',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Row(
-                                    children: [
-                                      Text(
-                                        'Borregos Cadastrados',
-                                        style: theme.textTheme.headlineSmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        '$total borregos',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        if (lambs.isEmpty)
-                          _buildEmptyState(theme)
-                        else
-                          _buildLambsList(theme, lambs),
-                        const SizedBox(height: 16),
-                        WeightTrackingPaginationBar(
-                          currentPage: _currentPage,
-                          totalPages: totalPages,
-                          itemsPerPage: _itemsPerPage,
-                          onPageChanged: (page) {
-                            setState(() {
-                              _currentPage = page;
-                              _future = null;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricRow(
-      ThemeData theme, String period, String weight, String gain) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 80,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              period,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
+          const AppCard(
+            variant: AppCardVariant.soft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  weight,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                SectionHeader(
+                  title: 'Borregos',
+                  subtitle:
+                      'Acompanhe crescimento e marcos de pesagem entre nascimento e 120 dias',
                 ),
-                Text(
-                  gain,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+                SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    StatusChip(
+                      label: 'Marcos: 30/60/90/120d',
+                      icon: Icons.timeline,
+                      variant: StatusChipVariant.info,
+                    ),
+                    StatusChip(
+                      label: 'Foco em ganho de peso',
+                      icon: Icons.trending_up,
+                      variant: StatusChipVariant.neutral,
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          WeightTrackingFiltersBar(
+            searchController: _searchController,
+            searchLabel: 'Pesquisar borrego',
+            searchHint: 'Digite o nome ou código do borrego...',
+            onSearchChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+                _currentPage = 0;
+                _future = null;
+              });
+            },
+            onClearSearch: () {
+              setState(() {
+                _searchController.clear();
+                _searchQuery = '';
+                _currentPage = 0;
+                _future = null;
+              });
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.elevated,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(
+                  title: 'Referências de ganho',
+                  subtitle: 'Faixas recomendadas por fase de crescimento',
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+                    final columns = width >= 860 ? 3 : (width >= 560 ? 2 : 1);
+                    return GridView.count(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: AppSpacing.xs,
+                      mainAxisSpacing: AppSpacing.xs,
+                      childAspectRatio: columns == 1 ? 2.9 : 2.2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: const [
+                        MetricCard(
+                          title: 'Nascimento',
+                          value: '3,5 - 7 kg',
+                          subtitle: 'Peso inicial saudável',
+                          icon: Icons.monitor_weight_outlined,
+                        ),
+                        MetricCard(
+                          title: '30 dias',
+                          value: '10 - 15 kg',
+                          subtitle: 'Ganho adequado',
+                          icon: Icons.straighten,
+                        ),
+                        MetricCard(
+                          title: '60 dias',
+                          value: '15 - 20 kg',
+                          subtitle: 'Desenvolvimento normal',
+                          icon: Icons.straighten,
+                        ),
+                        MetricCard(
+                          title: '90 dias',
+                          value: '20 - 40 kg',
+                          subtitle: 'Crescimento ideal',
+                          icon: Icons.straighten,
+                          accentColor: AppColors.primarySupport,
+                        ),
+                        MetricCard(
+                          title: '120 dias',
+                          value: '25 - 50 kg',
+                          subtitle: 'Transição para fase adulta',
+                          icon: Icons.straighten,
+                          accentColor: AppColors.warning,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FutureBuilder<HerdQueryResult>(
+            future: _future ??= context.read<AnimalService>().herdQuery(
+                  categoryFilter: 'Borrego',
+                  searchQuery: _searchQuery,
+                  page: _currentPage,
+                  pageSize: _itemsPerPage,
+                ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const AppCard(
+                  variant: AppCardVariant.elevated,
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                );
+              }
+
+              final result = snapshot.data;
+              final lambs = (result?.items ?? const <Animal>[]).toList();
+              AnimalDisplayUtils.sortAnimalsList(lambs);
+              final total = result?.total ?? 0;
+              final totalPages = (total / _itemsPerPage).ceil().clamp(1, 9999);
+
+              return AppCard(
+                variant: AppCardVariant.elevated,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionHeader(
+                      title: 'Registros de Borregos',
+                      subtitle: '$total ${total == 1 ? 'animal' : 'animais'}',
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (lambs.isEmpty) _buildEmptyState() else _buildLambsList(theme, lambs),
+                    const SizedBox(height: AppSpacing.sm),
+                    WeightTrackingPaginationBar(
+                      currentPage: _currentPage,
+                      totalPages: totalPages,
+                      itemsPerPage: _itemsPerPage,
+                      onPageChanged: (page) {
+                        setState(() {
+                          _currentPage = page;
+                          _future = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          children: [
-            Icon(
-              Icons.baby_changing_station_outlined,
-              size: 64,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'Nenhum borrego cadastrado'
-                  : 'Nenhum borrego encontrado',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'Cadastre animais com categoria "Borrego"'
-                  : 'Tente outra pesquisa',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
+  Widget _buildEmptyState() {
+    return AppEmptyState(
+      title: _searchQuery.isEmpty
+          ? 'Nenhum borrego cadastrado'
+          : 'Nenhum borrego encontrado',
+      description: _searchQuery.isEmpty
+          ? 'Cadastre animais com categoria Borrego.'
+          : 'Tente outra pesquisa.',
+      icon: Icons.baby_changing_station_outlined,
+      action: PrimaryButton(
+        label: 'Limpar busca',
+        icon: Icons.refresh,
+        onPressed: _searchQuery.isEmpty
+            ? null
+            : () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _currentPage = 0;
+                  _future = null;
+                });
+              },
       ),
     );
   }
@@ -375,14 +272,9 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
     // Verificar status do ganho de peso
     final weightStatus = _calculateWeightStatus(lamb, ageInDays);
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return AppCard(
+      variant: AppCardVariant.elevated,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -492,17 +384,14 @@ class _LambWeightTrackingState extends State<LambWeightTracking> {
           // Promote to Adult Button
           if (ageInDays >= 120)
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: PrimaryButton(
                   onPressed: () => _promoteToAdult(lamb),
-                  icon: const Icon(Icons.upgrade),
-                  label: const Text('Promover para Adulto'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                    backgroundColor: theme.colorScheme.secondary,
-                  ),
+                  icon: Icons.upgrade,
+                  label: 'Promover para Adulto',
+                  fullWidth: true,
                 ),
               ),
             ),

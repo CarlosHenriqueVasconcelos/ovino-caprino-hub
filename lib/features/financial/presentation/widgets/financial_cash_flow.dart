@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../services/financial_service.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/app_empty_state.dart';
+import '../../../../shared/widgets/common/metric_card.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
 
 class FinancialCashFlowScreen extends StatefulWidget {
   const FinancialCashFlowScreen({super.key});
@@ -26,6 +33,7 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
     try {
       final projection =
           await context.read<FinancialService>().getCashFlowProjection(6);
+      if (!mounted) return;
       setState(() {
         _projection = projection;
         _isLoading = false;
@@ -45,7 +53,7 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
   }
 
   String _formatCurrency(double value) {
-    return 'R\$ ${value.toStringAsFixed(2)}';
+    return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
   @override
@@ -55,164 +63,165 @@ class _FinancialCashFlowScreenState extends State<FinancialCashFlowScreen> {
     }
 
     if (_projection.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.trending_up, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              'Sem dados para projeção',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey,
-                  ),
-            ),
-          ],
+      return const Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: AppEmptyState(
+          icon: Icons.trending_up,
+          title: 'Sem dados para projeção',
+          description: 'Cadastre contas e recorrências para visualizar a tendência de caixa.',
         ),
       );
     }
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Projeção de Fluxo de Caixa (6 meses)',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+    final totalRevenue = _projection.fold<double>(
+      0,
+      (sum, item) => sum + (item['revenue'] as num).toDouble(),
+    );
+    final totalExpense = _projection.fold<double>(
+      0,
+      (sum, item) => sum + (item['expense'] as num).toDouble(),
+    );
+    final totalBalance = _projection.fold<double>(
+      0,
+      (sum, item) => sum + (item['balance'] as num).toDouble(),
+    );
+
+    return RefreshIndicator(
+      onRefresh: _loadProjection,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          AppCard(
+            variant: AppCardVariant.soft,
+            child: SectionHeader(
+              title: 'Fluxo de Caixa',
+              subtitle: 'Projeção dos próximos 6 meses',
+              action: TextButton.icon(
+                onPressed: _loadProjection,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Atualizar'),
+              ),
             ),
-            const SizedBox(height: 24),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columnSpacing: 40,
-                columns: const [
-                  DataColumn(
-                    label: Text(
-                      'Mês',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final columns = width >= 960 ? 3 : (width >= 620 ? 2 : 1);
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: columns,
+                crossAxisSpacing: AppSpacing.sm,
+                mainAxisSpacing: AppSpacing.sm,
+                childAspectRatio: columns == 1 ? 2.2 : 2.0,
+                children: [
+                  MetricCard(
+                    title: 'Receitas previstas',
+                    value: _formatCurrency(totalRevenue),
+                    icon: Icons.arrow_upward,
+                    accentColor: AppColors.success,
                   ),
-                  DataColumn(
-                    label: Text(
-                      'Receitas Previstas',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                  MetricCard(
+                    title: 'Despesas previstas',
+                    value: _formatCurrency(totalExpense),
+                    icon: Icons.arrow_downward,
+                    accentColor: AppColors.error,
                   ),
-                  DataColumn(
-                    label: Text(
-                      'Despesas Previstas',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Saldo Projetado',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                  MetricCard(
+                    title: 'Saldo projetado',
+                    value: _formatCurrency(totalBalance),
+                    icon: Icons.balance_outlined,
+                    accentColor:
+                        totalBalance >= 0 ? AppColors.success : AppColors.error,
                   ),
                 ],
-                rows: _projection.map((item) {
-                  final month = item['month'] as DateTime;
-                  final revenue = (item['revenue'] as num).toDouble();
-                  final expense = (item['expense'] as num).toDouble();
-                  final balance = (item['balance'] as num).toDouble();
-
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(
-                        _formatMonth(month),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      )),
-                      DataCell(Text(
-                        _formatCurrency(revenue),
-                        style: const TextStyle(
-                            color: Colors.green, fontWeight: FontWeight.bold),
-                      )),
-                      DataCell(Text(
-                        _formatCurrency(expense),
-                        style: const TextStyle(
-                            color: Colors.red, fontWeight: FontWeight.bold),
-                      )),
-                      DataCell(Text(
-                        _formatCurrency(balance),
-                        style: TextStyle(
-                          color: balance >= 0 ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Resumo da Projeção',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow(
-                      'Total Receitas Previstas',
-                      _projection.fold<double>(
-                        0,
-                        (sum, item) =>
-                            sum + (item['revenue'] as num).toDouble(),
-                      ),
-                      Colors.green,
-                    ),
-                    _buildSummaryRow(
-                      'Total Despesas Previstas',
-                      _projection.fold<double>(
-                        0,
-                        (sum, item) =>
-                            sum + (item['expense'] as num).toDouble(),
-                      ),
-                      Colors.red,
-                    ),
-                    const Divider(),
-                    _buildSummaryRow(
-                      'Saldo Projetado Total',
-                      _projection.fold<double>(
-                        0,
-                        (sum, item) =>
-                            sum + (item['balance'] as num).toDouble(),
-                      ),
-                      null,
-                    ),
-                  ],
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            variant: AppCardVariant.elevated,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(
+                  title: 'Detalhamento Mensal',
+                  subtitle: 'Receitas, despesas e saldo por mês',
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+                const SizedBox(height: AppSpacing.xs),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: 28,
+                    columns: const [
+                      DataColumn(
+                        label: Text(
+                          'Mês',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Receitas',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Despesas',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      DataColumn(
+                        label: Text(
+                          'Saldo',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                    rows: _projection.map((item) {
+                      final month = item['month'] as DateTime;
+                      final revenue = (item['revenue'] as num).toDouble();
+                      final expense = (item['expense'] as num).toDouble();
+                      final balance = (item['balance'] as num).toDouble();
 
-  Widget _buildSummaryRow(String label, double value, Color? color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label),
-          Text(
-            _formatCurrency(value),
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color ?? (value >= 0 ? Colors.green : Colors.red),
+                      return DataRow(
+                        cells: [
+                          DataCell(Text(
+                            _formatMonth(month),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          )),
+                          DataCell(Text(
+                            _formatCurrency(revenue),
+                            style: const TextStyle(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )),
+                          DataCell(Text(
+                            _formatCurrency(expense),
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )),
+                          DataCell(Text(
+                            _formatCurrency(balance),
+                            style: TextStyle(
+                              color: balance >= 0
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          )),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

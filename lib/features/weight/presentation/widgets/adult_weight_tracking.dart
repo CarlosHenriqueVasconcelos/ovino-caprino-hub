@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../models/animal.dart';
 import '../../../../services/animal_service.dart';
 import '../../../../services/weight_service.dart';
-import '../../../../models/animal.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/common/app_card.dart';
+import '../../../../shared/widgets/common/app_empty_state.dart';
+import '../../../../shared/widgets/common/section_header.dart';
+import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_spacing.dart';
 import '../../../../utils/animal_record_display.dart';
 import 'weight_tracking_filters_bar.dart';
 import 'weight_tracking_pagination_bar.dart';
@@ -31,86 +38,144 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            theme.colorScheme.primary.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
-        ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.md,
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            // Header Card
-            Builder(
-              builder: (context) {
-                final isMobile = MediaQuery.of(context).size.width < 600;
-                return Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(isMobile ? 16 : 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.scale,
-                              size: isMobile ? 22 : 28,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                isMobile
-                                    ? 'Peso - Geral'
-                                    : 'Controle de Peso - Animais (exceto borregos)',
-                                style: (isMobile ? theme.textTheme.titleLarge : theme.textTheme.headlineMedium)?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!isMobile) ...[
-                          const SizedBox(height: 16),
-                          Text(
-                            'Acompanhe o desenvolvimento dos animais não-borregos com controle de 24 meses (2 anos). '
-                            'Registre pesagens mensais e monitore a evolução de peso ao longo do tempo.',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ],
+      child: Column(
+        children: [
+          const AppCard(
+            variant: AppCardVariant.soft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionHeader(
+                  title: 'Adultos e Reprodutores',
+                  subtitle:
+                      'Acompanhe pesagens mensais de animais não borregos por até 24 meses',
+                ),
+                SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    StatusChip(
+                      label: 'Controle mensal',
+                      icon: Icons.calendar_month,
+                      variant: StatusChipVariant.info,
                     ),
+                    StatusChip(
+                      label: 'Janela: 24 meses',
+                      icon: Icons.timeline,
+                      variant: StatusChipVariant.neutral,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          WeightTrackingFiltersBar(
+            searchController: _searchController,
+            searchLabel: 'Pesquisar animal',
+            searchHint: 'Digite o nome ou código do animal...',
+            onSearchChanged: (value) {
+              setState(() {
+                _searchQuery = value.toLowerCase();
+                _currentPage = 0;
+                _future = null;
+              });
+            },
+            onClearSearch: () {
+              setState(() {
+                _searchController.clear();
+                _searchQuery = '';
+                _currentPage = 0;
+                _future = null;
+              });
+            },
+            dropdowns: const [],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FutureBuilder<WeightTrackingResult>(
+            future: _future ??= context.read<AnimalService>().weightTrackingQuery(
+                  category: WeightCategoryFilter.nonLambs,
+                  searchQuery: _searchQuery,
+                  page: _currentPage,
+                  pageSize: _itemsPerPage,
+                ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const AppCard(
+                  variant: AppCardVariant.elevated,
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
                 );
-              },
-            ),
-            const SizedBox(height: 24),
+              }
 
-            WeightTrackingFiltersBar(
-              searchController: _searchController,
-              searchLabel: 'Pesquisar animal',
-              searchHint: 'Digite o nome ou código do animal...',
-              onSearchChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                  _currentPage = 0;
-                  _future = null;
-                });
-              },
-              onClearSearch: () {
+              final result = snapshot.data;
+              final nonLambAnimals = result?.items ?? const <Animal>[];
+              final total = result?.total ?? 0;
+              final totalPages = (total / _itemsPerPage).ceil().clamp(1, 9999);
+
+              return AppCard(
+                variant: AppCardVariant.elevated,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionHeader(
+                      title: 'Registros de Adultos',
+                      subtitle: '$total ${total == 1 ? 'animal' : 'animais'}',
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    WeightTrackingTable<Animal>(
+                      items: nonLambAnimals,
+                      mode: WeightTrackingTableMode.list,
+                      itemBuilder: (context, adult) => _buildAdultCard(context, adult),
+                      emptyState: _buildEmptyState(context),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.sm),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    WeightTrackingPaginationBar(
+                      currentPage: _currentPage,
+                      totalPages: totalPages,
+                      itemsPerPage: _itemsPerPage,
+                      onPageChanged: (page) {
+                        setState(() {
+                          _currentPage = page;
+                          _future = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return AppEmptyState(
+      title: 'Nenhum animal encontrado',
+      description: _searchQuery.isEmpty
+          ? 'Cadastre animais fora da categoria Borrego.'
+          : 'Tente outra pesquisa.',
+      icon: Icons.scale_outlined,
+      action: PrimaryButton(
+        label: 'Limpar busca',
+        icon: Icons.refresh,
+        onPressed: _searchQuery.isEmpty
+            ? null
+            : () {
                 setState(() {
                   _searchController.clear();
                   _searchQuery = '';
@@ -118,160 +183,15 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                   _future = null;
                 });
               },
-              dropdowns: const [],
-            ),
-            const SizedBox(height: 24),
-
-            // Adult Animals List
-            FutureBuilder<WeightTrackingResult>(
-              future: _future ??= context
-                  .read<AnimalService>()
-                  .weightTrackingQuery(
-                    category: WeightCategoryFilter.nonLambs,
-                    searchQuery: _searchQuery,
-                    page: _currentPage,
-                    pageSize: _itemsPerPage,
-                  ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-                final result = snapshot.data;
-                final nonLambAnimals = result?.items ?? const <Animal>[];
-                final total = result?.total ?? 0;
-                final totalPages =
-                    (total / _itemsPerPage).ceil().clamp(1, 9999);
-
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final isMobile = MediaQuery.of(context).size.width < 600;
-                            return isMobile
-                                ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Animais (exceto borregos)',
-                                        style: theme.textTheme.titleLarge?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        '$total cadastrados',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Row(
-                                    children: [
-                                      Text(
-                                        'Animais (exceto borregos)',
-                                        style: theme.textTheme.headlineSmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        '$total animais',
-                                        style: theme.textTheme.titleMedium?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        WeightTrackingTable<Animal>(
-                          items: nonLambAnimals,
-                          mode: WeightTrackingTableMode.list,
-                          itemBuilder: (context, adult) =>
-                              _buildAdultCard(context, adult),
-                          emptyState: _buildEmptyState(context),
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 16),
-                        ),
-                        const SizedBox(height: 24),
-                        WeightTrackingPaginationBar(
-                          currentPage: _currentPage,
-                          totalPages: totalPages,
-                          itemsPerPage: _itemsPerPage,
-                          onPageChanged: (page) {
-                            setState(() {
-                              _currentPage = page;
-                              _future = null;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          children: [
-            Icon(
-              Icons.scale_outlined,
-              size: 64,
-              color: theme.colorScheme.outline,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'Nenhum animal encontrado'
-                  : 'Nenhum animal encontrado',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _searchQuery.isEmpty
-                  ? 'Cadastre animais fora da categoria Borrego'
-                  : 'Tente outra pesquisa',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildAdultCard(BuildContext context, Animal adult) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.2),
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return AppCard(
+      variant: AppCardVariant.elevated,
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -377,13 +297,11 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           // Register Button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            child: PrimaryButton(
               onPressed: () => _showMonthlyWeightDialog(adult),
-              icon: const Icon(Icons.add),
-              label: const Text('Registrar Pesagem Mensal'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-              ),
+              fullWidth: true,
+              icon: Icons.add,
+              label: 'Registrar Pesagem Mensal',
             ),
           ),
         ],

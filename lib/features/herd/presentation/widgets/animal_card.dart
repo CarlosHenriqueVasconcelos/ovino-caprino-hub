@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+
 import '../../../../models/animal.dart';
-import 'animal_history_dialog.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../theme/app_spacing.dart';
 import '../../../../services/animal_service.dart';
 import '../../../../services/deceased_service.dart';
+import 'animal_history_dialog.dart';
 
 class AnimalCard extends StatefulWidget {
   final Animal animal;
@@ -165,109 +171,131 @@ class _AnimalCardState extends State<AnimalCard> {
     );
   }
 
-  Color _getStatusColor(BuildContext context, String statusLower) {
-    final theme = Theme.of(context);
-    switch (statusLower) {
-      case 'saudável':
-        return theme.colorScheme.primary;
-      case 'em tratamento':
-        return theme.colorScheme.error;
-      case 'ferido':
-        return Colors.deepOrange;
-      case 'reprodutor':
-        return theme.colorScheme.tertiary;
-      default:
-        return theme.colorScheme.secondary;
-    }
-  }
-
   Color _parseColor(String colorNameLower) {
     return _colorMap[colorNameLower] ?? Colors.black;
   }
 
+  StatusChipVariant _statusVariant(String statusLower) {
+    switch (statusLower) {
+      case 'saudável':
+        return StatusChipVariant.success;
+      case 'em tratamento':
+      case 'ferido':
+        return StatusChipVariant.warning;
+      case 'óbito':
+        return StatusChipVariant.danger;
+      case 'vendido':
+        return StatusChipVariant.info;
+      default:
+        return StatusChipVariant.neutral;
+    }
+  }
+
   // Chip de sexo usando o campo gender
-  Widget _sexChip(BuildContext context, String genderLower) {
+  Widget _sexChip(String genderLower) {
     late String label;
     late IconData icon;
-    late Color color;
-
+    late StatusChipVariant variant;
     if (genderLower.contains('fêmea') ||
         genderLower.contains('femea') ||
         genderLower == 'f') {
       label = 'Fêmea';
       icon = Icons.female;
-      color = Colors.pinkAccent;
+      variant = StatusChipVariant.warning;
     } else if (genderLower.contains('macho') || genderLower == 'm') {
       label = 'Macho';
       icon = Icons.male;
-      color = Colors.blueAccent;
+      variant = StatusChipVariant.info;
     } else {
       label = 'Sexo N/I';
       icon = Icons.help_outline;
-      color = Colors.grey;
+      variant = StatusChipVariant.neutral;
     }
 
-    return Chip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      ),
-      backgroundColor: color.withValues(alpha: 0.1),
-      labelStyle: TextStyle(
-        color: color,
-        fontWeight: FontWeight.w500,
-      ),
-      side: BorderSide(color: color.withValues(alpha: 0.2)),
+    return StatusChip(
+      label: label,
+      icon: icon,
+      variant: variant,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final statusColor = _getStatusColor(context, _cache.statusLower);
     final motherAnimal = widget.mother;
     final fatherAnimal = widget.father;
 
     return RepaintBoundary(
       child: Card(
-        elevation: _cache.hasHealthIssue ? 4 : 2,
+        elevation: _cache.hasHealthIssue ? 2.5 : 1.0,
+        margin: EdgeInsets.zero,
         shadowColor: _cache.hasHealthIssue
-            ? theme.colorScheme.error.withValues(alpha: 0.3)
-            : null,
+            ? theme.colorScheme.error.withValues(alpha: 0.18)
+            : Colors.black.withValues(alpha: 0.05),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: AppColors.borderNeutral.withValues(alpha: 0.75),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(14.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
               Row(
                 children: [
-                  Text(
-                    widget.animal.speciesIcon,
-                    style: const TextStyle(fontSize: 32),
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.animal.speciesIcon,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           _cache.name,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
                             color: _parseColor(_cache.nameColorLower),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          _cache.code,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color:
-                                theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
+                        const SizedBox(height: 2),
+                        Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: 2,
+                          children: [
+                            Text(
+                              _cache.code,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.62),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (_cache.loteText != null)
+                              Text(
+                                _cache.loteText!,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -407,7 +435,7 @@ class _AnimalCardState extends State<AnimalCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               Expanded(
                 child: SingleChildScrollView(
@@ -417,95 +445,37 @@ class _AnimalCardState extends State<AnimalCard> {
                     children: [
                       // Status Badges
                       Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(
-                    label: Text(_cache.status),
-                    backgroundColor: statusColor.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    side: BorderSide(color: statusColor.withValues(alpha: 0.2)),
-                  ),
-
-                  // 🔹 Novo: chip de sexo (inferido pela category)
-                  _sexChip(context, _cache.genderLower),
-
-                  // 🔹 Chip de categoria
-                  if (_cache.category.isNotEmpty)
-                    Chip(
-                      label: Text(_cache.category),
-                      backgroundColor:
-                          theme.colorScheme.secondary.withValues(alpha: 0.1),
-                      labelStyle: TextStyle(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                      ),
-                      side: BorderSide(
-                        color: theme.colorScheme.secondary.withValues(alpha: 0.2),
-                      ),
-                    ),
-
-                  Chip(
-                    label: Text('Rep.: ${_cache.reproductiveStatus}'),
-                    backgroundColor:
-                        theme.colorScheme.tertiary.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(
-                      color: theme.colorScheme.tertiary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                    side: BorderSide(
-                      color: theme.colorScheme.tertiary.withValues(alpha: 0.2),
-                    ),
-                  ),
-
-                  if (_cache.pregnant)
-                    Chip(
-                      label: const Row(
-                        mainAxisSize: MainAxisSize.min,
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
                         children: [
-                          Icon(Icons.child_care, size: 16),
-                          SizedBox(width: 4),
-                          Text('Gestante'),
+                          StatusChip(
+                            label: _cache.status,
+                            variant: _statusVariant(_cache.statusLower),
+                            icon: Icons.flag_outlined,
+                          ),
+                          _sexChip(_cache.genderLower),
+                          if (_cache.category.isNotEmpty)
+                            StatusChip(
+                              label: _cache.category,
+                              variant: StatusChipVariant.neutral,
+                              icon: Icons.category_outlined,
+                            ),
+                          StatusChip(
+                            label: 'Rep.: ${_cache.reproductiveStatus}',
+                            variant: _cache.pregnant
+                                ? StatusChipVariant.warning
+                                : StatusChipVariant.info,
+                            icon: Icons.favorite_outline,
+                          ),
+                          if (_cache.hasHealthIssue)
+                            StatusChip(
+                              label: _cache.healthIssueText ?? '',
+                              variant: StatusChipVariant.danger,
+                              icon: Icons.warning_amber_rounded,
+                            ),
                         ],
-                      ),
-                      backgroundColor:
-                          theme.colorScheme.tertiary.withValues(alpha: 0.1),
-                      labelStyle: TextStyle(
-                        color: theme.colorScheme.tertiary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      side: BorderSide(
-                        color: theme.colorScheme.tertiary.withValues(alpha: 0.2),
-                      ),
-                    ),
-                  if (_cache.hasHealthIssue)
-                    Chip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.warning, size: 16),
-                          const SizedBox(width: 4),
-                          Text(_cache.healthIssueText ?? ''),
-                        ],
-                      ),
-                      backgroundColor:
-                          theme.colorScheme.error.withValues(alpha: 0.1),
-                      labelStyle: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      side: BorderSide(
-                        color: theme.colorScheme.error.withValues(alpha: 0.2),
-                      ),
-                    ),
-                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               // Animal Info
               LayoutBuilder(
@@ -609,7 +579,7 @@ class _AnimalCardState extends State<AnimalCard> {
                         );
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
               Wrap(
                 spacing: 12,
@@ -618,7 +588,7 @@ class _AnimalCardState extends State<AnimalCard> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.monitor_weight, size: 18),
+                      const Icon(Icons.monitor_weight, size: 17, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         _cache.weightText,
@@ -631,7 +601,7 @@ class _AnimalCardState extends State<AnimalCard> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on, size: 18),
+                      const Icon(Icons.location_on, size: 17, color: AppColors.textSecondary),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
@@ -688,8 +658,11 @@ class _AnimalCardState extends State<AnimalCard> {
                   padding: const EdgeInsets.all(8),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.borderNeutral.withValues(alpha: 0.8),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -742,8 +715,11 @@ class _AnimalCardState extends State<AnimalCard> {
                   padding: const EdgeInsets.all(8),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.tertiary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.borderNeutral.withValues(alpha: 0.8),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -797,8 +773,11 @@ class _AnimalCardState extends State<AnimalCard> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.tertiary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppColors.surface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.borderNeutral.withValues(alpha: 0.8),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -847,54 +826,29 @@ class _AnimalCardState extends State<AnimalCard> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
 
               // Ações: usa linha única quando possível para reduzir altura total do card.
               LayoutBuilder(
                 builder: (context, constraints) {
                   final stackActions = constraints.maxWidth < 230;
 
-                  final historyButton = OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      minimumSize: const Size(0, 34),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                    ),
+                  final historyButton = SecondaryButton(
+                    label: 'Ver Histórico',
+                    icon: Icons.history,
                     onPressed: () {
                       showDialog(
                         context: context,
                         builder: (_) => AnimalHistoryDialog(animal: widget.animal),
                       );
                     },
-                    child: const Text(
-                      'Ver Histórico',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   );
 
-                  final editButton = ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      minimumSize: const Size(0, 34),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 6,
-                      ),
-                    ),
-                    onPressed: widget.onEdit != null
-                        ? () => widget.onEdit!(widget.animal)
-                        : null,
-                    child: const Text(
-                      'Editar',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  final editButton = PrimaryButton(
+                    label: 'Editar',
+                    icon: Icons.edit_outlined,
+                    onPressed:
+                        widget.onEdit != null ? () => widget.onEdit!(widget.animal) : null,
                   );
 
                   if (stackActions) {
