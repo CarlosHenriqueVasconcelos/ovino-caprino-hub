@@ -146,11 +146,40 @@ class ResponsiveUtils {
 
   // Cross axis count para grids de animais
   static int getAnimalGridCrossAxisCount(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
+    return getAnimalGridCrossAxisCountForWidth(_widthOf(context));
+  }
+
+  static int getAnimalGridCrossAxisCountForWidth(double width) {
     if (width < mobile) return 1;
     if (width < tablet) return 2;
     if (width < desktop) return 3;
     return 4;
+  }
+
+  // Altura alvo do card compacto de animais por largura disponível.
+  static double getAnimalCardTargetHeightForWidth(
+    double width, {
+    int? crossAxisCount,
+  }) {
+    final columns = crossAxisCount ?? getAnimalGridCrossAxisCountForWidth(width);
+
+    if (columns <= 1) {
+      if (width < 360) return 190;
+      if (width < 430) return 198;
+      return 205;
+    }
+
+    if (columns == 2) {
+      if (width < 760) return 190;
+      return 205;
+    }
+
+    if (columns == 3) {
+      if (width < desktop) return 198;
+      return 210;
+    }
+
+    return 214;
   }
 
   // Child aspect ratio para grids

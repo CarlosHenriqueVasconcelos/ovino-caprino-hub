@@ -28,53 +28,91 @@ class HerdAnimalGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = ResponsiveUtils.getAnimalGridCrossAxisCount(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final crossAxisCount =
+            ResponsiveUtils.getAnimalGridCrossAxisCountForWidth(availableWidth);
+        final spacing =
+            ResponsiveUtils.getSpacing(context).clamp(8.0, 16.0).toDouble();
+        final horizontalPadding = availableWidth < 420 ? 2.0 : 4.0;
+        final gridPadding = EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 2,
+        );
 
-    double aspectRatio;
-    if (crossAxisCount == 1) {
-      aspectRatio = 0.58;
-    } else if (crossAxisCount == 2) {
-      aspectRatio = 0.62;
-    } else if (crossAxisCount == 3) {
-      aspectRatio = 0.82;
-    } else {
-      aspectRatio = 0.9;
-    }
+        final usableWidth = (availableWidth - gridPadding.horizontal)
+            .clamp(0.0, availableWidth)
+            .toDouble();
+        final cellWidth = (usableWidth - (spacing * (crossAxisCount - 1))) /
+            crossAxisCount;
+        final safeCellWidth = cellWidth <= 0 ? 1.0 : cellWidth;
+        final targetHeight = _targetHeightForGrid(
+          availableWidth: availableWidth,
+          crossAxisCount: crossAxisCount,
+        );
+        final childAspectRatio =
+            (safeCellWidth / targetHeight).clamp(1.2, 2.2).toDouble();
 
-    final spacing = ResponsiveUtils.getSpacing(context).clamp(12.0, 20.0);
-
-    return GridView.builder(
-      key: const PageStorageKey('herd_grid'),
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      controller: controller,
-      primary: false,
-      shrinkWrap: shrinkWrap,
-      physics: physics,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      addAutomaticKeepAlives: false, // Reduz memória
-      addRepaintBoundaries: true,    // Evita repaint desnecessário
-      cacheExtent: 500,              // Pre-carrega itens próximos
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: spacing,
-        mainAxisSpacing: spacing,
-        childAspectRatio: aspectRatio,
-      ),
-      itemCount: animals.length,
-      itemBuilder: (context, index) {
-        final animal = animals[index];
-        return RepaintBoundary(
-          key: ValueKey('animal_${animal.id}'),
-          child: AnimalCard(
-            animal: animal,
-            onEdit: onEdit,
-            onDeleteCascade: onDeleteCascade,
-            mother: resolveParent(animal.motherId),
-            father: resolveParent(animal.fatherId),
-            offspring: resolveOffspring(animal.id),
+        return GridView.builder(
+          key: const PageStorageKey('herd_grid'),
+          padding: gridPadding,
+          controller: controller,
+          primary: false,
+          shrinkWrap: shrinkWrap,
+          physics: physics,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
+          cacheExtent: 500,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+            childAspectRatio: childAspectRatio,
           ),
+          itemCount: animals.length,
+          itemBuilder: (context, index) {
+            final animal = animals[index];
+            return RepaintBoundary(
+              key: ValueKey('animal_${animal.id}'),
+              child: AnimalCard(
+                animal: animal,
+                onEdit: onEdit,
+                onDeleteCascade: onDeleteCascade,
+                mother: resolveParent(animal.motherId),
+                father: resolveParent(animal.fatherId),
+                offspring: resolveOffspring(animal.id),
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+  double _targetHeightForGrid({
+    required double availableWidth,
+    required int crossAxisCount,
+  }) {
+    if (crossAxisCount <= 1) {
+      if (availableWidth < 360) return 190;
+      if (availableWidth < 430) return 198;
+      return 205;
+    }
+
+    if (crossAxisCount == 2) {
+      if (availableWidth < 900) return 192;
+      return 206;
+    }
+
+    if (crossAxisCount == 3) {
+      if (availableWidth < 1200) return 200;
+      return 212;
+    }
+
+    return 218;
   }
 }
