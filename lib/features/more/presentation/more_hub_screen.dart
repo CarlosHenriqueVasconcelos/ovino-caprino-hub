@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/buttons/primary_button.dart';
 import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/app_brand_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import 'widgets/more_grid_section.dart';
@@ -43,6 +44,12 @@ class MoreHubScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const AppBrandHeader(
+            title: 'Fazenda São Petrônio',
+            subtitle: 'Gestão de Ovinos e Caprinos',
+            margin: EdgeInsets.zero,
+          ),
+          const SizedBox(height: AppSpacing.xs),
           const MoreHeader(),
           const SizedBox(height: AppSpacing.md),
           MoreGridSection(

@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../features/dashboard/presentation/dashboard_tab.dart';
 import '../../features/herd/presentation/herd_tab.dart';
-import '../../models/animal.dart';
-import '../../shared/widgets/animal/animal_form.dart';
 import '../../features/breeding/presentation/breeding_management_screen.dart';
 import '../../features/breeding/presentation/matrix_selection_tab.dart';
 import '../../features/feeding/presentation/feeding_screen.dart';
@@ -28,7 +26,6 @@ import '../../utils/responsive_utils.dart';
 import 'widgets/app_bottom_nav.dart';
 import 'widgets/app_section_switcher.dart';
 import 'widgets/app_shell_container.dart';
-import 'widgets/app_shell_header.dart';
 import 'widgets/management_menu_sheet.dart';
 import 'widgets/more_menu_sheet.dart';
 
@@ -284,50 +281,32 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
       body: AppShellContainer(
         child: SafeArea(
           bottom: false,
-          child: Column(
-            children: [
-              AppShellHeader(
-                farmName: 'Fazenda São Petrônio',
-                subtitle: 'Gestão de Ovinos e Caprinos',
-                contextLabel: _resolveCurrentContextLabel(),
-                onAddAnimal: () => _showAnimalForm(context),
-                onOpenSectionMenu: _selectedPrimaryTab == 2
-                    ? _openManagementMenu
-                    : _selectedPrimaryTab == 4
-                        ? _openMoreMenu
-                        : null,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: shellHorizontalInset),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withValues(alpha: 0.94),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(AppRadius.xxl),
-                      ),
-                      border: Border.all(
-                        color: AppColors.borderNeutral.withValues(alpha: 0.75),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 16,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(AppRadius.xxl),
-                      ),
-                      child: _buildPrimaryContent(),
-                    ),
-                  ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: shellHorizontalInset),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.94),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xxl),
                 ),
+                border: Border.all(
+                  color: AppColors.borderNeutral.withValues(alpha: 0.75),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 16,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-            ],
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xxl),
+                ),
+                child: _buildPrimaryContent(),
+              ),
+            ),
           ),
         ),
       ),
@@ -347,29 +326,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
         items: _primaryNavItems,
       ),
     );
-  }
-
-  String _resolveCurrentContextLabel() {
-    switch (_selectedPrimaryTab) {
-      case 0:
-        return 'Painel Geral';
-      case 1:
-        return 'Rebanho';
-      case 2:
-        if (_showManagementHub) return 'Manejo';
-        return _managementOptions
-            .firstWhere((option) => option.key == _selectedManagementModule)
-            .label;
-      case 3:
-        return 'Financeiro';
-      case 4:
-        if (_showMoreHub) return 'Mais';
-        return _moreOptions
-            .firstWhere((option) => option.key == _selectedMoreModule)
-            .label;
-      default:
-        return 'Painel';
-    }
   }
 
   Widget _buildPrimaryContent() {
@@ -553,12 +509,5 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
       _selectedMoreModule = selected;
       _showMoreHub = false;
     });
-  }
-
-  void _showAnimalForm(BuildContext context, {Animal? animal}) {
-    showDialog(
-      context: context,
-      builder: (context) => AnimalFormDialog(animal: animal),
-    );
   }
 }

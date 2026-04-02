@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/buttons/ghost_button.dart';
 import '../../../shared/widgets/buttons/primary_button.dart';
 import '../../../shared/widgets/common/app_card.dart';
+import '../../../shared/widgets/common/app_brand_header.dart';
 import '../../../shared/widgets/common/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
@@ -277,124 +278,158 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
   Widget build(BuildContext context) {
     if (_checkingLock) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              const AppBrandHeader(
+                title: 'Fazenda São Petrônio',
+                subtitle: 'Gestão de Ovinos e Caprinos',
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     if (!_unlocked) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Financeiro')),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: AppCard(
-                variant: AppCardVariant.elevated,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.lock_outline, size: 56, color: AppColors.textSecondary),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Área financeira bloqueada',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Desbloqueie para visualizar contas, fluxo de caixa e relatórios do módulo.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              const AppBrandHeader(
+                title: 'Fazenda São Petrônio',
+                subtitle: 'Gestão de Ovinos e Caprinos',
+              ),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: AppCard(
+                      variant: AppCardVariant.elevated,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.lock_outline,
+                            size: 56,
                             color: AppColors.textSecondary,
                           ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Área financeira bloqueada',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Desbloqueie para visualizar contas, fluxo de caixa e relatórios do módulo.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          PrimaryButton(
+                            label: 'Desbloquear',
+                            icon: Icons.lock_open,
+                            fullWidth: true,
+                            onPressed: _promptUnlock,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    PrimaryButton(
-                      label: 'Desbloquear',
-                      icon: Icons.lock_open,
-                      fullWidth: true,
-                      onPressed: _promptUnlock,
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Financeiro'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.md),
-            child: PrimaryButton(
-              label: 'Novo',
-              icon: Icons.add,
-              onPressed: _openQuickCreate,
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              AppSpacing.xs,
-            ),
-            child: AppCard(
-              variant: AppCardVariant.soft,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SectionHeader(
-                    title: 'Gestão Financeira',
-                    subtitle: _currentTabLabel,
-                    action: GhostButton(
-                      label: 'Atualizar visão',
-                      icon: Icons.refresh,
-                      onPressed: _refreshDashboard,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    onTap: (index) {
-                      if (index == 0) _refreshDashboard();
-                    },
-                    tabs: const [
-                      Tab(text: 'Dashboard'),
-                      Tab(text: 'A Pagar'),
-                      Tab(text: 'A Receber'),
-                      Tab(text: 'Recorrentes'),
-                      Tab(text: 'Fluxo de Caixa'),
-                    ],
-                  ),
-                ],
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            const SliverToBoxAdapter(
+              child: AppBrandHeader(
+                title: 'Fazenda São Petrônio',
+                subtitle: 'Gestão de Ovinos e Caprinos',
               ),
             ),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                FinancialDashboardScreen(key: _dashboardKey),
-                FinancialAccountsPayable(onUpdate: _refreshDashboard),
-                FinancialAccountsReceivable(onUpdate: _refreshDashboard),
-                const FinancialRecurringScreen(),
-                const FinancialCashFlowScreen(),
-              ],
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                ),
+                child: AppCard(
+                  variant: AppCardVariant.soft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionHeader(
+                        title: 'Gestão Financeira',
+                        subtitle: _currentTabLabel,
+                        action: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GhostButton(
+                              label: 'Atualizar visão',
+                              icon: Icons.refresh,
+                              onPressed: _refreshDashboard,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            PrimaryButton(
+                              label: 'Novo',
+                              icon: Icons.add,
+                              onPressed: _openQuickCreate,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        onTap: (index) {
+                          if (index == 0) _refreshDashboard();
+                        },
+                        tabs: const [
+                          Tab(text: 'Dashboard'),
+                          Tab(text: 'A Pagar'),
+                          Tab(text: 'A Receber'),
+                          Tab(text: 'Recorrentes'),
+                          Tab(text: 'Fluxo de Caixa'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            FinancialDashboardScreen(key: _dashboardKey),
+            FinancialAccountsPayable(onUpdate: _refreshDashboard),
+            FinancialAccountsReceivable(onUpdate: _refreshDashboard),
+            const FinancialRecurringScreen(),
+            const FinancialCashFlowScreen(),
+          ],
+        ),
       ),
     );
   }

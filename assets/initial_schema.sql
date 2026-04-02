@@ -1,164 +1,739 @@
--- Schema inicial compatível com Supabase
--- BEGO Ovino e Caprino Database
+-- Schema local completo (SQLite)
+-- Fonte: lib/data/local_db.dart (_createAll)
+-- Gerado automaticamente para servir como schema único sem migrações.
 
--- Tabela de animais
-CREATE TABLE IF NOT EXISTS animals (
-  id TEXT PRIMARY KEY,
-  code TEXT NOT NULL,
-  name TEXT NOT NULL,
-  name_color TEXT,
-  category TEXT,
-  species TEXT NOT NULL,
-  breed TEXT NOT NULL,
-  gender TEXT NOT NULL,
-  birth_date TEXT NOT NULL,
-  weight REAL NOT NULL,
-  status TEXT NOT NULL DEFAULT 'Saudável',
-  location TEXT,
-  last_vaccination TEXT,
-  pregnant INTEGER DEFAULT 0,
-  expected_delivery TEXT,
-  health_issue TEXT,
-  birth_weight REAL,
-  weight_30_days REAL,
-  weight_60_days REAL,
-  weight_90_days REAL,
-  weight_120_days REAL,
-  year INTEGER,
-  lote TEXT,
-  mother_id TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
 
--- Tabela de vacinações
-CREATE TABLE IF NOT EXISTS vaccinations (
-  id TEXT PRIMARY KEY,
-  animal_id TEXT NOT NULL,
-  vaccine_name TEXT NOT NULL,
-  vaccine_type TEXT,
-  scheduled_date TEXT NOT NULL,
-  applied_date TEXT,
-  status TEXT NOT NULL DEFAULT 'Agendada',
-  veterinarian TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
-);
+      CREATE TABLE IF NOT EXISTS animals (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL CHECK (species IN ('Ovino','Caprino')),
+        breed TEXT NOT NULL,
+        gender TEXT NOT NULL CHECK (gender IN ('Macho','Fêmea')),
+        birth_date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Saudável',
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
+        location TEXT NOT NULL,
+        last_vaccination TEXT,
+        pregnant INTEGER DEFAULT 0,
+        expected_delivery TEXT,
+        health_issue TEXT,
+        registration_note TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        name_color TEXT,
+        category TEXT,
+        birth_weight REAL,
+        weight_30_days REAL,
+        weight_60_days REAL,
+        weight_90_days REAL,
+        weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT,
+        father_id TEXT
+      );
+    
 
--- Tabela de medicamentos
-CREATE TABLE IF NOT EXISTS medications (
-  id TEXT PRIMARY KEY,
-  animal_id TEXT NOT NULL,
-  medication_name TEXT NOT NULL,
-  date TEXT NOT NULL,
-  next_date TEXT,
-  applied_date TEXT,
-  dosage TEXT,
-  status TEXT NOT NULL DEFAULT 'Agendado',
-  veterinarian TEXT,
-  notes TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE CASCADE
-);
 
--- Tabela de reprodução (Sistema multi-etapas)
-CREATE TABLE IF NOT EXISTS breeding_records (
-  id TEXT PRIMARY KEY,
-  female_animal_id TEXT NOT NULL,
-  male_animal_id TEXT,
-  breeding_date TEXT NOT NULL,
-  mating_start_date TEXT,
-  mating_end_date TEXT,
-  separation_date TEXT,
-  ultrasound_date TEXT,
-  ultrasound_result TEXT,
-  expected_birth TEXT,
-  birth_date TEXT,
-  stage TEXT DEFAULT 'Encabritamento',
-  status TEXT DEFAULT 'Cobertura',
-  notes TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (female_animal_id) REFERENCES animals(id) ON DELETE CASCADE,
-  FOREIGN KEY (male_animal_id) REFERENCES animals(id) ON DELETE SET NULL
-);
+      CREATE TABLE IF NOT EXISTS animal_weights (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        milestone TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
 
--- Tabela de anotações
-CREATE TABLE IF NOT EXISTS notes (
-  id TEXT PRIMARY KEY,
-  animal_id TEXT,
-  title TEXT NOT NULL,
-  content TEXT,
-  category TEXT,
-  priority TEXT DEFAULT 'Média',
-  date TEXT NOT NULL,
-  created_by TEXT,
-  is_read INTEGER DEFAULT 0,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL
-);
 
--- Tabela de registros financeiros
-CREATE TABLE IF NOT EXISTS financial_records (
-  id TEXT PRIMARY KEY,
-  type TEXT NOT NULL,
-  category TEXT NOT NULL,
-  amount REAL NOT NULL,
-  description TEXT,
-  date TEXT NOT NULL,
-  animal_id TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (animal_id) REFERENCES animals(id) ON DELETE SET NULL
-);
+      CREATE TABLE IF NOT EXISTS animal_lineage (
+        descendant_id TEXT NOT NULL,
+        ancestor_id TEXT NOT NULL,
+        depth INTEGER NOT NULL CHECK (depth > 0),
+        line_type TEXT NOT NULL DEFAULT 'unknown'
+          CHECK (line_type IN ('maternal','paternal','mixed','unknown')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (descendant_id, ancestor_id)
+      );
+    
 
--- Tabela de relatórios
-CREATE TABLE IF NOT EXISTS reports (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  report_type TEXT NOT NULL,
-  parameters TEXT NOT NULL DEFAULT '{}',
-  generated_at TEXT NOT NULL,
-  generated_by TEXT
-);
 
--- Índices para melhor performance
--- Índices para otimização de performance
+      CREATE TABLE IF NOT EXISTS animal_lineage_meta (
+        meta_key TEXT PRIMARY KEY,
+        meta_value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS app_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS breeding_records (
+        id TEXT PRIMARY KEY,
+        female_animal_id TEXT,
+        male_animal_id TEXT,
+        breeding_date TEXT NOT NULL,                 -- ISO8601
+        expected_birth TEXT,                         -- ISO8601
+        status TEXT NOT NULL DEFAULT 'Cobertura',    -- derivado de stage
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        mating_start_date TEXT,                      -- ISO8601
+        mating_end_date TEXT,                        -- ISO8601
+        separation_date TEXT,                        -- ISO8601
+        ultrasound_date TEXT,                        -- ISO8601
+        ultrasound_result TEXT,
+        birth_date TEXT,                             -- ISO8601
+        stage TEXT NOT NULL DEFAULT 'encabritamento'
+          CHECK (stage IN ('encabritamento','separacao','aguardando_ultrassom','gestacao_confirmada','parto_realizado','falhou')),
+        FOREIGN KEY (female_animal_id) REFERENCES animals(id),
+        FOREIGN KEY (male_animal_id)   REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_trg
+      AFTER INSERT ON breeding_records
+      BEGIN
+        UPDATE breeding_records
+          SET status = CASE NEW.stage
+            WHEN 'encabritamento'       THEN 'Cobertura'
+            WHEN 'separacao'            THEN 'Separação'
+            WHEN 'aguardando_ultrassom' THEN 'Aguardando Ultrassom'
+            WHEN 'gestacao_confirmada'  THEN 'Gestação Confirmada'
+            WHEN 'parto_realizado'      THEN 'Parto Realizado'
+            WHEN 'falhou'               THEN 'Falhou'
+            ELSE 'Cobertura' END
+        WHERE id = NEW.id;
+      END;
+    
+
+
+      CREATE TRIGGER IF NOT EXISTS breeding_records_stage_status_upd_trg
+      AFTER UPDATE OF stage ON breeding_records
+      BEGIN
+        UPDATE breeding_records
+          SET status = CASE NEW.stage
+            WHEN 'encabritamento'       THEN 'Cobertura'
+            WHEN 'separacao'            THEN 'Separação'
+            WHEN 'aguardando_ultrassom' THEN 'Aguardando Ultrassom'
+            WHEN 'gestacao_confirmada'  THEN 'Gestação Confirmada'
+            WHEN 'parto_realizado'      THEN 'Parto Realizado'
+            WHEN 'falhou'               THEN 'Falhou'
+            ELSE 'Cobertura' END
+        WHERE id = NEW.id;
+      END;
+    
+
+
+      CREATE TRIGGER IF NOT EXISTS breeding_records_pregnancy_ins_trg
+      AFTER INSERT ON breeding_records
+      BEGIN
+        UPDATE animals
+        SET
+          pregnant = CASE NEW.stage
+            WHEN 'gestacao_confirmada' THEN 1
+            WHEN 'parto_realizado'     THEN 0
+            WHEN 'falhou'              THEN 0
+            ELSE pregnant
+          END,
+          expected_delivery = CASE
+            WHEN NEW.stage = 'gestacao_confirmada' THEN COALESCE(NEW.expected_birth, expected_delivery)
+            WHEN NEW.stage IN ('parto_realizado','falhou') THEN NULL
+            ELSE expected_delivery
+          END
+        WHERE id = NEW.female_animal_id;
+      END;
+    
+
+
+      CREATE TRIGGER IF NOT EXISTS breeding_records_pregnancy_upd_trg
+      AFTER UPDATE OF stage, expected_birth ON breeding_records
+      BEGIN
+        UPDATE animals
+        SET
+          pregnant = CASE NEW.stage
+            WHEN 'gestacao_confirmada' THEN 1
+            WHEN 'parto_realizado'     THEN 0
+            WHEN 'falhou'              THEN 0
+            ELSE pregnant
+          END,
+          expected_delivery = CASE
+            WHEN NEW.stage = 'gestacao_confirmada' THEN COALESCE(NEW.expected_birth, expected_delivery)
+            WHEN NEW.stage IN ('parto_realizado','falhou') THEN NULL
+            ELSE expected_delivery
+          END
+        WHERE id = NEW.female_animal_id;
+      END;
+    
+
+
+      CREATE TABLE IF NOT EXISTS matrix_evaluations (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        evaluation_date TEXT NOT NULL DEFAULT (date('now')),
+        fertility_score REAL NOT NULL CHECK (fertility_score >= 0 AND fertility_score <= 10),
+        maternal_score REAL NOT NULL CHECK (maternal_score >= 0 AND maternal_score <= 10),
+        health_score REAL NOT NULL CHECK (health_score >= 0 AND health_score <= 10),
+        temperament_score REAL NOT NULL CHECK (temperament_score >= 0 AND temperament_score <= 10),
+        growth_score REAL NOT NULL CHECK (growth_score >= 0 AND growth_score <= 10),
+        hoof_condition TEXT NOT NULL DEFAULT 'Sem problema',
+        verminosis_level TEXT NOT NULL DEFAULT 'Nenhuma',
+        twinning_history TEXT NOT NULL DEFAULT 'Sem histórico',
+        lambing_weight REAL,
+        weaning_weight REAL,
+        lactation_score REAL NOT NULL DEFAULT 7 CHECK (lactation_score >= 0 AND lactation_score <= 10),
+        body_condition_score REAL NOT NULL DEFAULT 3 CHECK (body_condition_score >= 1 AND body_condition_score <= 5),
+        dentition_score REAL NOT NULL DEFAULT 7 CHECK (dentition_score >= 0 AND dentition_score <= 10),
+        age_months INTEGER,
+        final_score REAL NOT NULL CHECK (final_score >= 0 AND final_score <= 10),
+        recommendation TEXT NOT NULL DEFAULT 'Observação',
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS financial_accounts (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('receita','despesa')),
+        category TEXT NOT NULL,
+        description TEXT,
+        amount REAL NOT NULL,
+        due_date TEXT NOT NULL,
+        payment_date TEXT,
+        status TEXT NOT NULL DEFAULT 'Pendente' CHECK (status IN ('Pendente','Pago','Vencido','Cancelado')),
+        payment_method TEXT,
+        installments INTEGER,
+        installment_number INTEGER,
+        parent_id TEXT,
+        animal_id TEXT,
+        supplier_customer TEXT,
+        notes TEXT,
+        is_recurring INTEGER DEFAULT 0,
+        recurrence_frequency TEXT CHECK (recurrence_frequency IN ('Diária','Semanal','Mensal','Anual')),
+        recurrence_end_date TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (parent_id) REFERENCES financial_accounts(id),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS financial_records (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('receita','despesa')),
+        category TEXT NOT NULL,
+        description TEXT,
+        amount REAL NOT NULL,
+        date TEXT NOT NULL DEFAULT (date('now')),
+        animal_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS pharmacy_stock (
+        id TEXT PRIMARY KEY,
+        medication_name TEXT NOT NULL,
+        medication_type TEXT NOT NULL,
+        unit_of_measure TEXT NOT NULL,
+        quantity_per_unit REAL,
+        total_quantity REAL NOT NULL DEFAULT 0,
+        min_stock_alert REAL,
+        expiration_date TEXT,
+        is_opened INTEGER DEFAULT 0,
+        opened_quantity REAL DEFAULT 0,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS pharmacy_stock_movements (
+        id TEXT PRIMARY KEY,
+        pharmacy_stock_id TEXT NOT NULL,
+        medication_id TEXT,
+        movement_type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        reason TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id) ON DELETE CASCADE,
+        FOREIGN KEY (medication_id) REFERENCES medications(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS medications (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        medication_name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        next_date TEXT,
+        dosage TEXT,
+        veterinarian TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        status TEXT NOT NULL DEFAULT 'Agendado',
+        applied_date TEXT,
+        pharmacy_stock_id TEXT,
+        quantity_used REAL,
+        FOREIGN KEY (animal_id) REFERENCES animals(id),
+        FOREIGN KEY (pharmacy_stock_id) REFERENCES pharmacy_stock(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS notes (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT,
+        title TEXT NOT NULL,
+        content TEXT,
+        category TEXT NOT NULL,
+        priority TEXT NOT NULL DEFAULT 'Média',
+        date TEXT NOT NULL DEFAULT (date('now')),
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        is_read INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        report_type TEXT NOT NULL CHECK (report_type IN ('Animais','Vacinações','Reprodução','Saúde','Financeiro')),
+        parameters TEXT NOT NULL DEFAULT '{}',
+        generated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        generated_by TEXT
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS push_tokens (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        platform TEXT,
+        device_info TEXT DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS feeding_pens (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        number TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS feeding_schedules (
+        id TEXT PRIMARY KEY,
+        pen_id TEXT NOT NULL,
+        feed_type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        times_per_day INTEGER NOT NULL DEFAULT 1,
+        feeding_times TEXT NOT NULL,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (pen_id) REFERENCES feeding_pens(id) ON DELETE CASCADE
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS vaccinations (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        vaccine_name TEXT NOT NULL,
+        vaccine_type TEXT NOT NULL,
+        scheduled_date TEXT NOT NULL,
+        applied_date TEXT,
+        veterinarian TEXT,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'Agendada' CHECK (status IN ('Agendada','Aplicada','Cancelada')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS sold_animals (
+        id TEXT PRIMARY KEY,
+        original_animal_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL,
+        breed TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        birth_date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        location TEXT NOT NULL,
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
+        name_color TEXT,
+        category TEXT,
+        birth_weight REAL,
+        weight_30_days REAL,
+        weight_60_days REAL,
+        weight_90_days REAL,
+        weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT,
+        father_id TEXT,
+        registration_note TEXT,
+        sale_date TEXT NOT NULL,
+        sale_price REAL,
+        buyer TEXT,
+        sale_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
+
+      CREATE TABLE IF NOT EXISTS deceased_animals (
+        id TEXT PRIMARY KEY,
+        original_animal_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        species TEXT NOT NULL,
+        breed TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        birth_date TEXT NOT NULL,
+        weight REAL NOT NULL,
+        location TEXT NOT NULL,
+        reproductive_status TEXT NOT NULL DEFAULT 'Não aplicável',
+        name_color TEXT,
+        category TEXT,
+        birth_weight REAL,
+        weight_30_days REAL,
+        weight_60_days REAL,
+        weight_90_days REAL,
+        weight_120_days REAL,
+        year INTEGER,
+        lote TEXT,
+        mother_id TEXT,
+        father_id TEXT,
+        registration_note TEXT,
+        death_date TEXT NOT NULL,
+        cause_of_death TEXT,
+        death_notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    
+
 CREATE INDEX IF NOT EXISTS idx_animals_code ON animals(code);
+
 CREATE INDEX IF NOT EXISTS idx_animals_species ON animals(species);
+
 CREATE INDEX IF NOT EXISTS idx_animals_status ON animals(status);
+
+CREATE INDEX IF NOT EXISTS idx_animals_reproductive_status ON animals(reproductive_status);
+
 CREATE INDEX IF NOT EXISTS idx_animals_category ON animals(category);
+
 CREATE INDEX IF NOT EXISTS idx_animals_gender ON animals(gender);
+
 CREATE INDEX IF NOT EXISTS idx_animals_pregnant ON animals(pregnant);
-CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name);
-CREATE INDEX IF NOT EXISTS idx_animals_name_color_category ON animals(name, name_color, category);
 
-CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);
-CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);
-CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);
-CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);
+CREATE INDEX IF NOT EXISTS idx_animals_name ON animals(name COLLATE NOCASE);
 
-CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);
-CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);
-CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);
-CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);
+CREATE INDEX IF NOT EXISTS idx_animals_code_nocase ON animals(code COLLATE NOCASE);
 
-CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);
-CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);
-CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);
-CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);
+CREATE INDEX IF NOT EXISTS idx_animals_category_gender ON animals(category, gender);
 
-CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);
-CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);
-CREATE INDEX IF NOT EXISTS idx_notes_date ON notes(date);
-CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);
+CREATE INDEX IF NOT EXISTS idx_animals_status_category ON animals(status, category);
 
-CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);
-CREATE INDEX IF NOT EXISTS idx_financial_type ON financial_records(type);
+CREATE INDEX IF NOT EXISTS idx_animals_pregnant_delivery ON animals(pregnant, expected_delivery);
+
+CREATE INDEX IF NOT EXISTS idx_animals_category_birth ON animals(category, birth_date);
+
+CREATE INDEX IF NOT EXISTS idx_animals_birth_date ON animals(birth_date);
+
+CREATE INDEX IF NOT EXISTS idx_animals_mother_id ON animals(mother_id);
+
+CREATE INDEX IF NOT EXISTS idx_animals_father_id ON animals(father_id);
+
+CREATE INDEX IF NOT EXISTS idx_animals_identity ON animals(name_color, category, lote);
+
+CREATE INDEX IF NOT EXISTS idx_animals_name_color ON animals(name COLLATE NOCASE, name_color);
+
+CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_date ON animal_weights(animal_id, date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_animal_weights_animal_milestone ON animal_weights(animal_id, milestone);
 
 CREATE INDEX IF NOT EXISTS idx_animal_weights_date ON animal_weights(date);
-CREATE INDEX IF NOT EXISTS idx_weight_alerts_completed ON weight_alerts(completed);
+
+CREATE INDEX IF NOT EXISTS idx_animal_lineage_descendant ON animal_lineage(descendant_id);
+
+CREATE INDEX IF NOT EXISTS idx_animal_lineage_ancestor ON animal_lineage(ancestor_id);
+
+CREATE INDEX IF NOT EXISTS idx_animal_lineage_depth ON animal_lineage(depth);
+
+CREATE INDEX IF NOT EXISTS idx_animal_lineage_desc_depth ON animal_lineage(descendant_id, depth);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_female ON breeding_records(female_animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_male ON breeding_records(male_animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_stage ON breeding_records(stage);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_status ON breeding_records(status);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_female_status ON breeding_records(female_animal_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_male_status ON breeding_records(male_animal_id, status);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_stage_status ON breeding_records(stage, status);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_expected_birth ON breeding_records(expected_birth);
+
+CREATE INDEX IF NOT EXISTS idx_matrix_eval_animal ON matrix_evaluations(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_matrix_eval_final_score ON matrix_evaluations(final_score DESC);
+
+CREATE INDEX IF NOT EXISTS idx_matrix_eval_animal_date ON matrix_evaluations(animal_id, evaluation_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_due_date ON financial_accounts(due_date);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_status ON financial_accounts(status);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_type ON financial_accounts(type);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_category ON financial_accounts(category);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_animal_id ON financial_accounts(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_parent_id ON financial_accounts(parent_id);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_is_recurring ON financial_accounts(is_recurring);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_type_status_due ON financial_accounts(type, status, due_date);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_status_due ON financial_accounts(status, due_date);
+
+CREATE INDEX IF NOT EXISTS idx_finacc_type_category ON financial_accounts(type, category);
+
+CREATE INDEX IF NOT EXISTS idx_financial_animal_id ON financial_records(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_financial_type_date ON financial_records(type, date);
+
+CREATE INDEX IF NOT EXISTS idx_financial_date ON financial_records(date);
+
+CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_name ON pharmacy_stock(medication_name COLLATE NOCASE);
+
+CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_expiration ON pharmacy_stock(expiration_date);
+
+CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type ON pharmacy_stock(medication_type);
+
+CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_type_name ON pharmacy_stock(medication_type, medication_name);
+
+CREATE INDEX IF NOT EXISTS idx_pharmacy_stock_opened ON pharmacy_stock(is_opened, expiration_date);
+
+CREATE INDEX IF NOT EXISTS idx_movements_stock_id ON pharmacy_stock_movements(pharmacy_stock_id);
+
+CREATE INDEX IF NOT EXISTS idx_movements_medication_id ON pharmacy_stock_movements(medication_id);
+
+CREATE INDEX IF NOT EXISTS idx_movements_stock_type ON pharmacy_stock_movements(pharmacy_stock_id, movement_type);
+
+CREATE INDEX IF NOT EXISTS idx_movements_created ON pharmacy_stock_movements(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_medications_animal_id ON medications(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_medications_next_date ON medications(next_date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_pharmacy_stock ON medications(pharmacy_stock_id);
+
+CREATE INDEX IF NOT EXISTS idx_medications_status ON medications(status);
+
+CREATE INDEX IF NOT EXISTS idx_medications_date ON medications(date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_applied_date ON medications(applied_date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_animal_status ON medications(animal_id, status, date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_status_date ON medications(status, date);
+
+CREATE INDEX IF NOT EXISTS idx_medications_status_next ON medications(status, next_date);
+
+CREATE INDEX IF NOT EXISTS idx_notes_animal_id ON notes(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);
+
+CREATE INDEX IF NOT EXISTS idx_notes_is_read ON notes(is_read);
+
+CREATE INDEX IF NOT EXISTS idx_notes_animal_read ON notes(animal_id, is_read);
+
+CREATE INDEX IF NOT EXISTS idx_notes_category_priority_read ON notes(category, priority, is_read);
+
+CREATE INDEX IF NOT EXISTS idx_notes_read_date ON notes(is_read, date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_feeding_schedules_pen ON feeding_schedules(pen_id);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_id ON vaccinations(animal_id);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_scheduled_date ON vaccinations(scheduled_date);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_applied_date ON vaccinations(applied_date);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_animal_status ON vaccinations(animal_id, status, scheduled_date);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_status_scheduled ON vaccinations(status, scheduled_date);
+
+CREATE INDEX IF NOT EXISTS idx_vaccinations_type_status ON vaccinations(vaccine_type, status);
+
+CREATE INDEX IF NOT EXISTS idx_sold_animals_code ON sold_animals(code COLLATE NOCASE);
+
+CREATE INDEX IF NOT EXISTS idx_sold_animals_name ON sold_animals(name COLLATE NOCASE);
+
+CREATE INDEX IF NOT EXISTS idx_sold_animals_name_color ON sold_animals(name COLLATE NOCASE, name_color);
+
+CREATE INDEX IF NOT EXISTS idx_sold_animals_sale_date ON sold_animals(sale_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_deceased_animals_code ON deceased_animals(code COLLATE NOCASE);
+
+CREATE INDEX IF NOT EXISTS idx_deceased_animals_name ON deceased_animals(name COLLATE NOCASE);
+
+CREATE INDEX IF NOT EXISTS idx_deceased_animals_name_color ON deceased_animals(name COLLATE NOCASE, name_color);
+
+CREATE TRIGGER IF NOT EXISTS animals_updated_at
+AFTER UPDATE ON animals
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE animals SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS animal_weights_updated_at
+AFTER UPDATE ON animal_weights
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE animal_weights SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS breeding_records_updated_at
+AFTER UPDATE ON breeding_records
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE breeding_records SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS financial_accounts_updated_at
+AFTER UPDATE ON financial_accounts
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE financial_accounts SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS financial_records_updated_at
+AFTER UPDATE ON financial_records
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE financial_records SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS medications_updated_at
+AFTER UPDATE ON medications
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE medications SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS notes_updated_at
+AFTER UPDATE ON notes
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE notes SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS vaccinations_updated_at
+AFTER UPDATE ON vaccinations
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE vaccinations SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS sold_animals_updated_at
+AFTER UPDATE ON sold_animals
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE sold_animals SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS deceased_animals_updated_at
+AFTER UPDATE ON deceased_animals
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE deceased_animals SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS feeding_pens_updated_at
+AFTER UPDATE ON feeding_pens
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE feeding_pens SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS feeding_schedules_updated_at
+AFTER UPDATE ON feeding_schedules
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE feeding_schedules SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS weight_alerts_updated_at
+AFTER UPDATE ON weight_alerts
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE weight_alerts SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS matrix_evaluations_updated_at
+AFTER UPDATE ON matrix_evaluations
+FOR EACH ROW
+WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+  UPDATE matrix_evaluations SET updated_at = datetime('now') WHERE id = OLD.id;
+END;
+

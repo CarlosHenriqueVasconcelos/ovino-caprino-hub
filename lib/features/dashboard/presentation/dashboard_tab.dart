@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../models/animal.dart';
-import '../../../shared/widgets/animal/animal_form.dart';
+import '../../../shared/widgets/common/app_brand_header.dart';
 import '../application/dashboard_controller.dart';
 import '../data/dashboard_repository.dart';
 import '../widgets/dashboard_alerts_section.dart';
-import '../widgets/dashboard_header.dart';
 import '../widgets/dashboard_kpi_row.dart';
 import '../widgets/dashboard_overview_section.dart';
 import '../widgets/dashboard_quick_actions.dart';
@@ -65,39 +64,34 @@ class DashboardTab extends StatelessWidget {
             );
           }
 
-          void openAnimalForm() {
-            showDialog(
-              context: context,
-              builder: (context) => const AnimalFormDialog(),
-            );
-          }
-
           return SingleChildScrollView(
             padding: EdgeInsets.symmetric(vertical: verticalPadding),
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxContentWidth),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DashboardHeader(
-                        onRefresh: () =>
-                            context.read<DashboardController>().refresh(),
-                        onAddAnimal: openAnimalForm,
-                        stats: stats,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AppBrandHeader(
+                      title: 'Fazenda São Petrônio',
+                      subtitle: 'Gestão de Ovinos e Caprinos',
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DashboardKpiRow(stats: stats),
+                          SizedBox(height: sectionGap),
+                          DashboardAlertsSection(onGoToTab: onGoToTab),
+                          SizedBox(height: sectionGap),
+                          DashboardQuickActions(onGoToTab: onGoToTab),
+                          SizedBox(height: sectionGap),
+                          DashboardOverviewSection(stats: stats),
+                        ],
                       ),
-                      SizedBox(height: sectionGap),
-                      DashboardKpiRow(stats: stats),
-                      SizedBox(height: sectionGap),
-                      DashboardAlertsSection(onGoToTab: onGoToTab),
-                      SizedBox(height: sectionGap),
-                      DashboardQuickActions(onGoToTab: onGoToTab),
-                      SizedBox(height: sectionGap),
-                      DashboardOverviewSection(stats: stats),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -137,19 +131,28 @@ class _DashboardLoading extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxContentWidth),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Carregando painel...'),
-                ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppBrandHeader(
+                title: 'Fazenda São Petrônio',
+                subtitle: 'Gestão de Ovinos e Caprinos',
               ),
-            ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Carregando painel...'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -1,17 +1,16 @@
 // lib/data/local_db.dart
-// SQLite local espelhado do Supabase (Out/2025) — versão sem Cost Centers & Budgets
+// SQLite local espelhado do Supabase (schema único, sem migrações incrementais)
 // Mapas de tipos: uuid→TEXT | timestamptz→TEXT(ISO8601) | date→TEXT(YYYY-MM-DD) | numeric→REAL | boolean→INTEGER(0/1)
 //
 // Observações:
 // - Chaves estrangeiras habilitadas (PRAGMA foreign_keys = ON)
-// - Triggers de updated_at (com cláusula WHEN para evitar recursã
+// - Triggers de updated_at (com cláusula WHEN para evitar recursão)
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'database_factory.dart';
-import '../services/migration_service.dart';
 
 class AppDatabase {
   final Database db;
@@ -26,7 +25,7 @@ class AppDatabase {
     return p.join(dir.path, fileName);
   }
 
-  /// Abre o SQLite local, habilita foreign_keys e executa migrações.
+  /// Abre o SQLite local e garante schema completo na criação.
   /// Usa factory dinâmica:
   /// - Desktop: sqflite_common_ffi
   /// - Mobile:  sqflite nativo
@@ -38,14 +37,10 @@ class AppDatabase {
     final db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        // mantenha 1; se mudar o schema, use MigrationService ou apague o .db
+        // Base sem migrações incrementais: schema único e completo no onCreate.
         version: 1,
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
         onCreate: (db, v) async => _createAll(db),
-        onOpen: (db) async {
-          // Executar migrações após abrir o banco
-          await MigrationService.runMigrations(db);
-        },
       ),
     );
     return AppDatabase(db);
@@ -324,6 +319,41 @@ class AppDatabase {
         WHERE id = NEW.female_animal_id;
       END;
     ''');
+
+    // -------- matrix_evaluations
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS matrix_evaluations (
+        id TEXT PRIMARY KEY,
+        animal_id TEXT NOT NULL,
+        evaluation_date TEXT NOT NULL DEFAULT (date('now')),
+        fertility_score REAL NOT NULL CHECK (fertility_score >= 0 AND fertility_score <= 10),
+        maternal_score REAL NOT NULL CHECK (maternal_score >= 0 AND maternal_score <= 10),
+        health_score REAL NOT NULL CHECK (health_score >= 0 AND health_score <= 10),
+        temperament_score REAL NOT NULL CHECK (temperament_score >= 0 AND temperament_score <= 10),
+        growth_score REAL NOT NULL CHECK (growth_score >= 0 AND growth_score <= 10),
+        hoof_condition TEXT NOT NULL DEFAULT 'Sem problema',
+        verminosis_level TEXT NOT NULL DEFAULT 'Nenhuma',
+        twinning_history TEXT NOT NULL DEFAULT 'Sem histórico',
+        lambing_weight REAL,
+        weaning_weight REAL,
+        lactation_score REAL NOT NULL DEFAULT 7 CHECK (lactation_score >= 0 AND lactation_score <= 10),
+        body_condition_score REAL NOT NULL DEFAULT 3 CHECK (body_condition_score >= 1 AND body_condition_score <= 5),
+        dentition_score REAL NOT NULL DEFAULT 7 CHECK (dentition_score >= 0 AND dentition_score <= 10),
+        age_months INTEGER,
+        final_score REAL NOT NULL CHECK (final_score >= 0 AND final_score <= 10),
+        recommendation TEXT NOT NULL DEFAULT 'Observação',
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (animal_id) REFERENCES animals(id)
+      );
+    ''');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_matrix_eval_animal ON matrix_evaluations(animal_id);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_matrix_eval_final_score ON matrix_evaluations(final_score DESC);');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_matrix_eval_animal_date ON matrix_evaluations(animal_id, evaluation_date DESC);');
 
     // -------- financial_accounts (SEM cost_center_id)
     await db.execute('''
@@ -763,6 +793,7 @@ class AppDatabase {
       'feeding_pens',
       'feeding_schedules',
       'weight_alerts',
+      'matrix_evaluations',
     ]) {
       await makeUpdatedAtTrigger(tbl);
     }

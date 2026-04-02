@@ -6,6 +6,7 @@ import '../../../data/animal_repository.dart';
 import '../../../models/animal.dart';
 import '../../../shared/widgets/buttons/primary_button.dart';
 import '../../../shared/widgets/buttons/secondary_button.dart';
+import '../../../shared/widgets/common/app_brand_header.dart';
 import '../../../shared/widgets/common/app_card.dart';
 import '../../../shared/widgets/common/app_empty_state.dart';
 import '../../../shared/widgets/common/section_header.dart';
@@ -22,9 +23,10 @@ import '../../../utils/responsive_utils.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../shared/widgets/animal/animal_form.dart';
 import '../data/herd_repository.dart';
-import 'widgets/herd_actions_bar.dart';
 import 'widgets/herd_animal_grid.dart';
-import 'widgets/herd_filters_bar.dart';
+import 'widgets/herd_primary_chips.dart';
+import 'widgets/herd_search_bar.dart';
+import 'widgets/herd_secondary_actions_row.dart';
 import '../application/herd_controller.dart';
 
 class HerdTab extends StatelessWidget {
@@ -91,6 +93,13 @@ class _HerdViewState extends State<HerdView>
       _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Ferido' | especiais: 'Vendido'/'Óbito'
   String? _colorFilter;
   String? _categoryFilter;
+  static const List<String> _statusOptions = <String>[
+    'Saudável',
+    'Em tratamento',
+    'Ferido',
+    'Vendido',
+    'Óbito',
+  ];
 
   Future<List<Animal>>? _deceasedFuture;
   List<String> _availableColors = [];
@@ -211,62 +220,46 @@ class _HerdViewState extends State<HerdView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      HerdActionsBar(
-                        onAddAnimal: () => _showAnimalFormDialog(context),
+                      const AppBrandHeader(
+                        title: 'Fazenda São Petrônio',
+                        subtitle: 'Gestão de Ovinos e Caprinos',
+                        margin: EdgeInsets.zero,
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      HerdFiltersBar(
-                        searchController: _search,
-                        onSearchChanged: (value) {
-                          _queryPending = value.trim().toLowerCase();
-                          _searchDebouncer.run(() {
-                            _query = _queryPending;
-                            _applyFilters(refresh: true);
-                          });
-                        },
-                        onClearSearch: () {
-                          _query = '';
-                          _search.clear();
-                          _applyFilters(refresh: true);
-                          setState(() {});
-                        },
-                        includeSold: _includeSold,
-                        onIncludeSoldChanged: (value) {
-                          setState(() {
-                            _includeSold = value;
-                          });
-                          _applyFilters(refresh: true);
-                        },
-                        statusFilter: _statusFilter,
-                        statusOptions: const [
-                          'Saudável',
-                          'Em tratamento',
-                          'Ferido',
-                          'Vendido',
-                          'Óbito',
-                        ],
-                        onStatusChanged: (value) {
-                          setState(() {
-                            _statusFilter = value;
-                          });
-                          _applyFilters(refresh: true);
-                        },
-                        colorFilter: _colorFilter,
-                        colorOptions: _availableColors,
-                        onColorChanged: (value) {
-                          setState(() {
-                            _colorFilter = value;
-                          });
-                          _applyFilters(refresh: true);
-                        },
-                        categoryFilter: _categoryFilter,
-                        categoryOptions: _availableCategories,
-                        onCategoryChanged: (value) {
-                          setState(() {
-                            _categoryFilter = value;
-                          });
-                          _applyFilters(refresh: true);
-                        },
+                      const SizedBox(height: AppSpacing.xs),
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(
+                            color: AppColors.borderNeutral.withValues(alpha: 0.85),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            HerdSearchBar(
+                              controller: _search,
+                              onChanged: _onSearchChanged,
+                              onOpenFilters: _openFiltersSheet,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            HerdPrimaryChips(
+                              selectedCategory: _categoryFilter,
+                              onSelected: (value) {
+                                _updateFilters(() => _categoryFilter = value);
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            HerdSecondaryActionsRow(
+                              onOpenFilters: _openFiltersSheet,
+                              onClearFilters: _clearAllFilters,
+                              onToggleIncludeSold: _toggleIncludeSold,
+                              includeSold: _includeSold,
+                              hasAnyFilter: _hasAnyFilter(),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Selector<HerdController, ({int count, bool loading})>(
@@ -381,6 +374,201 @@ class _HerdViewState extends State<HerdView>
           ),
         ),
       ),
+    );
+  }
+
+  void _updateFilters(VoidCallback update) {
+    setState(update);
+    _applyFilters(refresh: true);
+  }
+
+  void _onSearchChanged(String value) {
+    _queryPending = value.trim().toLowerCase();
+    _searchDebouncer.run(() {
+      _query = _queryPending;
+      _applyFilters(refresh: true);
+    });
+  }
+
+  bool _hasAnyFilter() {
+    return _search.text.trim().isNotEmpty ||
+        _includeSold ||
+        _statusFilter != null ||
+        _colorFilter != null ||
+        _categoryFilter != null;
+  }
+
+  void _clearAllFilters() {
+    _search.clear();
+    _query = '';
+    _queryPending = '';
+    _updateFilters(() {
+      _includeSold = false;
+      _statusFilter = null;
+      _colorFilter = null;
+      _categoryFilter = null;
+    });
+  }
+
+  void _toggleIncludeSold() {
+    _updateFilters(() => _includeSold = !_includeSold);
+  }
+
+  Future<void> _openFiltersSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            void applyAndRefresh(VoidCallback update) {
+              setState(update);
+              _applyFilters(refresh: true);
+              sheetSetState(() {});
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filtros',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Refine por status, cor e categoria.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      SwitchListTile.adaptive(
+                        value: _includeSold,
+                        onChanged: (value) =>
+                            applyAndRefresh(() => _includeSold = value),
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Incluir vendidos'),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      _FilterSheetSection(
+                        title: 'Status',
+                        child: Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todos'),
+                              selected: _statusFilter == null,
+                              onSelected: (_) =>
+                                  applyAndRefresh(() => _statusFilter = null),
+                            ),
+                            ..._statusOptions.map(
+                              (status) => ChoiceChip(
+                                label: Text(
+                                  status == 'Saudável' ? 'Saudáveis' : status,
+                                ),
+                                selected: _statusFilter == status,
+                                onSelected: (_) =>
+                                    applyAndRefresh(() => _statusFilter = status),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _FilterSheetSection(
+                        title: 'Cor',
+                        child: Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todas'),
+                              selected: _colorFilter == null,
+                              onSelected: (_) =>
+                                  applyAndRefresh(() => _colorFilter = null),
+                            ),
+                            ..._availableColors.map(
+                              (color) => ChoiceChip(
+                                label: Text(
+                                  AnimalDisplayUtils.getColorName(color),
+                                ),
+                                selected: _colorFilter == color,
+                                onSelected: (_) =>
+                                    applyAndRefresh(() => _colorFilter = color),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _FilterSheetSection(
+                        title: 'Categoria',
+                        child: Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todas'),
+                              selected: _categoryFilter == null,
+                              onSelected: (_) =>
+                                  applyAndRefresh(() => _categoryFilter = null),
+                            ),
+                            ..._availableCategories.map(
+                              (category) => ChoiceChip(
+                                label: Text(category),
+                                selected: _categoryFilter == category,
+                                onSelected: (_) => applyAndRefresh(
+                                  () => _categoryFilter = category,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _hasAnyFilter()
+                                  ? () {
+                                      _clearAllFilters();
+                                      sheetSetState(() {});
+                                    }
+                                  : null,
+                              child: const Text('Limpar'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text('Fechar'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -526,6 +714,44 @@ class _LoadingFooter extends StatelessWidget {
         ),
         SizedBox(width: 8),
         Text('Carregando...'),
+      ],
+    );
+  }
+}
+
+class _FilterSheetSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _FilterSheetSection({
+    required this.title,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: AppColors.white.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.borderNeutral.withValues(alpha: 0.8),
+            ),
+          ),
+          child: child,
+        ),
       ],
     );
   }
