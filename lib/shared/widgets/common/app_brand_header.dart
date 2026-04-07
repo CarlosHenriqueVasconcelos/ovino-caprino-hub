@@ -29,9 +29,9 @@ class AppBrandHeader extends StatelessWidget {
         ? AppSpacing.sm
         : AppSpacing.md;
     final logoSize = widthTier == ResponsiveWidthTier.small ? 34.0 : 38.0;
-    final logoIconSize = widthTier == ResponsiveWidthTier.small ? 17.0 : 18.0;
+    final logoIconSize = widthTier == ResponsiveWidthTier.small ? 16.5 : 18.0;
     final notificationSize =
-        widthTier == ResponsiveWidthTier.small ? 36.0 : 40.0;
+        widthTier == ResponsiveWidthTier.small ? 35.0 : 39.0;
     final hasNotificationBadge =
         notificationCount != null && notificationCount! > 0;
     final resolvedMargin = margin ??
@@ -46,15 +46,22 @@ class AppBrandHeader extends StatelessWidget {
       padding: resolvedMargin,
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.md,
+          vertical: 7,
         ),
         decoration: BoxDecoration(
-          color: AppColors.surface.withValues(alpha: 0.96),
+          color: AppColors.surface.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.borderNeutral.withValues(alpha: 0.85),
+            color: AppColors.borderNeutral.withValues(alpha: 0.58),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.018),
+              blurRadius: 9,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -70,6 +77,9 @@ class AppBrandHeader extends StatelessWidget {
                     AppColors.primary,
                     AppColors.primarySupport,
                   ],
+                ),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.26),
                 ),
               ),
               alignment: Alignment.center,
@@ -100,8 +110,9 @@ class AppBrandHeader extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -145,9 +156,9 @@ class _NotificationButton extends StatelessWidget {
               child: Ink(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.primaryLight,
+                  color: AppColors.white.withValues(alpha: 0.96),
                   border: Border.all(
-                    color: AppColors.borderNeutral.withValues(alpha: 0.95),
+                    color: AppColors.borderNeutral.withValues(alpha: 0.68),
                   ),
                 ),
                 child: IconButton(

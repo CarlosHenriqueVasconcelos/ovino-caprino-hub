@@ -281,7 +281,7 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
         body: SingleChildScrollView(
           child: Column(
             children: [
-              const AppBrandHeader(
+              AppBrandHeader(
                 title: 'Fazenda São Petrônio',
                 subtitle: 'Gestão de Ovinos e Caprinos',
               ),

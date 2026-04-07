@@ -98,21 +98,24 @@ class HerdAnimalGrid extends StatelessWidget {
     required int crossAxisCount,
   }) {
     if (crossAxisCount <= 1) {
-      if (availableWidth < 360) return 190;
-      if (availableWidth < 430) return 198;
-      return 205;
+      if (availableWidth <= 340) return 220;
+      if (availableWidth <= 380) return 210;
+      if (availableWidth <= 430) return 202;
+      return 198;
     }
 
     if (crossAxisCount == 2) {
-      if (availableWidth < 900) return 192;
+      if (availableWidth < 700) return 194;
+      if (availableWidth < 760) return 198;
+      if (availableWidth < 900) return 202;
       return 206;
     }
 
     if (crossAxisCount == 3) {
-      if (availableWidth < 1200) return 200;
-      return 212;
+      if (availableWidth < 1200) return 198;
+      return 204;
     }
 
-    return 218;
+    return 206;
   }
 }

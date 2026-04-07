@@ -20,21 +20,28 @@ class HerdSearchBar extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      height: 48,
+      height: 45,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: AppColors.borderNeutral.withValues(alpha: 0.95),
+          color: AppColors.borderNeutral.withValues(alpha: 0.64),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.016),
+            blurRadius: 7,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
           const Icon(
             Icons.search_rounded,
-            size: 20,
-            color: AppColors.primary,
+            size: 18,
+            color: AppColors.primarySupport,
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
@@ -46,22 +53,22 @@ class HerdSearchBar extends StatelessWidget {
                 isDense: true,
                 border: InputBorder.none,
                 hintText: 'Buscar por nome ou cod...',
-                hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
+                hintStyle: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
           ),
           const SizedBox(width: AppSpacing.xxs),
           Container(
-            height: 30,
-            width: 30,
+            height: 27,
+            width: 27,
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.surface.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(11),
               border: Border.all(
-                color: AppColors.borderNeutral.withValues(alpha: 0.9),
+                color: AppColors.borderNeutral.withValues(alpha: 0.66),
               ),
             ),
             child: Material(
@@ -71,8 +78,8 @@ class HerdSearchBar extends StatelessWidget {
                 onTap: onOpenFilters,
                 child: const Icon(
                   Icons.view_list_rounded,
-                  size: 16,
-                  color: AppColors.primary,
+                  size: 14,
+                  color: AppColors.primarySupport,
                 ),
               ),
             ),

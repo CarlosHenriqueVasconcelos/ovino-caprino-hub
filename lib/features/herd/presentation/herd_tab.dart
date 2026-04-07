@@ -5,12 +5,11 @@ import 'package:provider/provider.dart';
 import '../../../data/animal_repository.dart';
 import '../../../models/animal.dart';
 import '../../../shared/widgets/buttons/primary_button.dart';
-import '../../../shared/widgets/buttons/secondary_button.dart';
 import '../../../shared/widgets/common/app_brand_header.dart';
 import '../../../shared/widgets/common/app_card.dart';
 import '../../../shared/widgets/common/app_empty_state.dart';
-import '../../../shared/widgets/common/section_header.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_radius.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../services/animal_delete_cascade.dart';
 import '../../../services/animal_service.dart';
@@ -57,12 +56,13 @@ class HerdTab extends StatelessWidget {
           const HerdView(),
           if (isMobile)
             Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton.extended(
-                onPressed: () => _showAnimalFormDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('Animal'),
+              left: 0,
+              right: 0,
+              bottom: 9,
+              child: Center(
+                child: _NewAnimalPillButton(
+                  onTap: () => _showAnimalFormDialog(context),
+                ),
               ),
             ),
         ],
@@ -209,17 +209,23 @@ class _HerdViewState extends State<HerdView>
               final deceasedLoading =
                   deceasedSnapshot.connectionState == ConnectionState.waiting &&
                       deceasedSnapshot.data == null;
+              final pageBackground = Color.alphaBlend(
+                AppColors.beigeSoft.withValues(alpha: 0.06),
+                AppColors.surface,
+              );
 
-              return Scrollbar(
-                controller: _scrollCtrl,
-                thumbVisibility: !ResponsiveUtils.isMobile(context),
-                child: SingleChildScrollView(
+              return DecoratedBox(
+                decoration: BoxDecoration(color: pageBackground),
+                child: Scrollbar(
                   controller: _scrollCtrl,
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  thumbVisibility: !ResponsiveUtils.isMobile(context),
+                  child: SingleChildScrollView(
+                    controller: _scrollCtrl,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       const AppBrandHeader(
                         title: 'Fazenda São Petrônio',
                         subtitle: 'Gestão de Ovinos e Caprinos',
@@ -227,13 +233,20 @@ class _HerdViewState extends State<HerdView>
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Container(
-                        padding: const EdgeInsets.all(AppSpacing.xs),
+                        padding: const EdgeInsets.all(AppSpacing.sm),
                         decoration: BoxDecoration(
-                          color: AppColors.surface.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(22),
+                          color: AppColors.surface.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(26),
                           border: Border.all(
-                            color: AppColors.borderNeutral.withValues(alpha: 0.85),
+                            color: AppColors.borderNeutral.withValues(alpha: 0.58),
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.014),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,25 +274,27 @@ class _HerdViewState extends State<HerdView>
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Selector<HerdController, ({int count, bool loading})>(
+                      const SizedBox(height: AppSpacing.sm),
+                      Selector<HerdController, ({int count, bool loading, bool hasMore})>(
                         selector: (_, c) => (
                           count: c.items.length,
                           loading: c.isRefreshing,
+                          hasMore: c.hasMore,
                         ),
                         builder: (_, state, __) {
-                          final subtitle = _isSpecialStatus()
-                              ? 'Listagem filtrada por status especial'
-                              : state.loading
-                                  ? 'Atualizando lista de animais...'
-                                  : '${state.count} registro(s) nesta página';
-                          return SectionHeader(
-                            title: 'Animais do Rebanho',
-                            subtitle: subtitle,
+                          if (_isSpecialStatus()) {
+                            return const SizedBox.shrink();
+                          }
+                          return _HerdPagerBar(
+                            count: state.count,
+                            isLoading: state.loading,
+                            hasMore: state.hasMore,
+                            onPrevious: _goToFirstPage,
+                            onNext: _loadNextPage,
                           );
                         },
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: 6),
                       Selector<HerdController, String?>(
                         selector: (_, c) => c.error,
                         builder: (_, error, __) {
@@ -319,15 +334,10 @@ class _HerdViewState extends State<HerdView>
                               child: Center(child: CircularProgressIndicator()),
                             );
                           }
-                          return AppCard(
-                            variant: AppCardVariant.outlined,
-                            backgroundColor: AppColors.surface.withValues(
-                              alpha: 0.94,
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xxs,
                             ),
-                            borderColor: AppColors.borderNeutral.withValues(
-                              alpha: 0.72,
-                            ),
-                            padding: const EdgeInsets.all(AppSpacing.sm),
                             child: _buildGridContent(
                               items: state.items,
                               deceasedAnimals: deceasedAnimals,
@@ -336,37 +346,11 @@ class _HerdViewState extends State<HerdView>
                           );
                         },
                       ),
-                      Selector<HerdController, ({bool hasMore, bool isLoadingMore})>(
-                        selector: (_, c) => (
-                          hasMore: c.hasMore,
-                          isLoadingMore: c.isLoadingMore,
-                        ),
-                        builder: (_, state, __) {
-                          if (_isSpecialStatus()) {
-                            return const SizedBox.shrink();
-                          }
-                          if (!state.hasMore && !state.isLoadingMore) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: Center(
-                              child: state.isLoadingMore
-                                  ? const _LoadingFooter()
-                                  : SecondaryButton(
-                                      onPressed: () {
-                                        context.read<HerdController>().loadMore();
-                                      },
-                                      label: 'Carregar mais',
-                                    ),
-                            ),
-                          );
-                        },
-                      ),
                       SizedBox(
                         height: ResponsiveUtils.isMobile(context) ? 88 : 24,
                       ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -674,10 +658,7 @@ class _HerdViewState extends State<HerdView>
   }
 
   void _onScroll() {
-    if (_isSpecialStatus()) return;
-    if (_scrollCtrl.position.extentAfter < 600) {
-      context.read<HerdController>().loadMore();
-    }
+    // Paginação controlada por setas visuais no topo da listagem.
   }
 
   Future<void> _loadFilters() async {
@@ -695,26 +676,121 @@ class _HerdViewState extends State<HerdView>
     return _statusFilter == 'Óbito' || _statusFilter == 'Vendido';
   }
 
+  void _goToFirstPage() {
+    if (_isSpecialStatus()) return;
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.jumpTo(0);
+    }
+    context.read<HerdController>().refreshAll();
+  }
+
+  void _loadNextPage() {
+    if (_isSpecialStatus()) return;
+    context.read<HerdController>().loadMore();
+  }
+
   @override
   bool get wantKeepAlive => true;
 }
 
-class _LoadingFooter extends StatelessWidget {
-  const _LoadingFooter();
+class _HerdPagerBar extends StatelessWidget {
+  final int count;
+  final bool isLoading;
+  final bool hasMore;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  const _HerdPagerBar({
+    required this.count,
+    required this.isLoading,
+    required this.hasMore,
+    required this.onPrevious,
+    required this.onNext,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 16,
-          width: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
+    final canGoPrevious = count > 50 && !isLoading;
+    final canGoNext = hasMore && !isLoading;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+      child: Row(
+        children: [
+          _PagerArrowButton(
+            icon: Icons.chevron_left_rounded,
+            enabled: canGoPrevious,
+            onTap: onPrevious,
+            tooltip: 'Voltar',
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              isLoading ? 'Atualizando...' : '$count registro(s) nesta página',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _PagerArrowButton(
+            icon: Icons.chevron_right_rounded,
+            enabled: canGoNext,
+            onTap: onNext,
+            tooltip: 'Próxima',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PagerArrowButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  const _PagerArrowButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: enabled ? onTap : null,
+        radius: 18,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: enabled
+                ? AppColors.white.withValues(alpha: 0.9)
+                : AppColors.white.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: AppColors.borderNeutral.withValues(alpha: 0.65),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 18,
+            color: enabled
+                ? AppColors.primary
+                : AppColors.textSecondary.withValues(alpha: 0.5),
+          ),
         ),
-        SizedBox(width: 8),
-        Text('Carregando...'),
-      ],
+      ),
     );
   }
 }
@@ -753,6 +829,65 @@ class _FilterSheetSection extends StatelessWidget {
           child: child,
         ),
       ],
+    );
+  }
+}
+
+class _NewAnimalPillButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _NewAnimalPillButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompact = ResponsiveUtils.isMobile(context);
+    final buttonHeight = isCompact ? 40.0 : 42.0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: Ink(
+          height: buttonHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primarySupport.withValues(alpha: 0.94),
+                AppColors.primary.withValues(alpha: 0.94),
+              ],
+            ),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.7),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.16),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add_rounded, size: 18, color: AppColors.white),
+              const SizedBox(width: 6),
+              Text(
+                'Novo Animal',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

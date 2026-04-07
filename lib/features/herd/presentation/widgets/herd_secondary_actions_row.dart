@@ -26,7 +26,7 @@ class HerdSecondaryActionsRow extends StatelessWidget {
         final compact = constraints.maxWidth < 335;
 
         final filtersButton = SizedBox(
-          height: 38,
+          height: 35,
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -34,27 +34,27 @@ class HerdSecondaryActionsRow extends StatelessWidget {
               onTap: onOpenFilters,
               child: Ink(
                 decoration: BoxDecoration(
-                  color: AppColors.white,
+                  color: AppColors.white.withValues(alpha: 0.86),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: AppColors.borderNeutral.withValues(alpha: 0.95),
+                    color: AppColors.borderNeutral.withValues(alpha: 0.62),
                   ),
                 ),
                 child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(horizontal: 14),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.filter_alt_rounded,
-                        size: 17,
+                        size: 15,
                         color: AppColors.primary,
                       ),
                       SizedBox(width: AppSpacing.xs),
                       Text(
                         'Filtros',
                         style: TextStyle(
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
                       ),
@@ -67,13 +67,13 @@ class HerdSecondaryActionsRow extends StatelessWidget {
         );
 
         final compactActions = Container(
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          height: 35,
+          padding: const EdgeInsets.symmetric(horizontal: 3),
           decoration: BoxDecoration(
-            color: AppColors.white,
+            color: AppColors.white.withValues(alpha: 0.84),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: AppColors.borderNeutral.withValues(alpha: 0.95),
+              color: AppColors.borderNeutral.withValues(alpha: 0.62),
             ),
           ),
           child: Row(
@@ -82,7 +82,7 @@ class HerdSecondaryActionsRow extends StatelessWidget {
               IconButton(
                 onPressed: onToggleIncludeSold,
                 tooltip: includeSold ? 'Ocultar vendidos' : 'Incluir vendidos',
-                iconSize: 16,
+                iconSize: 14,
                 visualDensity: VisualDensity.compact,
                 icon: Icon(
                   includeSold ? Icons.stars_rounded : Icons.stars_outlined,
@@ -93,8 +93,8 @@ class HerdSecondaryActionsRow extends StatelessWidget {
               ),
               Container(
                 width: 1,
-                height: 16,
-                color: AppColors.borderNeutral.withValues(alpha: 0.95),
+                height: 14,
+                color: AppColors.borderNeutral.withValues(alpha: 0.64),
               ),
               PopupMenuButton<String>(
                 tooltip: 'Mais ações',
@@ -130,7 +130,7 @@ class HerdSecondaryActionsRow extends StatelessWidget {
                 ],
                 icon: const Icon(
                   Icons.more_vert_rounded,
-                  size: 16,
+                  size: 14,
                   color: AppColors.textSecondary,
                 ),
               ),
