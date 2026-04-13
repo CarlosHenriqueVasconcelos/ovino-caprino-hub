@@ -13,6 +13,9 @@ class AnimalCard extends StatefulWidget {
   final Animal? mother;
   final Animal? father;
   final List<Animal> offspring;
+  final int? offspringMaleCount;
+  final int? offspringFemaleCount;
+  final int? offspringTotalCount;
   final Future<void> Function(Animal)? onDeleteCascade;
   final VoidCallback? onAnimalChanged;
 
@@ -23,6 +26,9 @@ class AnimalCard extends StatefulWidget {
     this.mother,
     this.father,
     this.offspring = const [],
+    this.offspringMaleCount,
+    this.offspringFemaleCount,
+    this.offspringTotalCount,
     this.onDeleteCascade,
     this.onAnimalChanged,
   });
@@ -327,6 +333,17 @@ class _AnimalCardState extends State<AnimalCard> {
         final contentRightInset = ultraCompact ? 118.0 : (compact ? 138.0 : 156.0);
         final imageRight = ultraCompact ? -18.0 : (compact ? -22.0 : -26.0);
         final imageBottom = ultraCompact ? -40.0 : (compact ? -36.0 : -32.0);
+        final maleCount = widget.offspringMaleCount ??
+            widget.offspring
+                .where((animal) =>
+                    animal.gender.toLowerCase().trim().startsWith('m'))
+                .length;
+        final femaleCount = widget.offspringFemaleCount ??
+            widget.offspring
+                .where((animal) =>
+                    animal.gender.toLowerCase().trim().startsWith('f'))
+                .length;
+        final totalCount = widget.offspringTotalCount ?? widget.offspring.length;
 
         return RepaintBoundary(
           child: ClipRRect(
@@ -366,7 +383,9 @@ class _AnimalCardState extends State<AnimalCard> {
                               _avatarAssetForBreed(_cache.breed.toLowerCase()),
                           statusColor: _statusColor(_cache.statusLower),
                           statusLower: _cache.statusLower,
-                          offspringCount: widget.offspring.length,
+                          offspringMaleCount: maleCount,
+                          offspringFemaleCount: femaleCount,
+                          offspringTotalCount: totalCount,
                           onMenuSelected: _handleMenuAction,
                           canEdit: widget.onEdit != null,
                           canDeleteCascade: widget.onDeleteCascade != null,
@@ -435,7 +454,9 @@ class _AnimalCardHeader extends StatelessWidget {
   final String? avatarAssetPath;
   final Color statusColor;
   final String statusLower;
-  final int offspringCount;
+  final int offspringMaleCount;
+  final int offspringFemaleCount;
+  final int offspringTotalCount;
   final Future<void> Function(String value) onMenuSelected;
   final bool canEdit;
   final bool canDeleteCascade;
@@ -450,7 +471,9 @@ class _AnimalCardHeader extends StatelessWidget {
     required this.avatarAssetPath,
     required this.statusColor,
     required this.statusLower,
-    required this.offspringCount,
+    required this.offspringMaleCount,
+    required this.offspringFemaleCount,
+    required this.offspringTotalCount,
     required this.onMenuSelected,
     required this.canEdit,
     required this.canDeleteCascade,
@@ -521,7 +544,9 @@ class _AnimalCardHeader extends StatelessWidget {
               _HeaderMetaIndicators(
                 statusColor: statusColor,
                 statusLower: statusLower,
-                offspringCount: offspringCount,
+                offspringMaleCount: offspringMaleCount,
+                offspringFemaleCount: offspringFemaleCount,
+                offspringTotalCount: offspringTotalCount,
               ),
               const SizedBox(width: 8),
               PopupMenuButton<String>(
@@ -576,12 +601,16 @@ class _AnimalCardHeader extends StatelessWidget {
 class _HeaderMetaIndicators extends StatelessWidget {
   final Color statusColor;
   final String statusLower;
-  final int offspringCount;
+  final int offspringMaleCount;
+  final int offspringFemaleCount;
+  final int offspringTotalCount;
 
   const _HeaderMetaIndicators({
     required this.statusColor,
     required this.statusLower,
-    required this.offspringCount,
+    required this.offspringMaleCount,
+    required this.offspringFemaleCount,
+    required this.offspringTotalCount,
   });
 
   IconData _statusIcon(String statusLower) {
@@ -601,23 +630,39 @@ class _HeaderMetaIndicators extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
           color: AppColors.textSecondary.withValues(alpha: 0.9),
         );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(_statusIcon(statusLower), size: 13, color: statusColor),
-        const SizedBox(width: 6),
+        Icon(_statusIcon(statusLower), size: 12, color: statusColor),
+        const SizedBox(width: 4),
+        Icon(
+          Icons.male_rounded,
+          size: 11,
+          color: AppColors.primary.withValues(alpha: 0.88),
+        ),
+        const SizedBox(width: 2),
+        Text('$offspringMaleCount', style: textStyle),
+        const SizedBox(width: 4),
+        Icon(
+          Icons.female_rounded,
+          size: 11,
+          color: AppColors.goldSoft.withValues(alpha: 0.92),
+        ),
+        const SizedBox(width: 2),
+        Text('$offspringFemaleCount', style: textStyle),
+        const SizedBox(width: 4),
         Icon(
           Icons.circle_outlined,
-          size: 13,
+          size: 11,
           color: AppColors.textSecondary.withValues(alpha: 0.88),
         ),
-        const SizedBox(width: 3),
-        Text('$offspringCount', style: textStyle),
+        const SizedBox(width: 2),
+        Text('$offspringTotalCount', style: textStyle),
       ],
     );
   }

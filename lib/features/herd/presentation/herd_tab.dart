@@ -575,6 +575,7 @@ class _HerdViewState extends State<HerdView>
         animals: sortedDeceased,
         resolveParent: relations.parentOf,
         resolveOffspring: relations.offspringOf,
+        resolveOffspringStats: relations.offspringStatsOf,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
       );
@@ -596,6 +597,7 @@ class _HerdViewState extends State<HerdView>
             animals: list,
             resolveParent: relations.parentOf,
             resolveOffspring: relations.offspringOf,
+            resolveOffspringStats: relations.offspringStatsOf,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
           );
@@ -613,6 +615,7 @@ class _HerdViewState extends State<HerdView>
       animals: items,
       resolveParent: herdController.resolveById,
       resolveOffspring: herdController.resolveOffspring,
+      resolveOffspringStats: herdController.resolveOffspringStats,
       onEdit: (animal) => _showAnimalFormDialog(context, animal: animal),
       onDeleteCascade: (animal) async {
         await deleteCascade.delete(animal.id);
@@ -962,5 +965,17 @@ class _AnimalRelations {
   List<Animal> offspringOf(String id) {
     if (id.isEmpty) return const [];
     return _offspring[id] ?? const [];
+  }
+
+  ({int male, int female, int total}) offspringStatsOf(String id) {
+    final children = offspringOf(id);
+    int male = 0;
+    int female = 0;
+    for (final child in children) {
+      final gender = child.gender.toLowerCase().trim();
+      if (gender.startsWith('m')) male++;
+      if (gender.startsWith('f')) female++;
+    }
+    return (male: male, female: female, total: children.length);
   }
 }

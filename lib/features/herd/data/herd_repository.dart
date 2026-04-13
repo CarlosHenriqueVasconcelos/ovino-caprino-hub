@@ -41,6 +41,11 @@ class HerdRepository {
     );
   }
 
+  Future<Map<String, ({int male, int female, int total})>>
+      getOffspringGenderStatsByParentIds(List<String> parentIds) {
+    return _animalRepository.getOffspringGenderStatsByParentIds(parentIds);
+  }
+
   Future<List<String>> getAvailableColors() {
     return _animalService.getAvailableColors();
   }

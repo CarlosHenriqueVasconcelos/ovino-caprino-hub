@@ -12,6 +12,8 @@ class HerdController extends ChangeNotifier {
   List<Animal> _items = const [];
   Map<String, Animal> _byId = const {};
   Map<String, List<Animal>> _childrenByParentId = const {};
+  Map<String, ({int male, int female, int total})> _offspringStatsByParentId =
+      const {};
   bool _isRefreshing = false;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -84,6 +86,40 @@ class HerdController extends ChangeNotifier {
     return _childrenByParentId[key] ?? const <Animal>[];
   }
 
+  ({int male, int female, int total}) resolveOffspringStats(String parentId) {
+    final key = parentId.trim();
+    if (key.isEmpty) return (male: 0, female: 0, total: 0);
+
+    final fromDb = _offspringStatsByParentId[key];
+    if (fromDb != null) return fromDb;
+
+    final fallback = _childrenByParentId[key] ?? const <Animal>[];
+    int male = 0;
+    int female = 0;
+    for (final child in fallback) {
+      final gender = child.gender.toLowerCase().trim();
+      if (gender.startsWith('m')) male++;
+      if (gender.startsWith('f')) female++;
+    }
+    return (male: male, female: female, total: fallback.length);
+  }
+
+  Future<void> _refreshOffspringStats() async {
+    final parentIds = _items
+        .map((animal) => animal.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    if (parentIds.isEmpty) {
+      _offspringStatsByParentId = const {};
+      return;
+    }
+
+    final stats = await _repo.getOffspringGenderStatsByParentIds(parentIds);
+    _offspringStatsByParentId = Map.unmodifiable(stats);
+  }
+
   void setSearch(String value) {
     _search = value.trim().toLowerCase();
   }
@@ -124,6 +160,7 @@ class HerdController extends ChangeNotifier {
     _hasMore = true;
     _page = 0;
     _items = const [];
+    _offspringStatsByParentId = const {};
     notifyListeners();
 
     try {
@@ -143,6 +180,8 @@ class HerdController extends ChangeNotifier {
       AnimalDisplayUtils.sortAnimalsList(sorted);
       _items = List<Animal>.unmodifiable(sorted);
       _rebuildIndexes(_items);
+      await _refreshOffspringStats();
+      if (token != _requestToken) return;
       _hasMore = results.length == _pageSize;
     } catch (e) {
       if (token != _requestToken) return;
@@ -185,6 +224,8 @@ class HerdController extends ChangeNotifier {
         AnimalDisplayUtils.sortAnimalsList(merged);
         _items = List<Animal>.unmodifiable(merged);
         _rebuildIndexes(_items);
+        await _refreshOffspringStats();
+        if (token != _requestToken) return;
         _page = nextPage;
         _hasMore = results.length == _pageSize;
       }

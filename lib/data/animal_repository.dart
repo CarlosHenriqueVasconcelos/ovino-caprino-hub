@@ -46,6 +46,55 @@ class AnimalRepository {
     return maps.map((m) => Animal.fromMap(m)).toList();
   }
 
+  Future<Map<String, ({int male, int female, int total})>>
+      getOffspringGenderStatsByParentIds(List<String> parentIds) async {
+    final normalizedIds = parentIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (normalizedIds.isEmpty) {
+      return const <String, ({int male, int female, int total})>{};
+    }
+
+    final placeholders = List.filled(normalizedIds.length, '?').join(', ');
+    final tables = <String>['animals', 'sold_animals', 'deceased_animals'];
+    final stats = <String, ({int male, int female, int total})>{};
+
+    bool isMale(String gender) => gender.startsWith('m');
+    bool isFemale(String gender) => gender.startsWith('f');
+
+    for (final table in tables) {
+      final rows = await _db.db.rawQuery(
+        '''
+        SELECT mother_id AS parent_id, gender
+        FROM $table
+        WHERE mother_id IN ($placeholders)
+        UNION ALL
+        SELECT father_id AS parent_id, gender
+        FROM $table
+        WHERE father_id IN ($placeholders)
+        ''',
+        <Object?>[...normalizedIds, ...normalizedIds],
+      );
+
+      for (final row in rows) {
+        final parentId = row['parent_id']?.toString().trim() ?? '';
+        if (parentId.isEmpty) continue;
+        final gender = row['gender']?.toString().toLowerCase().trim() ?? '';
+        final current = stats[parentId] ?? (male: 0, female: 0, total: 0);
+
+        stats[parentId] = (
+          male: current.male + (isMale(gender) ? 1 : 0),
+          female: current.female + (isFemale(gender) ? 1 : 0),
+          total: current.total + 1,
+        );
+      }
+    }
+
+    return Map.unmodifiable(stats);
+  }
+
   /// Query filtrada para weight tracking (com paginação)
   Future<List<Animal>> getFilteredAnimals({
     int? ageMinMonths,

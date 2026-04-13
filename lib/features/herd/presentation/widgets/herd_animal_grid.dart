@@ -8,6 +8,8 @@ class HerdAnimalGrid extends StatelessWidget {
   final List<Animal> animals;
   final Animal? Function(String?) resolveParent;
   final List<Animal> Function(String) resolveOffspring;
+  final ({int male, int female, int total}) Function(String)?
+      resolveOffspringStats;
   final void Function(Animal)? onEdit;
   final Future<void> Function(Animal)? onDeleteCascade;
   final ScrollController? controller;
@@ -19,6 +21,7 @@ class HerdAnimalGrid extends StatelessWidget {
     required this.animals,
     required this.resolveParent,
     required this.resolveOffspring,
+    this.resolveOffspringStats,
     this.onEdit,
     this.onDeleteCascade,
     this.controller,
@@ -76,6 +79,8 @@ class HerdAnimalGrid extends StatelessWidget {
           itemCount: animals.length,
           itemBuilder: (context, index) {
             final animal = animals[index];
+            final offspring = resolveOffspring(animal.id);
+            final offspringStats = resolveOffspringStats?.call(animal.id);
             return RepaintBoundary(
               key: ValueKey('animal_${animal.id}'),
               child: AnimalCard(
@@ -84,7 +89,10 @@ class HerdAnimalGrid extends StatelessWidget {
                 onDeleteCascade: onDeleteCascade,
                 mother: resolveParent(animal.motherId),
                 father: resolveParent(animal.fatherId),
-                offspring: resolveOffspring(animal.id),
+                offspring: offspring,
+                offspringMaleCount: offspringStats?.male,
+                offspringFemaleCount: offspringStats?.female,
+                offspringTotalCount: offspringStats?.total,
               ),
             );
           },
