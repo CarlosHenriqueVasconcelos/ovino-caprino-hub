@@ -96,6 +96,10 @@ class VaccinationService extends ChangeNotifier {
     }
   }
 
+  /// Contagens de vacinações por status em uma única query SQL.
+  Future<({int overdue, int scheduled, int applied})> getKpiCounts() =>
+      _repository.getKpiCounts();
+
   Future<List<Map<String, dynamic>>> getVaccinationsOverdueWithAnimalInfo({
     VaccinationQueryOptions options = const VaccinationQueryOptions(),
   }) async {

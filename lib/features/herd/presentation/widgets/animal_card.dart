@@ -535,63 +535,70 @@ class _AnimalCardHeader extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          width: rightMetaWidth,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _HeaderMetaIndicators(
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: rightMetaWidth,
+            minHeight: 24,
+          ),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: _HeaderMetaIndicators(
                 statusColor: statusColor,
                 statusLower: statusLower,
-                offspringMaleCount: offspringMaleCount,
-                offspringFemaleCount: offspringFemaleCount,
+                animalGender: animal.gender,
                 offspringTotalCount: offspringTotalCount,
               ),
-              const SizedBox(width: 8),
-              PopupMenuButton<String>(
-                tooltip: 'Ações',
-                icon: const Icon(Icons.more_vert_rounded, size: 18),
-                padding: EdgeInsets.zero,
-                onSelected: onMenuSelected,
-                itemBuilder: (ctx) => [
-                  if (canEdit)
-                    const PopupMenuItem<String>(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit),
-                          SizedBox(width: 8),
-                          Text('Editar'),
-                        ],
-                      ),
-                    ),
-                  if (animal.status != 'Óbito' && animal.status != 'Vendido')
-                    const PopupMenuItem<String>(
-                      value: 'deceased',
-                      child: Row(
-                        children: [
-                          Icon(Icons.heart_broken, color: AppColors.error),
-                          SizedBox(width: 8),
-                          Text('Registrar Óbito'),
-                        ],
-                      ),
-                    ),
-                  if (canDeleteCascade)
-                    const PopupMenuItem<String>(
-                      value: 'delete_all',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete_forever),
-                          SizedBox(width: 8),
-                          Text('Excluir (apagar tudo)'),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ],
+            ),
           ),
+        ),
+        PopupMenuButton<String>(
+          tooltip: 'Ações',
+          icon: const Icon(Icons.more_vert_rounded, size: 18),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: 30,
+            minHeight: 30,
+          ),
+          onSelected: onMenuSelected,
+          itemBuilder: (ctx) => [
+            if (canEdit)
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit),
+                    SizedBox(width: 8),
+                    Text('Editar'),
+                  ],
+                ),
+              ),
+            if (animal.status != 'Óbito' && animal.status != 'Vendido')
+              const PopupMenuItem<String>(
+                value: 'deceased',
+                child: Row(
+                  children: [
+                    Icon(Icons.heart_broken, color: AppColors.error),
+                    SizedBox(width: 8),
+                    Text('Registrar Óbito'),
+                  ],
+                ),
+              ),
+            if (canDeleteCascade)
+              const PopupMenuItem<String>(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_forever),
+                    SizedBox(width: 8),
+                    Text('Excluir (apagar tudo)'),
+                  ],
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -601,15 +608,13 @@ class _AnimalCardHeader extends StatelessWidget {
 class _HeaderMetaIndicators extends StatelessWidget {
   final Color statusColor;
   final String statusLower;
-  final int offspringMaleCount;
-  final int offspringFemaleCount;
+  final String animalGender;
   final int offspringTotalCount;
 
   const _HeaderMetaIndicators({
     required this.statusColor,
     required this.statusLower,
-    required this.offspringMaleCount,
-    required this.offspringFemaleCount,
+    required this.animalGender,
     required this.offspringTotalCount,
   });
 
@@ -627,6 +632,13 @@ class _HeaderMetaIndicators extends StatelessWidget {
     }
   }
 
+  bool _isFemale(String value) {
+    final normalized = value.toLowerCase().trim();
+    return normalized.startsWith('f') ||
+        normalized.contains('fêmea') ||
+        normalized.contains('femea');
+  }
+
   @override
   Widget build(BuildContext context) {
     final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -641,21 +653,15 @@ class _HeaderMetaIndicators extends StatelessWidget {
         Icon(_statusIcon(statusLower), size: 12, color: statusColor),
         const SizedBox(width: 4),
         Icon(
-          Icons.male_rounded,
+          _isFemale(animalGender) ? Icons.female_rounded : Icons.male_rounded,
           size: 11,
-          color: AppColors.primary.withValues(alpha: 0.88),
+          color: _isFemale(animalGender)
+              ? AppColors.goldSoft.withValues(alpha: 0.92)
+              : AppColors.primary.withValues(alpha: 0.88),
         ),
         const SizedBox(width: 2),
-        Text('$offspringMaleCount', style: textStyle),
-        const SizedBox(width: 4),
-        Icon(
-          Icons.female_rounded,
-          size: 11,
-          color: AppColors.goldSoft.withValues(alpha: 0.92),
-        ),
-        const SizedBox(width: 2),
-        Text('$offspringFemaleCount', style: textStyle),
-        const SizedBox(width: 4),
+        Text(_isFemale(animalGender) ? 'F' : 'M', style: textStyle),
+        const SizedBox(width: 6),
         Icon(
           Icons.circle_outlined,
           size: 11,

@@ -15,6 +15,7 @@ class VaccinationTabView extends StatelessWidget {
   final void Function(String id, bool selected) onSelectionChanged;
   final void Function(Map<String, dynamic> record) onShowDetails;
   final void Function(Map<String, dynamic> record) onShowOptions;
+  final void Function(Map<String, dynamic> record)? onAnimalTap;
   final ValueChanged<String> onApply;
   final ValueChanged<String> onCancel;
   final String Function(dynamic value) formatDate;
@@ -31,6 +32,7 @@ class VaccinationTabView extends StatelessWidget {
     required this.onSelectionChanged,
     required this.onShowDetails,
     required this.onShowOptions,
+    this.onAnimalTap,
     required this.onApply,
     required this.onCancel,
     required this.formatDate,
@@ -57,6 +59,7 @@ class VaccinationTabView extends StatelessWidget {
             onSelectionChanged: onSelectionChanged,
             onShowDetails: onShowDetails,
             onShowOptions: onShowOptions,
+            onAnimalTap: onAnimalTap,
             onApply: onApply,
             onCancel: onCancel,
             formatDate: formatDate,
@@ -146,6 +149,7 @@ class VaccinationTable extends StatelessWidget {
   final void Function(String id, bool selected) onSelectionChanged;
   final void Function(Map<String, dynamic> record) onShowDetails;
   final void Function(Map<String, dynamic> record) onShowOptions;
+  final void Function(Map<String, dynamic> record)? onAnimalTap;
   final ValueChanged<String> onApply;
   final ValueChanged<String> onCancel;
   final String Function(dynamic value) formatDate;
@@ -158,6 +162,7 @@ class VaccinationTable extends StatelessWidget {
     required this.onSelectionChanged,
     required this.onShowDetails,
     required this.onShowOptions,
+    this.onAnimalTap,
     required this.onApply,
     required this.onCancel,
     required this.formatDate,
@@ -182,6 +187,7 @@ class VaccinationTable extends StatelessWidget {
       onSelectionChanged: onSelectionChanged,
       onShowDetails: onShowDetails,
       onShowOptions: onShowOptions,
+      onAnimalTap: onAnimalTap,
       onApply: onApply,
       onCancel: onCancel,
       formatDate: formatDate,

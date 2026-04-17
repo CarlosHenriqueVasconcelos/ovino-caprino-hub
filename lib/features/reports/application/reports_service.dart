@@ -20,6 +20,10 @@ class ReportsService {
         return _repository.getVaccinationsReport(filters);
       case 'Medicações':
         return _repository.getMedicationsReport(filters);
+      case 'Alimentação':
+        return _repository.getFeedingReport(filters);
+      case 'Farmácia':
+        return _repository.getPharmacyReport(filters);
       case 'Reprodução':
         return _repository.getBreedingReport(filters);
       case 'Financeiro':

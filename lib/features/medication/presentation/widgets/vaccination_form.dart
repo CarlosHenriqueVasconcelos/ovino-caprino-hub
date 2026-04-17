@@ -459,24 +459,38 @@ class _VaccinationFormDialogState extends State<VaccinationFormDialog> {
       await vaccinationService.createVaccination(vaccination);
 
       if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Vacinação registrada com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
+        await _showFormMessage(
+          'Vacinação registrada com sucesso!',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao registrar vacinação: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        await _showFormMessage(
+          'Erro ao registrar vacinação: $e',
+          isError: true,
         );
       }
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

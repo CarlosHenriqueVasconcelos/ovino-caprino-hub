@@ -18,6 +18,8 @@ class HerdPrimaryChips extends StatelessWidget {
     (label: 'Adulto', value: 'Adulto'),
     (label: 'Borrego', value: 'Borrego'),
     (label: 'Matriz', value: 'Matriz'),
+    (label: 'Reprodutor', value: 'Reprodutor'),
+    (label: 'Venda', value: 'Venda'),
   ];
 
   @override

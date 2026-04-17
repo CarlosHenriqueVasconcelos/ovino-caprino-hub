@@ -252,6 +252,10 @@ class AnimalStats {
   final int maleLambs;
   final int femaleLambs;
   final int femaleReproducers;
+  final int ovinoCount;
+  final int caprinoCount;
+  final double avgWeightOvino;
+  final double avgWeightCaprino;
 
   AnimalStats({
     required this.totalAnimals,
@@ -266,6 +270,10 @@ class AnimalStats {
     this.maleLambs = 0,
     this.femaleLambs = 0,
     this.femaleReproducers = 0,
+    this.ovinoCount = 0,
+    this.caprinoCount = 0,
+    this.avgWeightOvino = 0.0,
+    this.avgWeightCaprino = 0.0,
   });
 
   factory AnimalStats.fromMap(Map<String, dynamic> map) {
@@ -289,6 +297,10 @@ class AnimalStats {
       maleLambs: toInt(map['maleLambs']),
       femaleLambs: toInt(map['femaleLambs']),
       femaleReproducers: toInt(map['femaleReproducers']),
+      ovinoCount: toInt(map['ovinoCount']),
+      caprinoCount: toInt(map['caprinoCount']),
+      avgWeightOvino: toDouble(map['avgWeightOvino']),
+      avgWeightCaprino: toDouble(map['avgWeightCaprino']),
     );
   }
 }

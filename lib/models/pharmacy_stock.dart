@@ -150,14 +150,23 @@ class PharmacyStock {
 
   bool get isExpiringSoon {
     if (expirationDate == null) return false;
-    final daysUntilExpiration =
-        expirationDate!.difference(DateTime.now()).inDays;
-    return daysUntilExpiration >= 0 && daysUntilExpiration <= 30;
+    // Compara apenas a parte de data (ignora hora) para evitar falsos positivos
+    // quando a hora do banco é 00:00:00 e o horário local já passou da meia-noite.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiry = DateTime(
+        expirationDate!.year, expirationDate!.month, expirationDate!.day);
+    final days = expiry.difference(today).inDays;
+    return days >= 0 && days <= 30;
   }
 
   bool get isExpired {
     if (expirationDate == null) return false;
-    return expirationDate!.isBefore(DateTime.now());
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiry = DateTime(
+        expirationDate!.year, expirationDate!.month, expirationDate!.day);
+    return expiry.isBefore(today);
   }
 
   String get statusText {

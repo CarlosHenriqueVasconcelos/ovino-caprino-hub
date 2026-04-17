@@ -126,21 +126,18 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedFemale == null || _selectedMale == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione a fêmea e o macho')),
-      );
+      await _showFormMessage('Selecione a fêmea e o macho', isError: true);
       return;
     }
     if (_checkingKinship) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aguarde a validação de parentesco.')),
+      await _showFormMessage(
+        'Aguarde a validação de parentesco.',
+        isError: true,
       );
       return;
     }
     if (_hasKinshipConflict) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_kinshipReport!.buildMessage())),
-      );
+      await _showFormMessage(_kinshipReport!.buildMessage(), isError: true);
       return;
     }
 
@@ -157,9 +154,7 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       if (report != null && report.isBlocking) {
         if (!mounted) return;
         setState(() => _kinshipReport = report);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(report.buildMessage())),
-        );
+        await _showFormMessage(report.buildMessage(), isError: true);
         return;
       }
 
@@ -176,17 +171,32 @@ class _BreedingWizardDialogState extends State<BreedingWizardDialog> {
       await animalService.loadData();
 
       if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Encabritamento registrado com sucesso!')),
-      );
+      await _showFormMessage('Encabritamento registrado com sucesso!');
       widget.onComplete?.call();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao registrar: $e')),
-      );
+      await _showFormMessage('Erro ao registrar: $e', isError: true);
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

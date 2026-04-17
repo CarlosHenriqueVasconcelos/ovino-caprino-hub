@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart analyze:*)",
+      "Bash(node -e ':*)",
+      "Bash(flutter analyze:*)",
+      "Bash(grep -E \"\\\\.dart$\")",
+      "Bash(flutter pub *)",
+      "Bash(dart run *)",
+      "Bash(grep \"\\\\.dart$\")",
+      "Bash(flutter devices *)",
+      "Bash(xargs grep *)",
+      "Bash(grep -v \"import\\\\|//\")"
+    ]
+  }
+}

@@ -81,6 +81,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
     'Pesos',
     'Vacinações',
     'Medicações',
+    'Alimentação',
+    'Farmácia',
     'Reprodução',
     'Financeiro',
     'Anotações',
@@ -795,7 +797,13 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
       );
     }
 
-    final hiddenColumns = {'animal_color', 'female_color', 'male_color'};
+    final hiddenColumns = {
+      'animal_color',
+      'female_color',
+      'male_color',
+      'pen_id',
+      'stock_id',
+    };
     final columns =
         rows.first.keys.where((k) => !hiddenColumns.contains(k)).toList();
 

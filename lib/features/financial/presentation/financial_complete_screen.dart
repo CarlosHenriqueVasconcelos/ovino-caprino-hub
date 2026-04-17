@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/buttons/ghost_button.dart';
 import '../../../shared/widgets/buttons/primary_button.dart';
-import '../../../shared/widgets/common/app_card.dart';
-import '../../../shared/widgets/common/app_brand_header.dart';
-import '../../../shared/widgets/common/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import 'widgets/financial_accounts_payable.dart';
@@ -13,6 +10,14 @@ import 'widgets/financial_cash_flow.dart';
 import 'widgets/financial_dashboard_screen.dart';
 import 'widgets/financial_form.dart';
 import 'widgets/financial_recurring.dart';
+
+const _kBrand = Color(0xFF2F8F5B);
+const _kBeige = Color(0xFFF6F5F1);
+const _kSurface = Color(0xFFFBFBF8);
+const _kSurface2 = Color(0xFFF2F1ED);
+const _kText = Color(0xFF22313A);
+const _kText3 = Color(0xFF9AABB4);
+const _kBorder = Color(0xFFE6E4DC);
 
 class FinancialCompleteScreen extends StatefulWidget {
   const FinancialCompleteScreen({super.key});
@@ -97,13 +102,15 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
                 ),
                 const SizedBox(height: AppSpacing.md),
                 ListTile(
-                  leading: const Icon(Icons.arrow_upward, color: AppColors.success),
+                  leading:
+                      const Icon(Icons.arrow_upward, color: AppColors.success),
                   title: const Text('Receita'),
                   subtitle: const Text('Entrada financeira'),
                   onTap: () => Navigator.pop(ctx, 'receita'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.arrow_downward, color: AppColors.error),
+                  leading:
+                      const Icon(Icons.arrow_downward, color: AppColors.error),
                   title: const Text('Despesa'),
                   subtitle: const Text('Saída financeira'),
                   onTap: () => Navigator.pop(ctx, 'despesa'),
@@ -274,160 +281,214 @@ class _FinancialCompleteScreenState extends State<FinancialCompleteScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_checkingLock) {
-      return const Scaffold(
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
-              AppBrandHeader(
-                title: 'Fazenda São Petrônio',
-                subtitle: 'Gestão de Ovinos e Caprinos',
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  Widget _buildModernHeader({required bool enabledActions}) {
+    final isCompact = MediaQuery.of(context).size.width < 680;
 
-    if (!_unlocked) {
-      return Scaffold(
-        body: SingleChildScrollView(
-          child: Column(
+    return Container(
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.95)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AppBrandHeader(
-                title: 'Fazenda São Petrônio',
-                subtitle: 'Gestão de Ovinos e Caprinos',
-              ),
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    child: AppCard(
-                      variant: AppCardVariant.elevated,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.lock_outline,
-                            size: 56,
-                            color: AppColors.textSecondary,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            'Área financeira bloqueada',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'Desbloqueie para visualizar contas, fluxo de caixa e relatórios do módulo.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          PrimaryButton(
-                            label: 'Desbloquear',
-                            icon: Icons.lock_open,
-                            fullWidth: true,
-                            onPressed: _promptUnlock,
-                          ),
-                        ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Gestão Financeira',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _kText,
+                        letterSpacing: -0.2,
                       ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currentTabLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: _kText3,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: enabledActions ? _refreshDashboard : null,
+                child: Ink(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: _kSurface2,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+                  ),
+                  child: Icon(
+                    Icons.refresh,
+                    size: 18,
+                    color: enabledActions ? _kText : _kText3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              FilledButton.icon(
+                onPressed: enabledActions ? _openQuickCreate : null,
+                icon: const Icon(Icons.add, size: 16),
+                label: Text(isCompact ? 'Novo' : 'Novo lançamento'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kBrand,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            const SliverToBoxAdapter(
-              child: AppBrandHeader(
-                title: 'Fazenda São Petrônio',
-                subtitle: 'Gestão de Ovinos e Caprinos',
+          const SizedBox(height: 8),
+          IgnorePointer(
+            ignoring: !enabledActions,
+            child: Opacity(
+              opacity: enabledActions ? 1 : 0.7,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  splashFactory: NoSplash.splashFactory,
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  onTap: (index) {
+                    if (index == 0) _refreshDashboard();
+                  },
+                  labelColor: _kBrand,
+                  unselectedLabelColor: _kText3,
+                  labelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  dividerColor: Colors.transparent,
+                  indicatorColor: _kBrand,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  tabs: const [
+                    Tab(text: 'Dashboard'),
+                    Tab(text: 'A Pagar'),
+                    Tab(text: 'A Receber'),
+                    Tab(text: 'Recorrentes'),
+                    Tab(text: 'Fluxo de Caixa'),
+                  ],
+                ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  AppSpacing.xs,
-                ),
-                child: AppCard(
-                  variant: AppCardVariant.soft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedContent() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Container(
+          margin: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: _kSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.lock_outline,
+                size: 56,
+                color: _kText3.withValues(alpha: 0.9),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Área financeira bloqueada',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: _kText,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Desbloqueie para visualizar contas, fluxo de caixa e relatórios do módulo.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: _kText3,
+                    ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              PrimaryButton(
+                label: 'Desbloquear',
+                icon: Icons.lock_open,
+                fullWidth: true,
+                onPressed: _promptUnlock,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBeige,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              child: _buildModernHeader(enabledActions: !_checkingLock && _unlocked),
+            ),
+            if (_checkingLock)
+              const Expanded(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (!_unlocked)
+              Expanded(child: _buildLockedContent())
+            else
+              Expanded(
+                child: Container(
+                  color: _kBeige,
+                  child: TabBarView(
+                    controller: _tabController,
                     children: [
-                      SectionHeader(
-                        title: 'Gestão Financeira',
-                        subtitle: _currentTabLabel,
-                        action: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GhostButton(
-                              label: 'Atualizar visão',
-                              icon: Icons.refresh,
-                              onPressed: _refreshDashboard,
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            PrimaryButton(
-                              label: 'Novo',
-                              icon: Icons.add,
-                              onPressed: _openQuickCreate,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      TabBar(
-                        controller: _tabController,
-                        isScrollable: true,
-                        onTap: (index) {
-                          if (index == 0) _refreshDashboard();
-                        },
-                        tabs: const [
-                          Tab(text: 'Dashboard'),
-                          Tab(text: 'A Pagar'),
-                          Tab(text: 'A Receber'),
-                          Tab(text: 'Recorrentes'),
-                          Tab(text: 'Fluxo de Caixa'),
-                        ],
-                      ),
+                      FinancialDashboardScreen(key: _dashboardKey),
+                      FinancialAccountsPayable(onUpdate: _refreshDashboard),
+                      FinancialAccountsReceivable(onUpdate: _refreshDashboard),
+                      const FinancialRecurringScreen(),
+                      const FinancialCashFlowScreen(),
                     ],
                   ),
                 ),
               ),
-            ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            FinancialDashboardScreen(key: _dashboardKey),
-            FinancialAccountsPayable(onUpdate: _refreshDashboard),
-            FinancialAccountsReceivable(onUpdate: _refreshDashboard),
-            const FinancialRecurringScreen(),
-            const FinancialCashFlowScreen(),
           ],
         ),
       ),

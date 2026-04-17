@@ -573,28 +573,40 @@ class _AnimalFormDialogState extends State<AnimalFormDialog> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.animal == null
-                  ? 'Animal criado com sucesso!'
-                  : 'Animal atualizado com sucesso!',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
+        await _showFormMessage(
+          widget.animal == null
+              ? 'Animal criado com sucesso!'
+              : 'Animal atualizado com sucesso!',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao salvar animal: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        await _showFormMessage(
+          'Erro ao salvar animal: $e',
+          isError: true,
         );
       }
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

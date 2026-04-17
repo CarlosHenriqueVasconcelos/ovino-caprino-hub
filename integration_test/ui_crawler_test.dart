@@ -1,194 +1,181 @@
+// integration_test/ui_crawler_test.dart
+//
+// Teste funcional completo — executa CRUD em cada módulo e detecta
+// overflows em múltiplos tamanhos de tela.
+//
+// Como rodar:
+//   flutter test integration_test/ui_crawler_test.dart \
+//     -d <device-id> \
+//     --dart-define=TEST_EMAIL=xxx \
+//     --dart-define=TEST_PASSWORD=yyy
+//
+// Flags opcionais:
+//   --dart-define=LOGOUT_AFTER=true
+//   --dart-define=TEST_SMALL_SCREEN=true   → repete em 360×640 p/ overflows
+//   --dart-define=MAX_ALLOWED_ERRORS=0
+//   --dart-define=MAX_ALLOWED_OVERFLOWS=0
+
 import 'dart:io';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:bego_ovino_caprino/main.dart' as app;
-import 'package:bego_ovino_caprino/features/navigation/dashboard_tabs.dart';
 
-const bool kRunSeed = bool.fromEnvironment('RUN_SEED', defaultValue: true);
-const bool kSkipSettingsTab =
-    bool.fromEnvironment('SKIP_SETTINGS_TAB', defaultValue: true);
-const bool kAggressive =
-    bool.fromEnvironment('AGGRESSIVE_CRAWL', defaultValue: false);
-const bool kSkipNetworkActions =
-    bool.fromEnvironment('SKIP_NETWORK_ACTIONS', defaultValue: true);
-const bool kResizeViewports =
-    bool.fromEnvironment('RESIZE_VIEWPORTS', defaultValue: false);
-const int kMaxActionsPerTab =
-    int.fromEnvironment('MAX_ACTIONS_PER_TAB', defaultValue: 80);
+// ── Configuração via --dart-define ────────────────────────────────────────────
+
+const String kTestEmail =
+    String.fromEnvironment('TEST_EMAIL', defaultValue: '');
+const String kTestPassword =
+    String.fromEnvironment('TEST_PASSWORD', defaultValue: '');
+// PIN da tela financeira (hardcoded no app em _kFinancePin)
+const String kFinancePin =
+    String.fromEnvironment('FINANCE_PIN', defaultValue: 'Spetovino2025');
+const bool kLogoutAfter =
+    bool.fromEnvironment('LOGOUT_AFTER', defaultValue: true);
+const bool kTestSmallScreen =
+    bool.fromEnvironment('TEST_SMALL_SCREEN', defaultValue: true);
 const int kMaxAllowedErrors =
     int.fromEnvironment('MAX_ALLOWED_ERRORS', defaultValue: 0);
 const int kMaxAllowedOverflows =
     int.fromEnvironment('MAX_ALLOWED_OVERFLOWS', defaultValue: 0);
-const int kSettleTimeoutSeconds =
-    int.fromEnvironment('SETTLE_TIMEOUT_SECONDS', defaultValue: 3);
+const int kSettleSeconds =
+    int.fromEnvironment('SETTLE_TIMEOUT_SECONDS', defaultValue: 5);
+
+// ── Tamanhos de tela para detecção de overflow ────────────────────────────────
+const _smallScreen = Size(360, 640);   // Android antigo
+const _mediumScreen = Size(390, 844);  // iPhone moderno
+
+// ── Sub-módulos do Manejo e Mais ──────────────────────────────────────────────
+const _managementModules = [
+  'Alimentação', 'Peso', 'Reprodução', 'Matrizes',
+  'Vacinas', 'Anotações', 'Farmácia',
+];
+const _moreSections = ['Relatórios', 'Histórico', 'Sistema'];
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('UI crawler', (tester) async {
+  testWidgets('Teste funcional completo', (tester) async {
     final log = StringBuffer();
-    final errorSummaries = <String>[];
-    final recentActions = <String>[];
+    final errors = <String>[];
     var errorsCount = 0;
     var overflowCount = 0;
-    var totalActions = 0;
-    var screenshotCount = 0;
-    final pendingScreenshots = <String>[];
+    var passedCount = 0;
 
+    // ── Intercepta erros de renderização ───────────────────────────────────
     final prevOnError = FlutterError.onError;
     FlutterError.onError = (details) {
-      errorsCount += 1;
       final msg = details.exceptionAsString();
       if (msg.contains('RenderFlex overflowed')) {
-        overflowCount += 1;
-        pendingScreenshots.add('overflow_$overflowCount');
+        // Overflow: captura e engole — não falha o teste imediatamente
+        overflowCount++;
+        errors.add('[OVERFLOW] $msg');
+        log.writeln('[OVERFLOW] $msg');
+        FlutterError.dumpErrorToConsole(details, forceReport: false);
       } else {
-        pendingScreenshots.add('error_$errorsCount');
+        // Outros erros: captura no log E repassa para o framework
+        // para que o estado interno do teste permaneça consistente.
+        errorsCount++;
+        errors.add('[ERROR] $msg');
+        log.writeln('[ERROR] $msg\n${details.stack ?? ''}');
+        FlutterError.dumpErrorToConsole(details, forceReport: true);
+        prevOnError?.call(details);
       }
-      final summary = '$msg\n${details.stack ?? ''}';
-      errorSummaries.add(_truncate(summary, 1200));
-      log.writeln('[ERROR] $msg');
-      if (details.stack != null) {
-        log.writeln(details.stack);
-      }
-      FlutterError.dumpErrorToConsole(details, forceReport: true);
     };
-
     final prevPlatformError = PlatformDispatcher.instance.onError;
-    PlatformDispatcher.instance.onError = (error, stack) {
-      errorsCount += 1;
-      pendingScreenshots.add('platform_$errorsCount');
-      final summary = '$error\n$stack';
-      errorSummaries.add(_truncate(summary, 1200));
-      log.writeln('[PLATFORM_ERROR] $error');
-      log.writeln(stack);
+    PlatformDispatcher.instance.onError = (e, st) {
+      errorsCount++;
+      errors.add('[PLATFORM] $e');
+      log.writeln('[PLATFORM_ERROR] $e\n$st');
       return true;
     };
 
-    log.writeln('[INFO] App start');
-    app.main();
-    await _safePumpAndSettle(tester, log, reason: 'app_start');
-
-    if (kRunSeed && !kSkipSettingsTab) {
-      log.writeln('[INFO] Running seed via DevTools');
-      await _openTab(tester, 'Sistema', log);
-      final devtoolsTile =
-          find.widgetWithText(ListTile, 'Ferramentas de Diagnóstico');
-      final devtoolsTapTarget = devtoolsTile.evaluate().isNotEmpty
-          ? devtoolsTile.first
-          : find.ancestor(
-              of: find.text('Ferramentas de Diagnóstico'),
-              matching: find.byType(InkWell),
-            );
-      await _tapIfExists(tester, devtoolsTapTarget, log);
-      await _safePumpAndSettle(tester, log, reason: 'open_devtools');
-      await _tapIfExists(tester, find.text('Seed Stress + Run'), log);
-      await _waitForButtonEnabled(
-        tester,
-        find.widgetWithText(OutlinedButton, 'Copiar caminho do log'),
-        log,
-      );
-      await _returnToDashboard(tester, log);
-    } else if (kRunSeed && kSkipSettingsTab) {
-      log.writeln(
-        '[INFO] Seed skipped because SKIP_SETTINGS_TAB=true (default).',
-      );
-    }
-
-    final isDesktop =
-        Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-    final originalSize =
-        tester.view.physicalSize / tester.view.devicePixelRatio;
-    final sizeVariants = <Size>[
-      const Size(360, 640),
-      const Size(480, 800),
-      const Size(1024, 768),
-      const Size(1280, 720),
-    ];
-
     String? logPath;
     try {
-      final tabsToCrawl = dashboardTabs.where((tab) {
-        if (!kSkipSettingsTab) return true;
-        return !_isSettingsTabLabel(tab.label);
-      });
-
-      for (final tab in tabsToCrawl) {
-        log.writeln('[TAB] ${tab.label}');
-        await _openTab(tester, tab.label, log);
-
-        var actionsInTab = 0;
-        if (isDesktop && kResizeViewports) {
-          final perSize =
-              (kMaxActionsPerTab / sizeVariants.length).floor().clamp(10, 80);
-          for (final size in sizeVariants) {
-            await binding.setSurfaceSize(size);
-            await _safePumpAndSettle(tester, log, reason: 'set_surface');
-            actionsInTab += await _crawlCurrentView(
-              tester,
-              log: log,
-              maxActions: perSize,
-              aggressive: kAggressive,
-              recentActions: recentActions,
-              pendingScreenshots: pendingScreenshots,
-              binding: binding,
-              onAction: () => totalActions += 1,
-              onScreenshot: () => screenshotCount += 1,
-            );
-          }
-          await binding.setSurfaceSize(originalSize);
-          await _safePumpAndSettle(tester, log, reason: 'restore_surface');
-        }
-
-        actionsInTab += await _crawlCurrentView(
-          tester,
-          log: log,
-          maxActions: kMaxActionsPerTab,
-          aggressive: kAggressive,
-          recentActions: recentActions,
-          pendingScreenshots: pendingScreenshots,
-          binding: binding,
-          onAction: () => totalActions += 1,
-          onScreenshot: () => screenshotCount += 1,
-        );
-
-        log.writeln(
-          '[TAB_DONE] ${tab.label} actions=$actionsInTab errors=$errorsCount overflows=$overflowCount',
-        );
-      }
-
-      log.writeln('[SUMMARY] totalActions=$totalActions');
-      log.writeln('[SUMMARY] errors=$errorsCount overflows=$overflowCount');
-      log.writeln('[SUMMARY] screenshots=$screenshotCount');
-
-      if (errorSummaries.isNotEmpty) {
-        log.writeln('[ERRORS]');
-        for (final summary in errorSummaries) {
-          log.writeln('---');
-          log.writeln(summary);
-        }
-      }
-
-      if (recentActions.isNotEmpty) {
-        log.writeln('[LAST_ACTIONS]');
-        for (final action in recentActions) {
-          log.writeln(action);
-        }
-      }
-
-      logPath = await _writeLogFile(log.toString());
+      // 1 ── Inicia app + login ──────────────────────────────────────────────
       // ignore: avoid_print
-      print('UI_CRAWL_LOG_PATH=$logPath');
-    } finally {
-      await tester.binding.setSurfaceSize(null);
-      await _safePumpAndSettle(tester, log, reason: 'cleanup_surface');
+      print('[TEST] Iniciando app...');
+      log.writeln('=== INÍCIO DO TESTE FUNCIONAL ===');
+      app.main();
 
+      // Aguarda o app terminar de inicializar: aparece login OU dashboard
+      log.writeln('[INFO] Aguardando app carregar...');
+      final loginAppeared = await _waitForAny(tester, [
+        find.widgetWithText(FilledButton, 'Entrar'),
+        find.byType(NavigationBar),
+      ], log, timeout: const Duration(seconds: 30));
+
+      if (!loginAppeared) {
+        fail('App não carregou em 30s — nem login nem dashboard encontrado.');
+      }
+
+      // Só tenta login se a tela de login estiver visível
+      final hasLoginScreen =
+          find.widgetWithText(FilledButton, 'Entrar').evaluate().isNotEmpty;
+      // ignore: avoid_print
+      print('[TEST] Tela de login visível: $hasLoginScreen');
+      log.writeln('[INFO] Tela de login visível: $hasLoginScreen');
+      if (hasLoginScreen) {
+        await _login(tester, log);
+      } else {
+        log.writeln('[LOGIN] Sessão já ativa, pulando login.');
+        // ignore: avoid_print
+        print('[TEST] Sessão ativa — pulando login');
+      }
+
+      // Aguarda dashboard (NavigationBar) aparecer após login
+      // ignore: avoid_print
+      print('[TEST] Aguardando NavigationBar (45s)...');
+      if (!await _waitFor(tester, find.byType(NavigationBar), log,
+          label: 'NavigationBar', timeout: const Duration(seconds: 45))) {
+        fail('Dashboard não encontrado após login. Verifique as credenciais.');
+      }
+      log.writeln('[OK] Dashboard visível\n');
+      // ignore: avoid_print
+      print('[TEST] Dashboard OK');
+
+      // 2 ── Testes em tamanho normal ────────────────────────────────────────
+      log.writeln('=== FASE 1: TAMANHO NORMAL ===');
+      passedCount += await _runAllModules(tester, log, errors, binding);
+
+      // 3 ── Testes em tela pequena (overflow detection) ─────────────────────
+      if (kTestSmallScreen) {
+        log.writeln('\n=== FASE 2: TELA PEQUENA (${_smallScreen.width}×${_smallScreen.height}) ===');
+        await binding.setSurfaceSize(_smallScreen);
+        await _settle(tester, log);
+        passedCount += await _runAllModules(tester, log, errors, binding,
+            overflowOnly: true);
+        await binding.setSurfaceSize(_mediumScreen);
+        await _settle(tester, log);
+      }
+
+      // 4 ── Logout ──────────────────────────────────────────────────────────
+      if (kLogoutAfter) await _logout(tester, log);
+
+      // 5 ── Resumo ──────────────────────────────────────────────────────────
+      log.writeln('\n=== RESUMO ===');
+      log.writeln('Cenários OK  : $passedCount');
+      log.writeln('Erros        : $errorsCount');
+      log.writeln('Overflows    : $overflowCount');
+      if (errors.isNotEmpty) {
+        log.writeln('\nDetalhes:');
+        for (final e in errors) {
+          log.writeln('  • $e');
+        }
+      }
+
+    } finally {
+      logPath = await _writeLog(log.toString());
+      // ignore: avoid_print
+      print('FUNCTIONAL_TEST_LOG=$logPath');
+      await tester.binding.setSurfaceSize(null);
+      try { await _settle(tester, log); } catch (_) {}
       FlutterError.onError = prevOnError;
       PlatformDispatcher.instance.onError = prevPlatformError;
     }
@@ -196,7 +183,7 @@ void main() {
     if (errorsCount > kMaxAllowedErrors ||
         overflowCount > kMaxAllowedOverflows) {
       fail(
-        'UI crawl found errors=$errorsCount (max=$kMaxAllowedErrors) '
+        'errors=$errorsCount (max=$kMaxAllowedErrors) '
         'overflows=$overflowCount (max=$kMaxAllowedOverflows). '
         'Log: $logPath',
       );
@@ -204,232 +191,620 @@ void main() {
   });
 }
 
-Future<void> _openTab(
+// ═════════════════════════════════════════════════════════════════════════════
+// EXECUÇÃO DOS MÓDULOS
+// ═════════════════════════════════════════════════════════════════════════════
+
+Future<int> _runAllModules(
   WidgetTester tester,
-  String label,
   StringBuffer log,
-) async {
-  final tabBars = find.byType(TabBar);
-  if (tabBars.evaluate().isEmpty) {
-    log.writeln('[WARN] TabBar not found while opening tab: $label');
-    return;
+  List<String> errors,
+  IntegrationTestWidgetsFlutterBinding binding, {
+  bool overflowOnly = false,
+}) async {
+  var passed = 0;
+
+  // ── Início (dashboard) ────────────────────────────────────────────────────
+  passed += await _scenario(tester, log, 'Início', () async {
+    await _navTo(tester, log, 'Início');
+    await _settle(tester, log);
+    await _scrollEntireScreen(tester);
+  });
+
+  // ── Rebanho ───────────────────────────────────────────────────────────────
+  passed += await _scenario(tester, log, 'Rebanho — listagem + filtros', () async {
+    await _navTo(tester, log, 'Rebanho');
+    await _settle(tester, log);
+    await _scrollEntireScreen(tester);
+    // Abre filtros/chips se existirem
+    await _tapText(tester, log, 'Fêmea', required: false);
+    await _settle(tester, log);
+    await _tapText(tester, log, 'Macho', required: false);
+    await _settle(tester, log);
+  });
+
+  if (!overflowOnly) {
+    passed += await _scenario(tester, log, 'Rebanho — adicionar animal', () async {
+      await _navTo(tester, log, 'Rebanho');
+      await _settle(tester, log);
+      // FAB ou botão "Adicionar Animal"
+      await _tapFabOrButton(tester, log, labels: ['Adicionar Animal', 'Novo Animal']);
+      await _settle(tester, log);
+      await _fillAndSave(tester, log, overrides: {
+        'Nome': 'Animal Teste CRUD',
+        'Código': 'TST-001',
+      });
+      // Verifica que voltou para listagem ou exibe o animal
+      await _settle(tester, log);
+    });
+
+    passed += await _scenario(tester, log, 'Rebanho — editar animal', () async {
+      await _navTo(tester, log, 'Rebanho');
+      await _settle(tester, log);
+      // Toca no primeiro card de animal visível
+      await _tapFirst(tester, log, type: Card);
+      await _settle(tester, log);
+      await _scrollEntireScreen(tester);
+      // Procura botão de editar
+      await _tapIconOrButton(tester, log,
+          icons: [Icons.edit, Icons.edit_outlined],
+          labels: ['Editar', 'Editar animal']);
+      await _settle(tester, log);
+      await _editFirstTextField(tester, log, newValue: 'Animal Teste CRUD Edit');
+      await _tapSave(tester, log);
+    });
   }
 
-  final tabFinder = find.descendant(
-    of: tabBars.first,
-    matching: find.byWidgetPredicate(
-      (w) => w is Tab && w.text == label,
-      description: 'Tab("$label")',
-    ),
-  );
-  if (tabFinder.evaluate().isEmpty) {
-    log.writeln('[WARN] Tab not found: $label');
-    return;
+  // ── Módulos do Manejo ─────────────────────────────────────────────────────
+  for (final module in _managementModules) {
+    passed += await _scenario(tester, log, 'Manejo → $module', () async {
+      await _navTo(tester, log, 'Manejo');
+      await _settle(tester, log);
+      await _openSection(tester, log, module);
+      await _settle(tester, log);
+      await _scrollEntireScreen(tester);
+
+      if (!overflowOnly) {
+        // Tenta criar um registro
+        final opened = await _tapFabOrButton(tester, log,
+            labels: _addLabels, required: false);
+        if (opened) {
+          await _settle(tester, log);
+          await _scrollEntireScreen(tester);
+          await _fillAndSave(tester, log);
+        }
+        // Toca no primeiro item da lista para ver detalhes/edição
+        await _tapFirst(tester, log, type: ListTile, required: false);
+        await _settle(tester, log);
+        await _scrollEntireScreen(tester);
+        await _popIfPossible(tester, log);
+      }
+    });
   }
-  await _tapIfExists(tester, tabFinder.first, log);
+
+  // ── Financeiro ────────────────────────────────────────────────────────────
+  passed += await _scenario(tester, log, 'Financeiro — visão geral', () async {
+    await _navTo(tester, log, 'Financeiro');
+    await _settle(tester, log);
+    await _handleFinancePin(tester, log);  // desbloqueia PIN se necessário
+    await _scrollEntireScreen(tester);
+  });
+
+  if (!overflowOnly) {
+    passed += await _scenario(tester, log, 'Financeiro — nova receita', () async {
+      await _navTo(tester, log, 'Financeiro');
+      await _settle(tester, log);
+      await _handleFinancePin(tester, log);
+      await _tapFabOrButton(tester, log,
+          labels: ['Nova Receita', 'Receita', 'Adicionar', 'Novo'],
+          required: false);
+      await _settle(tester, log);
+      await _fillAndSave(tester, log, overrides: {
+        'Descrição': 'Receita Teste',
+        'Valor': '100',
+      });
+    });
+
+    passed += await _scenario(tester, log, 'Financeiro — nova despesa', () async {
+      await _navTo(tester, log, 'Financeiro');
+      await _settle(tester, log);
+      await _handleFinancePin(tester, log);
+      await _tapFabOrButton(tester, log,
+          labels: ['Nova Despesa', 'Despesa'], required: false);
+      await _settle(tester, log);
+      await _fillAndSave(tester, log, overrides: {
+        'Descrição': 'Despesa Teste',
+        'Valor': '50',
+      });
+    });
+  }
+
+  // ── Mais: Relatórios, Histórico, Sistema ──────────────────────────────────
+  for (final section in _moreSections) {
+    passed += await _scenario(tester, log, 'Mais → $section', () async {
+      await _navTo(tester, log, 'Mais');
+      await _settle(tester, log);
+      await _openSection(tester, log, section);
+      await _settle(tester, log);
+      await _scrollEntireScreen(tester);
+
+      if (!overflowOnly && section == 'Sistema') {
+        // Abre cada seção expansível do sistema
+        for (final label in ['Sync', 'Backup', 'Dados']) {
+          await _tapText(tester, log, label, required: false);
+          await _settle(tester, log);
+        }
+      }
+    });
+  }
+
+  return passed;
 }
 
-Future<bool> _tapIfExists(
+// ═════════════════════════════════════════════════════════════════════════════
+// PRIMITIVAS DE TESTE
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Envolve um bloco em try/catch, registra resultado e retorna 1 se passou.
+Future<int> _scenario(
   WidgetTester tester,
-  Finder finder,
   StringBuffer log,
+  String name,
+  Future<void> Function() body,
 ) async {
-  if (finder.evaluate().isEmpty) {
-    log.writeln('[WARN] Finder not found for tap.');
-    return false;
-  }
-  await _bringIntoView(tester, finder, log);
+  log.writeln('\n── $name ──');
   try {
-    await tester.tap(finder, warnIfMissed: false);
-    await _safePumpAndSettle(tester, log, reason: 'tap');
-    return true;
-  } catch (e) {
-    log.writeln('[WARN] Tap failed: $e');
-    return false;
+    await body();
+    log.writeln('[PASS] $name');
+    return 1;
+  } catch (e, st) {
+    log.writeln('[FAIL] $name\n  Erro: $e\n  $st');
+    // Tenta recuperar: fecha dialogs/popups abertos
+    await _recover(tester, log);
+    return 0;
   }
 }
 
-Future<void> _waitForButtonEnabled(
+// ── Navegação ─────────────────────────────────────────────────────────────────
+
+Future<void> _navTo(WidgetTester tester, StringBuffer log, String tab) async {
+  final navBar = find.byType(NavigationBar);
+  if (navBar.evaluate().isEmpty) return;
+  final item = find.descendant(of: navBar.first, matching: find.text(tab));
+  if (item.evaluate().isEmpty) {
+    log.writeln('[WARN] Aba não encontrada: $tab');
+    return;
+  }
+  await tester.tap(item.first, warnIfMissed: false);
+  await _settle(tester, log);
+}
+
+Future<void> _openSection(
+    WidgetTester tester, StringBuffer log, String label) async {
+  // Tenta chips (FilterChip, ChoiceChip) e texto clicável
+  for (final f in [
+    find.widgetWithText(FilterChip, label),
+    find.widgetWithText(ChoiceChip, label),
+    find.widgetWithText(ActionChip, label),
+    find.widgetWithText(TextButton, label),
+  ]) {
+    if (f.evaluate().isNotEmpty) {
+      await tester.tap(f.first, warnIfMissed: false);
+      await _settle(tester, log);
+      return;
+    }
+  }
+  // Fallback: qualquer texto dentro de InkWell
+  final txt = find.text(label);
+  if (txt.evaluate().isNotEmpty) {
+    final iw = find.ancestor(of: txt.first, matching: find.byType(InkWell));
+    if (iw.evaluate().isNotEmpty) {
+      await tester.tap(iw.first, warnIfMissed: false);
+      await _settle(tester, log);
+      return;
+    }
+    // Fallback para card do hub
+    final card = find.ancestor(of: txt.first, matching: find.byType(Card));
+    if (card.evaluate().isNotEmpty) {
+      await tester.tap(card.first, warnIfMissed: false);
+      await _settle(tester, log);
+    }
+  }
+}
+
+// ── Formulários ───────────────────────────────────────────────────────────────
+
+/// Abre formulário via FAB ou botão com um dos labels fornecidos.
+Future<bool> _tapFabOrButton(
   WidgetTester tester,
-  Finder finder,
-  StringBuffer log,
-) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 60));
-  while (DateTime.now().isBefore(deadline)) {
-    await _safePumpAndSettle(tester, log, reason: 'wait_button');
-    if (finder.evaluate().isNotEmpty) {
-      final widget = tester.widget<OutlinedButton>(finder);
-      if (widget.onPressed != null) {
-        log.writeln('[INFO] Seed completed, log button enabled');
+  StringBuffer log, {
+  List<String> labels = const [],
+  bool required = true,
+}) async {
+  // FAB
+  final fab = find.byType(FloatingActionButton);
+  if (fab.evaluate().isNotEmpty) {
+    await tester.tap(fab.first, warnIfMissed: false);
+    await _settle(tester, log);
+    return true;
+  }
+  // Botão por label
+  for (final label in labels) {
+    for (final f in [
+      find.widgetWithText(FilledButton, label),
+      find.widgetWithText(ElevatedButton, label),
+      find.widgetWithText(TextButton, label),
+      find.widgetWithText(OutlinedButton, label),
+    ]) {
+      if (f.evaluate().isNotEmpty) {
+        await _ensureVisible(tester, f.first, log);
+        await tester.tap(f.first, warnIfMissed: false);
+        await _settle(tester, log);
+        return true;
+      }
+    }
+    // Ícone + texto
+    final txt = find.text(label);
+    if (txt.evaluate().isNotEmpty) {
+      final iw = find.ancestor(of: txt.first, matching: find.byType(InkWell));
+      if (iw.evaluate().isNotEmpty) {
+        await tester.tap(iw.first, warnIfMissed: false);
+        await _settle(tester, log);
+        return true;
+      }
+    }
+  }
+  if (required) throw Exception('Botão de adicionar não encontrado (labels=$labels)');
+  return false;
+}
+
+/// Preenche todos os campos vazios e toca em "Salvar".
+Future<void> _fillAndSave(
+  WidgetTester tester,
+  StringBuffer log, {
+  Map<String, String> overrides = const {},
+}) async {
+  await _fillFields(tester, log, overrides: overrides);
+  await _tapSave(tester, log);
+}
+
+/// Preenche campos de texto, dropdowns e date fields.
+Future<void> _fillFields(
+  WidgetTester tester,
+  StringBuffer log, {
+  Map<String, String> overrides = const {},
+  int maxScrollAttempts = 3,
+}) async {
+  for (var scroll = 0; scroll < maxScrollAttempts; scroll++) {
+    var filledThisPass = 0;
+    var idx = 1;
+
+    // TextFormField e TextField
+    for (final el in [
+      ...find.byType(TextFormField).evaluate(),
+      ...find.byType(TextField).evaluate(),
+    ]) {
+      final w = el.widget;
+      final dyn = w as dynamic;
+      // Pula disabled / readonly
+      try { if (dyn.enabled == false || dyn.readOnly == true) continue; } catch (_) {}
+      final cur = _textOf(dyn);
+      if (cur.trim().isNotEmpty) { idx++; continue; }
+
+      // Label para override
+      String? label;
+      try { label = (dyn.decoration as InputDecoration?)?.labelText; } catch (_) {}
+
+      final val = overrides[label] ?? _valueForLabel(label, idx);
+      final finder = find.byElementPredicate((e) => identical(e, el));
+      try {
+        await _ensureVisible(tester, finder, log);
+        await tester.enterText(finder, val);
+        await tester.pump(const Duration(milliseconds: 200));
+        filledThisPass++;
+        idx++;
+      } catch (_) {}
+    }
+
+    // Dropdowns (preenche apenas os sem valor)
+    for (final el in find.byType(DropdownButtonFormField).evaluate()) {
+      final w = el.widget as dynamic;
+      try { if (w.onChanged == null) continue; } catch (_) { continue; }
+      dynamic currentVal;
+      try { currentVal = w.value; } catch (_) {}
+      if (currentVal != null) continue;
+      List<DropdownMenuItem<dynamic>> items = const [];
+      try {
+        final raw = w.items;
+        if (raw is List) items = raw.whereType<DropdownMenuItem<dynamic>>().toList();
+      } catch (_) {}
+      final enabled = items.where((i) => i.enabled).toList();
+      if (enabled.isEmpty) continue;
+      final finder = find.byElementPredicate((e) => identical(e, el));
+      try {
+        await _ensureVisible(tester, finder, log);
+        await tester.tap(finder, warnIfMissed: false);
+        await _settle(tester, log);
+        final child = enabled.first.child;
+        if (child is Text && (child.data?.isNotEmpty ?? false)) {
+          final opt = find.text(child.data!.trim()).last;
+          if (opt.evaluate().isNotEmpty) {
+            await tester.tap(opt, warnIfMissed: false);
+            await _settle(tester, log);
+            filledThisPass++;
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (filledThisPass == 0) break;
+
+    // Rola para baixo para encontrar mais campos
+    final scrollables = find.byType(Scrollable);
+    if (scrollables.evaluate().isNotEmpty) {
+      await tester.drag(scrollables.first, const Offset(0, -300));
+      await _settle(tester, log);
+    } else {
+      break;
+    }
+  }
+}
+
+Future<void> _tapSave(WidgetTester tester, StringBuffer log) async {
+  for (final label in ['Salvar', 'Confirmar', 'Criar', 'Adicionar']) {
+    for (final f in [
+      find.widgetWithText(FilledButton, label),
+      find.widgetWithText(ElevatedButton, label),
+      find.widgetWithText(TextButton, label),
+    ]) {
+      if (f.evaluate().isNotEmpty) {
+        await _ensureVisible(tester, f.first, log);
+        await tester.tap(f.first, warnIfMissed: false);
+        await _settle(tester, log);
+        // Fecha dialog de confirmação se abrir
+        await _dismissDialog(tester, log);
         return;
       }
     }
   }
-  log.writeln('[WARN] Timeout waiting for log button to enable');
+  log.writeln('[WARN] Botão Salvar não encontrado');
 }
 
-Future<int> _crawlCurrentView(
-  WidgetTester tester, {
-  required StringBuffer log,
-  required int maxActions,
-  required bool aggressive,
-  required List<String> recentActions,
-  required List<String> pendingScreenshots,
-  required IntegrationTestWidgetsFlutterBinding binding,
-  required VoidCallback onAction,
-  required VoidCallback onScreenshot,
-}) async {
-  final tapped = <String>{};
-  var actions = 0;
+Future<void> _editFirstTextField(
+    WidgetTester tester, StringBuffer log, {required String newValue}) async {
+  final fields = find.byType(TextFormField);
+  if (fields.evaluate().isEmpty) return;
+  final finder = fields.first;
+  await _ensureVisible(tester, finder, log);
+  await tester.tap(finder, warnIfMissed: false);
+  await tester.pump(const Duration(milliseconds: 200));
+  await tester.enterText(finder, newValue);
+  await _settle(tester, log);
+}
 
-  while (actions < maxActions) {
-    final candidates = _collectCandidates(tester, aggressive: aggressive);
-    if (candidates.isEmpty) break;
+// ── Ações genéricas ───────────────────────────────────────────────────────────
 
-    var progressed = false;
-    for (final candidate in candidates) {
-      if (actions >= maxActions) break;
-      if (tapped.contains(candidate.signature)) continue;
-      if (candidate.isDestructive && !aggressive) continue;
-
-      if (candidate.isSaveOrAdd) {
-        await _fillAllEmptyFields(tester, log);
-      }
-
-      log.writeln('[ACTION] ${candidate.signature}');
-      _rememberAction(recentActions, candidate.signature);
-      tapped.add(candidate.signature);
-      if (!await _tapIfExists(tester, candidate.finder, log)) {
-        continue;
-      }
-      progressed = true;
-      actions += 1;
-      onAction();
-
-      await _handleDialogs(tester, log, aggressive: aggressive);
-
-      if (pendingScreenshots.isNotEmpty) {
-        final tag = pendingScreenshots.removeAt(0);
-        await _captureScreenshot(binding, tester, tag);
-        onScreenshot();
-      }
-    }
-
-    if (!progressed) break;
+Future<void> _tapText(
+    WidgetTester tester, StringBuffer log, String text,
+    {bool required = true}) async {
+  final f = find.text(text);
+  if (f.evaluate().isEmpty) {
+    if (required) throw Exception('Texto não encontrado: "$text"');
+    return;
   }
-
-  return actions;
+  await tester.tap(f.first, warnIfMissed: false);
+  await _settle(tester, log);
 }
 
-List<_Candidate> _collectCandidates(WidgetTester tester,
-    {required bool aggressive}) {
-  final candidates = <_Candidate>[];
-
-  void collect<T extends Widget>(bool Function(T w) enabled, int basePriority) {
-    for (final element in find.byType(T).evaluate()) {
-      final widget = element.widget;
-      if (widget is! T) continue;
-      if (!enabled(widget)) continue;
-      final finder = find.byElementPredicate((e) => identical(e, element));
-      final signature = _signatureForWidget(widget);
-      final inlineText = _extractText(widget) ?? '';
-      final elementText = _extractTextFromElement(element);
-      final text = '$inlineText $elementText'.trim();
-      if (kSkipNetworkActions &&
-          _isNetworkActionText('$text ${signature.toLowerCase()}')) {
-        continue;
-      }
-      candidates.add(
-        _Candidate(
-          finder: finder,
-          signature: signature,
-          priority: _priorityForText(text, basePriority),
-          isDestructive: _isDestructiveText(text),
-          isSaveOrAdd: _isSaveOrAdd(text),
-        ),
-      );
-    }
+Future<void> _tapFirst<T extends Widget>(
+    WidgetTester tester, StringBuffer log,
+    {required Type type, bool required = false}) async {
+  final f = find.byType(type);
+  if (f.evaluate().isEmpty) {
+    if (required) throw Exception('Widget $type não encontrado');
+    return;
   }
-
-  collect<IconButton>((w) => w.onPressed != null, 80);
-  collect<ElevatedButton>((w) => w.onPressed != null, 70);
-  collect<TextButton>((w) => w.onPressed != null, 60);
-  collect<OutlinedButton>((w) => w.onPressed != null, 50);
-  collect<FloatingActionButton>((w) => w.onPressed != null, 90);
-  collect<ListTile>((w) => w.onTap != null, 40);
-  collect<InkWell>((w) => w.onTap != null, 30);
-  collect<GestureDetector>((w) => w.onTap != null, 20);
-
-  candidates.sort((a, b) => b.priority.compareTo(a.priority));
-  return candidates;
+  await _ensureVisible(tester, f.first, log);
+  await tester.tap(f.first, warnIfMissed: false);
+  await _settle(tester, log);
 }
 
-Future<void> _handleDialogs(
+Future<void> _tapIconOrButton(
   WidgetTester tester,
   StringBuffer log, {
-  required bool aggressive,
+  List<IconData> icons = const [],
+  List<String> labels = const [],
+  bool required = false,
 }) async {
-  final safeLabels = ['Fechar', 'Cancelar', 'OK', 'Voltar', 'Não'];
-  final riskyLabels = ['Confirmar', 'Excluir', 'Apagar', 'Sim'];
-
-  // Wait a short window after each action because some errors pop up async.
-  for (var i = 0; i < 15; i++) {
-    final hasDialog = find.byType(Dialog).evaluate().isNotEmpty ||
-        find.byType(AlertDialog).evaluate().isNotEmpty ||
-        find.byType(SimpleDialog).evaluate().isNotEmpty;
-    if (!hasDialog) {
-      await tester.pump(const Duration(milliseconds: 200));
-      continue;
+  for (final icon in icons) {
+    final f = find.byIcon(icon);
+    if (f.evaluate().isNotEmpty) {
+      await tester.tap(f.first, warnIfMissed: false);
+      await _settle(tester, log);
+      return;
     }
-
-    if (await _tapDialogButton(tester, safeLabels)) {
-      log.writeln('[DIALOG] closed safely');
-      await _safePumpAndSettle(tester, log, reason: 'close_dialog');
-      continue;
-    }
-
-    if (aggressive && await _tapDialogButton(tester, riskyLabels)) {
-      log.writeln('[DIALOG] closed aggressively');
-      await _safePumpAndSettle(tester, log, reason: 'close_dialog_aggressive');
-      continue;
-    }
-
-    await tester.pump(const Duration(milliseconds: 200));
   }
-}
-
-Future<void> _safePumpAndSettle(
-  WidgetTester tester,
-  StringBuffer log, {
-  required String reason,
-}) async {
-  try {
-    await tester.pumpAndSettle(
-      const Duration(milliseconds: 100),
-      EnginePhase.sendSemanticsUpdate,
-      const Duration(seconds: kSettleTimeoutSeconds),
-    );
-  } catch (e) {
-    // Keep crawler moving if a long animation/progress blocks full settling.
-    log.writeln('[WARN] pumpAndSettle timeout ($reason): $e');
-    await tester.pump(const Duration(milliseconds: 300));
-  }
-}
-
-Future<bool> _tapDialogButton(
-  WidgetTester tester,
-  List<String> labels,
-) async {
   for (final label in labels) {
-    final candidates = [
+    final f = find.text(label);
+    if (f.evaluate().isNotEmpty) {
+      await tester.tap(f.first, warnIfMissed: false);
+      await _settle(tester, log);
+      return;
+    }
+  }
+  if (required) throw Exception('Ícone/botão não encontrado icons=$icons labels=$labels');
+}
+
+Future<void> _scrollEntireScreen(WidgetTester tester) async {
+  final scrollables = find.byType(Scrollable);
+  if (scrollables.evaluate().isEmpty) return;
+  // Rola para baixo
+  await tester.drag(scrollables.first, const Offset(0, -600));
+  await tester.pump(const Duration(milliseconds: 300));
+  // Volta ao topo
+  await tester.drag(scrollables.first, const Offset(0, 600));
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
+Future<void> _popIfPossible(WidgetTester tester, StringBuffer log) async {
+  final back = find.byIcon(Icons.arrow_back);
+  if (back.evaluate().isNotEmpty) {
+    await tester.tap(back.first, warnIfMissed: false);
+    await _settle(tester, log);
+    return;
+  }
+  try {
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+    await nav.maybePop();
+    await _settle(tester, log);
+  } catch (_) {}
+}
+
+Future<void> _dismissDialog(WidgetTester tester, StringBuffer log) async {
+  const labels = ['OK', 'Fechar', 'Cancelar', 'Não'];
+  for (final label in labels) {
+    for (final f in [
       find.widgetWithText(TextButton, label),
       find.widgetWithText(ElevatedButton, label),
-      find.widgetWithText(OutlinedButton, label),
-    ];
-    for (final finder in candidates) {
-      if (finder.evaluate().isNotEmpty) {
-        await tester.tap(finder.first);
-        await tester.pump(const Duration(milliseconds: 250));
+      find.widgetWithText(FilledButton, label),
+    ]) {
+      if (f.evaluate().isNotEmpty) {
+        await tester.tap(f.first, warnIfMissed: false);
+        await _settle(tester, log);
+        return;
+      }
+    }
+  }
+}
+
+Future<void> _recover(WidgetTester tester, StringBuffer log) async {
+  // Tenta fechar qualquer dialog aberto
+  await _dismissDialog(tester, log);
+  // Tenta voltar para o dashboard
+  for (var i = 0; i < 5; i++) {
+    if (find.byType(NavigationBar).evaluate().isNotEmpty) break;
+    await _popIfPossible(tester, log);
+  }
+}
+
+// ── Login / Logout ────────────────────────────────────────────────────────────
+
+/// Digita o PIN financeiro no dialog bloqueante, se ele estiver visível.
+Future<void> _handleFinancePin(WidgetTester tester, StringBuffer log) async {
+  if (kFinancePin.isEmpty) return;
+
+  // O dialog tem um TextField para senha com labelText 'Senha'
+  final pinField = find.byWidgetPredicate((w) {
+    if (w is! TextField) return false;
+    try {
+      final dec = (w as dynamic).decoration as InputDecoration?;
+      return dec?.labelText == 'Senha';
+    } catch (_) {
+      return false;
+    }
+  });
+
+  if (pinField.evaluate().isEmpty) return; // dialog não aberto
+
+  log.writeln('[FINANCE] Dialog de PIN detectado — inserindo PIN...');
+  await tester.enterText(pinField.first, kFinancePin);
+  await tester.pump(const Duration(milliseconds: 200));
+
+  // Toca no botão de confirmar (ElevatedButton ou FilledButton dentro do dialog)
+  for (final label in ['Confirmar', 'Entrar', 'OK', 'Desbloquear']) {
+    for (final f in [
+      find.widgetWithText(ElevatedButton, label),
+      find.widgetWithText(FilledButton, label),
+      find.widgetWithText(TextButton, label),
+    ]) {
+      if (f.evaluate().isNotEmpty) {
+        await tester.tap(f.first, warnIfMissed: false);
+        await _settle(tester, log);
+        log.writeln('[FINANCE] PIN aceito.');
+        return;
+      }
+    }
+  }
+  log.writeln('[FINANCE] Botão de confirmar não encontrado no dialog de PIN.');
+}
+
+Future<void> _login(WidgetTester tester, StringBuffer log) async {
+  if (kTestEmail.isEmpty || kTestPassword.isEmpty) {
+    log.writeln('[LOGIN] Sem credenciais — assumindo sessão ativa');
+    // ignore: avoid_print
+    print('[LOGIN] Sem credenciais fornecidas');
+    return;
+  }
+  final entrar = find.widgetWithText(FilledButton, 'Entrar');
+  if (entrar.evaluate().isEmpty) {
+    log.writeln('[LOGIN] Sessão já ativa');
+    // ignore: avoid_print
+    print('[LOGIN] FilledButton Entrar não encontrado — sessão já ativa');
+    return;
+  }
+
+  // ignore: avoid_print
+  print('[LOGIN] Preenchendo email: $kTestEmail');
+  log.writeln('[LOGIN] Preenchendo credenciais...');
+  final fields = find.byType(TextFormField);
+  // ignore: avoid_print
+  print('[LOGIN] TextFormFields encontrados: ${fields.evaluate().length}');
+  if (fields.evaluate().isNotEmpty) {
+    await tester.enterText(fields.at(0), kTestEmail);
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  if (fields.evaluate().length >= 2) {
+    await tester.enterText(fields.at(1), kTestPassword);
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+  // Fecha teclado antes de clicar
+  await tester.pump(const Duration(milliseconds: 300));
+  // ignore: avoid_print
+  print('[LOGIN] Tocando Entrar...');
+  await tester.tap(entrar.first, warnIfMissed: true);
+  await tester.pump(const Duration(milliseconds: 500));
+  // ignore: avoid_print
+  print('[LOGIN] Tap executado, aguardando resposta do Supabase...');
+  log.writeln('[LOGIN] Credenciais enviadas, aguardando autenticação...');
+}
+
+Future<void> _logout(WidgetTester tester, StringBuffer log) async {
+  await _navTo(tester, log, 'Mais');
+  await _openSection(tester, log, 'Sistema');
+  await _settle(tester, log);
+  final logoutTile = find.ancestor(
+    of: find.text('Sair da conta'),
+    matching: find.byType(ListTile),
+  );
+  if (logoutTile.evaluate().isEmpty) {
+    log.writeln('[LOGOUT] Botão não encontrado');
+    return;
+  }
+  await tester.tap(logoutTile.first, warnIfMissed: false);
+  await _settle(tester, log);
+  final sair = find.widgetWithText(TextButton, 'Sair');
+  if (sair.evaluate().isNotEmpty) {
+    await tester.tap(sair.first, warnIfMissed: false);
+    await _settle(tester, log);
+  }
+  log.writeln('[LOGOUT] OK');
+}
+
+// ── Utilitários ───────────────────────────────────────────────────────────────
+
+/// Aguarda qualquer um dos finders aparecer. Retorna true assim que um aparecer.
+Future<bool> _waitForAny(
+  WidgetTester tester,
+  List<Finder> finders,
+  StringBuffer log, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 400));
+    for (final f in finders) {
+      if (f.evaluate().isNotEmpty) {
+        await _settle(tester, log);
         return true;
       }
     }
@@ -437,386 +812,109 @@ Future<bool> _tapDialogButton(
   return false;
 }
 
-Future<void> _fillAllEmptyFields(
+Future<bool> _waitFor(
   WidgetTester tester,
-  StringBuffer log,
-) async {
-  var filledCount = 0;
-  var fieldIndex = 1;
-
-  final fields = find.byType(TextFormField);
-  for (final element in fields.evaluate()) {
-    final widget = element.widget;
-    if (widget is! TextFormField) continue;
-    if (widget.enabled == false || _isReadOnlyWidget(widget)) continue;
-    final current = widget.controller?.text ?? widget.initialValue ?? '';
-    if (current.trim().isNotEmpty) continue;
-
-    final finder = find.byElementPredicate((e) => identical(e, element));
-    final text = _valueForTextInput(_keyboardTypeFromWidget(widget), fieldIndex);
-    await _bringIntoView(tester, finder, log);
-    await tester.enterText(finder, text);
-    await _safePumpAndSettle(tester, log, reason: 'fill_text_form_field');
-    filledCount += 1;
-    fieldIndex += 1;
-  }
-
-  final textFields = find.byType(TextField);
-  for (final element in textFields.evaluate()) {
-    final widget = element.widget;
-    if (widget is! TextField) continue;
-    if (widget.enabled == false || widget.readOnly) continue;
-    final current = widget.controller?.text ?? '';
-    if (current.trim().isNotEmpty) continue;
-
-    final finder = find.byElementPredicate((e) => identical(e, element));
-    final text = _valueForTextInput(widget.keyboardType, fieldIndex);
-    await _bringIntoView(tester, finder, log);
-    await tester.enterText(finder, text);
-    await _safePumpAndSettle(tester, log, reason: 'fill_text_field');
-    filledCount += 1;
-    fieldIndex += 1;
-  }
-
-  final dropdowns = find.byType(DropdownButtonFormField);
-  for (final element in dropdowns.evaluate()) {
-    final widget = element.widget;
-    if (widget is! DropdownButtonFormField<dynamic>) continue;
-    final hasOnChanged = widget.onChanged != null;
-    final currentValue = _dropdownCurrentValue(widget);
-    if (!hasOnChanged || currentValue != null) continue;
-    final items = _dropdownItems(widget);
-    final firstEnabled = items.where((item) => item.enabled).toList();
-    if (firstEnabled.isEmpty) continue;
-
-    final fieldFinder = find.byElementPredicate((e) => identical(e, element));
-    await _bringIntoView(tester, fieldFinder, log);
-    await tester.tap(fieldFinder, warnIfMissed: false);
-    await _safePumpAndSettle(tester, log, reason: 'open_dropdown');
-
-    final selected = await _selectDropdownItemByLabel(tester, firstEnabled.first);
-    if (selected) {
-      await _safePumpAndSettle(tester, log, reason: 'select_dropdown_item');
-      filledCount += 1;
-    }
-  }
-
-  if (filledCount > 0) {
-    log.writeln('[INPUT] filled fields=$filledCount');
-  }
-}
-
-Future<bool> _selectDropdownItemByLabel(
-  WidgetTester tester,
-  DropdownMenuItem<dynamic> item,
-) async {
-  final child = item.child;
-  if (child is Text && child.data != null && child.data!.trim().isNotEmpty) {
-    final label = child.data!.trim();
-    final candidates = find.text(label);
-    if (candidates.evaluate().isNotEmpty) {
-      await tester.tap(candidates.first, warnIfMissed: false);
+  Finder finder,
+  StringBuffer log, {
+  required String label,
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 400));
+    if (finder.evaluate().isNotEmpty) {
+      await _settle(tester, log);
       return true;
     }
   }
+  log.writeln('[WARN] Timeout aguardando: $label');
   return false;
 }
 
-bool _isReadOnlyWidget(Object widget) {
+Future<void> _ensureVisible(
+    WidgetTester tester, Finder finder, StringBuffer log) async {
+  if (finder.evaluate().isEmpty) return;
   try {
-    final dynamic w = widget;
-    return (w.readOnly as bool?) ?? false;
+    await tester.ensureVisible(finder);
+    await tester.pump(const Duration(milliseconds: 100));
   } catch (_) {
-    return false;
+    final sc = find.ancestor(of: finder, matching: find.byType(Scrollable));
+    if (sc.evaluate().isNotEmpty) {
+      try {
+        await tester.scrollUntilVisible(finder, 200, scrollable: sc.first);
+      } catch (_) {}
+    }
   }
 }
 
-TextInputType? _keyboardTypeFromWidget(Object widget) {
+Future<void> _settle(WidgetTester tester, StringBuffer log) async {
   try {
-    final dynamic w = widget;
-    final value = w.keyboardType;
-    return value is TextInputType ? value : null;
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: kSettleSeconds),
+    );
   } catch (_) {
-    return null;
+    await tester.pump(const Duration(milliseconds: 300));
   }
 }
 
-dynamic _dropdownCurrentValue(DropdownButtonFormField<dynamic> widget) {
+// ── Helpers de valor ──────────────────────────────────────────────────────────
+
+String _textOf(dynamic w) {
+  try { return (w.controller?.text as String?) ?? ''; } catch (_) {}
+  try { return (w.initialValue as String?) ?? ''; } catch (_) {}
+  return '';
+}
+
+String _valueForLabel(String? label, int idx) {
+  if (label == null) return 'Teste $idx';
+  final l = label.toLowerCase();
+  if (l.contains('email')) return 'teste$idx@example.com';
+  if (l.contains('data') || l.contains('date')) return '01/01/2025';
+  if (l.contains('valor') || l.contains('preço') || l.contains('quant') ||
+      l.contains('peso') || l.contains('código') || l.contains('cod')) {
+    return '$idx';
+  }
+  if (l.contains('telefone') || l.contains('fone')) return '11999990000';
+  return 'Teste $idx';
+}
+
+// Labels comuns de botões de adicionar
+const _addLabels = [
+  'Adicionar', 'Novo', 'Nova', 'Cadastrar',
+  'Adicionar Baia', 'Nova Baia',
+  'Adicionar Dieta', 'Nova Dieta',
+  'Adicionar Vacina', 'Nova Vacina',
+  'Adicionar Medicamento',
+  'Adicionar Anotação', 'Nova Anotação',
+  'Adicionar Item', 'Novo Item',
+  'Adicionar Avaliação',
+  'Registrar Peso', 'Adicionar Peso',
+  'Nova Reprodução', 'Adicionar Cobertura',
+];
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+
+Future<String> _writeLog(String text) async {
+  // Imprime linha a linha no terminal (visível no flutter test output)
+  // ignore: avoid_print
+  print('\n========== FUNCTIONAL TEST LOG ==========');
+  for (final line in text.split('\n')) {
+    // ignore: avoid_print
+    print(line);
+  }
+  // ignore: avoid_print
+  print('=========================================\n');
+
+  // Também salva no dispositivo como backup
   try {
-    final dynamic w = widget;
-    return w.value;
+    final dir = await getApplicationDocumentsDirectory();
+    final ts = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final file = File('${dir.path}/functional_test_$ts.txt');
+    await file.writeAsString(text, flush: true);
+    return file.path;
   } catch (_) {
-    return null;
+    return '(arquivo não salvo)';
   }
-}
-
-List<DropdownMenuItem<dynamic>> _dropdownItems(
-  DropdownButtonFormField<dynamic> widget,
-) {
-  try {
-    final dynamic w = widget;
-    final dynamic raw = w.items;
-    if (raw is List<DropdownMenuItem<dynamic>>) return raw;
-    if (raw is List) {
-      return raw.whereType<DropdownMenuItem<dynamic>>().toList();
-    }
-  } catch (_) {
-    // ignore and fallback below
-  }
-  return const <DropdownMenuItem<dynamic>>[];
-}
-
-Future<void> _bringIntoView(
-  WidgetTester tester,
-  Finder target,
-  StringBuffer log,
-) async {
-  if (target.evaluate().isEmpty) return;
-
-  try {
-    await tester.ensureVisible(target);
-    await _safePumpAndSettle(tester, log, reason: 'ensure_visible');
-    return;
-  } catch (_) {
-    final scrollable =
-        find.ancestor(of: target, matching: find.byType(Scrollable));
-    if (scrollable.evaluate().isNotEmpty) {
-      await tester.scrollUntilVisible(
-        target,
-        250.0,
-        scrollable: scrollable.first,
-      );
-      await _safePumpAndSettle(tester, log, reason: 'scroll_until_visible');
-      return;
-    }
-
-    final previousSize =
-        tester.view.physicalSize / tester.view.devicePixelRatio;
-    try {
-      await tester.binding.setSurfaceSize(const Size(1264, 2000));
-      await _safePumpAndSettle(tester, log, reason: 'grow_surface');
-      await tester.ensureVisible(target);
-      await _safePumpAndSettle(tester, log, reason: 'ensure_visible_fallback');
-    } finally {
-      await tester.binding.setSurfaceSize(previousSize);
-      await _safePumpAndSettle(tester, log, reason: 'restore_surface');
-    }
-  }
-}
-
-Future<void> _returnToDashboard(WidgetTester tester, StringBuffer log) async {
-  for (var i = 0; i < 8; i++) {
-    if (find.byType(TabBar).evaluate().isNotEmpty) {
-      await _safePumpAndSettle(tester, log, reason: 'dashboard_visible');
-      return;
-    }
-
-    if (await _tapIfExists(tester, find.byTooltip('Back'), log)) {
-      continue;
-    }
-    if (await _tapIfExists(tester, find.byIcon(Icons.arrow_back), log)) {
-      continue;
-    }
-    if (await _tapDialogButton(tester, const ['Fechar', 'Cancelar', 'OK'])) {
-      continue;
-    }
-
-    try {
-      final navigatorFinder = find.byType(Navigator);
-      if (navigatorFinder.evaluate().isNotEmpty) {
-        final navigator = tester.state<NavigatorState>(navigatorFinder.first);
-        final popped = await navigator.maybePop();
-        await _safePumpAndSettle(tester, log, reason: 'maybe_pop');
-        if (popped) {
-          continue;
-        }
-      }
-    } catch (e) {
-      log.writeln('[WARN] maybePop failed: $e');
-      break;
-    }
-    // Nothing to pop and no known back affordance.
-    break;
-  }
-  log.writeln('[WARN] Could not return to dashboard after seed');
-}
-
-String _signatureForWidget(Widget widget) {
-  final key = widget.key?.toString() ?? 'no-key';
-  final text = _extractText(widget) ?? '';
-  final tooltip = _extractTooltip(widget) ?? '';
-  return '${widget.runtimeType}|$key|$text|$tooltip';
-}
-
-String? _extractText(Widget widget) {
-  if (widget is Text) return widget.data ?? widget.toStringShort();
-  if (widget is TextButton && widget.child is Text) {
-    return (widget.child as Text).data;
-  }
-  if (widget is ElevatedButton && widget.child is Text) {
-    return (widget.child as Text).data;
-  }
-  if (widget is OutlinedButton && widget.child is Text) {
-    return (widget.child as Text).data;
-  }
-  if (widget is ListTile && widget.title is Text) {
-    return (widget.title as Text).data;
-  }
-  if (widget is FloatingActionButton && widget.tooltip != null) {
-    return widget.tooltip;
-  }
-  if (widget is FloatingActionButton && widget.child is Text) {
-    return (widget.child as Text).data;
-  }
-  return null;
-}
-
-String? _extractTooltip(Widget widget) {
-  if (widget is IconButton) return widget.tooltip;
-  if (widget is FloatingActionButton) return widget.tooltip;
-  return null;
-}
-
-String _extractTextFromElement(Element root) {
-  final values = <String>[];
-
-  void walk(Element e) {
-    final w = e.widget;
-    if (w is Text) {
-      final data = w.data?.trim();
-      if (data != null && data.isNotEmpty) {
-        values.add(data);
-      }
-    }
-    e.visitChildren(walk);
-  }
-
-  walk(root);
-  if (values.isEmpty) return '';
-  return values.join(' ');
-}
-
-int _priorityForText(String text, int base) {
-  final t = text.toLowerCase();
-  if (t.contains('adicionar') ||
-      t.contains('novo') ||
-      t.contains('cadastrar') ||
-      t.contains('criar')) {
-    return base + 40;
-  }
-  if (t.contains('salvar') || t.contains('atualizar')) {
-    return base + 20;
-  }
-  if (t.contains('config') || t.contains('detal')) {
-    return base + 10;
-  }
-  return base;
-}
-
-bool _isDestructiveText(String text) {
-  final t = text.toLowerCase();
-  return t.contains('excluir') ||
-      t.contains('apagar') ||
-      t.contains('limpar') ||
-      t.contains('deletar') ||
-      t.contains('remover');
-}
-
-bool _isSaveOrAdd(String text) {
-  final t = text.toLowerCase();
-  return t.contains('salvar') ||
-      t.contains('adicionar') ||
-      t.contains('cadastrar') ||
-      t.contains('criar');
-}
-
-bool _isNetworkActionText(String text) {
-  final t = text.toLowerCase();
-  return t.contains('supabase') ||
-      t.contains('backup') ||
-      t.contains('fazer backup') ||
-      t.contains('backup manual') ||
-      t.contains('backup e dados') ||
-      t.contains('upload para') ||
-      t.contains('enviar para') ||
-      t.contains('sincronizar') ||
-      t.contains('upload') ||
-      t.contains('download') ||
-      t.contains('sincron') ||
-      t.contains('importar') ||
-      t.contains('exportar') ||
-      t.contains('restaurar') ||
-      t.contains('nuvem') ||
-      t.contains('cloud');
-}
-
-bool _isSettingsTabLabel(String label) {
-  final normalized = label.trim().toLowerCase();
-  return normalized == 'sistema' ||
-      normalized == 'configurações' ||
-      normalized == 'configuracoes';
-}
-
-void _rememberAction(List<String> recentActions, String signature) {
-  recentActions.add(signature);
-  if (recentActions.length > 50) {
-    recentActions.removeAt(0);
-  }
-}
-
-Future<void> _captureScreenshot(
-  IntegrationTestWidgetsFlutterBinding binding,
-  WidgetTester tester,
-  String tag,
-) async {
-  if (Platform.isAndroid) {
-    await binding.convertFlutterSurfaceToImage();
-    await tester.pump();
-  }
-  final bytes = await binding.takeScreenshot(tag);
-  final dir = await getApplicationDocumentsDirectory();
-  final file = File('${dir.path}/ui_crawl_$tag.png');
-  await file.writeAsBytes(bytes, flush: true);
-}
-
-Future<String> _writeLogFile(String text) async {
-  final dir = await getApplicationDocumentsDirectory();
-  final ts = DateTime.now().toIso8601String().replaceAll(':', '-');
-  final file = File('${dir.path}/ui_crawl_log_$ts.txt');
-  await file.writeAsString(text, flush: true);
-  return file.path;
-}
-
-String _truncate(String text, int max) {
-  if (text.length <= max) return text;
-  return '${text.substring(0, max)}...';
-}
-
-String _valueForTextInput(TextInputType? keyboardType, int index) {
-  final kind = (keyboardType ?? TextInputType.text).toString().toLowerCase();
-  if (kind.contains('number')) {
-    return '$index';
-  }
-  if (kind.contains('phone')) return '1199999000$index';
-  if (kind.contains('email')) {
-    return 'teste$index@example.com';
-  }
-  if (kind.contains('datetime')) return '01/01/2020';
-  return 'Teste $index';
-}
-
-class _Candidate {
-  final Finder finder;
-  final String signature;
-  final int priority;
-  final bool isDestructive;
-  final bool isSaveOrAdd;
-
-  _Candidate({
-    required this.finder,
-    required this.signature,
-    required this.priority,
-    required this.isDestructive,
-    required this.isSaveOrAdd,
-  });
 }

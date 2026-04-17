@@ -44,12 +44,22 @@ class KinshipRepository {
 
   final AppDatabase? _appDb;
   final AnimalRepository? _animalRepository;
+  final String? Function()? _farmIdProvider;
   DateTime? _lastLineageCheckAt;
 
-  KinshipRepository(this._appDb) : _animalRepository = null;
+  KinshipRepository(this._appDb, {String? Function()? farmIdProvider})
+      : _animalRepository = null,
+        _farmIdProvider = farmIdProvider;
 
   KinshipRepository.fromAnimalRepository(this._animalRepository)
-      : _appDb = null;
+      : _appDb = null,
+        _farmIdProvider = null;
+
+  String? get _currentFarmId => _farmIdProvider?.call();
+
+  // Prefixa chave de setting/meta com o farmId para isolar por fazenda
+  // sem precisar alterar a PK das tabelas no sqflite legado.
+  String _farmKey(String key) => '${_currentFarmId ?? 'global'}_$key';
 
   bool get _supportsLineageTable => _appDb != null;
 
@@ -105,7 +115,7 @@ class KinshipRepository {
     await _appDb!.db.insert(
       'app_settings',
       {
-        'setting_key': _blockCousinBreedingKey,
+        'setting_key': _farmKey(_blockCousinBreedingKey),
         'setting_value': enabled ? '1' : '0',
         'updated_at': DateTime.now().toIso8601String(),
       },
@@ -126,13 +136,16 @@ class KinshipRepository {
       );
     }
 
+    final farmId = _currentFarmId;
+    final farmFilter = farmId != null ? ' AND farm_id = ?' : '';
+    final farmArgs = farmId != null ? [farmId] : <Object?>[];
     final rows = await _appDb!.db.rawQuery(
       '''
       SELECT MIN(depth) AS depth
       FROM animal_lineage
-      WHERE descendant_id = ? AND ancestor_id = ?
+      WHERE descendant_id = ? AND ancestor_id = ?$farmFilter
       ''',
-      [descendantId, ancestorId],
+      [descendantId, ancestorId, ...farmArgs],
     );
     if (rows.isEmpty) return null;
 
@@ -160,6 +173,9 @@ class KinshipRepository {
       return left.intersection(right);
     }
 
+    final farmId = _currentFarmId;
+    final farmFilter = farmId != null ? ' AND l1.farm_id = ? AND l2.farm_id = ?' : '';
+    final farmArgs = farmId != null ? [farmId, farmId] : <Object?>[];
     final rows = await _appDb!.db.rawQuery(
       '''
       SELECT DISTINCT l1.ancestor_id AS ancestor_id
@@ -169,9 +185,9 @@ class KinshipRepository {
       WHERE l1.descendant_id = ?
         AND l2.descendant_id = ?
         AND l1.depth = 1
-        AND l2.depth = 1
+        AND l2.depth = 1$farmFilter
       ''',
-      [leftDescendantId, rightDescendantId],
+      [leftDescendantId, rightDescendantId, ...farmArgs],
     );
 
     return rows
@@ -199,6 +215,9 @@ class KinshipRepository {
       return leftGrandparents.intersection(rightGrandparents);
     }
 
+    final farmId = _currentFarmId;
+    final farmFilter = farmId != null ? ' AND l1.farm_id = ? AND l2.farm_id = ?' : '';
+    final farmArgs = farmId != null ? [farmId, farmId] : <Object?>[];
     final rows = await _appDb!.db.rawQuery(
       '''
       SELECT DISTINCT l1.ancestor_id AS ancestor_id
@@ -208,9 +227,9 @@ class KinshipRepository {
       WHERE l1.descendant_id = ?
         AND l2.descendant_id = ?
         AND l1.depth = 2
-        AND l2.depth = 2
+        AND l2.depth = 2$farmFilter
       ''',
-      [leftDescendantId, rightDescendantId],
+      [leftDescendantId, rightDescendantId, ...farmArgs],
     );
 
     return rows
@@ -223,17 +242,28 @@ class KinshipRepository {
     Set<String> ids,
   ) async {
     final db = _appDb!.db;
+    final farmId = _currentFarmId;
     final idList = ids.toList(growable: false);
     final placeholders = List.filled(idList.length, '?').join(',');
 
     final refs = <String, KinshipAnimalRef>{};
     for (final table in const ['animals', 'sold_animals', 'deceased_animals']) {
-      final rows = await db.query(
-        table,
-        columns: ['id', 'code', 'name', 'mother_id', 'father_id'],
-        where: 'id IN ($placeholders)',
-        whereArgs: idList,
-      );
+      final List<Map<String, Object?>> rows;
+      if (farmId != null) {
+        rows = await db.query(
+          table,
+          columns: ['id', 'code', 'name', 'mother_id', 'father_id'],
+          where: 'id IN ($placeholders) AND farm_id = ?',
+          whereArgs: [...idList, farmId],
+        );
+      } else {
+        rows = await db.query(
+          table,
+          columns: ['id', 'code', 'name', 'mother_id', 'father_id'],
+          where: 'id IN ($placeholders)',
+          whereArgs: idList,
+        );
+      }
       for (final row in rows) {
         final ref = KinshipAnimalRef.fromMap(row);
         if (ref.id.isEmpty) continue;
@@ -410,11 +440,16 @@ class KinshipRepository {
         depth INTEGER NOT NULL CHECK (depth > 0),
         line_type TEXT NOT NULL DEFAULT 'unknown'
           CHECK (line_type IN ('maternal','paternal','mixed','unknown')),
+        farm_id TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         PRIMARY KEY (descendant_id, ancestor_id)
       );
     ''');
+    // Adiciona farm_id em tabelas existentes (ALTER TABLE ignora se já existe via try/catch)
+    try {
+      await db.execute('ALTER TABLE animal_lineage ADD COLUMN farm_id TEXT');
+    } catch (_) {}
     await db.execute('''
       CREATE TABLE IF NOT EXISTS animal_lineage_meta (
         meta_key TEXT PRIMARY KEY,
@@ -449,7 +484,7 @@ class KinshipRepository {
     await db.insert(
       'app_settings',
       {
-        'setting_key': _blockCousinBreedingKey,
+        'setting_key': _farmKey(_blockCousinBreedingKey),
         'setting_value': '1',
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
@@ -461,7 +496,7 @@ class KinshipRepository {
       'animal_lineage_meta',
       columns: ['meta_value'],
       where: 'meta_key = ?',
-      whereArgs: [key],
+      whereArgs: [_farmKey(key)],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -473,7 +508,7 @@ class KinshipRepository {
       'app_settings',
       columns: ['setting_value'],
       where: 'setting_key = ?',
-      whereArgs: [key],
+      whereArgs: [_farmKey(key)],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -481,6 +516,9 @@ class KinshipRepository {
   }
 
   Future<String> _computeSourceSignature() async {
+    final farmId = _currentFarmId;
+    final farmFilter = farmId != null ? 'WHERE farm_id = ?' : '';
+    final farmArgs = farmId != null ? [farmId, farmId, farmId] : <Object?>[];
     final rows = await _appDb!.db.rawQuery('''
       SELECT
         COUNT(*) AS source_count,
@@ -492,13 +530,13 @@ class KinshipRepository {
           LENGTH(COALESCE(father_id, ''))
         ), 0) AS source_hash
       FROM (
-        SELECT id, code, mother_id, father_id, updated_at FROM animals
+        SELECT id, code, mother_id, father_id, updated_at FROM animals $farmFilter
         UNION ALL
-        SELECT id, code, mother_id, father_id, updated_at FROM sold_animals
+        SELECT id, code, mother_id, father_id, updated_at FROM sold_animals $farmFilter
         UNION ALL
-        SELECT id, code, mother_id, father_id, updated_at FROM deceased_animals
+        SELECT id, code, mother_id, father_id, updated_at FROM deceased_animals $farmFilter
       ) src
-    ''');
+    ''', farmArgs);
 
     final row = rows.first;
     final count = row['source_count']?.toString() ?? '0';
@@ -508,13 +546,16 @@ class KinshipRepository {
   }
 
   Future<List<KinshipAnimalRef>> _loadAllRefs(DatabaseExecutor db) async {
+    final farmId = _currentFarmId;
+    final farmFilter = farmId != null ? 'WHERE farm_id = ?' : '';
+    final farmArgs = farmId != null ? [farmId, farmId, farmId] : <Object?>[];
     final rows = await db.rawQuery('''
-      SELECT id, code, name, mother_id, father_id FROM animals
+      SELECT id, code, name, mother_id, father_id FROM animals $farmFilter
       UNION ALL
-      SELECT id, code, name, mother_id, father_id FROM sold_animals
+      SELECT id, code, name, mother_id, father_id FROM sold_animals $farmFilter
       UNION ALL
-      SELECT id, code, name, mother_id, father_id FROM deceased_animals
-    ''');
+      SELECT id, code, name, mother_id, father_id FROM deceased_animals $farmFilter
+    ''', farmArgs);
 
     final refs = <String, KinshipAnimalRef>{};
     for (final row in rows) {
@@ -527,6 +568,7 @@ class KinshipRepository {
 
   Future<void> _rebuildLineage(String sourceSignature) async {
     final db = _appDb!.db;
+    final farmId = _currentFarmId;
     final nowIso = DateTime.now().toIso8601String();
 
     await db.transaction((txn) async {
@@ -534,7 +576,15 @@ class KinshipRepository {
       final refsById = <String, KinshipAnimalRef>{for (final r in refs) r.id: r};
       final resolver = _ParentRefResolver.fromRefs(refs);
 
-      await txn.delete('animal_lineage');
+      if (farmId != null) {
+        await txn.delete(
+          'animal_lineage',
+          where: 'farm_id = ?',
+          whereArgs: [farmId],
+        );
+      } else {
+        await txn.delete('animal_lineage');
+      }
 
       final batch = txn.batch();
       for (final descendant in refs) {
@@ -551,6 +601,7 @@ class KinshipRepository {
               'ancestor_id': entry.ancestorId,
               'depth': entry.depth,
               'line_type': entry.lineType,
+              if (farmId != null) 'farm_id': farmId,
               'created_at': nowIso,
               'updated_at': nowIso,
             },
@@ -563,7 +614,7 @@ class KinshipRepository {
       await txn.insert(
         'animal_lineage_meta',
         {
-          'meta_key': _metaSourceSignatureKey,
+          'meta_key': _farmKey(_metaSourceSignatureKey),
           'meta_value': sourceSignature,
           'updated_at': nowIso,
         },
@@ -572,7 +623,7 @@ class KinshipRepository {
       await txn.insert(
         'animal_lineage_meta',
         {
-          'meta_key': _metaLastRebuildAtKey,
+          'meta_key': _farmKey(_metaLastRebuildAtKey),
           'meta_value': nowIso,
           'updated_at': nowIso,
         },

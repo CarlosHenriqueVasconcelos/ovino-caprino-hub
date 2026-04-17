@@ -1,0 +1,10 @@
+targets:
+  $default:
+    builders:
+      drift_dev|preparing_builder:
+        options:
+          # Datas armazenadas como TEXT ISO-8601 (compatível com o schema do Supabase)
+          store_date_time_values_as_text: true
+      drift_dev|drift_dev:
+        options:
+          store_date_time_values_as_text: true

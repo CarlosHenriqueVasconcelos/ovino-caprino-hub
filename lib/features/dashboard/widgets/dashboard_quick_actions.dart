@@ -6,36 +6,33 @@ import 'package:uuid/uuid.dart';
 import '../../../models/animal.dart';
 import '../../../models/pharmacy_stock.dart';
 import '../../../shared/widgets/animal/animal_form.dart';
-import '../../../shared/widgets/common/app_card.dart';
-import '../../../shared/widgets/common/section_header.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../utils/animal_display_utils.dart';
 import '../../../utils/responsive_utils.dart';
 import '../../medication/presentation/widgets/vaccination_form.dart';
-import '../../system/presentation/history_screen.dart';
 import '../data/dashboard_repository.dart';
-import 'dashboard_visual_style.dart';
 
 class DashboardQuickActions extends StatelessWidget {
   final void Function(int) onGoToTab;
+
   const DashboardQuickActions({super.key, required this.onGoToTab});
 
   @override
   Widget build(BuildContext context) {
     final dashboardRepository = context.read<DashboardRepository>();
 
-    void showAnimalForm({Animal? animal}) {
+    void showAnimalForm() {
       showDialog(
         context: context,
-        builder: (context) => AnimalFormDialog(animal: animal),
+        builder: (context) => const AnimalFormDialog(),
       );
     }
 
-    void showVaccinationForm({Animal? animal}) {
+    void showVaccinationForm() {
       showDialog(
         context: context,
-        builder: (context) => VaccinationFormDialog(animalId: animal?.id),
+        builder: (context) => const VaccinationFormDialog(),
       );
     }
 
@@ -48,186 +45,150 @@ class DashboardQuickActions extends StatelessWidget {
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final availableWidth =
-            constraints.maxWidth.isFinite && constraints.maxWidth > 0
-                ? constraints.maxWidth
-                : MediaQuery.sizeOf(context).width;
-        final layoutMetrics = _QuickActionsLayoutMetrics.fromWidth(availableWidth);
-        final tileWidth = layoutMetrics.tileWidthFor(availableWidth);
-        final panelPadding = DashboardVisualStyle.panelPadding(availableWidth);
-        final sectionGap = DashboardVisualStyle.sectionGap(availableWidth);
-        final cardStyle = _ActionCardStyle.fromTileWidth(
-          tileWidth: tileWidth,
-          singleColumn: layoutMetrics.columns == 1,
-        );
+    final secondaryActions = [
+      _SecondaryAction(
+        title: 'Registrar peso',
+        icon: Icons.monitor_weight_outlined,
+        color: const Color(0xFF6A8D42),
+        onTap: () => onGoToTab(3),
+      ),
+      _SecondaryAction(
+        title: 'Vacinar',
+        icon: Icons.vaccines_outlined,
+        color: const Color(0xFF4B73C7),
+        onTap: showVaccinationForm,
+      ),
+      _SecondaryAction(
+        title: 'Nova cobertura',
+        icon: Icons.favorite_outline,
+        color: const Color(0xFFB06496),
+        onTap: () => onGoToTab(4),
+      ),
+      _SecondaryAction(
+        title: 'Medicamento',
+        icon: Icons.medication_outlined,
+        color: const Color(0xFF3D9E8D),
+        onTap: showMedicationDialog,
+      ),
+    ];
 
-        final actions = [
-          _QuickActionData(
-            title: 'Novo Animal',
-            subtitle: 'Cadastro completo',
-            icon: Icons.add,
-            color: AppColors.primary,
-            onTap: () => showAnimalForm(),
-          ),
-          _QuickActionData(
-            title: 'Agendar Vacinação',
-            subtitle: 'Planejar aplicação',
-            icon: Icons.vaccines,
-            color: const Color(0xFF4B73C7),
-            onTap: () => showVaccinationForm(),
-          ),
-          _QuickActionData(
-            title: 'Agendar Medicamento',
-            subtitle: 'Controle sanitário',
-            icon: Icons.medication,
-            color: const Color(0xFF3D9E8D),
-            onTap: showMedicationDialog,
-          ),
-          _QuickActionData(
-            title: 'Registrar Pesagem',
-            subtitle: 'Atualizar ganho',
-            icon: Icons.monitor_weight_outlined,
-            color: const Color(0xFF6A8D42),
-            onTap: () => onGoToTab(3),
-          ),
-          _QuickActionData(
-            title: 'Lançar Cobertura',
-            subtitle: 'Fluxo reprodutivo',
-            icon: Icons.favorite_outline,
-            color: const Color(0xFFB06496),
-            onTap: () => onGoToTab(4),
-          ),
-          _QuickActionData(
-            title: 'Histórico Completo',
-            subtitle: 'Auditoria do sistema',
-            icon: Icons.history,
-            color: AppColors.goldSoft,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const HistoryScreen(),
-              ),
-            ),
-          ),
-        ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Botão primário
+        _PrimaryActionButton(
+          label: 'Cadastrar animal',
+          icon: Icons.add,
+          onTap: showAnimalForm,
+        ),
+        const SizedBox(height: AppSpacing.xs),
 
-        return AppCard(
-          variant: AppCardVariant.outlined,
-          backgroundColor: DashboardVisualStyle.panelBackground(),
-          borderColor: DashboardVisualStyle.panelBorder(),
-          padding: panelPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SectionHeader(
-                title: 'Ações Rápidas',
-                subtitle: 'Atalhos para os fluxos mais usados no dia',
-              ),
-              SizedBox(height: sectionGap),
-              Wrap(
-                spacing: layoutMetrics.spacing,
-                runSpacing: layoutMetrics.spacing,
-                children: actions
-                    .map(
-                      (action) => SizedBox(
-                        width: tileWidth,
-                        child: _ActionCard(
-                          title: action.title,
-                          subtitle: action.subtitle,
-                          icon: action.icon,
-                          color: action.color,
-                          onTap: action.onTap,
-                          style: cardStyle,
+        // Grid responsivo de ações secundárias
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // < 480 px → 2 colunas; >= 480 px → 4 colunas
+            final columns = constraints.maxWidth < 480 ? 2 : 4;
+            const gap = AppSpacing.xs;
+
+            if (columns == 2) {
+              // Constrói grade 2×2
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SecondaryActionCard(
+                          action: secondaryActions[0],
                         ),
                       ),
-                    )
-                    .toList(),
-              ),
-            ],
-          ),
-        );
-      },
+                      const SizedBox(width: gap),
+                      Expanded(
+                        child: _SecondaryActionCard(
+                          action: secondaryActions[1],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: gap),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SecondaryActionCard(
+                          action: secondaryActions[2],
+                        ),
+                      ),
+                      const SizedBox(width: gap),
+                      Expanded(
+                        child: _SecondaryActionCard(
+                          action: secondaryActions[3],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+
+            // 4 colunas em telas maiores
+            return Row(
+              children: [
+                for (int i = 0; i < secondaryActions.length; i++) ...[
+                  if (i > 0) const SizedBox(width: gap),
+                  Expanded(
+                    child: _SecondaryActionCard(action: secondaryActions[i]),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    required this.style,
-  });
+// ── Botão primário ────────────────────────────────────────────────────────────
 
-  final String title;
-  final String subtitle;
+class _PrimaryActionButton extends StatelessWidget {
+  final String label;
   final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-  final _ActionCardStyle style;
+  final VoidCallback onTap;
+
+  const _PrimaryActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Material(
-      color: Colors.transparent,
+      color: AppColors.primary,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(style.radius),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          constraints: BoxConstraints(minHeight: style.minHeight),
-          padding: EdgeInsets.all(style.padding),
-          decoration: BoxDecoration(
-            color: DashboardVisualStyle.innerBackground(alpha: 0.95),
-            borderRadius: BorderRadius.circular(style.radius),
-            border: Border.all(color: color.withValues(alpha: 0.22)),
-            boxShadow: DashboardVisualStyle.softShadow,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(style.iconPadding),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(style.iconRadius),
-                    ),
-                    child: Icon(icon, color: color, size: style.iconSize),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_outward_rounded,
-                    size: style.trailingIconSize,
-                    color: color.withValues(alpha: 0.75),
-                  ),
-                ],
-              ),
-              SizedBox(height: style.titleTopGap),
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: style.titleFontSize,
-                  height: 1.2,
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(7),
                 ),
+                child: const Icon(Icons.add, color: Colors.white, size: 18),
               ),
-              SizedBox(height: style.subtitleTopGap),
+              const SizedBox(width: AppSpacing.xs),
               Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: style.subtitleFontSize,
-                  height: 1.25,
+                label,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -238,141 +199,124 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
-class _QuickActionData {
+// ── Card de ação secundária ───────────────────────────────────────────────────
+
+class _SecondaryActionCard extends StatelessWidget {
+  final _SecondaryAction action;
+
+  const _SecondaryActionCard({required this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: action.onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.borderNeutral.withValues(alpha: 0.8),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Tela larga → ícone + texto em linha; estreita → coluna
+              final wide = constraints.maxWidth >= 120;
+
+              if (wide) {
+                return Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: action.color.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(action.icon, size: 16, color: action.color),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        action.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              // Muito estreito → ícone acima, texto abaixo centralizado
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: action.color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(action.icon, size: 18, color: action.color),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    action.title,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11.5,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SecondaryAction {
   final String title;
-  final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _QuickActionData({
+  const _SecondaryAction({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
   });
 }
 
-class _QuickActionsLayoutMetrics {
-  final int columns;
-  final double spacing;
-
-  const _QuickActionsLayoutMetrics({
-    required this.columns,
-    required this.spacing,
-  });
-
-  factory _QuickActionsLayoutMetrics.fromWidth(double width) {
-    if (width <= 390) {
-      return const _QuickActionsLayoutMetrics(
-        columns: 1,
-        spacing: 10,
-      );
-    }
-    if (width <= 760) {
-      return const _QuickActionsLayoutMetrics(
-        columns: 2,
-        spacing: 10,
-      );
-    }
-    if (width <= 1100) {
-      return const _QuickActionsLayoutMetrics(
-        columns: 3,
-        spacing: AppSpacing.sm,
-      );
-    }
-    return const _QuickActionsLayoutMetrics(
-      columns: 4,
-      spacing: AppSpacing.sm,
-    );
-  }
-
-  double tileWidthFor(double availableWidth) {
-    if (columns <= 1) return availableWidth;
-    final widthWithoutSpacing = availableWidth - (spacing * (columns - 1));
-    return widthWithoutSpacing / columns;
-  }
-}
-
-class _ActionCardStyle {
-  final double minHeight;
-  final double padding;
-  final double radius;
-  final double iconPadding;
-  final double iconRadius;
-  final double iconSize;
-  final double trailingIconSize;
-  final double titleFontSize;
-  final double subtitleFontSize;
-  final double titleTopGap;
-  final double subtitleTopGap;
-
-  const _ActionCardStyle({
-    required this.minHeight,
-    required this.padding,
-    required this.radius,
-    required this.iconPadding,
-    required this.iconRadius,
-    required this.iconSize,
-    required this.trailingIconSize,
-    required this.titleFontSize,
-    required this.subtitleFontSize,
-    required this.titleTopGap,
-    required this.subtitleTopGap,
-  });
-
-  factory _ActionCardStyle.fromTileWidth({
-    required double tileWidth,
-    required bool singleColumn,
-  }) {
-    if (singleColumn || tileWidth >= 260) {
-      return const _ActionCardStyle(
-        minHeight: 136,
-        padding: AppSpacing.md,
-        radius: DashboardVisualStyle.panelRadius,
-        iconPadding: AppSpacing.xs,
-        iconRadius: 12,
-        iconSize: 18,
-        trailingIconSize: 17,
-        titleFontSize: 14,
-        subtitleFontSize: 12,
-        titleTopGap: 10,
-        subtitleTopGap: 4,
-      );
-    }
-
-    if (tileWidth >= 190) {
-      return const _ActionCardStyle(
-        minHeight: 132,
-        padding: AppSpacing.sm,
-        radius: DashboardVisualStyle.tileRadius,
-        iconPadding: 7,
-        iconRadius: 11,
-        iconSize: 17,
-        trailingIconSize: 16,
-        titleFontSize: 13,
-        subtitleFontSize: 11.5,
-        titleTopGap: 9,
-        subtitleTopGap: 3,
-      );
-    }
-
-    return const _ActionCardStyle(
-      minHeight: 128,
-      padding: 10,
-      radius: DashboardVisualStyle.tileRadius,
-      iconPadding: 6,
-      iconRadius: 10,
-      iconSize: 16,
-      trailingIconSize: 15,
-      titleFontSize: 12.5,
-      subtitleFontSize: 11,
-      titleTopGap: 8,
-      subtitleTopGap: 3,
-    );
-  }
-}
+// ── Diálogo de medicação (mantido igual ao original) ─────────────────────────
 
 class _MedicationFormDialog extends StatefulWidget {
   final VoidCallback onSaved;
@@ -482,9 +426,7 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                   optionsBuilder: (TextEditingValue textEditingValue) {
                     _scheduleAnimalSearch(textEditingValue.text);
                     if (_loadingAnimals) return const Iterable<Animal>.empty();
-                    if (textEditingValue.text.isEmpty) {
-                      return _animalOptions;
-                    }
+                    if (textEditingValue.text.isEmpty) return _animalOptions;
                     final search = textEditingValue.text.toLowerCase();
                     return _animalOptions.where((animal) {
                       return animal.code.toLowerCase().contains(search) ||
@@ -565,11 +507,10 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _dosageController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Dosagem',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     hintText: 'Ex: 5 ml, 2 comprimidos',
-                  ).copyWith(
                     suffixText: _selectedMedication?.unitOfMeasure,
                   ),
                 ),
@@ -580,11 +521,10 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                       context: context,
                       initialDate: _scheduledDate,
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (date != null) {
-                      setState(() => _scheduledDate = date);
-                    }
+                    if (date != null) setState(() => _scheduledDate = date);
                   },
                   child: InputDecorator(
                     decoration: const InputDecoration(
@@ -636,7 +576,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     if (_loadingStock) {
       return const Row(
         children: [
-          SizedBox(width: 24, height: 24, child: CircularProgressIndicator()),
+          SizedBox(
+              width: 24, height: 24, child: CircularProgressIndicator()),
           SizedBox(width: 12),
           Expanded(child: Text('Carregando estoque da farmácia...')),
         ],
@@ -648,9 +589,11 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+          border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.3)),
         ),
         child: const Text(
           'Nenhum medicamento disponível na farmácia. Cadastre itens na aba Farmácia para agendar aplicações.',
@@ -666,15 +609,15 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         Autocomplete<PharmacyStock>(
           displayStringForOption: (stock) => stock.medicationName,
           optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
-              return available;
-            }
+            if (textEditingValue.text.isEmpty) return available;
             final search = textEditingValue.text.toLowerCase();
             return available.where(
-              (stock) => stock.medicationName.toLowerCase().contains(search),
+              (stock) =>
+                  stock.medicationName.toLowerCase().contains(search),
             );
           },
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+          fieldViewBuilder:
+              (context, controller, focusNode, onFieldSubmitted) {
             return TextFormField(
               controller: controller,
               focusNode: focusNode,
@@ -763,13 +706,6 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   }
 
   Widget _buildStockTile(PharmacyStock stock, ThemeData theme) {
-    final unit = stock.unitOfMeasure.toLowerCase();
-    final buffer =
-        StringBuffer('${stock.medicationName} • ${stock.medicationType}');
-    buffer.write(' • ${stock.totalQuantity.toStringAsFixed(1)} $unit');
-    if (stock.isExpiringSoon) buffer.write(' • Vencendo');
-    if (stock.isExpired) buffer.write(' • Vencido');
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -779,7 +715,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
                 ?.copyWith(fontWeight: FontWeight.w600)),
         Text(
           '${stock.medicationType} • ${stock.totalQuantity.toStringAsFixed(1)} ${stock.unitOfMeasure}',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          style:
+              theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
         ),
       ],
     );
@@ -789,32 +726,27 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) {
       return;
     }
-
     if (_selectedMedication == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Selecione um medicamento da farmácia'),
-        ),
+            content: Text('Selecione um medicamento da farmácia')),
       );
       return;
     }
-
     final quantityUsed = _extractQuantityUsed();
     if (quantityUsed == null || quantityUsed <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Informe a dosagem/quantidade a ser aplicada.'),
-        ),
+            content:
+                Text('Informe a dosagem/quantidade a ser aplicada.')),
       );
       return;
     }
-
     if (!_hasSufficientStock(quantityUsed)) {
       final available = _availableStockDescription();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Estoque insuficiente. Disponível: $available'),
-        ),
+            content: Text('Estoque insuficiente. Disponível: $available')),
       );
       return;
     }
@@ -831,11 +763,13 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
           .add(const Duration(days: 30))
           .toIso8601String()
           .split('T')[0],
-      'dosage': _dosageController.text.isEmpty ? null : _dosageController.text,
+      'dosage':
+          _dosageController.text.isEmpty ? null : _dosageController.text,
       'veterinarian': _veterinarianController.text.isEmpty
           ? null
           : _veterinarianController.text,
-      'notes': _notesController.text.isEmpty ? null : _notesController.text,
+      'notes':
+          _notesController.text.isEmpty ? null : _notesController.text,
       'pharmacy_stock_id': _selectedMedication?.id,
       'quantity_used': quantityUsed,
       'created_at': now,
@@ -873,9 +807,9 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
         stock.quantityPerUnit != null &&
         stock.quantityPerUnit! > 0;
-
     final available = useVolumeLogic
-        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity
+        ? (stock.totalQuantity * stock.quantityPerUnit!) +
+            stock.openedQuantity
         : stock.totalQuantity;
     return quantity <= available;
   }
@@ -886,7 +820,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         stock.quantityPerUnit != null &&
         stock.quantityPerUnit! > 0;
     final available = useVolumeLogic
-        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity
+        ? (stock.totalQuantity * stock.quantityPerUnit!) +
+            stock.openedQuantity
         : stock.totalQuantity;
     return available > 0;
   }
@@ -899,7 +834,8 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
         stock.quantityPerUnit != null &&
         stock.quantityPerUnit! > 0;
     final available = useVolumeLogic
-        ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity
+        ? (stock.totalQuantity * stock.quantityPerUnit!) +
+            stock.openedQuantity
         : stock.totalQuantity;
     return '${available.toStringAsFixed(1)} ${stock.unitOfMeasure}';
   }
@@ -909,13 +845,12 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
     final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
         stock.quantityPerUnit != null &&
         stock.quantityPerUnit! > 0;
-
     if (useVolumeLogic) {
       final totalVolume =
-          (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
+          (stock.totalQuantity * stock.quantityPerUnit!) +
+              stock.openedQuantity;
       return 'Estoque baixo! Apenas ${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponíveis (${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''}).';
     }
-
     return 'Estoque baixo! Apenas ${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''} disponíveis.';
   }
 }

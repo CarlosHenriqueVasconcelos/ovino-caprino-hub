@@ -572,15 +572,14 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
   Future<void> _saveBreeding() async {
     if (!_formKey.currentState!.validate()) return;
     if (_checkingKinship) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aguarde a validação de parentesco.')),
+      await _showFormMessage(
+        'Aguarde a validação de parentesco.',
+        isError: true,
       );
       return;
     }
     if (_hasKinshipConflict) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_kinshipReport!.buildMessage())),
-      );
+      await _showFormMessage(_kinshipReport!.buildMessage(), isError: true);
       return;
     }
 
@@ -598,9 +597,7 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
         if (report != null && report.isBlocking) {
           if (!mounted) return;
           setState(() => _kinshipReport = report);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(report.buildMessage())),
-          );
+          await _showFormMessage(report.buildMessage(), isError: true);
           return;
         }
       }
@@ -647,22 +644,34 @@ class _BreedingFormDialogState extends State<BreedingFormDialog> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Cobertura registrada com sucesso!'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
-      );
+      await _showFormMessage('Cobertura registrada com sucesso!');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao registrar cobertura: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      await _showFormMessage(
+        'Erro ao registrar cobertura: $e',
+        isError: true,
       );
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

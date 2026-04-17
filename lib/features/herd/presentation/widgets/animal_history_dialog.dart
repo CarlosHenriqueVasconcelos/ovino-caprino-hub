@@ -9,6 +9,7 @@ import '../../../../shared/widgets/common/section_header.dart';
 import '../../../../shared/widgets/common/status_chip.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
+import '../../../../utils/animal_display_utils.dart';
 import '../../../../utils/animal_record_display.dart';
 import '../../../../utils/responsive_utils.dart';
 
@@ -439,7 +440,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         [
                           'Código: ${_mother!.code}',
                           if (_mother!.nameColor.isNotEmpty)
-                            'Cor: ${_mother!.nameColor}',
+                            'Cor: ${AnimalDisplayUtils.getColorName(_mother!.nameColor)}',
                           if ((_mother!.lote ?? '').isNotEmpty)
                             'Lote: ${_mother!.lote}',
                         ].join(' • '),
@@ -463,7 +464,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         [
                           'Código: ${_father!.code}',
                           if (_father!.nameColor.isNotEmpty)
-                            'Cor: ${_father!.nameColor}',
+                            'Cor: ${AnimalDisplayUtils.getColorName(_father!.nameColor)}',
                           if ((_father!.lote ?? '').isNotEmpty)
                             'Lote: ${_father!.lote}',
                         ].join(' • '),
@@ -512,7 +513,7 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                     const SizedBox(height: 2),
                     Text(
                       '${child['category']} • Status: $status'
-                      '${color != null ? ' • Cor: $color' : ''}'
+                      '${color != null ? ' • Cor: ${AnimalDisplayUtils.getColorName(color)}' : ''}'
                       '${lote != null ? ' • Lote: $lote' : ''}',
                     ),
                   ],

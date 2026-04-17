@@ -42,6 +42,27 @@ String ptBrHeader(String key) {
     'dosage': 'Dosagem',
     'veterinarian': 'Veterinário',
     'application_status': 'Status da Aplicação',
+    'unit_of_measure': 'Unidade',
+    'total_quantity': 'Quantidade Total',
+    'min_stock_alert': 'Estoque Mínimo',
+    'stock_status': 'Status do Estoque',
+    'days_to_expire': 'Dias para Vencer',
+    'is_opened': 'Frasco Aberto',
+    'opened_quantity': 'Quantidade Aberta',
+    'qty_in_period': 'Entradas no Período',
+    'qty_out_period': 'Saídas no Período',
+    'net_movement_period': 'Saldo de Movimentação',
+    'movements_count_period': 'Movimentações no Período',
+    'last_movement_at': 'Última Movimentação',
+
+    // Alimentação
+    'pen_name': 'Baia',
+    'pen_number': 'Número da Baia',
+    'feed_type': 'Tipo de Ração',
+    'times_per_day': 'Vezes ao Dia',
+    'feeding_times': 'Horários',
+    'schedule_notes': 'Obs. do Trato',
+    'pen_notes': 'Obs. da Baia',
 
     // Reprodução
     'stage': 'Estágio',
@@ -93,6 +114,18 @@ String ptBrHeader(String key) {
     'total_weighings': 'Total de Pesagens',
     'animals_weighed': 'Animais Pesados',
     'avg_last_weight': 'Média do Último Peso (kg)',
+    'total_pens': 'Total de Baias',
+    'total_schedules': 'Total de Tratos',
+    'pens_with_schedule': 'Baias com Trato',
+    'feed_types': 'Tipos de Ração',
+    'avg_quantity': 'Média de Quantidade',
+    'avg_times_per_day': 'Média de Vezes/Dia',
+    'total_items': 'Total de Itens',
+    'total_stock': 'Estoque Total',
+    'low_stock_items': 'Itens em Estoque Baixo',
+    'expiring_30d': 'Vencendo em 30 dias',
+    'expired_items': 'Itens Vencidos',
+    'movements_period': 'Movimentações no Período',
   };
 
   return map[key] ?? _titleize(key);

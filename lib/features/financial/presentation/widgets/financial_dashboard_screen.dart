@@ -4,13 +4,20 @@ import 'package:provider/provider.dart';
 
 import '../../../../models/financial_account.dart';
 import '../../../../services/financial_service.dart';
-import '../../../../shared/widgets/common/app_card.dart';
-import '../../../../shared/widgets/common/app_empty_state.dart';
-import '../../../../shared/widgets/common/metric_card.dart';
-import '../../../../shared/widgets/common/section_header.dart';
-import '../../../../shared/widgets/common/status_chip.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_spacing.dart';
+
+const _kBrand = Color(0xFF2F8F5B);
+const _kBrand50 = Color(0xFFE8F5EE);
+const _kGold = Color(0xFFD9B15F);
+const _kGold50 = Color(0xFFFBF4E6);
+const _kErr = Color(0xFFC94A4A);
+const _kErr50 = Color(0xFFFAEAEA);
+const _kBlue = Color(0xFF3A7EC4);
+const _kBlue50 = Color(0xFFEBF3FB);
+const _kSurface = Color(0xFFFBFBF8);
+const _kText = Color(0xFF22313A);
+const _kText2 = Color(0xFF5A6E78);
+const _kText3 = Color(0xFF9AABB4);
+const _kBorder = Color(0xFFE6E4DC);
 
 class FinancialDashboardScreen extends StatefulWidget {
   const FinancialDashboardScreen({super.key});
@@ -37,11 +44,16 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
     setState(() => isLoading = true);
 
     final service = context.read<FinancialService>();
+
+    // Writes devem ser sequenciais (updateOverdue depende de generateRecurring)
     await service.generateRecurringAccounts();
     await service.updateOverdueStatus();
 
-    final dashboardStats = await service.getDashboardStats();
-    final upcoming = await service.getUpcomingAccounts(7);
+    // Reads independentes — rodam em paralelo
+    final fStats    = service.getDashboardStats();
+    final fUpcoming = service.getUpcomingAccounts(7);
+    final dashboardStats = await fStats;
+    final upcoming       = await fUpcoming;
 
     if (!mounted) return;
     setState(() {
@@ -59,18 +71,18 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
     return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
   }
 
-  StatusChipVariant _statusVariant(String status) {
+  String _statusLabel(String status) {
     switch (status) {
       case 'Pago':
-        return StatusChipVariant.success;
+        return 'Pago';
       case 'Vencido':
-        return StatusChipVariant.danger;
+        return 'Vencido';
       case 'Pendente':
-        return StatusChipVariant.warning;
+        return 'Pendente';
       case 'Cancelado':
-        return StatusChipVariant.neutral;
+        return 'Cancelado';
       default:
-        return StatusChipVariant.info;
+        return status;
     }
   }
 
@@ -91,181 +103,369 @@ class FinancialDashboardScreenState extends State<FinancialDashboardScreen> {
       onRefresh: _loadData,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         children: [
-          SectionHeader(
-            title: 'Resumo Financeiro',
-            subtitle: 'Indicadores consolidados do período atual',
-            action: TextButton.icon(
-              onPressed: _loadData,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Atualizar'),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _kBrand,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saldo do mês',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatCurrency(balance),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      balance >= 0 ? Icons.trending_up : Icons.trending_down,
+                      size: 14,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      balance >= 0
+                          ? 'Positivo · visão consolidada'
+                          : 'Negativo · revisar despesas',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Resumo do período',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _kText,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _loadData,
+                style: TextButton.styleFrom(
+                  foregroundColor: _kBrand,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text('atualizar'),
+              ),
+            ],
+          ),
           LayoutBuilder(
             builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              int columns = 1;
-              if (width >= 1024) {
-                columns = 3;
-              } else if (width >= 640) {
-                columns = 2;
-              }
+              final isWide = constraints.maxWidth >= 900;
+              final isTablet = constraints.maxWidth >= 640;
+              final columns = isWide ? 3 : (isTablet ? 2 : 2);
 
               return GridView.count(
+                crossAxisCount: columns,
+                crossAxisSpacing: 7,
+                mainAxisSpacing: 7,
+                childAspectRatio: isWide ? 1.9 : 1.65,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: columns,
-                crossAxisSpacing: AppSpacing.sm,
-                mainAxisSpacing: AppSpacing.sm,
-                childAspectRatio: columns == 1 ? 2.3 : 2.0,
                 children: [
-                  MetricCard(
-                    title: 'Saldo do mês',
-                    value: _formatCurrency(balance),
-                    subtitle: balance >= 0 ? 'Positivo' : 'Negativo',
-                    icon: Icons.account_balance_wallet_outlined,
-                    accentColor: balance >= 0 ? AppColors.success : AppColors.error,
-                  ),
-                  MetricCard(
-                    title: 'A vencer (7 dias)',
+                  _buildKpiCard(
+                    icon: Icons.calendar_month,
+                    iconBg: _kGold50,
+                    iconColor: _kGold,
+                    label: 'A vencer (7 dias)',
                     value: _formatCurrency(totalUpcoming),
-                    icon: Icons.event_available_outlined,
-                    accentColor: AppColors.warning,
+                    valueColor: _kGold,
                   ),
-                  MetricCard(
-                    title: 'Contas vencidas',
+                  _buildKpiCard(
+                    icon: Icons.error_outline,
+                    iconBg: _kErr50,
+                    iconColor: _kErr,
+                    label: 'Contas vencidas',
                     value: _formatCurrency(totalOverdue),
-                    icon: Icons.warning_amber_rounded,
-                    accentColor: AppColors.error,
+                    valueColor: _kErr,
                   ),
-                  MetricCard(
-                    title: 'Total pendente',
+                  _buildKpiCard(
+                    icon: Icons.pending_actions,
+                    iconBg: _kBlue50,
+                    iconColor: _kBlue,
+                    label: 'Total pendente',
                     value: _formatCurrency(totalPending),
-                    icon: Icons.pending_actions_outlined,
-                    accentColor: AppColors.primarySupport,
+                    valueColor: _kBlue,
                   ),
-                  MetricCard(
-                    title: 'Receitas do mês',
+                  _buildKpiCard(
+                    icon: Icons.trending_up,
+                    iconBg: _kBrand50,
+                    iconColor: _kBrand,
+                    label: 'Receitas do mês',
                     value: _formatCurrency(totalRevenue),
-                    icon: Icons.arrow_upward,
-                    accentColor: AppColors.success,
+                    valueColor: _kBrand,
                   ),
-                  MetricCard(
-                    title: 'Despesas do mês',
+                  _buildKpiCard(
+                    icon: Icons.trending_down,
+                    iconBg: _kErr50,
+                    iconColor: _kErr,
+                    label: 'Despesas do mês',
                     value: _formatCurrency(totalExpense),
-                    icon: Icons.arrow_downward,
-                    accentColor: AppColors.error,
+                    valueColor: _kErr,
                   ),
                 ],
               );
             },
           ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            variant: AppCardVariant.elevated,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(
-                  title: 'Próximas Contas',
-                  subtitle: 'Compromissos previstos para os próximos 7 dias',
-                  action: Icon(Icons.schedule_outlined, color: AppColors.primary),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Próximas contas · 7 dias',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _kText,
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                if (upcomingAccounts.isEmpty)
-                  const AppEmptyState(
-                    icon: Icons.calendar_month_outlined,
-                    title: 'Sem contas para os próximos 7 dias',
-                    description: 'Quando houver vencimentos próximos, eles aparecerão aqui.',
-                  )
-                else
-                  ...upcomingAccounts.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final account = entry.value;
-                    final isRevenue = account.type == 'receita';
-                    final amountColor = isRevenue ? AppColors.success : AppColors.error;
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (upcomingAccounts.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _kSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.calendar_month_outlined, color: _kText3),
+                  SizedBox(height: 8),
+                  Text(
+                    'Sem contas para os próximos 7 dias',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _kText,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...upcomingAccounts.asMap().entries.map((entry) {
+              final index = entry.key;
+              final account = entry.value;
+              final isRevenue = account.type == 'receita';
+              final amountColor = isRevenue ? _kBrand : _kErr;
 
-                    return Container(
-                      margin: EdgeInsets.only(
-                        top: AppSpacing.xs,
-                        bottom: index == upcomingAccounts.length - 1 ? 0 : AppSpacing.xs,
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.sm),
+              return Container(
+                margin: EdgeInsets.only(bottom: index == upcomingAccounts.length - 1 ? 0 : 7),
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kText.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: AppColors.borderNeutral.withValues(alpha: 0.75),
-                        ),
+                        color: isRevenue ? _kBrand50 : _kErr50,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
+                      alignment: Alignment.center,
+                      child: Icon(
+                        isRevenue ? Icons.arrow_upward : Icons.arrow_downward,
+                        size: 14,
+                        color: amountColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: amountColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(
-                              isRevenue
-                                  ? Icons.arrow_upward
-                                  : Icons.arrow_downward,
-                              size: 18,
-                              color: amountColor,
+                          Text(
+                            account.description ?? account.category,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _kText,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  account.description ?? account.category,
-                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${_formatDate(account.dueDate)} • ${account.category}',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                ),
-                              ],
-                            ),
+                          const SizedBox(height: 1),
+                          Text(
+                            isRevenue
+                                ? 'Cliente: ${account.supplierCustomer?.trim().isNotEmpty == true ? account.supplierCustomer : 'não informado'}'
+                                : 'Fornecedor: ${account.supplierCustomer?.trim().isNotEmpty == true ? account.supplierCustomer : 'não informado'}',
+                            style: const TextStyle(fontSize: 10, color: _kText2),
                           ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                _formatCurrency(account.amount),
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: amountColor,
-                                    ),
-                              ),
-                              const SizedBox(height: AppSpacing.xxs),
-                              StatusChip(
-                                label: account.status,
-                                variant: _statusVariant(account.status),
-                              ),
-                            ],
-                          ),
+                          const SizedBox(height: 3),
+                          _buildStatusBadge(account.status),
                         ],
                       ),
-                    );
-                  }),
-              ],
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          _formatCurrency(account.amount),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: amountColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(account.dueDate),
+                          style: const TextStyle(fontSize: 10, color: _kText3),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKpiCard({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+        boxShadow: [
+          BoxShadow(
+            color: _kText.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 14, color: iconColor),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: _kText3,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
+              letterSpacing: -0.2,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    late final Color bg;
+    late final Color fg;
+
+    switch (status) {
+      case 'Pago':
+        bg = _kBrand50;
+        fg = _kBrand;
+        break;
+      case 'Vencido':
+        bg = _kErr50;
+        fg = _kErr;
+        break;
+      case 'Pendente':
+        bg = _kGold50;
+        fg = const Color(0xFF7A5C00);
+        break;
+      default:
+        bg = const Color(0xFFF2F1ED);
+        fg = _kText2;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _statusLabel(status),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
       ),
     );
   }

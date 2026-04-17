@@ -5,15 +5,17 @@ import '../../../models/animal.dart';
 import '../../../shared/widgets/common/app_brand_header.dart';
 import '../application/dashboard_controller.dart';
 import '../data/dashboard_repository.dart';
-import '../widgets/dashboard_alerts_section.dart';
-import '../widgets/dashboard_kpi_row.dart';
-import '../widgets/dashboard_overview_section.dart';
+import '../widgets/dashboard_alerts_compact.dart';
+import '../widgets/dashboard_bottom_stats.dart';
+import '../widgets/dashboard_greeting.dart';
+import '../widgets/dashboard_hero_kpi.dart';
+import '../widgets/dashboard_mini_stats.dart';
 import '../widgets/dashboard_quick_actions.dart';
-import '../widgets/dashboard_visual_style.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../services/animal_service.dart';
 import '../../../services/medication_service.dart';
 import '../../../services/pharmacy_service.dart';
+import '../../../services/sync_service.dart';
 import '../../../utils/responsive_utils.dart';
 
 class DashboardTab extends StatelessWidget {
@@ -37,97 +39,186 @@ class DashboardTab extends StatelessWidget {
           ),
         ),
       ],
-      child: LayoutBuilder(
+      child: _SyncAwareDashboard(onGoToTab: onGoToTab),
+    );
+  }
+}
+
+/// Escuta o SyncService e recarrega o dashboard quando o sync termina com sucesso.
+class _SyncAwareDashboard extends StatefulWidget {
+  final void Function(int) onGoToTab;
+  const _SyncAwareDashboard({required this.onGoToTab});
+
+  @override
+  State<_SyncAwareDashboard> createState() => _SyncAwareDashboardState();
+}
+
+class _SyncAwareDashboardState extends State<_SyncAwareDashboard> {
+  late final SyncService _syncService;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncService = context.read<SyncService>();
+    _syncService.addListener(_onSyncChanged);
+  }
+
+  void _onSyncChanged() {
+    if (!mounted) return;
+    if (_syncService.status == SyncStatus.success) {
+      context.read<DashboardController>().refresh();
+    }
+  }
+
+  @override
+  void dispose() {
+    _syncService.removeListener(_onSyncChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final horizontalPadding =
               ResponsiveUtils.getPageHorizontalPaddingForWidth(width);
-          final verticalPadding =
-              ResponsiveUtils.getPageVerticalPaddingForWidth(width);
           final maxContentWidth =
               ResponsiveUtils.getCenteredMaxContentWidthForWidth(width);
-          final sectionGap =
-              DashboardVisualStyle.blockGap(width) + AppSpacing.xs;
+
           final isLoading = context.select<DashboardController, bool>(
-            (controller) => controller.isLoading,
+            (c) => c.isLoading,
           );
           final stats = context.select<DashboardController, AnimalStats?>(
-            (controller) => controller.stats,
+            (c) => c.stats,
           );
 
           if (isLoading || stats == null) {
             return _DashboardLoading(
-              width: width,
               horizontalPadding: horizontalPadding,
-              verticalPadding: verticalPadding,
               maxContentWidth: maxContentWidth,
             );
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.symmetric(vertical: verticalPadding),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxContentWidth),
+          return _DashboardContent(
+            stats: stats,
+            width: width,
+            horizontalPadding: horizontalPadding,
+            maxContentWidth: maxContentWidth,
+            onGoToTab: widget.onGoToTab,
+          );
+        },
+    );
+  }
+}
+
+// ── Conteúdo principal ────────────────────────────────────────────────────────
+
+class _DashboardContent extends StatelessWidget {
+  final AnimalStats stats;
+  final double width;
+  final double horizontalPadding;
+  final double maxContentWidth;
+  final void Function(int) onGoToTab;
+
+  const _DashboardContent({
+    required this.stats,
+    required this.width,
+    required this.horizontalPadding,
+    required this.maxContentWidth,
+    required this.onGoToTab,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const gap = AppSpacing.sm;
+
+    return SingleChildScrollView(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ─────────────────────────────────────────────
+              const AppBrandHeader(
+                title: 'Fazenda São Petrônio',
+                subtitle: 'Ovinos e Caprinos',
+              ),
+
+              Padding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: horizontalPadding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AppBrandHeader(
-                      title: 'Fazenda São Petrônio',
-                      subtitle: 'Gestão de Ovinos e Caprinos',
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          DashboardKpiRow(stats: stats),
-                          SizedBox(height: sectionGap),
-                          DashboardAlertsSection(onGoToTab: onGoToTab),
-                          SizedBox(height: sectionGap),
-                          DashboardQuickActions(onGoToTab: onGoToTab),
-                          SizedBox(height: sectionGap),
-                          DashboardOverviewSection(stats: stats),
-                        ],
-                      ),
-                    ),
+                    // ── Saudação ──────────────────────────────────────
+                    const DashboardGreeting(),
+
+                    // ── Card hero: total de animais ───────────────────
+                    DashboardHeroKpi(stats: stats),
+                    const SizedBox(height: gap),
+
+                    // ── Mini stats: saudáveis / tratamento / gestantes ─
+                    DashboardMiniStats(stats: stats),
+                    const SizedBox(height: gap),
+
+                    // ── Alertas ativos (compacto) ─────────────────────
+                    DashboardAlertsCompact(onGoToTab: onGoToTab),
+                    const SizedBox(height: gap),
+
+                    // ── Ações rápidas ─────────────────────────────────
+                    const _SectionLabel(label: 'Ações Rápidas'),
+                    const SizedBox(height: AppSpacing.xs),
+                    DashboardQuickActions(onGoToTab: onGoToTab),
+                    const SizedBox(height: gap),
+
+                    // ── Reprodução + Peso médio ───────────────────────
+                    DashboardBottomStats(stats: stats),
+                    const SizedBox(height: AppSpacing.lg),
                   ],
                 ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
+// ── Label de seção inline ─────────────────────────────────────────────────────
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  const _SectionLabel({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: const Color(0xFF22313A),
+            fontWeight: FontWeight.w700,
+          ),
+    );
+  }
+}
+
+// ── Loading ───────────────────────────────────────────────────────────────────
+
 class _DashboardLoading extends StatelessWidget {
-  final double width;
   final double horizontalPadding;
-  final double verticalPadding;
   final double maxContentWidth;
 
   const _DashboardLoading({
-    required this.width,
     required this.horizontalPadding,
-    required this.verticalPadding,
     required this.maxContentWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    final widthTier = ResponsiveUtils.widthTierForWidth(width);
-    final loadingExtraVerticalPadding =
-        widthTier == ResponsiveWidthTier.small ||
-                widthTier == ResponsiveWidthTier.medium
-            ? AppSpacing.sm
-            : AppSpacing.md;
-
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        vertical: verticalPadding + loadingExtraVerticalPadding,
-      ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxContentWidth),
@@ -136,7 +227,7 @@ class _DashboardLoading extends StatelessWidget {
             children: [
               const AppBrandHeader(
                 title: 'Fazenda São Petrônio',
-                subtitle: 'Gestão de Ovinos e Caprinos',
+                subtitle: 'Ovinos e Caprinos',
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: horizontalPadding),

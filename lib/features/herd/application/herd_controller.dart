@@ -167,6 +167,7 @@ class HerdController extends ChangeNotifier {
       final results = await _repo.getFilteredAnimals(
         includeSold: _includeSold,
         statusEquals: _status,
+        genderEquals: _gender,
         nameColor: _color,
         categoryEquals: _category,
         searchQuery: _search,
@@ -180,15 +181,24 @@ class HerdController extends ChangeNotifier {
       AnimalDisplayUtils.sortAnimalsList(sorted);
       _items = List<Animal>.unmodifiable(sorted);
       _rebuildIndexes(_items);
+      _hasMore = results.length == _pageSize;
+
+      // Exibe a lista imediatamente sem esperar as stats de prole.
+      // _refreshOffspringStats roda em background e notifica quando terminar.
+      _isRefreshing = false;
+      notifyListeners();
+
+      if (token != _requestToken) return;
       await _refreshOffspringStats();
       if (token != _requestToken) return;
-      _hasMore = results.length == _pageSize;
+      notifyListeners();
+      return; // evita o notifyListeners() duplo no finally
     } catch (e) {
       if (token != _requestToken) return;
       _error = e.toString();
       _hasMore = false;
     } finally {
-      if (token == _requestToken) {
+      if (token == _requestToken && _isRefreshing) {
         _isRefreshing = false;
         notifyListeners();
       }
@@ -208,6 +218,7 @@ class HerdController extends ChangeNotifier {
       final results = await _repo.getFilteredAnimals(
         includeSold: _includeSold,
         statusEquals: _status,
+        genderEquals: _gender,
         nameColor: _color,
         categoryEquals: _category,
         searchQuery: _search,

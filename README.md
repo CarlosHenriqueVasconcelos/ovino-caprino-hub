@@ -43,6 +43,26 @@ flutter test
 flutter analyze
 ```
 
+## Script unico para validar funcionalidades
+
+Para rodar uma validacao completa (analise + testes + teste funcional UI):
+
+```bash
+bash scripts/testar_funcionalidades.sh --device windows --email seu_email --password sua_senha
+```
+
+Opcoes uteis:
+
+```bash
+# Sem integration_test (apenas analise + testes de unidade/widget)
+bash scripts/testar_funcionalidades.sh --skip-integration
+
+# Ver ajuda completa
+bash scripts/testar_funcionalidades.sh --help
+```
+
+Relatorios sao gravados automaticamente em `test_reports/<data_hora>/`.
+
 ## Build e execucao Android
 
 1. Conectar dispositivo (`adb devices`).
@@ -103,4 +123,3 @@ Tabelas criticas no fluxo atual:
 
 Este README consolida a documentacao operacional da raiz do projeto.
 Se precisar, podemos recriar documentos detalhados por modulo dentro de `docs/` sem poluir a raiz.
-

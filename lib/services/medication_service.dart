@@ -124,6 +124,10 @@ class MedicationService extends ChangeNotifier {
     }
   }
 
+  /// Contagens de medicações por status em uma única query SQL.
+  Future<({int overdue, int scheduled, int applied})> getKpiCounts() =>
+      _repository.getKpiCounts();
+
   Future<List<Map<String, dynamic>>> getMedicationsOverdueWithAnimalInfo({
     MedicationQueryOptions options = const MedicationQueryOptions(),
   }) async {

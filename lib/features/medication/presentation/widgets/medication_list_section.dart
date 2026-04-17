@@ -29,6 +29,7 @@ class MedicationListSection extends StatelessWidget {
   final void Function(String id, bool selected) onSelectionChanged;
   final void Function(Map<String, dynamic> record) onShowDetails;
   final void Function(Map<String, dynamic> record) onShowOptions;
+  final void Function(Map<String, dynamic> record)? onAnimalTap;
   final ValueChanged<String>? onApply;
   final ValueChanged<String>? onCancel;
   final String Function(dynamic value) formatDate;
@@ -40,6 +41,7 @@ class MedicationListSection extends StatelessWidget {
     required this.onSelectionChanged,
     required this.onShowDetails,
     required this.onShowOptions,
+    this.onAnimalTap,
     this.onApply,
     this.onCancel,
     required this.formatDate,
@@ -68,6 +70,7 @@ class MedicationListSection extends StatelessWidget {
           onSelectedChanged: (value) => onSelectionChanged(id, value),
           onShowDetails: () => onShowDetails(record),
           onShowOptions: () => onShowOptions(record),
+          onAnimalTap: onAnimalTap != null ? () => onAnimalTap!(record) : null,
           onApply: onApply,
           onCancel: onCancel,
           formatDate: formatDate,
@@ -84,6 +87,7 @@ class _MedicationRowCard extends StatelessWidget {
   final ValueChanged<bool> onSelectedChanged;
   final VoidCallback onShowDetails;
   final VoidCallback onShowOptions;
+  final VoidCallback? onAnimalTap;
   final ValueChanged<String>? onApply;
   final ValueChanged<String>? onCancel;
   final String Function(dynamic value) formatDate;
@@ -95,6 +99,7 @@ class _MedicationRowCard extends StatelessWidget {
     required this.onSelectedChanged,
     required this.onShowDetails,
     required this.onShowOptions,
+    this.onAnimalTap,
     required this.onApply,
     required this.onCancel,
     required this.formatDate,
@@ -132,13 +137,19 @@ class _MedicationRowCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        AnimalRecordDisplay.labelFromRecord(record),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AnimalRecordDisplay.colorFromRecord(record) ??
-                              Colors.black87,
+                      GestureDetector(
+                        onTap: onAnimalTap,
+                        child: Text(
+                          AnimalRecordDisplay.labelFromRecord(record),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AnimalRecordDisplay.colorFromRecord(record) ??
+                                Colors.black87,
+                            decoration: onAnimalTap != null
+                                ? TextDecoration.underline
+                                : null,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 4),

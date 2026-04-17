@@ -91,6 +91,7 @@ class _HerdViewState extends State<HerdView>
   bool _includeSold = false;
   String?
       _statusFilter; // null = todos; 'Saudável' | 'Em tratamento' | 'Ferido' | especiais: 'Vendido'/'Óbito'
+  String? _genderFilter;
   String? _colorFilter;
   String? _categoryFilter;
   static const List<String> _statusOptions = <String>[
@@ -100,10 +101,14 @@ class _HerdViewState extends State<HerdView>
     'Vendido',
     'Óbito',
   ];
+  static const List<String> _genderOptions = <String>['Fêmea', 'Macho'];
 
   Future<List<Animal>>? _deceasedFuture;
+  Future<List<Animal>>? _soldFuture;
   List<String> _availableColors = [];
   List<String> _availableCategories = [];
+  bool _insightsLoading = false;
+  _HerdInsights? _insights;
 
   @override
   void initState() {
@@ -113,6 +118,7 @@ class _HerdViewState extends State<HerdView>
 
     _deceasedFuture = _loadDeceasedAnimals(context);
     _loadFilters();
+    _loadInsights();
     _scrollCtrl.addListener(_onScroll);
   }
 
@@ -143,7 +149,9 @@ class _HerdViewState extends State<HerdView>
         debugPrint('💰 Animal ${event.animalId} vendido, recarregando');
       }
       if (mounted) {
-        setState(() {});
+        setState(() {
+          _soldFuture = _loadSoldAnimals(context);
+        });
       }
       _refreshActiveList();
     });
@@ -192,6 +200,7 @@ class _HerdViewState extends State<HerdView>
   Widget build(BuildContext context) {
     super.build(context);
     _deceasedFuture ??= _loadDeceasedAnimals(context);
+    _soldFuture ??= _loadSoldAnimals(context);
     final contentPadding = ResponsiveUtils.isMobile(context)
         ? AppSpacing.sm
         : AppSpacing.lg;
@@ -275,6 +284,19 @@ class _HerdViewState extends State<HerdView>
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
+                      if (_insightsLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        )
+                      else if (_insights != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: _HerdInsightsCards(
+                            insights: _insights!,
+                            onApply: _applyInsightFilter,
+                          ),
+                        ),
                       Selector<HerdController, ({int count, bool loading, bool hasMore})>(
                         selector: (_, c) => (
                           count: c.items.length,
@@ -378,6 +400,7 @@ class _HerdViewState extends State<HerdView>
     return _search.text.trim().isNotEmpty ||
         _includeSold ||
         _statusFilter != null ||
+        _genderFilter != null ||
         _colorFilter != null ||
         _categoryFilter != null;
   }
@@ -389,6 +412,7 @@ class _HerdViewState extends State<HerdView>
     _updateFilters(() {
       _includeSold = false;
       _statusFilter = null;
+      _genderFilter = null;
       _colorFilter = null;
       _categoryFilter = null;
     });
@@ -466,6 +490,30 @@ class _HerdViewState extends State<HerdView>
                                 selected: _statusFilter == status,
                                 onSelected: (_) =>
                                     applyAndRefresh(() => _statusFilter = status),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _FilterSheetSection(
+                        title: 'Sexo',
+                        child: Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Todos'),
+                              selected: _genderFilter == null,
+                              onSelected: (_) =>
+                                  applyAndRefresh(() => _genderFilter = null),
+                            ),
+                            ..._genderOptions.map(
+                              (gender) => ChoiceChip(
+                                label: Text(gender),
+                                selected: _genderFilter == gender,
+                                onSelected: (_) =>
+                                    applyAndRefresh(() => _genderFilter = gender),
                               ),
                             ),
                           ],
@@ -583,7 +631,7 @@ class _HerdViewState extends State<HerdView>
 
     if (_statusFilter == 'Vendido') {
       return FutureBuilder<List<Animal>>(
-        future: _loadSoldAnimals(context),
+        future: _soldFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -645,6 +693,7 @@ class _HerdViewState extends State<HerdView>
     controller.setSearch(_query);
     controller.setIncludeSold(_includeSold);
     controller.setStatus(_statusFilter);
+    controller.setGender(_genderFilter);
     controller.setColor(_colorFilter);
     controller.setCategory(_categoryFilter);
 
@@ -657,6 +706,7 @@ class _HerdViewState extends State<HerdView>
   }
 
   void _refreshActiveList() {
+    _loadInsights();
     _applyFilters(refresh: true);
   }
 
@@ -668,10 +718,99 @@ class _HerdViewState extends State<HerdView>
     final herdRepository = context.read<HerdRepository>();
     final colors = await herdRepository.getAvailableColors();
     final categories = await herdRepository.getAvailableCategories();
+    final normalizedCategories = List<String>.from(categories);
+    if (!normalizedCategories.contains('Reprodutor')) {
+      normalizedCategories.add('Reprodutor');
+    }
+    if (!normalizedCategories.contains('Venda')) {
+      normalizedCategories.add('Venda');
+    }
     if (!mounted) return;
     setState(() {
       _availableColors = colors;
-      _availableCategories = categories;
+      _availableCategories = normalizedCategories;
+    });
+  }
+
+  Future<void> _loadInsights() async {
+    if (!mounted) return;
+    setState(() => _insightsLoading = true);
+    try {
+      final herdRepository = context.read<HerdRepository>();
+      final results = await Future.wait<List<Animal>>([
+        herdRepository.getFilteredAnimals(includeSold: false),
+        herdRepository.getSoldAnimals(),
+        herdRepository.getDeceasedAnimals(),
+      ]);
+      if (!mounted) return;
+      final activeAnimals = results[0];
+      final soldAnimals = results[1];
+      final deceasedAnimals = results[2];
+      setState(() {
+        _insights = _HerdInsights.fromAnimals(
+          active: activeAnimals,
+          soldCount: soldAnimals.length,
+          deceasedCount: deceasedAnimals.length,
+        );
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _insights = null);
+    } finally {
+      if (mounted) setState(() => _insightsLoading = false);
+    }
+  }
+
+  void _applyInsightFilter(_HerdInsightPreset preset) {
+    _updateFilters(() {
+      _search.clear();
+      _query = '';
+      _queryPending = '';
+      _includeSold = false;
+      _statusFilter = null;
+      _genderFilter = null;
+      _categoryFilter = null;
+
+      switch (preset) {
+        case _HerdInsightPreset.totalActive:
+          break;
+        case _HerdInsightPreset.healthy:
+          _statusFilter = 'Saudável';
+          break;
+        case _HerdInsightPreset.inTreatment:
+          _statusFilter = 'Em tratamento';
+          break;
+        case _HerdInsightPreset.injured:
+          _statusFilter = 'Ferido';
+          break;
+        case _HerdInsightPreset.matrices:
+          _categoryFilter = 'Matriz';
+          _genderFilter = 'Fêmea';
+          break;
+        case _HerdInsightPreset.pregnant:
+          _categoryFilter = 'Matriz';
+          _genderFilter = 'Fêmea';
+          break;
+        case _HerdInsightPreset.maleReproducers:
+          _categoryFilter = 'Reprodutor';
+          _genderFilter = 'Macho';
+          break;
+        case _HerdInsightPreset.maleLambs:
+          _categoryFilter = 'Borrego';
+          _genderFilter = 'Macho';
+          break;
+        case _HerdInsightPreset.femaleLambs:
+          _categoryFilter = 'Borrego';
+          _genderFilter = 'Fêmea';
+          break;
+        case _HerdInsightPreset.sold:
+          _includeSold = true;
+          _statusFilter = 'Vendido';
+          break;
+        case _HerdInsightPreset.deceased:
+          _statusFilter = 'Óbito';
+          break;
+      }
     });
   }
 
@@ -832,6 +971,288 @@ class _FilterSheetSection extends StatelessWidget {
           child: child,
         ),
       ],
+    );
+  }
+}
+
+enum _HerdInsightPreset {
+  totalActive,
+  healthy,
+  inTreatment,
+  injured,
+  matrices,
+  pregnant,
+  maleReproducers,
+  maleLambs,
+  femaleLambs,
+  sold,
+  deceased,
+}
+
+class _HerdInsights {
+  final int totalActive;
+  final int healthy;
+  final int inTreatment;
+  final int injured;
+  final int matrices;
+  final int pregnant;
+  final int maleReproducers;
+  final int maleLambs;
+  final int femaleLambs;
+  final int sold;
+  final int deceased;
+
+  const _HerdInsights({
+    required this.totalActive,
+    required this.healthy,
+    required this.inTreatment,
+    required this.injured,
+    required this.matrices,
+    required this.pregnant,
+    required this.maleReproducers,
+    required this.maleLambs,
+    required this.femaleLambs,
+    required this.sold,
+    required this.deceased,
+  });
+
+  static _HerdInsights fromAnimals({
+    required List<Animal> active,
+    required int soldCount,
+    required int deceasedCount,
+  }) {
+    bool isFemale(Animal animal) {
+      final normalized = animal.gender.toLowerCase().trim();
+      return normalized.startsWith('f') ||
+          normalized.contains('fêmea') ||
+          normalized.contains('femea');
+    }
+
+    bool isMale(Animal animal) => !isFemale(animal);
+
+    bool isLamb(Animal animal) {
+      final category = animal.category.toLowerCase().trim();
+      return category.contains('borrego') || category.contains('borrega');
+    }
+
+    bool isPregnant(Animal animal) {
+      return animal.pregnant ||
+          animal.reproductiveStatus.toLowerCase().contains('gest');
+    }
+
+    int countWhere(bool Function(Animal animal) test) =>
+        active.where(test).length;
+
+    return _HerdInsights(
+      totalActive: active.length,
+      healthy: countWhere((a) => a.status == 'Saudável'),
+      inTreatment: countWhere((a) => a.status == 'Em tratamento'),
+      injured: countWhere((a) => a.status == 'Ferido'),
+      matrices: countWhere((a) => a.category.toLowerCase().contains('matriz')),
+      pregnant: countWhere(isPregnant),
+      maleReproducers: countWhere(
+        (a) => isMale(a) && a.category.toLowerCase().contains('reprodutor'),
+      ),
+      maleLambs: countWhere((a) => isMale(a) && isLamb(a)),
+      femaleLambs: countWhere((a) => isFemale(a) && isLamb(a)),
+      sold: soldCount,
+      deceased: deceasedCount,
+    );
+  }
+}
+
+class _HerdInsightsCards extends StatelessWidget {
+  const _HerdInsightsCards({
+    required this.insights,
+    required this.onApply,
+  });
+
+  final _HerdInsights insights;
+  final ValueChanged<_HerdInsightPreset> onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <({
+      String label,
+      int value,
+      IconData icon,
+      _HerdInsightPreset preset,
+      Color color,
+    })>[
+      (
+        label: 'Ativos',
+        value: insights.totalActive,
+        icon: Icons.pets_outlined,
+        preset: _HerdInsightPreset.totalActive,
+        color: AppColors.primary,
+      ),
+      (
+        label: 'Saudáveis',
+        value: insights.healthy,
+        icon: Icons.health_and_safety_outlined,
+        preset: _HerdInsightPreset.healthy,
+        color: AppColors.success,
+      ),
+      (
+        label: 'Tratamento',
+        value: insights.inTreatment,
+        icon: Icons.healing_outlined,
+        preset: _HerdInsightPreset.inTreatment,
+        color: AppColors.warning,
+      ),
+      (
+        label: 'Feridos',
+        value: insights.injured,
+        icon: Icons.warning_amber_rounded,
+        preset: _HerdInsightPreset.injured,
+        color: AppColors.error,
+      ),
+      (
+        label: 'Matrizes',
+        value: insights.matrices,
+        icon: Icons.workspace_premium_outlined,
+        preset: _HerdInsightPreset.matrices,
+        color: AppColors.primarySupport,
+      ),
+      (
+        label: 'Gestantes',
+        value: insights.pregnant,
+        icon: Icons.pregnant_woman_outlined,
+        preset: _HerdInsightPreset.pregnant,
+        color: AppColors.goldSoft,
+      ),
+      (
+        label: 'Machos Reprod.',
+        value: insights.maleReproducers,
+        icon: Icons.male_outlined,
+        preset: _HerdInsightPreset.maleReproducers,
+        color: AppColors.primary,
+      ),
+      (
+        label: 'Machos Borregos',
+        value: insights.maleLambs,
+        icon: Icons.male_rounded,
+        preset: _HerdInsightPreset.maleLambs,
+        color: AppColors.primary,
+      ),
+      (
+        label: 'Fêmeas Borregas',
+        value: insights.femaleLambs,
+        icon: Icons.female_rounded,
+        preset: _HerdInsightPreset.femaleLambs,
+        color: AppColors.goldSoft,
+      ),
+      (
+        label: 'Vendidos',
+        value: insights.sold,
+        icon: Icons.sell_outlined,
+        preset: _HerdInsightPreset.sold,
+        color: AppColors.primarySupport,
+      ),
+      (
+        label: 'Óbitos',
+        value: insights.deceased,
+        icon: Icons.heart_broken_outlined,
+        preset: _HerdInsightPreset.deceased,
+        color: AppColors.error,
+      ),
+    ];
+
+    return Wrap(
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: cards
+          .map(
+            (card) => _InsightCard(
+              label: card.label,
+              value: card.value,
+              icon: card.icon,
+              color: card.color,
+              onTap: () => onApply(card.preset),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: Material(
+        color: AppColors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: color.withValues(alpha: 0.26),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 15, color: color),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$value',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                      ),
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -75,14 +75,17 @@ class _PharmacyStockDetailsState extends State<PharmacyStockDetails> {
   }
 
   Future<void> _editStock() async {
-    final result = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => PharmacyStockForm(stock: _stock),
+      builder: (context) => PharmacyStockForm(
+        stock: _stock,
+        onSaved: () async {
+          final updated = await context.read<PharmacyService>().getStockById(_stock.id);
+          if (!mounted || updated == null) return;
+          setState(() => _stock = updated);
+        },
+      ),
     );
-    if (!mounted) return;
-    if (result == true) {
-      Navigator.of(context).pop(true);
-    }
   }
 
   Future<void> _discardOpened() async {

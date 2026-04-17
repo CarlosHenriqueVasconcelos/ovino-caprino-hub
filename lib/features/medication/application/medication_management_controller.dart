@@ -3,10 +3,35 @@ import '../../../services/medication_service.dart';
 import '../../../services/vaccination_service.dart';
 
 class MedicationManagementController extends ChangeNotifier {
-  MedicationManagementController(this._vaccinationService, this._medicationService);
+  MedicationManagementController(this._vaccinationService, this._medicationService) {
+    _vaccinationService.addListener(_onServiceChanged);
+    _medicationService.addListener(_onServiceChanged);
+  }
 
   final VaccinationService _vaccinationService;
   final MedicationService _medicationService;
+
+  bool _reloadScheduled = false;
+
+  void _onServiceChanged() {
+    // Skip if a reload is already in progress or scheduled — the mutation
+    // that triggered this notification will usually be followed by an explicit
+    // reload() call from the screen itself (e.g. _markAsApplied). The microtask
+    // delay lets that explicit reload set _isLoading = true first so we can skip.
+    if (_reloadScheduled) return;
+    _reloadScheduled = true;
+    Future.microtask(() async {
+      _reloadScheduled = false;
+      if (!_isLoading) await reload();
+    });
+  }
+
+  @override
+  void dispose() {
+    _vaccinationService.removeListener(_onServiceChanged);
+    _medicationService.removeListener(_onServiceChanged);
+    super.dispose();
+  }
 
   static const int pageSize = 50;
 

@@ -9,7 +9,25 @@ import '../../../services/vaccination_service.dart';
 import '../../../services/pharmacy_service.dart';
 import '../../../models/pharmacy_stock.dart';
 import '../../../models/animal.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../utils/animal_display_utils.dart';
+import '../../herd/presentation/widgets/animal_history_dialog.dart';
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+
+const _kErrColor = Color(0xFFC94A4A);
+const _kErrBg = Color(0xFFFAEAEA);
+const _kGoldColor = Color(0xFFD9B15F);
+const _kGoldBg = Color(0xFFFBF4E6);
+const _kTextPrimary = Color(0xFF22313A);
+const _kTextSecondary = Color(0xFF5A6E78);
+const _kTextHint = Color(0xFF9AABB4);
+const _kSurface = Color(0xFFFBFBF8);
+const _kBeige = Color(0xFFF6F5F1);
+const _kBorder = Color(0xFFE6E4DC);
+
+// ── Main screen ───────────────────────────────────────────────────────────────
 
 class MedicationManagementScreen extends StatefulWidget {
   const MedicationManagementScreen({super.key});
@@ -20,23 +38,34 @@ class MedicationManagementScreen extends StatefulWidget {
 }
 
 class _MedicationManagementScreenState
-    extends State<MedicationManagementScreen> with AutomaticKeepAliveClientMixin {
+    extends State<MedicationManagementScreen>
+    with AutomaticKeepAliveClientMixin {
   late final MedicationManagementController _controller;
   late final ScrollController _vaccScroll;
   late final ScrollController _medScroll;
 
+  int _activeTab = 0; // 0 = Vacinações  1 = Medicamentos
+
+  // KPI counts
+  int _vaccOverdue = 0;
+  int _vaccScheduled = 0;
+  int _vaccApplied = 0;
+  int _medOverdue = 0;
+  int _medScheduled = 0;
+  int _medApplied = 0;
+  bool _kpiLoaded = false;
+
   @override
   void initState() {
     super.initState();
-    _vaccScroll = ScrollController();
-    _medScroll = ScrollController();
-    _vaccScroll.addListener(_handleVaccScroll);
-    _medScroll.addListener(_handleMedScroll);
+    _vaccScroll = ScrollController()..addListener(_handleVaccScroll);
+    _medScroll = ScrollController()..addListener(_handleMedScroll);
     _controller = MedicationManagementController(
       context.read<VaccinationService>(),
       context.read<MedicationService>(),
     );
     _controller.initLoad();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadKpiCounts());
   }
 
   @override
@@ -48,148 +77,295 @@ class _MedicationManagementScreenState
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  // ── KPI loading ─────────────────────────────────────────────────────────────
+
+  Future<void> _loadKpiCounts() async {
+    if (!mounted) return;
+    final vaccService = context.read<VaccinationService>();
+    final medService  = context.read<MedicationService>();
+    try {
+      // 2 queries COUNT(*) em paralelo — antes eram 6 queries de limit:999
+      final fVacc = vaccService.getKpiCounts();
+      final fMed  = medService.getKpiCounts();
+      final vaccCounts = await fVacc;
+      final medCounts  = await fMed;
+
+      if (!mounted) return;
+      setState(() {
+        _vaccOverdue   = vaccCounts.overdue;
+        _vaccScheduled = vaccCounts.scheduled;
+        _vaccApplied   = vaccCounts.applied;
+        _medOverdue    = medCounts.overdue;
+        _medScheduled  = medCounts.scheduled;
+        _medApplied    = medCounts.applied;
+        _kpiLoaded     = true;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _kpiLoaded = true);
+    }
+  }
+
+  // ── Pagination scroll ────────────────────────────────────────────────────────
+
+  void _handleVaccScroll() {
+    if (!_vaccScroll.hasClients) return;
+    if (_controller.isLoadingMoreVacc || !_controller.hasMoreVacc) return;
+    final pos = _vaccScroll.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) _controller.loadMoreVacc();
+  }
+
+  void _handleMedScroll() {
+    if (!_medScroll.hasClients) return;
+    if (_controller.isLoadingMoreMed || !_controller.hasMoreMed) return;
+    final pos = _medScroll.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) _controller.loadMoreMed();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
+    final activeScroll = _activeTab == 0 ? _vaccScroll : _medScroll;
     return ChangeNotifierProvider.value(
       value: _controller,
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Vacinações e Medicamentos'),
-            bottom: const TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.vaccines), text: 'Vacinações'),
-                Tab(icon: Icon(Icons.medication), text: 'Medicamentos'),
+      child: Scaffold(
+        backgroundColor: _kBeige,
+        floatingActionButton: _buildFab(),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            controller: activeScroll,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.only(bottom: 96),
+            child: Column(
+              children: [
+                _buildSubTabRow(),
+                _buildKpiStrip(),
+                _buildFilterChipsRow(),
+                _activeTab == 0
+                    ? _buildVaccinationsList()
+                    : _buildMedicationsList(),
               ],
             ),
-          ),
-          body: TabBarView(
-            children: [
-              _buildVaccinationsList(),
-              _buildMedicationsList(),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showAddDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Agendar'),
           ),
         ),
       ),
     );
   }
 
-  @override
-  bool get wantKeepAlive => true;
+  // ── Sub-tab row ───────────────────────────────────────────────────────────
+
+  Widget _buildSubTabRow() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: _kSurface,
+        border: Border(
+          bottom: BorderSide(color: _kBorder, width: 0.8),
+        ),
+      ),
+      child: Row(
+        children: [
+          _SubTab(
+            icon: Icons.health_and_safety_outlined,
+            label: 'Vacinações',
+            isActive: _activeTab == 0,
+            onTap: () => setState(() => _activeTab = 0),
+          ),
+          _SubTab(
+            icon: Icons.medication_outlined,
+            label: 'Medicamentos',
+            isActive: _activeTab == 1,
+            onTap: () => setState(() => _activeTab = 1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── KPI strip ─────────────────────────────────────────────────────────────
+
+  Widget _buildKpiStrip() {
+    final isVacc = _activeTab == 0;
+    final overdue = isVacc ? _vaccOverdue : _medOverdue;
+    final scheduled = isVacc ? _vaccScheduled : _medScheduled;
+    final applied = isVacc ? _vaccApplied : _medApplied;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _KpiTile(
+              icon: Icons.error_outline,
+              iconBg: _kErrBg,
+              iconColor: _kErrColor,
+              value: _kpiLoaded ? '$overdue' : '–',
+              label: 'Atrasadas',
+              valueColor: overdue > 0 ? _kErrColor : _kTextHint,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: _KpiTile(
+              icon: Icons.calendar_month_outlined,
+              iconBg: _kGoldBg,
+              iconColor: _kGoldColor,
+              value: _kpiLoaded ? '$scheduled' : '–',
+              label: 'Agendadas',
+              valueColor: scheduled > 0 ? _kGoldColor : _kTextHint,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: _KpiTile(
+              icon: Icons.check_circle_outline,
+              iconBg: AppColors.primary.withValues(alpha: 0.10),
+              iconColor: AppColors.primary,
+              value: _kpiLoaded ? '$applied' : '–',
+              label: 'Aplicadas',
+              valueColor: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Filter chips ──────────────────────────────────────────────────────────
+
+  Widget _buildFilterChipsRow() {
+    final isVacc = _activeTab == 0;
+    final filters = isVacc
+        ? ['Atrasadas', 'Agendadas', 'Aplicadas', 'Canceladas']
+        : ['Atrasados', 'Agendados', 'Aplicados', 'Cancelados'];
+    return Consumer<MedicationManagementController>(
+      builder: (context, controller, _) {
+        final currentFilter =
+            isVacc ? controller.vaccinationFilter : controller.medicationFilter;
+        return SizedBox(
+          height: 40,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.xs,
+              AppSpacing.md,
+              0,
+            ),
+            itemCount: filters.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 5),
+            itemBuilder: (context, index) {
+              final f = filters[index];
+              final isActive = f == currentFilter;
+              final color = _chipColor(f);
+              return GestureDetector(
+                onTap: () {
+                  if (isVacc) {
+                    controller.setVaccFilter(f);
+                  } else {
+                    controller.setMedFilter(f);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isActive ? color : _kSurface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isActive ? color : _kBorder,
+                    ),
+                  ),
+                  child: Text(
+                    f,
+                    style: TextStyle(
+                      color: isActive ? Colors.white : _kTextSecondary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Color _chipColor(String filter) {
+    if (filter.startsWith('Atrasad')) return _kErrColor;
+    if (filter.startsWith('Agendad')) return _kGoldColor;
+    if (filter.startsWith('Aplicad')) return AppColors.primary;
+    return _kTextSecondary;
+  }
+
+  // ── Lists ─────────────────────────────────────────────────────────────────
 
   Widget _buildVaccinationsList() {
     return Selector<MedicationManagementController, _VaccinationListState>(
-      selector: (_, controller) => _VaccinationListState(
-        isLoading: controller.isLoading,
-        isLoadingMore: controller.isLoadingMoreVacc,
-        hasMore: controller.hasMoreVacc,
-        filter: controller.vaccinationFilter,
-        items: controller.vaccinations,
+      selector: (_, c) => _VaccinationListState(
+        isLoading: c.isLoading,
+        isLoadingMore: c.isLoadingMoreVacc,
+        hasMore: c.hasMoreVacc,
+        filter: c.vaccinationFilter,
+        items: c.vaccinations,
       ),
       builder: (context, state, _) {
-        if (state.isLoading ||
-            (state.items.isEmpty && state.isLoadingMore)) {
-          return const Center(child: CircularProgressIndicator());
+        if (state.isLoading && state.items.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 36),
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-
-        final filteredVaccinations = state.items;
-
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sub-tabs para filtros
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      label: 'Atrasadas',
-                      isSelected: state.filter == 'Atrasadas',
-                      color: Colors.red,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setVaccFilter('Atrasadas'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Agendadas',
-                      isSelected: state.filter == 'Agendadas',
-                      color: Colors.orange,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setVaccFilter('Agendadas'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Aplicadas',
-                      isSelected: state.filter == 'Aplicadas',
-                      color: Colors.green,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setVaccFilter('Aplicadas'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Canceladas',
-                      isSelected: state.filter == 'Canceladas',
-                      color: Colors.grey,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setVaccFilter('Canceladas'),
-                    ),
-                  ],
+            _buildSectionHeader(
+              count: state.items.length,
+              filterLabel: state.filter.toLowerCase(),
+              noun: 'vacinação',
+              nounPlural: 'vacinações',
+              hasMore: state.hasMore,
+            ),
+            if (state.items.isEmpty)
+              _buildEmptyState(
+                icon: Icons.health_and_safety_outlined,
+                title: 'Nenhuma vacinação ${state.filter.toLowerCase()}',
+                subtitle:
+                    state.filter == 'Atrasadas' || state.filter == 'Agendadas'
+                        ? 'Tudo em dia por aqui.\nAgende a próxima vacinação.'
+                        : 'Nenhum registro encontrado.',
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  0,
                 ),
+                itemCount:
+                    state.items.length + ((state.isLoadingMore || state.hasMore) ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if ((state.isLoadingMore || state.hasMore) &&
+                      index >= state.items.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return _buildVaccinationCard(state.items[index]);
+                },
               ),
-            ),
-
-            // Lista filtrada
-            Expanded(
-              child: filteredVaccinations.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.vaccines_outlined,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Nenhuma vacinação ${state.filter}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _vaccScroll,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredVaccinations.length +
-                          ((state.isLoadingMore || state.hasMore) ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if ((state.isLoadingMore || state.hasMore) &&
-                            index >= filteredVaccinations.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        final vaccination = filteredVaccinations[index];
-                        return _buildVaccinationCard(vaccination);
-                      },
-                    ),
-            ),
           ],
         );
       },
@@ -198,617 +374,609 @@ class _MedicationManagementScreenState
 
   Widget _buildMedicationsList() {
     return Selector<MedicationManagementController, _MedicationListState>(
-      selector: (_, controller) => _MedicationListState(
-        isLoading: controller.isLoading,
-        isLoadingMore: controller.isLoadingMoreMed,
-        hasMore: controller.hasMoreMed,
-        filter: controller.medicationFilter,
-        items: controller.medications,
+      selector: (_, c) => _MedicationListState(
+        isLoading: c.isLoading,
+        isLoadingMore: c.isLoadingMoreMed,
+        hasMore: c.hasMoreMed,
+        filter: c.medicationFilter,
+        items: c.medications,
       ),
       builder: (context, state, _) {
-        if (state.isLoading || (state.items.isEmpty && state.isLoadingMore)) {
-          return const Center(child: CircularProgressIndicator());
+        if (state.isLoading && state.items.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 36),
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
-
-        final filteredMedications = state.items;
-
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sub-tabs para filtros
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      label: 'Atrasados',
-                      isSelected: state.filter == 'Atrasados',
-                      color: Colors.red,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setMedFilter('Atrasados'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Agendados',
-                      isSelected: state.filter == 'Agendados',
-                      color: Colors.orange,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setMedFilter('Agendados'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Aplicados',
-                      isSelected: state.filter == 'Aplicados',
-                      color: Colors.green,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setMedFilter('Aplicados'),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Cancelados',
-                      isSelected: state.filter == 'Cancelados',
-                      color: Colors.grey,
-                      onTap: () => context
-                          .read<MedicationManagementController>()
-                          .setMedFilter('Cancelados'),
-                    ),
-                  ],
+            _buildSectionHeader(
+              count: state.items.length,
+              filterLabel: state.filter.toLowerCase(),
+              noun: 'medicamento',
+              nounPlural: 'medicamentos',
+              hasMore: state.hasMore,
+            ),
+            if (state.items.isEmpty)
+              _buildEmptyState(
+                icon: Icons.medication_outlined,
+                title: 'Nenhum medicamento ${state.filter.toLowerCase()}',
+                subtitle: 'Nenhum registro encontrado.',
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  0,
                 ),
+                itemCount:
+                    state.items.length + ((state.isLoadingMore || state.hasMore) ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if ((state.isLoadingMore || state.hasMore) &&
+                      index >= state.items.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return _buildMedicationCard(state.items[index]);
+                },
               ),
-            ),
-
-            // Lista filtrada
-            Expanded(
-              child: filteredMedications.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.medication_outlined,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Nenhum medicamento ${state.filter}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _medScroll,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredMedications.length +
-                          ((state.isLoadingMore || state.hasMore) ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if ((state.isLoadingMore || state.hasMore) &&
-                            index >= filteredMedications.length) {
-                          return const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        final medication = filteredMedications[index];
-                        return _buildMedicationCard(medication);
-                      },
-                    ),
-            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Color color,
-    required VoidCallback onTap,
+  // ── Section header ────────────────────────────────────────────────────────
+
+  Widget _buildSectionHeader({
+    required int count,
+    required String filterLabel,
+    required String noun,
+    required String nounPlural,
+    required bool hasMore,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.grey[200],
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey[300]!,
-            width: 2,
+    final label =
+        '$count ${count == 1 ? noun : nounPlural} $filterLabel${hasMore ? '+' : ''}';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _kTextPrimary,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey[700],
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            fontSize: 13,
+          const Spacer(),
+          GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ordenação em breve'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            child: const Text(
+              'ordenar',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF2F1ED),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 22, color: _kTextHint),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _kTextPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 9, color: _kTextHint),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _handleVaccScroll() {
-    if (!_vaccScroll.hasClients) return;
-    if (_controller.isLoadingMoreVacc || !_controller.hasMoreVacc) return;
-    final position = _vaccScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      _controller.loadMoreVacc();
-    }
+  // ── FAB ───────────────────────────────────────────────────────────────────
+
+  Widget _buildFab() {
+    return FloatingActionButton.extended(
+      onPressed: _showAddDialog,
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 4,
+      icon: const Icon(Icons.add, size: 16),
+      label: Text(
+        _activeTab == 0 ? 'Agendar vacina' : 'Agendar medicamento',
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 
-  void _handleMedScroll() {
-    if (!_medScroll.hasClients) return;
-    if (_controller.isLoadingMoreMed || !_controller.hasMoreMed) return;
-    final position = _medScroll.position;
-    if (position.pixels >= position.maxScrollExtent - 200) {
-      _controller.loadMoreMed();
-    }
-  }
+  // ── Vaccination card ──────────────────────────────────────────────────────
 
-  Widget _buildVaccinationCard(Map<String, dynamic> vaccination) {
-    final status = vaccination['status'] ?? 'Agendada';
-    Color statusColor = Colors.orange;
-    IconData statusIcon = Icons.schedule;
-    if (status == 'Aplicada') {
-      statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
-    }
-    if (status == 'Cancelada') {
-      statusColor = Colors.red;
-      statusIcon = Icons.cancel;
-    }
+  Widget _buildVaccinationCard(Map<String, dynamic> v) {
+    final status = v['status'] ?? 'Agendada';
+    final isOverdue = status == 'Atrasada' || status == 'Vencida';
+    final isScheduled = status == 'Agendada';
+    final icColor = isOverdue
+        ? _kErrColor
+        : isScheduled
+        ? _kGoldColor
+        : AppColors.primary;
+    final icBg = isOverdue
+        ? _kErrBg
+        : isScheduled
+        ? _kGoldBg
+        : AppColors.primary.withValues(alpha: 0.10);
+    final badgeText = _daysLabel(
+      v['scheduled_date'],
+      isOverdue: isOverdue,
+      isScheduled: isScheduled,
+    );
+    final badgeColor = isOverdue ? _kErrColor : _kGoldColor;
+    final badgeBg =
+        isOverdue ? _kErrBg : isScheduled ? _kGoldBg : Colors.transparent;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: statusColor, width: 4)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.vaccines, color: statusColor, size: 24),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: icBg,
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FutureBuilder<Animal?>(
-                      future: _getAnimalById(vaccination['animal_id']),
-                      builder: (context, snapshot) {
-                        final animal = snapshot.data;
-                        final animalDisplay = animal != null
-                            ? AnimalDisplayUtils.getDisplayText(animal)
-                            : 'Animal não encontrado';
-
-                        // Converter cor do texto para Color
-                        Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty) {
-                            return null;
-                          }
-                          final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco')) {
-                            return Colors.grey[700];
-                          }
-                          if (colorLower.contains('preto')) {
-                            return Colors.black;
-                          }
-                          if (colorLower.contains('marrom')) {
-                            return Colors.brown;
-                          }
-                          if (colorLower.contains('vermelho')) {
-                            return Colors.red[700];
-                          }
-                          if (colorLower.contains('amarelo')) {
-                            return Colors.amber[800];
-                          }
-                          if (colorLower.contains('cinza')) {
-                            return Colors.grey[600];
-                          }
-                          if (colorLower.contains('azul')) {
-                            return Colors.blue[700];
-                          }
-                          if (colorLower.contains('verde')) {
-                            return Colors.green[700];
-                          }
-                          return null;
-                        }
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              animalDisplay,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: getColorFromName(animal?.nameColor),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Vacina: ${vaccination['vaccine_name'] ?? 'Sem nome'}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(statusIcon, size: 14, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.health_and_safety_outlined,
+                    size: 14,
+                    color: icColor,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => _showVaccinationOptions(vaccination),
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                children: [
-                  const Icon(Icons.category_outlined,
-                      size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Tipo: ${vaccination['vaccine_type'] ?? 'N/A'}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Data: ${_formatDate(vaccination['scheduled_date'])}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Botões de ação
-              if (status == 'Agendada') ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _markAsApplied(vaccination['id'],
-                            isVaccination: true),
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Aplicar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _cancelItem(vaccination['id'], isVaccination: true),
-                        icon: const Icon(Icons.cancel, size: 18),
-                        label: const Text('Cancelar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        v['vaccine_name'] ?? 'Sem nome',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _kTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      FutureBuilder<Animal?>(
+                        future: _getAnimalById(v['animal_id']),
+                        builder: (context, snap) {
+                          final animal = snap.data;
+                          final sub = animal != null
+                              ? _animalSubtitle(animal)
+                              : '–';
+                          final text = Text(
+                            sub,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: _kTextSecondary,
+                              decoration: animal != null
+                                  ? TextDecoration.underline
+                                  : null,
+                            ),
+                          );
+                          if (animal == null) return text;
+                          return GestureDetector(
+                            onTap: () => _openAnimalHistory(animal),
+                            child: text,
+                          );
+                        },
+                      ),
+                      if (badgeText != null) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              color: badgeColor,
+                              fontSize: 7,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: _kTextHint,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  onPressed: () => _showVaccinationOptions(v),
+                ),
               ],
+            ),
 
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showDetails(vaccination, isVaccination: true),
-                  icon: const Icon(Icons.visibility, size: 18),
-                  label: const Text('Ver Detalhes'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+            // Divider
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Divider(height: 1, color: Color(0x14000000)),
+            ),
+
+            // Meta row
+            Row(
+              children: [
+                _MetaItem(
+                  label: 'Prevista',
+                  value: _formatDate(v['scheduled_date']),
                 ),
+                const SizedBox(width: AppSpacing.md),
+                _MetaItem(
+                  label: 'Tipo',
+                  value: v['vaccine_type'] ?? 'N/A',
+                ),
+              ],
+            ),
+
+            // Action buttons
+            if (isScheduled || isOverdue) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionButton(
+                      label: isOverdue ? 'Registrar aplicação' : 'Aplicar agora',
+                      onPressed: () =>
+                          _markAsApplied(v['id'], isVaccination: true),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Remarcar',
+                      isSecondary: true,
+                      onPressed: () => _reschedule(v['id'], isVaccination: true),
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildMedicationCard(Map<String, dynamic> medication) {
-    final status = medication['status'] ?? 'Agendado';
-    Color statusColor = Colors.orange;
-    IconData statusIcon = Icons.schedule;
-    if (status == 'Aplicado') {
-      statusColor = Colors.green;
-      statusIcon = Icons.check_circle;
-    }
-    if (status == 'Cancelado') {
-      statusColor = Colors.red;
-      statusIcon = Icons.cancel;
-    }
+  // ── Medication card ───────────────────────────────────────────────────────
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border(left: BorderSide(color: statusColor, width: 4)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+  Widget _buildMedicationCard(Map<String, dynamic> m) {
+    final status = m['status'] ?? 'Agendado';
+    final isOverdue = status == 'Atrasado' || status == 'Vencido';
+    final isScheduled = status == 'Agendado';
+    final icColor = isOverdue
+        ? _kErrColor
+        : isScheduled
+        ? _kGoldColor
+        : AppColors.primary;
+    final icBg = isOverdue
+        ? _kErrBg
+        : isScheduled
+        ? _kGoldBg
+        : AppColors.primary.withValues(alpha: 0.10);
+    final badgeText = _daysLabel(
+      m['date'],
+      isOverdue: isOverdue,
+      isScheduled: isScheduled,
+    );
+    final badgeColor = isOverdue ? _kErrColor : _kGoldColor;
+    final badgeBg = isOverdue ? _kErrBg : isScheduled ? _kGoldBg : Colors.transparent;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: icBg,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.medication_outlined,
+                    size: 14,
+                    color: icColor,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        m['medication_name'] ?? 'Sem nome',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _kTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      FutureBuilder<Animal?>(
+                        future: _getAnimalById(m['animal_id']),
+                        builder: (context, snap) {
+                          final animal = snap.data;
+                          final sub = animal != null ? _animalSubtitle(animal) : '–';
+                          final text = Text(
+                            sub,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: _kTextSecondary,
+                              decoration: animal != null
+                                  ? TextDecoration.underline
+                                  : null,
+                            ),
+                          );
+                          if (animal == null) return text;
+                          return GestureDetector(
+                            onTap: () => _openAnimalHistory(animal),
+                            child: text,
+                          );
+                        },
+                      ),
+                      if (badgeText != null) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              color: badgeColor,
+                              fontSize: 7,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: _kTextHint,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  onPressed: () => _showMedicationOptions(m),
+                ),
+              ],
+            ),
+
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Divider(height: 1, color: Color(0x14000000)),
+            ),
+
+            Row(
+              children: [
+                _MetaItem(
+                  label: 'Data',
+                  value: _formatDate(m['date']),
+                ),
+                if (m['dosage'] != null) ...[
+                  const SizedBox(width: AppSpacing.md),
+                  _MetaItem(
+                    label: 'Dose',
+                    value: m['dosage'].toString(),
+                  ),
+                ],
+              ],
+            ),
+
+            if (isScheduled || isOverdue) ...[
+              const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.medication, color: statusColor, size: 24),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
-                    child: FutureBuilder<Animal?>(
-                      future: _getAnimalById(medication['animal_id']),
-                      builder: (context, snapshot) {
-                        final animal = snapshot.data;
-                        final animalDisplay = animal != null
-                            ? AnimalDisplayUtils.getDisplayText(animal)
-                            : 'Animal não encontrado';
-
-                        // Converter cor do texto para Color
-                        Color? getColorFromName(String? colorName) {
-                          if (colorName == null || colorName.isEmpty) {
-                            return null;
-                          }
-                          final colorLower = colorName.toLowerCase();
-                          if (colorLower.contains('branco')) {
-                            return Colors.grey[700];
-                          }
-                          if (colorLower.contains('preto')) {
-                            return Colors.black;
-                          }
-                          if (colorLower.contains('marrom')) {
-                            return Colors.brown;
-                          }
-                          if (colorLower.contains('vermelho')) {
-                            return Colors.red[700];
-                          }
-                          if (colorLower.contains('amarelo')) {
-                            return Colors.amber[800];
-                          }
-                          if (colorLower.contains('cinza')) {
-                            return Colors.grey[600];
-                          }
-                          if (colorLower.contains('azul')) {
-                            return Colors.blue[700];
-                          }
-                          if (colorLower.contains('verde')) {
-                            return Colors.green[700];
-                          }
-                          return null;
-                        }
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              animalDisplay,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: getColorFromName(animal?.nameColor),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Medicação: ${medication['medication_name'] ?? 'Sem nome'}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(statusIcon, size: 14, color: statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
+                    child: _ActionButton(
+                      label: isOverdue ? 'Registrar aplicação' : 'Aplicar agora',
+                      onPressed: () =>
+                          _markAsApplied(m['id'], isVaccination: false),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => _showMedicationOptions(medication),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Remarcar',
+                      isSecondary: true,
+                      onPressed: () => _reschedule(m['id'], isVaccination: false),
+                    ),
                   ),
                 ],
-              ),
-              const Divider(height: 24),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Data: ${_formatDate(medication['date'])}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              if (medication['next_date'] != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.event_repeat,
-                        size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Próxima: ${_formatDate(medication['next_date'])}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 16),
-
-              // Botões de ação
-              if (status == 'Agendado') ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _markAsApplied(medication['id'],
-                            isVaccination: false),
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Aplicar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _cancelItem(medication['id'], isVaccination: false),
-                        icon: const Icon(Icons.cancel, size: 18),
-                        label: const Text('Cancelar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showDetails(medication, isVaccination: false),
-                  icon: const Icon(Icons.visibility, size: 18),
-                  label: const Text('Ver Detalhes'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Future<Animal?> _getAnimalById(String? animalId) async {
-    if (animalId == null) return null;
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    return animalService.getAnimalById(animalId);
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  String _animalSubtitle(Animal animal) {
+    final parts = <String>[];
+    if (animal.name.isNotEmpty) {
+      parts.add(animal.name);
+    }
+    if (animal.code.isNotEmpty) parts.add('#${animal.code}');
+    if (animal.lote != null && animal.lote!.isNotEmpty) {
+      parts.add(animal.lote!);
+    } else if (animal.species.isNotEmpty) {
+      parts.add(animal.species);
+    }
+    return parts.join(' · ');
+  }
+
+  String? _daysLabel(
+    dynamic dateRaw, {
+    required bool isOverdue,
+    required bool isScheduled,
+  }) {
+    if (dateRaw == null) return null;
+    final date = DateTime.tryParse(dateRaw.toString());
+    if (date == null) return null;
+    final now = DateTime.now();
+    if (isOverdue) {
+      final days = now.difference(date).inDays;
+      if (days <= 0) return null;
+      return '$days dia${days != 1 ? 's' : ''} de atraso';
+    }
+    if (isScheduled) {
+      final days = date.difference(now).inDays;
+      if (days < 0) return null;
+      if (days == 0) return 'Hoje';
+      return 'Em $days dia${days != 1 ? 's' : ''}';
+    }
+    return null;
+  }
+
+  Future<Animal?> _getAnimalById(String? id) async {
+    if (id == null) return null;
+    final svc = Provider.of<AnimalService>(context, listen: false);
+    return svc.getAnimalById(id);
+  }
+
+  void _openAnimalHistory(Animal animal) {
+    AnimalHistoryDialog.showAdaptive(context, animal: animal);
   }
 
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
       final dt = DateTime.parse(date.toString());
-      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    } catch (e) {
+      final d = dt.day.toString().padLeft(2, '0');
+      final m = dt.month.toString().padLeft(2, '0');
+      return '$d/$m/${dt.year}';
+    } catch (_) {
       return date.toString();
     }
   }
 
-  void _showDetails(Map<String, dynamic> data,
-      {required bool isVaccination}) async {
-    final animalService = Provider.of<AnimalService>(context, listen: false);
-    final animalId = data['animal_id'];
-    final animal = await animalService.getAnimalById(animalId);
-    if (animal == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Animal não encontrado.')),
-      );
-      return;
-    }
-    if (!mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => _DetailsDialog(
-        data: data,
-        animal: animal,
-        isVaccination: isVaccination,
-      ),
-    );
-  }
+  // ── Actions ───────────────────────────────────────────────────────────────
 
   void _showAddDialog() {
     showDialog(
@@ -816,6 +984,7 @@ class _MedicationManagementScreenState
       builder: (context) => _AddMedicationDialog(
         onSaved: () {
           _controller.reload();
+          _loadKpiCounts();
         },
       ),
     );
@@ -825,55 +994,40 @@ class _MedicationManagementScreenState
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
     try {
-      final now = DateTime.now();
-      final today = now.toIso8601String().split('T')[0];
-
+      final now = DateTime.now().toIso8601String().split('T')[0];
       if (isVaccination) {
-        final vaccinationService =
-            Provider.of<VaccinationService>(context, listen: false);
-        await vaccinationService.updateVaccination(id, {
+        final svc = Provider.of<VaccinationService>(context, listen: false);
+        await svc.updateVaccination(id, {
           'status': 'Aplicada',
-          'applied_date': today,
+          'applied_date': now,
         });
       } else {
-        // MEDICAMENTO - DEDUZIR DO ESTOQUE DA FARMÁCIA
-        final medicationService =
-            Provider.of<MedicationService>(context, listen: false);
-        final pharmacyService =
-            Provider.of<PharmacyService>(context, listen: false);
-        final medication = await medicationService.getMedicationById(id);
-
-        if (medication != null) {
-          final pharmacyStockId = medication['pharmacy_stock_id'] as String?;
-          final quantityUsed = medication['quantity_used'] as double?;
-
-          // Atualizar status
-          await medicationService.updateMedication(id, {
+        final medSvc = Provider.of<MedicationService>(context, listen: false);
+        final pharmSvc = Provider.of<PharmacyService>(context, listen: false);
+        final med = await medSvc.getMedicationById(id);
+        if (med != null) {
+          await medSvc.updateMedication(id, {
             'status': 'Aplicado',
-            'applied_date': today,
+            'applied_date': now,
           });
-
-          // DEDUZIR DO ESTOQUE (a lógica agora é baseada na unidade de medida, não no tipo)
-          if (pharmacyStockId != null &&
-              quantityUsed != null &&
-              quantityUsed > 0) {
-            await pharmacyService.deductFromStock(
-              pharmacyStockId,
-              quantityUsed,
-              id,
-            );
+          final stockId = med['pharmacy_stock_id'] as String?;
+          final qty = med['quantity_used'] as double?;
+          if (stockId != null && qty != null && qty > 0) {
+            await pharmSvc.deductFromStock(stockId, qty, id);
           }
         }
       }
-
       await _controller.reload();
+      _loadKpiCounts();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text(isVaccination
-              ? 'Vacinação aplicada com sucesso!'
-              : 'Medicamento aplicado e estoque atualizado!'),
-          backgroundColor: Colors.green,
+          content: Text(
+            isVaccination
+                ? 'Vacinação aplicada com sucesso!'
+                : 'Medicamento aplicado e estoque atualizado!',
+          ),
+          backgroundColor: AppColors.primary,
         ),
       );
     } catch (e) {
@@ -892,26 +1046,21 @@ class _MedicationManagementScreenState
     final errorColor = Theme.of(context).colorScheme.error;
     try {
       if (isVaccination) {
-        final vaccinationService =
-            Provider.of<VaccinationService>(context, listen: false);
-        await vaccinationService.updateVaccination(id, {
-          'status': 'Cancelada',
-        });
+        final svc = Provider.of<VaccinationService>(context, listen: false);
+        await svc.updateVaccination(id, {'status': 'Cancelada'});
       } else {
-        final medicationService =
-            Provider.of<MedicationService>(context, listen: false);
-        await medicationService.updateMedication(id, {
-          'status': 'Cancelado',
-        });
+        final svc = Provider.of<MedicationService>(context, listen: false);
+        await svc.updateMedication(id, {'status': 'Cancelado'});
       }
-
       await _controller.reload();
+      _loadKpiCounts();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              isVaccination ? 'Vacinação cancelada' : 'Medicamento cancelado'),
-          backgroundColor: Colors.orange,
+            isVaccination ? 'Vacinação cancelada' : 'Medicamento cancelado',
+          ),
+          backgroundColor: _kGoldColor,
         ),
       );
     } catch (e) {
@@ -925,80 +1074,383 @@ class _MedicationManagementScreenState
     }
   }
 
-  void _showVaccinationOptions(Map<String, dynamic> vaccination) {
+  Future<void> _reschedule(String id, {required bool isVaccination}) async {
+    final date = await showDatePicker(
+      context: context,
+      locale: const Locale('pt', 'BR'),
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final dateStr = date.toIso8601String().split('T')[0];
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (isVaccination) {
+        final svc = Provider.of<VaccinationService>(context, listen: false);
+        await svc.updateVaccination(id, {
+          'scheduled_date': dateStr,
+          'status': 'Agendada',
+        });
+      } else {
+        final svc = Provider.of<MedicationService>(context, listen: false);
+        await svc.updateMedication(id, {
+          'date': dateStr,
+          'status': 'Agendado',
+        });
+      }
+      await _controller.reload();
+      _loadKpiCounts();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Remarcado com sucesso!'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erro ao remarcar: $e')),
+      );
+    }
+  }
+
+  void _showDetails(Map<String, dynamic> data, {required bool isVaccination}) async {
+    final svc = Provider.of<AnimalService>(context, listen: false);
+    final animal = await svc.getAnimalById(data['animal_id']);
+    if (animal == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Animal não encontrado.')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => _DetailsDialog(
+        data: data,
+        animal: animal,
+        isVaccination: isVaccination,
+      ),
+    );
+  }
+
+  void _showVaccinationOptions(Map<String, dynamic> v) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(height: AppSpacing.xs),
           ListTile(
             leading: const Icon(Icons.visibility),
             title: const Text('Ver Detalhes'),
             onTap: () {
               Navigator.pop(context);
-              _showDetails(vaccination, isVaccination: true);
+              _showDetails(v, isVaccination: true);
             },
           ),
-          if (vaccination['status'] == 'Agendada') ...[
+          if (v['status'] == 'Agendada' || v['status'] == 'Atrasada') ...[
             ListTile(
-              leading: const Icon(Icons.check, color: Colors.green),
+              leading: const Icon(Icons.check, color: AppColors.primary),
               title: const Text('Marcar como aplicada'),
               onTap: () {
                 Navigator.pop(context);
-                _markAsApplied(vaccination['id'], isVaccination: true);
+                _markAsApplied(v['id'], isVaccination: true);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.cancel, color: Colors.red),
+              leading: const Icon(Icons.event_repeat, color: _kGoldColor),
+              title: const Text('Remarcar'),
+              onTap: () {
+                Navigator.pop(context);
+                _reschedule(v['id'], isVaccination: true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: _kErrColor),
               title: const Text('Cancelar vacinação'),
               onTap: () {
                 Navigator.pop(context);
-                _cancelItem(vaccination['id'], isVaccination: true);
+                _cancelItem(v['id'], isVaccination: true);
               },
             ),
           ],
+          const SizedBox(height: AppSpacing.sm),
         ],
       ),
     );
   }
 
-  void _showMedicationOptions(Map<String, dynamic> medication) {
+  void _showMedicationOptions(Map<String, dynamic> m) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const SizedBox(height: AppSpacing.xs),
           ListTile(
             leading: const Icon(Icons.visibility),
             title: const Text('Ver Detalhes'),
             onTap: () {
               Navigator.pop(context);
-              _showDetails(medication, isVaccination: false);
+              _showDetails(m, isVaccination: false);
             },
           ),
-          if (medication['status'] == 'Agendado') ...[
+          if (m['status'] == 'Agendado' || m['status'] == 'Atrasado') ...[
             ListTile(
-              leading: const Icon(Icons.check, color: Colors.green),
+              leading: const Icon(Icons.check, color: AppColors.primary),
               title: const Text('Marcar como aplicado'),
               onTap: () {
                 Navigator.pop(context);
-                _markAsApplied(medication['id'], isVaccination: false);
+                _markAsApplied(m['id'], isVaccination: false);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.cancel, color: Colors.red),
+              leading: const Icon(Icons.event_repeat, color: _kGoldColor),
+              title: const Text('Remarcar'),
+              onTap: () {
+                Navigator.pop(context);
+                _reschedule(m['id'], isVaccination: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: _kErrColor),
               title: const Text('Cancelar medicamento'),
               onTap: () {
                 Navigator.pop(context);
-                _cancelItem(medication['id'], isVaccination: false);
+                _cancelItem(m['id'], isVaccination: false);
               },
             ),
           ],
+          const SizedBox(height: AppSpacing.sm),
         ],
       ),
     );
   }
 }
+
+// ── Sub-tab widget ────────────────────────────────────────────────────────────
+
+class _SubTab extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _SubTab({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          color: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? AppColors.primary.withValues(alpha: 0.10)
+                            : const Color(0xFFF2F1ED),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        icon,
+                        size: 13,
+                        color: isActive ? AppColors.primary : _kTextHint,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: isActive ? AppColors.primary : _kTextHint,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              Container(
+                height: 2,
+                color: isActive ? AppColors.primary : Colors.transparent,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── KPI tile ──────────────────────────────────────────────────────────────────
+
+class _KpiTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final Color valueColor;
+
+  const _KpiTile({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.7)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 11, color: iconColor),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              height: 1,
+              color: valueColor,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 8,
+              color: _kTextSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Meta item ─────────────────────────────────────────────────────────────────
+
+class _MetaItem extends StatelessWidget {
+  final String label;
+  final String value;
+  const _MetaItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 8, color: _kTextHint),
+        children: [
+          TextSpan(text: '$label: '),
+          TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: _kTextSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Action button ─────────────────────────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final bool isSecondary;
+
+  const _ActionButton({
+    required this.label,
+    required this.onPressed,
+    this.isSecondary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isSecondary) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _kTextSecondary,
+          side: const BorderSide(color: _kBorder),
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.w600),
+          minimumSize: const Size(0, 30),
+        ),
+        child: Text(label),
+      );
+    }
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.w600),
+        minimumSize: const Size(0, 30),
+        elevation: 0,
+      ),
+      child: Text(label),
+    );
+  }
+}
+
+// ── Selector state wrappers ───────────────────────────────────────────────────
 
 class _VaccinationListState {
   const _VaccinationListState({
@@ -1008,7 +1460,6 @@ class _VaccinationListState {
     required this.filter,
     required this.items,
   });
-
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
@@ -1024,7 +1475,6 @@ class _MedicationListState {
     required this.filter,
     required this.items,
   });
-
   final bool isLoading;
   final bool isLoadingMore;
   final bool hasMore;
@@ -1032,9 +1482,10 @@ class _MedicationListState {
   final List<Map<String, dynamic>> items;
 }
 
+// ── Add dialog (lógica intacta) ───────────────────────────────────────────────
+
 class _AddMedicationDialog extends StatefulWidget {
   final VoidCallback onSaved;
-
   const _AddMedicationDialog({required this.onSaved});
 
   @override
@@ -1055,7 +1506,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   List<Animal> _animalOptions = [];
   bool _loadingAnimals = true;
 
-  // INTEGRAÇÃO COM FARMÁCIA
   List<PharmacyStock> _pharmacyStock = [];
   PharmacyStock? _selectedMedication;
 
@@ -1068,26 +1518,22 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   Future<void> _loadPharmacyStock() async {
     try {
-      final pharmacyService =
-          Provider.of<PharmacyService>(context, listen: false);
-      final stock = await pharmacyService.getPharmacyStock();
-      final filteredStock = stock
-          .where((s) =>
-              !s.isExpired && (s.totalQuantity > 0 || s.openedQuantity > 0))
+      final svc = Provider.of<PharmacyService>(context, listen: false);
+      final stock = await svc.getPharmacyStock();
+      final filtered = stock
+          .where((s) => !s.isExpired && (s.totalQuantity > 0 || s.openedQuantity > 0))
           .toList();
       if (!mounted) return;
-      setState(() => _pharmacyStock = filteredStock);
+      setState(() => _pharmacyStock = filtered);
     } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Falha ao carregar estoque da farmácia: $e');
+      debugPrint('Falha ao carregar estoque: $e');
     }
   }
 
   Future<void> _loadAnimals() async {
     try {
-      final animalService =
-          Provider.of<AnimalService>(context, listen: false);
-      final animals = await animalService.searchAnimals(limit: 2000);
+      final svc = Provider.of<AnimalService>(context, listen: false);
+      final animals = await svc.searchAnimals(limit: 2000);
       AnimalDisplayUtils.sortAnimalsList(animals);
       if (!mounted) return;
       setState(() {
@@ -1100,15 +1546,15 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     }
   }
 
-  String _getAnimalDisplayText(Animal animal) {
-    return AnimalDisplayUtils.getDisplayText(animal);
-  }
+  String _getAnimalDisplayText(Animal animal) =>
+      AnimalDisplayUtils.getDisplayText(animal);
 
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 600;
-    final dialogWidth = isMobile ? MediaQuery.of(context).size.width * 0.95 : 500.0;
-    
+    final dialogWidth =
+        isMobile ? MediaQuery.of(context).size.width * 0.95 : 500.0;
+
     return AlertDialog(
       title: const Text('Agendar Vacinação/Medicamento'),
       content: SizedBox(
@@ -1119,62 +1565,150 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Tipo
                 DropdownButtonFormField<String>(
                   initialValue: _type,
                   decoration: const InputDecoration(
                     labelText: 'Tipo *',
                     border: OutlineInputBorder(),
                   ),
-                  items: ['Vacinação', 'Medicamento'].map((type) {
-                    return DropdownMenuItem(value: type, child: Text(type));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _type = value!);
-                  },
+                  items: ['Vacinação', 'Medicamento']
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _type = v!),
                 ),
                 const SizedBox(height: 16),
-
-                // Animal Selection with Search
                 Autocomplete<Animal>(
                   displayStringForOption: _getAnimalDisplayText,
-                  optionsBuilder: (TextEditingValue textEditingValue) {
+                  optionsBuilder: (tv) {
                     if (_loadingAnimals) return const Iterable<Animal>.empty();
                     return AnimalDisplayUtils.filterAndRankAnimals(
-                      _animalOptions,
-                      textEditingValue.text,
-                    );
+                        _animalOptions, tv.text);
                   },
-                  onSelected: (Animal animal) {
-                    setState(() => _selectedAnimalId = animal.id);
-                  },
-                  fieldViewBuilder:
-                      (context, controller, focusNode, onSubmitted) {
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
+                  onSelected: (a) => setState(() => _selectedAnimalId = a.id),
+                  fieldViewBuilder: (ctx, ctrl, focus, onSub) => TextFormField(
+                    controller: ctrl,
+                    focusNode: focus,
+                    decoration: InputDecoration(
+                      labelText: 'Animal *',
+                      hintText: 'Digite o número ou nome para buscar',
+                      prefixIcon: const Icon(Icons.pets),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: _selectedAnimalId != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() => _selectedAnimalId = null);
+                                ctrl.clear();
+                              },
+                            )
+                          : null,
+                    ),
+                    validator: (_) => _selectedAnimalId == null
+                        ? 'Selecione um animal'
+                        : null,
+                  ),
+                  optionsViewBuilder: (ctx, onSel, options) => Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      child: Container(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        width: 468,
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: options.length,
+                          itemBuilder: (_, i) {
+                            final a = options.elementAt(i);
+                            return InkWell(
+                              onTap: () => onSel(a),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                child: AnimalDisplayUtils.buildDropdownItem(a),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_type == 'Vacinação')
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da Vacina *',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        (v?.isEmpty ?? true) ? 'Campo obrigatório' : null,
+                  )
+                else ...[
+                  Autocomplete<PharmacyStock>(
+                    displayStringForOption: (s) {
+                      final unit = s.unitOfMeasure.toLowerCase();
+                      final useVol = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+                          s.quantityPerUnit != null &&
+                          s.quantityPerUnit! > 0;
+                      if (useVol) {
+                        final total = (s.totalQuantity * s.quantityPerUnit!) +
+                            s.openedQuantity;
+                        if (total <= 0) return '';
+                        return '${s.medicationName} (${total.toStringAsFixed(1)}${s.unitOfMeasure})';
+                      }
+                      return '${s.medicationName} (${s.totalQuantity.toInt()} unidades)';
+                    },
+                    optionsBuilder: (tv) {
+                      final avail = _pharmacyStock.where((s) {
+                        final unit = s.unitOfMeasure.toLowerCase();
+                        final useVol =
+                            (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+                                s.quantityPerUnit != null &&
+                                s.quantityPerUnit! > 0;
+                        if (useVol) {
+                          final total = (s.totalQuantity * s.quantityPerUnit!) +
+                              s.openedQuantity;
+                          return total > 0;
+                        }
+                        return s.totalQuantity > 0;
+                      }).toList();
+                      if (tv.text.isEmpty) return avail;
+                      return avail.where((s) => s.medicationName
+                          .toLowerCase()
+                          .contains(tv.text.toLowerCase()));
+                    },
+                    onSelected: (s) => setState(() {
+                      _selectedMedication = s;
+                      _nameController.text = s.medicationName;
+                    }),
+                    fieldViewBuilder: (ctx, ctrl, focus, onSub) => TextFormField(
+                      controller: ctrl,
+                      focusNode: focus,
                       decoration: InputDecoration(
-                        labelText: 'Animal *',
-                        hintText: 'Digite o número ou nome para buscar',
-                        prefixIcon: const Icon(Icons.pets),
+                        labelText: 'Medicamento da Farmácia *',
+                        hintText:
+                            'Digite para buscar (${_pharmacyStock.length} disponíveis)',
+                        prefixIcon: const Icon(Icons.local_pharmacy),
                         border: const OutlineInputBorder(),
-                        suffixIcon: _selectedAnimalId != null
+                        suffixIcon: _selectedMedication != null
                             ? IconButton(
                                 icon: const Icon(Icons.clear),
                                 onPressed: () {
-                                  setState(() => _selectedAnimalId = null);
-                                  controller.clear();
+                                  setState(() {
+                                    _selectedMedication = null;
+                                    _nameController.clear();
+                                  });
+                                  ctrl.clear();
                                 },
                               )
                             : null,
                       ),
-                      validator: (value) => _selectedAnimalId == null
-                          ? 'Selecione um animal'
+                      validator: (_) => _selectedMedication == null
+                          ? 'Selecione um medicamento'
                           : null,
-                    );
-                  },
-                  optionsViewBuilder: (context, onSelected, options) {
-                    return Align(
+                    ),
+                    optionsViewBuilder: (ctx, onSel, options) => Align(
                       alignment: Alignment.topLeft,
                       child: Material(
                         elevation: 4.0,
@@ -1184,204 +1718,55 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                           child: ListView.builder(
                             padding: EdgeInsets.zero,
                             itemCount: options.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final Animal animal = options.elementAt(index);
+                            itemBuilder: (_, i) {
+                              final s = options.elementAt(i);
+                              final unit = s.unitOfMeasure.toLowerCase();
+                              final useVol = (unit == 'ml' ||
+                                      unit == 'mg' ||
+                                      unit == 'g') &&
+                                  s.quantityPerUnit != null &&
+                                  s.quantityPerUnit! > 0;
+                              final subtitle = useVol
+                                  ? '${((s.totalQuantity * s.quantityPerUnit!) + s.openedQuantity).toStringAsFixed(1)}${s.unitOfMeasure} disponível'
+                                  : '${s.totalQuantity.toInt()} unidades';
                               return InkWell(
-                                onTap: () => onSelected(animal),
+                                onTap: () => onSel(s),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 12),
-                                  child: AnimalDisplayUtils.buildDropdownItem(
-                                      animal),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(s.medicationName,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14)),
+                                      const SizedBox(height: 4),
+                                      Text(subtitle,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600])),
+                                      if (s.isLowStock)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 4),
+                                          child: Text('Estoque baixo!',
+                                              style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.orange[700],
+                                                  fontWeight:
+                                                      FontWeight.w500)),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Nome (Vacinação) ou Dropdown de Medicamentos da Farmácia
-                if (_type == 'Vacinação')
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome da Vacina *',
-                      border: OutlineInputBorder(),
                     ),
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) return 'Campo obrigatório';
-                      return null;
-                    },
-                  )
-                else ...[
-                  // AUTOCOMPLETE DE MEDICAMENTOS DA FARMÁCIA
-                  Autocomplete<PharmacyStock>(
-                    displayStringForOption: (stock) {
-                      final unit = stock.unitOfMeasure.toLowerCase();
-                      final useVolumeLogic =
-                          (unit == 'ml' || unit == 'mg' || unit == 'g') &&
-                              stock.quantityPerUnit != null &&
-                              stock.quantityPerUnit! > 0;
-
-                      if (useVolumeLogic) {
-                        final totalVolume =
-                            (stock.totalQuantity * stock.quantityPerUnit!) +
-                                stock.openedQuantity;
-                        // Mostrar apenas se há volume disponível
-                        if (totalVolume <= 0) return '';
-                        return '${stock.medicationName} (${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure})';
-                      }
-                      return '${stock.medicationName} (${stock.totalQuantity.toInt()} unidades)';
-                    },
-                    optionsBuilder: (TextEditingValue textEditingValue) {
-                      // Filtrar medicamentos que têm estoque disponível
-                      final availableStock = _pharmacyStock.where((stock) {
-                        final unit = stock.unitOfMeasure.toLowerCase();
-                        final useVolumeLogic =
-                            (unit == 'ml' || unit == 'mg' || unit == 'g') &&
-                                stock.quantityPerUnit != null &&
-                                stock.quantityPerUnit! > 0;
-
-                        if (useVolumeLogic) {
-                          final totalVolume =
-                              (stock.totalQuantity * stock.quantityPerUnit!) +
-                                  stock.openedQuantity;
-                          return totalVolume > 0;
-                        }
-                        return stock.totalQuantity > 0;
-                      }).toList();
-
-                      if (textEditingValue.text.isEmpty) {
-                        return availableStock;
-                      }
-                      return availableStock.where((stock) {
-                        final searchText = textEditingValue.text.toLowerCase();
-                        return stock.medicationName
-                            .toLowerCase()
-                            .contains(searchText);
-                      });
-                    },
-                    onSelected: (PharmacyStock stock) {
-                      setState(() {
-                        _selectedMedication = stock;
-                        _nameController.text = stock.medicationName;
-                      });
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onSubmitted) {
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: 'Medicamento da Farmácia *',
-                          hintText:
-                              'Digite para buscar (${_pharmacyStock.length} disponíveis)',
-                          prefixIcon: const Icon(Icons.local_pharmacy),
-                          border: const OutlineInputBorder(),
-                          suffixIcon: _selectedMedication != null
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedMedication = null;
-                                      _nameController.clear();
-                                    });
-                                    controller.clear();
-                                  },
-                                )
-                              : null,
-                        ),
-                        validator: (value) => _selectedMedication == null
-                            ? 'Selecione um medicamento'
-                            : null,
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4.0,
-                          child: Container(
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            width: 468,
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              itemCount: options.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final stock = options.elementAt(index);
-                                final unit = stock.unitOfMeasure.toLowerCase();
-                                final useVolumeLogic = (unit == 'ml' ||
-                                        unit == 'mg' ||
-                                        unit == 'g') &&
-                                    stock.quantityPerUnit != null &&
-                                    stock.quantityPerUnit! > 0;
-
-                                String subtitle;
-                                if (useVolumeLogic) {
-                                  final totalVolume = (stock.totalQuantity *
-                                          stock.quantityPerUnit!) +
-                                      stock.openedQuantity;
-                                  final openedInfo = stock.openedQuantity > 0
-                                      ? ' (${stock.openedQuantity.toStringAsFixed(1)}${stock.unitOfMeasure} aberto)'
-                                      : '';
-                                  subtitle =
-                                      '${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unid. ${stock.quantityPerUnit!.toStringAsFixed(0)}${stock.unitOfMeasure}/unid.)$openedInfo';
-                                } else {
-                                  subtitle =
-                                      '${stock.totalQuantity.toInt()} unidades disponíveis';
-                                }
-
-                                return InkWell(
-                                  onTap: () => onSelected(stock),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          stock.medicationName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          subtitle,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                        if (stock.isLowStock)
-                                          Padding(
-                                            padding:
-                                                const EdgeInsets.only(top: 4),
-                                            child: Text(
-                                              'Estoque baixo!',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                color: Colors.orange[700],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      );
-                    },
                   ),
                   if (_selectedMedication != null &&
                       _selectedMedication!.isLowStock)
@@ -1411,8 +1796,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     ),
                 ],
                 const SizedBox(height: 16),
-
-                // Tipo de vacina ou dosagem
                 if (_type == 'Vacinação')
                   DropdownButtonFormField<String>(
                     initialValue: _vaccineType,
@@ -1420,18 +1803,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       labelText: 'Tipo de Vacina',
                       border: OutlineInputBorder(),
                     ),
-                    items: [
-                      'Obrigatória',
-                      'Preventiva',
-                      'Tratamento',
-                      'Emergencial'
-                    ]
-                        .map((type) =>
-                            DropdownMenuItem(value: type, child: Text(type)))
+                    items: ['Obrigatória', 'Preventiva', 'Tratamento', 'Emergencial']
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
-                    onChanged: (value) {
-                      setState(() => _vaccineType = value!);
-                    },
+                    onChanged: (v) => setState(() => _vaccineType = v!),
                   )
                 else
                   TextFormField(
@@ -1443,8 +1818,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     ),
                   ),
                 const SizedBox(height: 16),
-
-                // Data
                 InkWell(
                   onTap: () async {
                     final date = await showDatePicker(
@@ -1452,11 +1825,10 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                       locale: const Locale('pt', 'BR'),
                       initialDate: _scheduledDate,
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                      lastDate:
+                          DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (date != null) {
-                      setState(() => _scheduledDate = date);
-                    }
+                    if (date != null) setState(() => _scheduledDate = date);
                   },
                   child: InputDecorator(
                     decoration: const InputDecoration(
@@ -1470,8 +1842,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Veterinário
                 TextFormField(
                   controller: _veterinarianController,
                   decoration: const InputDecoration(
@@ -1480,8 +1850,6 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Observações
                 TextFormField(
                   controller: _notesController,
                   decoration: const InputDecoration(
@@ -1508,63 +1876,47 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     );
   }
 
-  String _buildLowStockMessage(PharmacyStock stock) {
-    final unit = stock.unitOfMeasure.toLowerCase();
-    final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
-        stock.quantityPerUnit != null &&
-        stock.quantityPerUnit! > 0;
-
-    if (useVolumeLogic) {
-      final totalVolume =
-          (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity;
-      return 'Estoque baixo! Apenas ${totalVolume.toStringAsFixed(1)}${stock.unitOfMeasure} disponível (${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''})';
+  String _buildLowStockMessage(PharmacyStock s) {
+    final unit = s.unitOfMeasure.toLowerCase();
+    final useVol = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+        s.quantityPerUnit != null &&
+        s.quantityPerUnit! > 0;
+    if (useVol) {
+      final total = (s.totalQuantity * s.quantityPerUnit!) + s.openedQuantity;
+      return 'Estoque baixo! Apenas ${total.toStringAsFixed(1)}${s.unitOfMeasure} disponível (${s.totalQuantity.toInt()} unidade${s.totalQuantity > 1 ? 's' : ''})';
     }
-
-    return 'Estoque baixo! Apenas ${stock.totalQuantity.toInt()} unidade${stock.totalQuantity > 1 ? 's' : ''} disponível';
+    return 'Estoque baixo! Apenas ${s.totalQuantity.toInt()} unidade${s.totalQuantity > 1 ? 's' : ''} disponível';
   }
 
   void _save() async {
     if (!_formKey.currentState!.validate() || _selectedAnimalId == null) return;
 
-    // VALIDAÇÃO DE ESTOQUE para medicamentos
     if (_type == 'Medicamento') {
       if (_selectedMedication == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Selecione um medicamento da farmácia'),
-            backgroundColor: Colors.red,
-          ),
+        await _showFormMessage(
+          'Selecione um medicamento da farmácia',
+          isError: true,
         );
         return;
       }
-
-      // Extrair quantidade da dosagem
       final dosageText = _dosageController.text.trim();
-      final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
-      if (quantityMatch != null) {
-        final quantityUsed =
-            double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.')) ?? 0;
-
-        // Calcular estoque disponível baseado na unidade de medida
+      final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
+      if (qtyMatch != null) {
+        final qty =
+            double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.')) ?? 0;
         final unit = _selectedMedication!.unitOfMeasure.toLowerCase();
-        final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+        final useVol = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
             _selectedMedication!.quantityPerUnit != null &&
             _selectedMedication!.quantityPerUnit! > 0;
-
-        final availableStock = useVolumeLogic
+        final avail = useVol
             ? (_selectedMedication!.totalQuantity *
                     _selectedMedication!.quantityPerUnit!) +
                 _selectedMedication!.openedQuantity
             : _selectedMedication!.totalQuantity;
-
-        if (quantityUsed > availableStock) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Estoque insuficiente! Disponível: ${availableStock.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure.toLowerCase()}',
-              ),
-              backgroundColor: Colors.red,
-            ),
+        if (qty > avail) {
+          await _showFormMessage(
+            'Estoque insuficiente! Disponível: ${avail.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure.toLowerCase()}',
+            isError: true,
           );
           return;
         }
@@ -1573,11 +1925,9 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
     try {
       final now = DateTime.now().toIso8601String();
-
       if (_type == 'Vacinação') {
-        final vaccinationService =
-            Provider.of<VaccinationService>(context, listen: false);
-        final vaccination = {
+        final svc = Provider.of<VaccinationService>(context, listen: false);
+        await svc.createVaccination({
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
           'vaccine_name': _nameController.text,
@@ -1586,23 +1936,20 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
           'veterinarian': _veterinarianController.text.isEmpty
               ? null
               : _veterinarianController.text,
-          'notes': _notesController.text.isEmpty ? null : _notesController.text,
+          'notes':
+              _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendada',
           'created_at': now,
           'updated_at': now,
-        };
-        await vaccinationService.createVaccination(vaccination);
+        });
       } else {
-        // Medicamento - INCLUIR REFERÊNCIA DA FARMÁCIA
-        final medicationService =
-            Provider.of<MedicationService>(context, listen: false);
-        final dosageText = _dosageController.text.trim();
-        final quantityMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
-        final quantityUsed = quantityMatch != null
-            ? double.tryParse(quantityMatch.group(0)!.replaceAll(',', '.'))
+        final svc = Provider.of<MedicationService>(context, listen: false);
+        final dosage = _dosageController.text.trim();
+        final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosage);
+        final qty = qtyMatch != null
+            ? double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.'))
             : null;
-
-        final medication = {
+        await svc.createMedication({
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
           'medication_name': _nameController.text,
@@ -1611,39 +1958,49 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
               .add(const Duration(days: 30))
               .toIso8601String()
               .split('T')[0],
-          'dosage':
-              _dosageController.text.isEmpty ? null : _dosageController.text,
+          'dosage': dosage.isEmpty ? null : dosage,
           'veterinarian': _veterinarianController.text.isEmpty
               ? null
               : _veterinarianController.text,
-          'notes': _notesController.text.isEmpty ? null : _notesController.text,
+          'notes':
+              _notesController.text.isEmpty ? null : _notesController.text,
           'status': 'Agendado',
           'pharmacy_stock_id': _selectedMedication?.id,
-          'quantity_used': quantityUsed,
+          'quantity_used': qty,
           'created_at': now,
-        };
-        await medicationService.createMedication(medication);
+        });
       }
-
       if (!mounted) return;
-      Navigator.pop(context);
       widget.onSaved();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$_type agendada com sucesso!'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        ),
-      );
+      await _showFormMessage('$_type agendada com sucesso!');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        await _showFormMessage(
+          'Erro: $e',
+          isError: true,
         );
       }
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1655,6 +2012,8 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     super.dispose();
   }
 }
+
+// ── Details dialog (intacto) ──────────────────────────────────────────────────
 
 class _DetailsDialog extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -1678,8 +2037,9 @@ class _DetailsDialog extends StatelessWidget {
         : const Color(0xFF6366F1);
 
     final isMobile = MediaQuery.of(context).size.width < 600;
-    final dialogWidth = isMobile ? MediaQuery.of(context).size.width * 0.95 : 600.0;
-    
+    final dialogWidth =
+        isMobile ? MediaQuery.of(context).size.width * 0.95 : 600.0;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -1687,7 +2047,6 @@ class _DetailsDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -1721,19 +2080,14 @@ class _DetailsDialog extends StatelessWidget {
                               ? 'Detalhes da Vacinação'
                               : 'Detalhes do Medicamento',
                           style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
+                              fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           isVaccination
                               ? data['vaccine_name'] ?? 'Sem nome'
                               : data['medication_name'] ?? 'Sem nome',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                         ),
                       ],
                     ),
@@ -1745,15 +2099,12 @@ class _DetailsDialog extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Content
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Animal
                     _buildDetailSection(
                       icon: Icons.pets,
                       title: 'Animal',
@@ -1761,8 +2112,6 @@ class _DetailsDialog extends StatelessWidget {
                       color: accentColor,
                     ),
                     const SizedBox(height: 16),
-
-                    // Nome
                     _buildDetailSection(
                       icon: isVaccination ? Icons.vaccines : Icons.medication,
                       title: isVaccination
@@ -1774,8 +2123,6 @@ class _DetailsDialog extends StatelessWidget {
                       color: accentColor,
                     ),
                     const SizedBox(height: 16),
-
-                    // Tipo ou Dosagem
                     if (isVaccination) ...[
                       _buildDetailSection(
                         icon: Icons.category,
@@ -1799,12 +2146,11 @@ class _DetailsDialog extends StatelessWidget {
                       ),
                     ],
                     const SizedBox(height: 16),
-
-                    // Datas
                     _buildDetailSection(
                       icon: Icons.calendar_today,
-                      title:
-                          isVaccination ? 'Data Agendada' : 'Data de Aplicação',
+                      title: isVaccination
+                          ? 'Data Agendada'
+                          : 'Data de Aplicação',
                       content: _formatDate(isVaccination
                           ? data['scheduled_date']
                           : data['date']),
@@ -1828,24 +2174,19 @@ class _DetailsDialog extends StatelessWidget {
                         color: accentColor,
                       ),
                     ],
-                    const SizedBox(height: 16),
-
-                    // Veterinário
                     if (data['veterinarian'] != null &&
-                        data['veterinarian'].toString().isNotEmpty)
+                        data['veterinarian'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 16),
                       _buildDetailSection(
                         icon: Icons.person,
                         title: 'Veterinário',
                         content: data['veterinarian'],
                         color: accentColor,
                       ),
-                    if (data['veterinarian'] != null &&
-                        data['veterinarian'].toString().isNotEmpty)
-                      const SizedBox(height: 16),
-
-                    // Observações
+                    ],
                     if (data['notes'] != null &&
-                        data['notes'].toString().isNotEmpty)
+                        data['notes'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 16),
                       _buildDetailSection(
                         icon: Icons.notes,
                         title: 'Observações',
@@ -1853,12 +2194,11 @@ class _DetailsDialog extends StatelessWidget {
                         color: accentColor,
                         isMultiline: true,
                       ),
+                    ],
                   ],
                 ),
               ),
             ),
-
-            // Footer
             Padding(
               padding: const EdgeInsets.all(24),
               child: SizedBox(
@@ -1900,8 +2240,9 @@ class _DetailsDialog extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
-        crossAxisAlignment:
-            isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: isMultiline
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(width: 12),
@@ -1938,7 +2279,7 @@ class _DetailsDialog extends StatelessWidget {
     try {
       final dt = DateTime.parse(date.toString());
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-    } catch (e) {
+    } catch (_) {
       return date.toString();
     }
   }

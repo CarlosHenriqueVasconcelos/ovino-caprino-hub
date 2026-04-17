@@ -10,8 +10,9 @@ import '../../../../utils/responsive_utils.dart';
 
 class NotesFormDialog extends StatefulWidget {
   final String? animalId;
+  final VoidCallback? onSaved;
 
-  const NotesFormDialog({super.key, this.animalId});
+  const NotesFormDialog({super.key, this.animalId, this.onSaved});
 
   @override
   State<NotesFormDialog> createState() => _NotesFormDialogState();
@@ -104,11 +105,17 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
                       displayStringForOption: AnimalDisplayUtils.getDisplayText,
                       fieldViewBuilder:
                           (context, controller, focusNode, onSubmitted) {
+                        // Não atribuir controller.text durante build — causa
+                        // "setState() during build". Adiar para o próximo frame.
                         if (controller.text != _animalFieldText) {
-                          controller.text = _animalFieldText;
-                          controller.selection = TextSelection.collapsed(
-                            offset: controller.text.length,
-                          );
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted && controller.text != _animalFieldText) {
+                              controller.text = _animalFieldText;
+                              controller.selection = TextSelection.collapsed(
+                                offset: controller.text.length,
+                              );
+                            }
+                          });
                         }
                         return TextFormField(
                           controller: controller,
@@ -508,22 +515,35 @@ class _NotesFormDialogState extends State<NotesFormDialog> {
 
       if (!mounted) return;
 
-      // avisa sucesso e fecha retornando true para a tela recarregar a lista
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Anotação criada com sucesso!'),
-        ),
-      );
-      Navigator.of(context).pop(true);
+      widget.onSaved?.call();
+      await _showFormMessage('Anotação criada com sucesso!');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erro ao salvar anotação: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+      await _showFormMessage(
+        'Erro ao salvar anotação: $e',
+        isError: true,
       );
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

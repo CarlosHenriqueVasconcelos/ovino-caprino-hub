@@ -7,7 +7,9 @@ import '../../../app/app_logging.dart';
 import '../../../devtools/devtools_screen.dart';
 import '../../../models/animal.dart';
 import '../../../services/animal_service.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/backup_service.dart';
+import '../../../services/sync_service.dart';
 import '../../breeding/application/kinship_service.dart';
 import '../../../services/system_maintenance_service.dart';
 
@@ -322,6 +324,51 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         ),
                       ],
                     ),
+                    const Divider(),
+                    Consumer<SyncService>(
+                      builder: (context, sync, _) => SwitchListTile(
+                        secondary: Icon(
+                          Icons.sync_outlined,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: const Text('Sincronização automática'),
+                        subtitle: const Text(
+                          'Desative para trabalhar apenas offline',
+                        ),
+                        value: sync.syncEnabled,
+                        onChanged: (v) => sync.setSyncEnabled(v),
+                      ),
+                    ),
+                    const Divider(),
+                    Consumer<SyncService>(
+                      builder: (context, sync, _) {
+                        final label = switch (sync.status) {
+                          SyncStatus.syncing => 'Sincronizando…',
+                          SyncStatus.success => sync.lastSyncAt != null
+                              ? 'Último sync: ${_formatSyncTime(sync.lastSyncAt!)}'
+                              : 'Sincronizado',
+                          SyncStatus.error =>
+                            'Erro: ${sync.lastError ?? 'desconhecido'}',
+                          SyncStatus.idle => 'Nunca sincronizado',
+                        };
+                        return ListTile(
+                          leading: sync.isSyncing
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.sync,
+                                  color: theme.colorScheme.primary),
+                          title: const Text('Sincronizar com Supabase'),
+                          subtitle: Text(label),
+                          trailing: TextButton(
+                            onPressed: sync.isSyncing ? null : () => sync.sync(),
+                            child: const Text('Sincronizar'),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -593,11 +640,18 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ),
                     const Divider(),
                     ListTile(
+                      leading: Icon(Icons.logout, color: theme.colorScheme.error),
+                      title: const Text('Sair da conta'),
+                      subtitle: const Text('Encerrar sessão no dispositivo'),
+                      onTap: _confirmLogout,
+                    ),
+                    const Divider(),
+                    ListTile(
                       leading: Icon(Icons.delete_forever,
                           color: theme.colorScheme.error),
                       title: const Text('Limpar Dados'),
                       subtitle: const Text(
-                          'Apagar todos os dados locais (irreversível)'),
+                          'Apagar dados locais da fazenda atual (irreversível)'),
                       onTap: _confirmDataClear,
                     ),
                   ],
@@ -608,6 +662,40 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sair da conta'),
+        content: const Text('Deseja realmente sair?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<AuthService>().signOut();
+    }
+  }
+
+  String _formatSyncTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'agora mesmo';
+    if (diff.inMinutes < 60) return 'há ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'há ${diff.inHours}h';
+    return 'há ${diff.inDays} dia(s)';
   }
 
   String _getBackupFrequencyLabel() {
@@ -1028,7 +1116,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           ],
         ),
         content: const Text(
-          'ATENÇÃO: Esta ação irá apagar TODOS os dados locais permanentemente. '
+          'ATENÇÃO: Esta ação irá apagar os dados locais da fazenda atual permanentemente. '
           'Certifique-se de ter um backup antes de continuar. Esta ação NÃO PODE ser desfeita.',
         ),
         actions: [
@@ -1064,7 +1152,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Todos os dados locais foram removidos.'),
+          content: const Text('Dados locais da fazenda atual foram removidos.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

@@ -22,6 +22,7 @@ class MedicationTabs extends StatelessWidget {
       onShowDetails;
   final void Function(Map<String, dynamic> data, bool isVaccination)
       onShowOptions;
+  final void Function(Map<String, dynamic> record)? onAnimalTap;
   final void Function(String id, bool isVaccination) onApply;
   final void Function(String id, bool isVaccination) onCancel;
   final String Function(dynamic value) formatDate;
@@ -42,6 +43,7 @@ class MedicationTabs extends StatelessWidget {
     required this.onSelectionChanged,
     required this.onShowDetails,
     required this.onShowOptions,
+    this.onAnimalTap,
     required this.onApply,
     required this.onCancel,
     required this.formatDate,
@@ -89,6 +91,7 @@ class MedicationTabs extends StatelessWidget {
                           onShowDetails(record, config.isVaccination),
                       onShowOptions: (record) =>
                           onShowOptions(record, config.isVaccination),
+                      onAnimalTap: onAnimalTap,
                       onApply: config.allowActions
                           ? (id) => onApply(id, config.isVaccination)
                           : null,
@@ -115,6 +118,7 @@ class MedicationTabs extends StatelessWidget {
                         onShowDetails(record, true),
                     onShowOptions: (record) =>
                         onShowOptions(record, true),
+                    onAnimalTap: onAnimalTap,
                     onApply: (id) => onApply(id, true),
                     onCancel: (id) => onCancel(id, true),
                     formatDate: formatDate,

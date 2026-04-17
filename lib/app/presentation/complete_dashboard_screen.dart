@@ -1,5 +1,6 @@
 // lib/app/presentation/complete_dashboard_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../features/dashboard/presentation/dashboard_tab.dart';
 import '../../features/herd/presentation/herd_tab.dart';
@@ -10,14 +11,13 @@ import '../../features/financial/presentation/financial_complete_screen.dart';
 import '../../features/medication/presentation/medication_management_screen.dart';
 import '../../features/management/presentation/management_hub_screen.dart';
 import '../../features/management/presentation/widgets/management_module_card.dart';
-import '../../features/more/presentation/more_hub_screen.dart';
-import '../../features/more/presentation/widgets/more_module_card.dart';
 import '../../features/notes/presentation/notes_management_screen.dart';
 import '../../features/pharmacy/presentation/pharmacy_management_screen.dart';
 import '../../features/reports/presentation/reports_hub_screen.dart';
 import '../../features/system/presentation/history_screen.dart';
 import '../../features/system/presentation/system_settings_screen.dart';
 import '../../features/weight/presentation/weight_tracking_screen.dart';
+import '../../services/sync_service.dart';
 import '../../shared/widgets/common/section_header.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radius.dart';
@@ -42,8 +42,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
   int _selectedPrimaryTab = 0;
   String _selectedManagementModule = 'feeding';
   bool _showManagementHub = true;
-  String _selectedMoreModule = 'reports';
-  bool _showMoreHub = true;
+  String _selectedMoreModule = 'system';
 
   static const List<AppBottomNavItem> _primaryNavItems = [
     AppBottomNavItem(
@@ -178,32 +177,14 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
     ),
   ];
 
-  static const List<MoreModuleItem> _moreHubModules = [
-    MoreModuleItem(
-      key: 'reports',
-      title: 'Relatórios',
-      description: 'Análises gerenciais, filtros avançados e exportação.',
-      icon: Icons.analytics_outlined,
-      isPrimary: true,
-    ),
-    MoreModuleItem(
-      key: 'history',
-      title: 'Histórico',
-      description: 'Linha do tempo com eventos operacionais do sistema.',
-      icon: Icons.history,
-    ),
-    MoreModuleItem(
-      key: 'system',
-      title: 'Sistema',
-      description: 'Configurações, backup e manutenção da aplicação.',
-      icon: Icons.settings_outlined,
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _applyLegacyTab(widget.initialTab ?? 0);
+    // Sync inicial ao abrir o dashboard (login ou sessão restaurada)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<SyncService>().sync();
+    });
   }
 
   void _goToTab(int legacyIndex) {
@@ -257,7 +238,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
       case 9:
         _selectedPrimaryTab = 4;
         _selectedMoreModule = 'reports';
-        _showMoreHub = false;
         break;
       case 10:
         _selectedPrimaryTab = 3;
@@ -265,7 +245,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
       case 11:
         _selectedPrimaryTab = 4;
         _selectedMoreModule = 'system';
-        _showMoreHub = false;
         break;
       default:
         _selectedPrimaryTab = 0;
@@ -319,7 +298,7 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
               _showManagementHub = true;
             }
             if (index == 4) {
-              _showMoreHub = true;
+              _selectedMoreModule = 'system';
             }
           });
         },
@@ -328,21 +307,25 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
     );
   }
 
+  // Índices fixos dos módulos de manejo e "mais" — usados pelo IndexedStack interno.
+  static const _managementModuleKeys = [
+    'feeding', 'weight', 'breeding', 'matrices', 'vaccines', 'notes', 'pharmacy',
+  ];
+  static const _moreModuleKeys = ['reports', 'history', 'system'];
+
   Widget _buildPrimaryContent() {
-    switch (_selectedPrimaryTab) {
-      case 0:
-        return DashboardTab(onGoToTab: _goToTab);
-      case 1:
-        return const HerdTab();
-      case 2:
-        return _buildManagementArea();
-      case 3:
-        return const FinancialCompleteScreen();
-      case 4:
-        return _buildMoreArea();
-      default:
-        return DashboardTab(onGoToTab: _goToTab);
-    }
+    // IndexedStack mantém todos os tabs montados e preserva o estado interno
+    // (scroll, formulários, etc.) ao trocar de aba.
+    return IndexedStack(
+      index: _selectedPrimaryTab,
+      children: [
+        DashboardTab(onGoToTab: _goToTab),
+        const HerdTab(),
+        _buildManagementArea(),
+        const FinancialCompleteScreen(),
+        _buildMoreArea(),
+      ],
+    );
   }
 
   Widget _buildManagementArea() {
@@ -398,19 +381,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
   }
 
   Widget _buildMoreArea() {
-    if (_showMoreHub) {
-      return MoreHubScreen(
-        modules: _moreHubModules,
-        selectedModuleKey: _selectedMoreModule,
-        onOpenModule: (moduleKey) {
-          setState(() {
-            _selectedMoreModule = moduleKey;
-            _showMoreHub = false;
-          });
-        },
-      );
-    }
-
     return Column(
       children: [
         Padding(
@@ -424,10 +394,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
             title: 'Mais',
             subtitle:
                 'Módulo ativo: ${_moreOptions.firstWhere((option) => option.key == _selectedMoreModule).label}',
-            actionLabel: 'Voltar ao Hub',
-            onActionTap: () {
-              setState(() => _showMoreHub = true);
-            },
           ),
         ),
         AppSectionSwitcher(
@@ -436,7 +402,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
           onChanged: (value) {
             setState(() {
               _selectedMoreModule = value;
-              _showMoreHub = false;
             });
           },
           onOpenMenu: _openMoreMenu,
@@ -450,37 +415,35 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
   }
 
   Widget _buildManagementModule() {
-    switch (_selectedManagementModule) {
-      case 'feeding':
-        return const FeedingScreen();
-      case 'weight':
-        return const WeightTrackingScreen();
-      case 'breeding':
-        return const BreedingManagementScreen();
-      case 'matrices':
-        return const MatrixSelectionTab();
-      case 'vaccines':
-        return const MedicationManagementScreen();
-      case 'notes':
-        return const NotesManagementScreen();
-      case 'pharmacy':
-        return const PharmacyManagementScreen();
-      default:
-        return const FeedingScreen();
-    }
+    final idx = _managementModuleKeys
+        .indexOf(_selectedManagementModule)
+        .clamp(0, _managementModuleKeys.length - 1);
+    return IndexedStack(
+      index: idx,
+      children: const [
+        FeedingScreen(),
+        WeightTrackingScreen(),
+        BreedingManagementScreen(),
+        MatrixSelectionTab(),
+        MedicationManagementScreen(),
+        NotesManagementScreen(),
+        PharmacyManagementScreen(),
+      ],
+    );
   }
 
   Widget _buildMoreModule() {
-    switch (_selectedMoreModule) {
-      case 'reports':
-        return const ReportsHubScreen();
-      case 'history':
-        return const HistoryScreen();
-      case 'system':
-        return const SystemSettingsScreen();
-      default:
-        return const ReportsHubScreen();
-    }
+    final idx = _moreModuleKeys
+        .indexOf(_selectedMoreModule)
+        .clamp(0, _moreModuleKeys.length - 1);
+    return IndexedStack(
+      index: idx,
+      children: const [
+        ReportsHubScreen(),
+        HistoryScreen(),
+        SystemSettingsScreen(),
+      ],
+    );
   }
 
   Future<void> _openManagementMenu() async {
@@ -507,7 +470,6 @@ class _CompleteDashboardScreenState extends State<CompleteDashboardScreen> {
     setState(() {
       _selectedPrimaryTab = 4;
       _selectedMoreModule = selected;
-      _showMoreHub = false;
     });
   }
 }

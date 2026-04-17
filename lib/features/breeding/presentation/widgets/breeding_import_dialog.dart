@@ -74,29 +74,12 @@ class _BreedingImportDialogState extends State<BreedingImportDialog> {
     }
   }
 
-  bool _isFemaleAllowed(Animal a) {
-    final c = a.category.toLowerCase();
-    return (c.contains('fêmea') || c.contains('femea')) &&
-        (c.contains('reprodutor') ||
-            c.contains('reprodutra') ||
-            c.contains('reprodutora') ||
-            c.contains('adulto'));
-  }
-
-  bool _isMaleAllowed(Animal a) {
-    final c = a.category.toLowerCase();
-    return c.contains('macho') &&
-        (c.contains('reprodutor') || c.contains('adulto'));
-  }
-
   List<Animal> _filterForFemale(String query) {
-    final candidates = _femaleOptions.where(_isFemaleAllowed);
-    return AnimalDisplayUtils.filterAndRankAnimals(candidates, query);
+    return AnimalDisplayUtils.filterAndRankAnimals(_femaleOptions, query);
   }
 
   List<Animal> _filterForMale(String query) {
-    final candidates = _maleOptions.where(_isMaleAllowed);
-    return AnimalDisplayUtils.filterAndRankAnimals(candidates, query);
+    return AnimalDisplayUtils.filterAndRankAnimals(_maleOptions, query);
   }
 
   String _labelOf(Animal a) => AnimalDisplayUtils.getDisplayText(a);

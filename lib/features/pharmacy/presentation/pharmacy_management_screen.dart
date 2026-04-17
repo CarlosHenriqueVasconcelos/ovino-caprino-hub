@@ -5,6 +5,21 @@ import '../../../services/pharmacy_service.dart';
 import 'widgets/pharmacy_stock_details.dart';
 import 'widgets/pharmacy_stock_form.dart';
 
+const _kBrand = Color(0xFF2F8F5B);
+const _kBrand50 = Color(0xFFE8F5EE);
+const _kBeige = Color(0xFFF6F5F1);
+const _kSurface = Color(0xFFFBFBF8);
+const _kGold = Color(0xFFD9B15F);
+const _kGold50 = Color(0xFFFBF4E6);
+const _kErr = Color(0xFFC94A4A);
+const _kErr50 = Color(0xFFFAEAEA);
+const _kBlue = Color(0xFF3A7EC4);
+const _kBlue50 = Color(0xFFEBF3FB);
+const _kText = Color(0xFF22313A);
+const _kText2 = Color(0xFF5A6E78);
+const _kText3 = Color(0xFF9AABB4);
+const _kBorder = Color(0xFFE6E4DC);
+
 class PharmacyManagementScreen extends StatefulWidget {
   const PharmacyManagementScreen({super.key});
 
@@ -158,86 +173,26 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredStock = _filterStock();
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: _kBeige,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
           child: Column(
             children: [
-              // Header
-              _buildHeader(theme),
-              const SizedBox(height: 16),
-              // Barra de pesquisa e filtros
-              _buildFiltersBar(theme),
-              const SizedBox(height: 12),
-
-              // Paginação
-              // Lista de medicamentos
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : filteredStock.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.local_pharmacy_outlined,
-                                  size: 64,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Nenhum medicamento encontrado',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final width = constraints.maxWidth;
-                              int crossAxisCount = 2;
-                              double aspect;
-                              
-                              if (width >= 1500) {
-                                crossAxisCount = 4;
-                                aspect = 1.9;
-                              } else if (width >= 1100) {
-                                crossAxisCount = 3;
-                                aspect = 1.9;
-                              } else if (width <= 700) {
-                                crossAxisCount = 1;
-                                aspect = 1.5; // Mais alto para caber todo conteúdo
-                              } else {
-                                aspect = 1.9;
-                              }
-
-                              return GridView.builder(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.only(bottom: 96),
-                                itemCount: filteredStock.length,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  childAspectRatio: aspect,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final stock = filteredStock[index];
-                                  return _buildStockCard(stock, theme);
-                                },
-                              );
-                            },
-                          ),
-              ),
+              _buildModernHeader(),
+              const SizedBox(height: 10),
+              _buildModernKpiRow(),
+              const SizedBox(height: 10),
+              _buildModernSearchBar(),
+              const SizedBox(height: 8),
+              _buildModernFilterChips(),
+              const SizedBox(height: 8),
+              _buildModernSortRow(filteredStock.length),
+              const SizedBox(height: 8),
+              _buildModernStockCollection(filteredStock),
             ],
           ),
         ),
@@ -245,409 +200,749 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddDialog(),
         icon: const Icon(Icons.add),
-        label: const Text('Novo'),
-        backgroundColor: Colors.teal,
+        label: const Text('Novo produto'),
+        backgroundColor: _kBrand,
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildModernHeader() {
+    final isMobile = MediaQuery.of(context).size.width < 680;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.medical_services_outlined, color: Colors.teal, size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Farmácia',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: _kBrand50,
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.medical_services_outlined,
+                    color: _kBrand,
+                    size: 18,
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: _loadStock,
-                icon: const Icon(Icons.refresh, size: 20),
-                tooltip: 'Recarregar',
-              ),
-            ],
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Farmácia',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _kText,
+                        ),
+                      ),
+                      SizedBox(height: 1),
+                      Text(
+                        'Estoque de Medicamentos',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: _kText3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
+          if (!isMobile) ...[
+            OutlinedButton.icon(
+              onPressed: _loadStock,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Recarregar'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kText2,
+                side: BorderSide(color: _kBorder.withValues(alpha: 0.95)),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          FilledButton.icon(
+            onPressed: _showAddDialog,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Novo'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kBrand,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          if (isMobile) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: _loadStock,
+              icon: const Icon(Icons.refresh, size: 18),
+              color: _kText2,
+              tooltip: 'Recarregar',
+            ),
+          ],
         ],
-      );
-    }
-    
+      ),
+    );
+  }
+
+  Widget _buildModernKpiRow() {
+    final total = _stock.length;
+    final lowStock = _stock.where((s) => s.isLowStock && !s.isExpired).length;
+    final expiring =
+        _stock.where((s) => s.isExpiringSoon && !s.isExpired).length;
+
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.teal.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child:
-              const Icon(Icons.medical_services_outlined, color: Colors.teal),
-        ),
-        const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            'Farmácia — Estoque de Medicamentos',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: _buildModernKpiCard(
+            icon: Icons.inventory_2_outlined,
+            iconBg: _kBlue50,
+            iconColor: _kBlue,
+            value: '$total',
+            valueColor: _kBlue,
+            label: 'Produtos',
           ),
         ),
-        OutlinedButton.icon(
-          onPressed: _loadStock,
-          icon: const Icon(Icons.refresh),
-          label: const Text('Recarregar'),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _buildModernKpiCard(
+            icon: Icons.warning_amber_rounded,
+            iconBg: _kGold50,
+            iconColor: _kGold,
+            value: '$lowStock',
+            valueColor: _kGold,
+            label: 'Est. baixo',
+          ),
         ),
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: _showAddDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('Novo'),
-          style: FilledButton.styleFrom(backgroundColor: Colors.teal),
-        ),
-        const SizedBox(width: 4),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.more_vert),
+        const SizedBox(width: 7),
+        Expanded(
+          child: _buildModernKpiCard(
+            icon: Icons.event_busy_outlined,
+            iconBg: _kErr50,
+            iconColor: _kErr,
+            value: '$expiring',
+            valueColor: _kErr,
+            label: 'Vencendo',
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildFiltersBar(ThemeData theme) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    final searchWidth = isMobile ? double.infinity : 360.0;
-    
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        SizedBox(
-          width: searchWidth,
-          child: TextField(
-            onChanged: (value) => setState(() {
-              _searchQuery = value;
+  Widget _buildModernKpiCard({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String value,
+    required Color valueColor,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 13, color: iconColor),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 8,
+              fontWeight: FontWeight.w500,
+              color: _kText2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        onChanged: (value) => setState(() {
+          _searchQuery = value;
+          _currentPage = 0;
+        }),
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search, size: 18, color: _kText3),
+          hintText: 'Buscar por nome ou apresentação…',
+          hintStyle: const TextStyle(fontSize: 12, color: _kText3),
+          isDense: true,
+          filled: false,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModernFilterChips() {
+    final filters = ['Todos', 'Estoque Baixo', 'Vencendo', 'Vencidos'];
+    return SizedBox(
+      height: 34,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final label = filters[index];
+          final active = _filter == label;
+          final tone = label == 'Estoque Baixo'
+              ? _kGold
+              : (label == 'Vencendo' || label == 'Vencidos')
+                  ? _kErr
+                  : _kBrand;
+          return ChoiceChip(
+            label: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: active ? Colors.white : _kText2,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+            selected: active,
+            onSelected: (_) => setState(() {
+              _filter = label;
               _currentPage = 0;
             }),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: isMobile ? 'Buscar…' : 'Buscar por nome ou apresentação…',
-              isDense: true,
-              filled: true,
-              fillColor: Colors.grey[100],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: active ? tone : _kBorder.withValues(alpha: 0.85),
               ),
             ),
-          ),
-        ),
-        ChoiceChip(
-          label: const Text('Todos'),
-          selected: _filter == 'Todos',
-          onSelected: (_) => setState(() {
-            _filter = 'Todos';
-            _currentPage = 0;
-          }),
-        ),
-        ChoiceChip(
-          label: const Text('Estoque Baixo'),
-          selected: _filter == 'Estoque Baixo',
-          onSelected: (_) => setState(() {
-            _filter = 'Estoque Baixo';
-            _currentPage = 0;
-          }),
-        ),
-        ChoiceChip(
-          label: const Text('Vencendo'),
-          selected: _filter == 'Vencendo',
-          onSelected: (_) => setState(() {
-            _filter = 'Vencendo';
-            _currentPage = 0;
-          }),
-        ),
-        ChoiceChip(
-          label: const Text('Vencidos'),
-          selected: _filter == 'Vencidos',
-          onSelected: (_) => setState(() {
-            _filter = 'Vencidos';
-            _currentPage = 0;
-          }),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: Colors.grey[400]!,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ordenar:'),
-              const SizedBox(width: 6),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _sortBy,
-                  items: const [
-                    DropdownMenuItem(value: 'name', child: Text('Nome')),
-                    DropdownMenuItem(value: 'quantity', child: Text('Estoque')),
-                    DropdownMenuItem(
-                        value: 'expiration', child: Text('Validade')),
-                  ],
-                  onChanged: (v) =>
-                      v == null ? null : setState(() => _sortBy = v),
-                ),
-              ),
-              IconButton(
-                tooltip: _sortAscending ? 'Crescente' : 'Decrescente',
-                onPressed: () =>
-                    setState(() => _sortAscending = !_sortAscending),
-                icon: Icon(
-                    _sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-              ),
-            ],
-          ),
-        ),
-      ],
+            backgroundColor: _kSurface,
+            selectedColor: tone,
+            showCheckmark: false,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildStockCard(PharmacyStock stock, ThemeData theme) {
-    final tags = <Widget>[];
+  Widget _buildModernSortRow(int filteredCount) {
+    final sortLabel = switch (_sortBy) {
+      'quantity' => 'Estoque',
+      'expiration' => 'Validade',
+      _ => 'Nome',
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Row(
+        children: [
+          Text(
+            '$filteredCount produto${filteredCount == 1 ? '' : 's'}',
+            style: const TextStyle(
+              fontSize: 11,
+              color: _kText3,
+            ),
+          ),
+          const Spacer(),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                _sortBy = value;
+              });
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'name', child: Text('Ordenar por nome')),
+              PopupMenuItem(value: 'quantity', child: Text('Ordenar por estoque')),
+              PopupMenuItem(value: 'expiration', child: Text('Ordenar por validade')),
+            ],
+            child: Row(
+              children: [
+                const Icon(Icons.sort, size: 14, color: _kBrand),
+                const SizedBox(width: 4),
+                Text(
+                  '$sortLabel ${_sortAscending ? '↑' : '↓'}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: _kBrand,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: _sortAscending ? 'Crescente' : 'Decrescente',
+            onPressed: () => setState(() => _sortAscending = !_sortAscending),
+            iconSize: 16,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            icon: Icon(
+              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+              color: _kBrand,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (stock.isExpired) {
-      tags.add(_buildBadge('Vencido', Colors.red));
-    }
-    if (stock.isExpiringSoon) {
-      tags.add(_buildBadge('Vencendo', Colors.orange));
-    }
-    if (stock.isLowStock) {
-      tags.add(_buildBadge('Estoque baixo', Colors.amber));
-    }
-    if (!stock.isExpired && !stock.isExpiringSoon && !stock.isLowStock) {
-      tags.add(_buildBadge('OK', Colors.teal));
+  Widget _buildModernStockCollection(List<PharmacyStock> filteredStock) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    // Ícone baseado no tipo
-    IconData icon = Icons.medication_outlined;
-    if (stock.medicationType.toLowerCase().contains('ampola')) {
-      icon = Icons.vaccines_outlined;
-    } else if (stock.medicationType.toLowerCase().contains('frasco')) {
-      icon = Icons.medication_liquid_outlined;
+    if (filteredStock.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.local_pharmacy_outlined, size: 52, color: _kText3),
+            SizedBox(height: 10),
+            Text(
+              'Nenhum medicamento encontrado',
+              style: TextStyle(fontSize: 14, color: _kText2),
+            ),
+          ],
+        ),
+      );
     }
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isList = width < 780;
+        final itemCount = filteredStock.length + (_isLoadingMore ? 1 : 0);
+
+        if (isList) {
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: itemCount,
+            itemBuilder: (context, index) {
+              if (index >= filteredStock.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return _buildModernStockCard(filteredStock[index]);
+            },
+          );
+        }
+
+        final columns = width >= 1240 ? 3 : 2;
+        final aspect = width >= 1240 ? 1.58 : 1.43;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: itemCount,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: aspect,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemBuilder: (context, index) {
+            if (index >= filteredStock.length) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return _buildModernStockCard(filteredStock[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildModernStockCard(PharmacyStock stock) {
+    final tone = _toneForStock(stock);
     final unit = stock.unitOfMeasure.toLowerCase();
     final useVolumeLogic = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
         stock.quantityPerUnit != null &&
         stock.quantityPerUnit! > 0;
-
     final totalVolume = useVolumeLogic
         ? (stock.totalQuantity * stock.quantityPerUnit!) + stock.openedQuantity
         : stock.totalQuantity;
-
     final percent = (stock.totalQuantity / ((stock.minStockAlert ?? 5) * 2))
         .clamp(0.0, 1.0);
     final percentLabel = '${(percent * 100).round()}%';
 
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => _showDetailsDialog(stock),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Título + tags
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.teal.withValues(alpha: 0.1),
-                    child: Icon(icon, color: Colors.teal),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stock.medicationName,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tone.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.045),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          children: [
+            Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () => _showDetailsDialog(stock),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(11, 10, 11, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: tone.iconBackground,
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              _stockTypeIcon(stock),
+                              size: 16,
+                              color: tone.iconColor,
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  stock.medicationName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: _kText,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  '${stock.medicationType} · '
+                                  '${stock.quantityPerUnit != null ? '${stock.quantityPerUnit!.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}/un' : stock.unitOfMeasure}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: _kText2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tone.badgeBackground,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              tone.label,
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: tone.badgeTextColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Text(
+                            'Estoque',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: _kText3,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            percentLabel,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: tone.barColor,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: percent,
+                          minHeight: 4,
+                          backgroundColor: Colors.black.withValues(alpha: 0.06),
+                          valueColor: AlwaysStoppedAnimation<Color>(tone.barColor),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${stock.medicationType}${stock.quantityPerUnit != null ? ' • ${stock.quantityPerUnit!.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}/un' : ''}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.outline,
+                      ),
+                      const SizedBox(height: 7),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_outlined,
+                                  size: 12,
+                                  color: _kText3,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Validade',
+                                  style: TextStyle(fontSize: 9, color: _kText3),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    stock.expirationDate != null
+                                        ? _formatDateShort(stock.expirationDate!)
+                                        : 'Sem validade',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: tone.expirationColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.category_outlined,
+                                  size: 12,
+                                  color: _kText3,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Tipo',
+                                  style: TextStyle(fontSize: 9, color: _kText3),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    stock.medicationType,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: _kText2,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (useVolumeLogic) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          '${stock.totalQuantity.toStringAsFixed(0)} unidade${stock.totalQuantity != 1 ? 's' : ''}'
+                          ' (${totalVolume.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure} total)',
+                          style: const TextStyle(fontSize: 9, color: _kText2),
                         ),
                       ],
-                    ),
-                  ),
-                  Wrap(spacing: 6, runSpacing: 6, children: tags),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Qtd total
-              Flexible(
-                child: Text(
-                  useVolumeLogic
-                      ? '${stock.totalQuantity.toStringAsFixed(0)} unidade${stock.totalQuantity != 1 ? 's' : ''} (${totalVolume.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure} total)'
-                      : '${stock.totalQuantity.toStringAsFixed(0)} ${stock.unitOfMeasure}',
-                  style: theme.textTheme.bodyMedium,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 6),
-              // Barra de estoque
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: SizedBox(
-                  height: 6,
-                  child: LinearProgressIndicator(
-                    value: percent,
-                    minHeight: 6,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: const AlwaysStoppedAnimation(Colors.teal),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
-              // Rodapé do card
-              Row(
-                children: [
-                  if (useVolumeLogic && stock.openedQuantity > 0)
-                    Flexible(
-                      child: Text(
-                        '1 unidade aberta: ${stock.openedQuantity.toStringAsFixed(1).replaceAll('.', ',')} ${stock.unitOfMeasure}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.outline,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+            ),
+            Container(height: 1, color: Colors.black.withValues(alpha: 0.06)),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _showRemoveQuantityDialog(stock),
+                    icon: const Icon(Icons.remove, size: 14),
+                    label: const Text('Remover'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _kErr,
+                      textStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  const Spacer(),
-                  Text(
-                    'Estoque $percentLabel',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                   ),
-                ],
-              ),
-              if (stock.expirationDate != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'Validade: ${stock.expirationDate!.day.toString().padLeft(2, '0')}/${stock.expirationDate!.month.toString().padLeft(2, '0')}/${stock.expirationDate!.year}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.outline,
+                ),
+                Container(
+                  width: 1,
+                  height: 38,
+                  color: Colors.black.withValues(alpha: 0.06),
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => _showAddQuantityDialog(stock),
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Adicionar'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _kBrand,
+                      textStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-              const SizedBox(height: 10),
-              // Botões de ação
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _showRemoveQuantityDialog(stock),
-                      icon: const Icon(Icons.remove, size: 16),
-                      label:
-                          const Text('Remover', style: TextStyle(fontSize: 13)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8),
-                        minimumSize: const Size(0, 34),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => _showAddQuantityDialog(stock),
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Adicionar',
-                          style: TextStyle(fontSize: 13)),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 8),
-                        minimumSize: const Size(0, 34),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBadge(String text, Color tone) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tone.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: tone,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
+  IconData _stockTypeIcon(PharmacyStock stock) {
+    final type = stock.medicationType.toLowerCase();
+    if (type.contains('ampola')) return Icons.vaccines_outlined;
+    if (type.contains('frasco')) return Icons.medication_liquid_outlined;
+    return Icons.medication_outlined;
+  }
+
+  _ModernStockTone _toneForStock(PharmacyStock stock) {
+    if (stock.isExpired) {
+      return const _ModernStockTone(
+        label: 'Vencido',
+        iconBackground: _kErr50,
+        iconColor: _kErr,
+        badgeBackground: _kErr50,
+        badgeTextColor: _kErr,
+        borderColor: Color(0x44C94A4A),
+        barColor: _kErr,
+        expirationColor: _kErr,
+      );
+    }
+    if (stock.isExpiringSoon) {
+      return const _ModernStockTone(
+        label: 'Vencendo',
+        iconBackground: _kErr50,
+        iconColor: _kErr,
+        badgeBackground: _kErr50,
+        badgeTextColor: _kErr,
+        borderColor: Color(0x44C94A4A),
+        barColor: _kGold,
+        expirationColor: _kErr,
+      );
+    }
+    if (stock.isLowStock) {
+      return const _ModernStockTone(
+        label: 'Est. baixo',
+        iconBackground: _kGold50,
+        iconColor: _kGold,
+        badgeBackground: _kGold50,
+        badgeTextColor: Color(0xFF7A5C00),
+        borderColor: Color(0x55D9B15F),
+        barColor: _kGold,
+        expirationColor: _kText2,
+      );
+    }
+    return const _ModernStockTone(
+      label: 'OK',
+      iconBackground: _kBrand50,
+      iconColor: _kBrand,
+      badgeBackground: _kBrand50,
+      badgeTextColor: _kBrand,
+      borderColor: _kBorder,
+      barColor: _kBrand,
+      expirationColor: _kBrand,
     );
+  }
+
+  String _formatDateShort(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
   }
 
   Future<void> _showAddDialog() async {
-    final result = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => const PharmacyStockForm(),
+      builder: (context) => PharmacyStockForm(onSaved: _loadStock),
     );
-
-    if (result == true) {
-      _loadStock();
-    }
   }
 
   Future<void> _showDetailsDialog(PharmacyStock stock) async {
@@ -905,4 +1200,26 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
       _loadStock();
     }
   }
+}
+
+class _ModernStockTone {
+  final String label;
+  final Color iconBackground;
+  final Color iconColor;
+  final Color badgeBackground;
+  final Color badgeTextColor;
+  final Color borderColor;
+  final Color barColor;
+  final Color expirationColor;
+
+  const _ModernStockTone({
+    required this.label,
+    required this.iconBackground,
+    required this.iconColor,
+    required this.badgeBackground,
+    required this.badgeTextColor,
+    required this.borderColor,
+    required this.barColor,
+    required this.expirationColor,
+  });
 }

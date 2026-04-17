@@ -8,13 +8,19 @@ import '../../../../models/animal.dart';
 import '../../../../models/financial_account.dart';
 import '../../../../services/animal_service.dart';
 import '../../../../services/financial_service.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
-import '../../../../shared/widgets/buttons/secondary_button.dart';
-import '../../../../shared/widgets/common/app_card.dart';
-import '../../../../shared/widgets/common/section_header.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_spacing.dart';
 import '../../../../utils/animal_display_utils.dart';
+
+const _kBrand = Color(0xFF2F8F5B);
+const _kBrand50 = Color(0xFFE8F5EE);
+const _kBeige = Color(0xFFF6F5F1);
+const _kSurface = Color(0xFFFBFBF8);
+const _kSurface2 = Color(0xFFF2F1ED);
+const _kBorder = Color(0xFFE6E4DC);
+const _kText = Color(0xFF22313A);
+const _kText2 = Color(0xFF5A6E78);
+const _kText3 = Color(0xFF9AABB4);
+const _kErr = Color(0xFFC94A4A);
+const _kErr50 = Color(0xFFFAEAEA);
 
 class FinancialFormScreen extends StatefulWidget {
   final String type;
@@ -233,171 +239,348 @@ class _FinancialFormScreenState extends State<FinancialFormScreen> {
     final categories = isRevenue ? _revenueCategories : _expenseCategories;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          isEditing
-              ? 'Editar ${isRevenue ? 'Receita' : 'Despesa'}'
-              : 'Nova ${isRevenue ? 'Receita' : 'Despesa'}',
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            AppCard(
-              variant: AppCardVariant.soft,
-              child: SectionHeader(
-                title: isRevenue ? 'Lançamento de Receita' : 'Lançamento de Despesa',
-                subtitle: isRevenue
-                    ? 'Registre entradas financeiras com categoria e vencimento.'
-                    : 'Registre saídas financeiras para manter o controle atualizado.',
-                action: Icon(
-                  isRevenue ? Icons.arrow_upward : Icons.arrow_downward,
-                  color: isRevenue ? AppColors.success : AppColors.error,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppCard(
-              variant: AppCardVariant.elevated,
-              child: Column(
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Categoria *'),
-                    items: categories
-                        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategory = value;
-                        if (value != 'Venda de Animais') {
-                          _selectedAnimalId = null;
-                        }
-                      });
-                    },
-                    validator: (value) =>
-                        value == null ? 'Selecione uma categoria' : null,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  if (isRevenue && _selectedCategory == 'Venda de Animais') ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedAnimalId,
-                      decoration: const InputDecoration(
-                        labelText: 'Animal *',
-                        helperText:
-                            'Quando a conta for paga, o animal será movido para a tabela de vendidos',
+      backgroundColor: _kBeige,
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                child: Row(
+                  children: [
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () => Navigator.pop(context),
+                      child: Ink(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: _kSurface2,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          size: 16,
+                          color: _kText2,
+                        ),
                       ),
-                      items: _animals.map((animal) {
-                        return DropdownMenuItem(
-                          value: animal.id,
-                          child: Text(
-                            AnimalDisplayUtils.getDisplayText(animal),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedAnimalId = value;
-                        });
-                      },
-                      validator: (value) =>
-                          value == null ? 'Selecione o animal' : null,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(width: 10),
+                    Text(
+                      isEditing
+                          ? 'Editar ${isRevenue ? 'Receita' : 'Despesa'}'
+                          : 'Nova ${isRevenue ? 'Receita' : 'Despesa'}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _kText,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
                   ],
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: 'Descrição'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextFormField(
-                    controller: _amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Valor *',
-                      prefixText: 'R\$ ',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
-                    ],
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Informe o valor';
-                      final amount = double.tryParse(value.replaceAll(',', '.'));
-                      if (amount == null || amount <= 0) return 'Valor inválido';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextFormField(
-                    controller: _dueDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Data de Vencimento *',
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                    readOnly: true,
-                    onTap: () => _selectDate(context),
-                    validator: (value) =>
-                        value == null || value.isEmpty ? 'Selecione a data' : null,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentMethod,
-                    decoration:
-                        const InputDecoration(labelText: 'Forma de Pagamento'),
-                    items: _paymentMethods
-                        .map((method) =>
-                            DropdownMenuItem(value: method, child: Text(method)))
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedPaymentMethod = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextFormField(
-                    controller: _supplierCustomerController,
-                    decoration: InputDecoration(
-                      labelText: isRevenue ? 'Cliente' : 'Fornecedor',
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  TextFormField(
-                    controller: _notesController,
-                    decoration: const InputDecoration(labelText: 'Observações'),
-                    maxLines: 3,
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: SecondaryButton(
-                    label: 'Cancelar',
-                    fullWidth: true,
-                    onPressed: () => Navigator.pop(context),
-                  ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isRevenue ? _kBrand50 : _kErr50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (isRevenue ? _kBrand : _kErr)
+                              .withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: (isRevenue ? _kBrand : _kErr)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(7),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              isRevenue
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              size: 14,
+                              color: isRevenue ? _kBrand : _kErr,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isRevenue
+                                    ? 'Lançamento de Receita'
+                                    : 'Lançamento de Despesa',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isRevenue ? _kBrand : _kErr,
+                                ),
+                              ),
+                              Text(
+                                isRevenue
+                                    ? 'Registre entradas financeiras'
+                                    : 'Registre saídas financeiras',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: (isRevenue ? _kBrand : _kErr)
+                                      .withValues(alpha: 0.75),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Informações obrigatórias',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _kText3,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildFieldContainer(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _selectedCategory,
+                        decoration: _decoration('Categoria *'),
+                        items: categories
+                            .map(
+                              (cat) => DropdownMenuItem(
+                                value: cat,
+                                child: Text(cat),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategory = value;
+                            if (value != 'Venda de Animais') {
+                              _selectedAnimalId = null;
+                            }
+                          });
+                        },
+                        validator: (value) =>
+                            value == null ? 'Selecione uma categoria' : null,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    _buildFieldContainer(
+                      child: TextFormField(
+                        controller: _amountController,
+                        decoration: _decoration('Valor *', prefixText: 'R\$ '),
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9,]')),
+                        ],
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Informe o valor';
+                          }
+                          final amount = double.tryParse(value.replaceAll(',', '.'));
+                          if (amount == null || amount <= 0) {
+                            return 'Valor inválido';
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    _buildFieldContainer(
+                      child: TextFormField(
+                        controller: _dueDateController,
+                        decoration: _decoration(
+                          'Data de vencimento *',
+                          suffixIcon: const Icon(Icons.calendar_today, size: 16),
+                        ),
+                        readOnly: true,
+                        onTap: () => _selectDate(context),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Selecione a data'
+                            : null,
+                      ),
+                    ),
+                    if (isRevenue && _selectedCategory == 'Venda de Animais') ...[
+                      const SizedBox(height: 7),
+                      _buildFieldContainer(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _selectedAnimalId,
+                          decoration: _decoration('Animal *'),
+                          items: _animals.map((animal) {
+                            return DropdownMenuItem(
+                              value: animal.id,
+                              child: Text(
+                                AnimalDisplayUtils.getDisplayText(animal),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedAnimalId = value;
+                            });
+                          },
+                          validator: (value) =>
+                              value == null ? 'Selecione o animal' : null,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Informações opcionais',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: _kText3,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildFieldContainer(
+                      child: TextFormField(
+                        controller: _descriptionController,
+                        decoration: _decoration('Descrição'),
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    _buildFieldContainer(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _selectedPaymentMethod,
+                        decoration: _decoration('Forma de pagamento'),
+                        items: _paymentMethods
+                            .map(
+                              (method) => DropdownMenuItem(
+                                value: method,
+                                child: Text(method),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedPaymentMethod = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    _buildFieldContainer(
+                      child: TextFormField(
+                        controller: _supplierCustomerController,
+                        decoration:
+                            _decoration(isRevenue ? 'Cliente' : 'Fornecedor'),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    _buildFieldContainer(
+                      child: TextFormField(
+                        controller: _notesController,
+                        decoration: _decoration('Observações'),
+                        maxLines: 3,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: PrimaryButton(
-                    label: 'Salvar',
-                    fullWidth: true,
-                    onPressed: _saveAccount,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          color: _kBeige,
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _kText2,
+                    side: BorderSide(color: _kBorder.withValues(alpha: 0.95)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Cancelar'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  onPressed: _saveAccount,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kBrand,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    isRevenue ? 'Salvar receita' : 'Salvar despesa',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldContainer({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.9)),
+      ),
+      child: child,
+    );
+  }
+
+  InputDecoration _decoration(
+    String label, {
+    Widget? suffixIcon,
+    String? prefixText,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      suffixIcon: suffixIcon,
+      prefixText: prefixText,
+      labelStyle: const TextStyle(
+        color: _kText3,
+        fontSize: 12,
+      ),
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(vertical: 10),
     );
   }
 }

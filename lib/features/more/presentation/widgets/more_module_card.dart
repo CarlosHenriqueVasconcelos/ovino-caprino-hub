@@ -86,7 +86,6 @@ class MoreModuleCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          const Spacer(),
           const SizedBox(height: AppSpacing.sm),
           Row(
             mainAxisSize: MainAxisSize.min,

@@ -3,18 +3,140 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:sqflite_common/sqlite_api.dart';
 
 import '../data/local_db.dart';
 import '../models/animal.dart';
 import '../models/report_filters.dart';
+import '../services/legacy_sqflite_to_drift_bridge.dart';
+import 'drift/app_database.dart';
 
 void _log(String message) {
   developer.log(message, name: 'ReportsRepository');
 }
 
+List<Variable<Object>> _asDriftVariables(List<dynamic> args) {
+  return args
+      .map((arg) => Variable<Object>(arg as Object))
+      .toList(growable: false);
+}
+
+abstract class _ReportDb {
+  String? get farmId;
+
+  Future<List<Map<String, dynamic>>> query(
+    String table, {
+    String? where,
+    List<dynamic>? whereArgs,
+    String? orderBy,
+  });
+
+  Future<List<Map<String, dynamic>>> rawQuery(
+    String sql, [
+    List<dynamic>? arguments,
+  ]);
+
+  Future<void> insert(String table, Map<String, dynamic> values);
+}
+
+class _SqfliteReportDb implements _ReportDb {
+  _SqfliteReportDb(this._db);
+
+  final Database _db;
+
+  @override
+  String? get farmId => null;
+
+  @override
+  Future<List<Map<String, dynamic>>> query(
+    String table, {
+    String? where,
+    List<dynamic>? whereArgs,
+    String? orderBy,
+  }) {
+    return _db.query(
+      table,
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: orderBy,
+    );
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> rawQuery(
+    String sql, [
+    List<dynamic>? arguments,
+  ]) {
+    return _db.rawQuery(sql, arguments);
+  }
+
+  @override
+  Future<void> insert(String table, Map<String, dynamic> values) async {
+    await _db.insert(table, values);
+  }
+}
+
+class _DriftReportDb implements _ReportDb {
+  _DriftReportDb(this._db, this._farmId);
+
+  final AppDriftDatabase _db;
+  final String _farmId;
+
+  @override
+  String? get farmId => _farmId;
+
+  @override
+  Future<List<Map<String, dynamic>>> query(
+    String table, {
+    String? where,
+    List<dynamic>? whereArgs,
+    String? orderBy,
+  }) async {
+    final clauses = <String>['farm_id = ?'];
+    final args = <dynamic>[_farmId];
+    if (where != null && where.trim().isNotEmpty) {
+      clauses.add('($where)');
+      if (whereArgs != null) args.addAll(whereArgs);
+    }
+    final sql = StringBuffer('SELECT * FROM $table')
+      ..write(' WHERE ${clauses.join(' AND ')}');
+    if (orderBy != null && orderBy.trim().isNotEmpty) {
+      sql.write(' ORDER BY $orderBy');
+    }
+    final rows = await _db.customSelect(
+      sql.toString(),
+      variables: _asDriftVariables(args),
+    ).get();
+    return rows.map((r) => r.data).toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> rawQuery(
+    String sql, [
+    List<dynamic>? arguments,
+  ]) async {
+    final rows = await _db.customSelect(
+      sql,
+      variables: _asDriftVariables(arguments ?? const []),
+    ).get();
+    return rows.map((r) => r.data).toList();
+  }
+
+  @override
+  Future<void> insert(String table, Map<String, dynamic> values) async {
+    final cols = values.keys.toList(growable: false);
+    final placeholders = List.filled(cols.length, '?').join(',');
+    final args = cols.map((c) => values[c]).toList(growable: false);
+    await _db.customStatement(
+      'INSERT INTO $table (${cols.join(',')}) VALUES ($placeholders)',
+      args,
+    );
+  }
+}
+
 class _ReportsQueries {
-  static Future<Database> _resolveDatabase(Database? injected) async {
+  static Future<_ReportDb> _resolveDatabase(_ReportDb? injected) async {
     if (injected != null) return injected;
     throw StateError(
       'Database instance must be provided when querying reports.',
@@ -317,7 +439,7 @@ class _ReportsQueries {
     }
   }
 
-  static Future<List<Animal>> _loadAnimals(Database db) async {
+  static Future<List<Animal>> _loadAnimals(_ReportDb db) async {
     final rows = await db.query('animals');
     return rows.map((m) => Animal.fromMap(m)).toList();
   }
@@ -325,7 +447,7 @@ class _ReportsQueries {
   // ==================== ANIMAIS ====================
   static Future<Map<String, dynamic>> getAnimalsReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     var animals = await _animalsWithinPeriod(database, filters);
@@ -342,7 +464,7 @@ class _ReportsQueries {
 
   // ---------- Pesos: leitor robusto ----------
   static Future<List<Map<String, dynamic>>> _readWeightRows(
-    Database db,
+    _ReportDb db,
     DateTime start,
     DateTime end,
   ) async {
@@ -352,12 +474,21 @@ class _ReportsQueries {
     Future<List<Map<String, dynamic>>> tryQuery(
         String table, String dcol, String wcol) async {
       try {
+        final clauses = <String>[
+          '$dcol >= ?',
+          '$dcol <= ?',
+        ];
+        final args = <dynamic>[s, e];
+        if (db.farmId != null) {
+          clauses.add('farm_id = ?');
+          args.add(db.farmId!);
+        }
         final rows = await db.rawQuery('''
           SELECT id, animal_id, $dcol AS date, $wcol AS weight
           FROM $table
-          WHERE $dcol >= ? AND $dcol <= ?
+          WHERE ${clauses.join(' AND ')}
           ORDER BY $dcol ASC
-        ''', [s, e]);
+        ''', args);
         _log('✅ Encontrados ${rows.length} registros de peso em $table');
         return rows;
       } catch (err) {
@@ -385,7 +516,7 @@ class _ReportsQueries {
   // ==================== PESOS ====================
   static Future<Map<String, dynamic>> getWeightsReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     var animals = await _loadAnimals(database);
@@ -410,7 +541,7 @@ class _ReportsQueries {
   // ==================== VACINAÇÕES ====================
   static Future<Map<String, dynamic>> getVaccinationsReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     final vaccinations = (await _fetchVaccinationsWithAnimals(database, filters))
@@ -433,7 +564,7 @@ class _ReportsQueries {
   // ==================== MEDICAÇÕES ====================
   static Future<Map<String, dynamic>> getMedicationsReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     final medications = (await _fetchMedicationsWithAnimals(database, filters))
@@ -453,10 +584,286 @@ class _ReportsQueries {
     };
   }
 
+  // ==================== ALIMENTAÇÃO ====================
+  static Future<Map<String, dynamic>> getFeedingReport(
+    ReportFilters filters, {
+    _ReportDb? db,
+  }) async {
+    final database = await _resolveDatabase(db);
+    final pens = await database.query(
+      'feeding_pens',
+      orderBy: 'name COLLATE NOCASE',
+    );
+    final schedulesAll = await database.query(
+      'feeding_schedules',
+      orderBy: 'created_at DESC',
+    );
+
+    final filteredPens = _filterRowsByPeriod(
+      pens,
+      filters: filters,
+      dateKeys: const ['created_at', 'updated_at'],
+      fallbackAllWhenEmpty: true,
+    );
+    final filteredSchedules = _filterRowsByPeriod(
+      schedulesAll,
+      filters: filters,
+      dateKeys: const ['created_at', 'updated_at'],
+      fallbackAllWhenEmpty: true,
+    );
+
+    final pensById = {
+      for (final pen in filteredPens)
+        (pen['id'] ?? '').toString(): Map<String, dynamic>.from(pen),
+    };
+
+    final rows = <Map<String, dynamic>>[];
+    final penIdsWithSchedule = <String>{};
+
+    for (final schedule in filteredSchedules) {
+      final penId = (schedule['pen_id'] ?? '').toString();
+      if (penId.isEmpty) continue;
+      final pen = pensById[penId];
+      penIdsWithSchedule.add(penId);
+      rows.add({
+        'pen_id': penId,
+        'pen_name': pen?['name'] ?? 'Sem baia',
+        'pen_number': pen?['number'] ?? '',
+        'feed_type': schedule['feed_type'] ?? '',
+        'quantity': _toDouble(schedule['quantity']),
+        'times_per_day': (schedule['times_per_day'] as num?)?.toInt() ?? 0,
+        'feeding_times': schedule['feeding_times'] ?? '',
+        'schedule_notes': schedule['notes'] ?? '',
+        'pen_notes': pen?['notes'] ?? '',
+        'created_at': schedule['created_at'] ?? '',
+        'updated_at': schedule['updated_at'] ?? '',
+      });
+    }
+
+    for (final pen in filteredPens) {
+      final penId = (pen['id'] ?? '').toString();
+      if (penId.isEmpty || penIdsWithSchedule.contains(penId)) continue;
+      rows.add({
+        'pen_id': penId,
+        'pen_name': pen['name'] ?? 'Sem nome',
+        'pen_number': pen['number'] ?? '',
+        'feed_type': '',
+        'quantity': 0.0,
+        'times_per_day': 0,
+        'feeding_times': '',
+        'schedule_notes': '',
+        'pen_notes': pen['notes'] ?? '',
+        'created_at': pen['created_at'] ?? '',
+        'updated_at': pen['updated_at'] ?? '',
+      });
+    }
+
+    rows.sort((a, b) {
+      final byPen = (a['pen_name'] ?? '').toString().compareTo(
+            (b['pen_name'] ?? '').toString(),
+          );
+      if (byPen != 0) return byPen;
+      return (a['feed_type'] ?? '').toString().compareTo(
+            (b['feed_type'] ?? '').toString(),
+          );
+    });
+
+    final totalQuantity = rows.fold<double>(
+      0.0,
+      (sum, row) => sum + _toDouble(row['quantity']),
+    );
+    final scheduledRows =
+        rows.where((row) => (row['feed_type'] ?? '').toString().isNotEmpty);
+    final scheduledCount = scheduledRows.length;
+    final avgQuantity = scheduledCount == 0 ? 0.0 : totalQuantity / scheduledCount;
+    final avgTimesPerDay = scheduledCount == 0
+        ? 0.0
+        : scheduledRows
+                .map((r) => (r['times_per_day'] as num?)?.toDouble() ?? 0.0)
+                .fold<double>(0.0, (acc, n) => acc + n) /
+            scheduledCount;
+    final feedTypes = scheduledRows
+        .map((row) => (row['feed_type'] ?? '').toString().trim())
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .length;
+
+    final summary = <String, dynamic>{
+      'total_pens': filteredPens.length,
+      'total_schedules': scheduledCount,
+      'pens_with_schedule': penIdsWithSchedule.length,
+      'feed_types': feedTypes,
+      'avg_quantity': avgQuantity,
+      'avg_times_per_day': avgTimesPerDay,
+    };
+
+    final map = <String, dynamic>{};
+    final paged = _paginate(rows, filters, map);
+
+    return {
+      'summary': summary,
+      'data': paged,
+      'total': map['total'] ?? rows.length,
+    };
+  }
+
+  // ==================== FARMÁCIA ====================
+  static Future<Map<String, dynamic>> getPharmacyReport(
+    ReportFilters filters, {
+    _ReportDb? db,
+  }) async {
+    final database = await _resolveDatabase(db);
+    final stock = await database.query(
+      'pharmacy_stock',
+      orderBy: 'medication_name COLLATE NOCASE',
+    );
+    final allMovements = await database.query(
+      'pharmacy_stock_movements',
+      orderBy: 'created_at DESC',
+    );
+    final periodMovements = _filterRowsByPeriod(
+      allMovements,
+      filters: filters,
+      dateKeys: const ['created_at'],
+      fallbackAllWhenEmpty: false,
+    );
+
+    final movementStatsByStock = <String, Map<String, dynamic>>{};
+    final latestMovementByStock = <String, DateTime>{};
+    double qtyInPeriod = 0.0;
+    double qtyOutPeriod = 0.0;
+
+    for (final movement in allMovements) {
+      final stockId = (movement['pharmacy_stock_id'] ?? '').toString();
+      if (stockId.isEmpty) continue;
+      final createdAt = _toDate(movement['created_at']);
+      if (createdAt == null) continue;
+      final currentLatest = latestMovementByStock[stockId];
+      if (currentLatest == null || createdAt.isAfter(currentLatest)) {
+        latestMovementByStock[stockId] = createdAt;
+      }
+    }
+
+    for (final movement in periodMovements) {
+      final stockId = (movement['pharmacy_stock_id'] ?? '').toString();
+      if (stockId.isEmpty) continue;
+      final stats = movementStatsByStock.putIfAbsent(
+        stockId,
+        () => {
+          'count': 0,
+          'in': 0.0,
+          'out': 0.0,
+        },
+      );
+
+      final quantity = _toDouble(movement['quantity']);
+      final type = _normText(movement['movement_type']);
+      if (type.contains('entrada')) {
+        stats['in'] = _toDouble(stats['in']) + quantity;
+        qtyInPeriod += quantity;
+      } else if (type.contains('saida') || type.contains('saída')) {
+        stats['out'] = _toDouble(stats['out']) + quantity;
+        qtyOutPeriod += quantity;
+      }
+      stats['count'] = (stats['count'] as int) + 1;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    int lowStockItems = 0;
+    int expiringItems = 0;
+    int expiredItems = 0;
+
+    final rows = <Map<String, dynamic>>[];
+    for (final item in stock) {
+      final stockId = (item['id'] ?? '').toString();
+      final totalQuantity = _toDouble(item['total_quantity']);
+      final minStock = _toDouble(item['min_stock_alert']);
+      final expiration = _toDate(item['expiration_date']);
+      final daysToExpire = expiration == null
+          ? null
+          : DateTime(expiration.year, expiration.month, expiration.day)
+              .difference(today)
+              .inDays;
+
+      final isLowStock = minStock > 0 && totalQuantity <= minStock;
+      final isExpired = daysToExpire != null && daysToExpire < 0;
+      final isExpiringSoon =
+          daysToExpire != null && daysToExpire >= 0 && daysToExpire <= 30;
+
+      if (isLowStock) lowStockItems++;
+      if (isExpired) expiredItems++;
+      if (isExpiringSoon) expiringItems++;
+
+      String stockStatus = 'OK';
+      if (isExpired) {
+        stockStatus = 'Vencido';
+      } else if (isLowStock) {
+        stockStatus = 'Baixo estoque';
+      } else if (isExpiringSoon) {
+        stockStatus = 'Vencendo';
+      }
+
+      final movementStats = movementStatsByStock[stockId] ?? const {};
+      final movementIn = _toDouble(movementStats['in']);
+      final movementOut = _toDouble(movementStats['out']);
+
+      rows.add({
+        'stock_id': stockId,
+        'medication_name': item['medication_name'] ?? '',
+        'medication_type': item['medication_type'] ?? '',
+        'unit_of_measure': item['unit_of_measure'] ?? '',
+        'total_quantity': totalQuantity,
+        'min_stock_alert': minStock,
+        'stock_status': stockStatus,
+        'expiration_date': item['expiration_date'] ?? '',
+        'days_to_expire': daysToExpire ?? '',
+        'is_opened': (item['is_opened'] as num?) == 1,
+        'opened_quantity': _toDouble(item['opened_quantity']),
+        'qty_in_period': movementIn,
+        'qty_out_period': movementOut,
+        'net_movement_period': movementIn - movementOut,
+        'movements_count_period': (movementStats['count'] as int?) ?? 0,
+        'last_movement_at':
+            latestMovementByStock[stockId]?.toIso8601String() ?? '',
+        'notes': item['notes'] ?? '',
+      });
+    }
+
+    rows.sort((a, b) => (a['medication_name'] ?? '')
+        .toString()
+        .compareTo((b['medication_name'] ?? '').toString()));
+
+    final totalStock = rows.fold<double>(
+      0.0,
+      (sum, row) => sum + _toDouble(row['total_quantity']),
+    );
+
+    final summary = <String, dynamic>{
+      'total_items': stock.length,
+      'total_stock': totalStock,
+      'low_stock_items': lowStockItems,
+      'expiring_30d': expiringItems,
+      'expired_items': expiredItems,
+      'movements_period': periodMovements.length,
+      'qty_in_period': qtyInPeriod,
+      'qty_out_period': qtyOutPeriod,
+      'net_movement_period': qtyInPeriod - qtyOutPeriod,
+    };
+
+    final map = <String, dynamic>{};
+    final paged = _paginate(rows, filters, map);
+    return {
+      'summary': summary,
+      'data': paged,
+      'total': map['total'] ?? rows.length,
+    };
+  }
+
   // ==================== REPRODUÇÃO ====================
   static Future<Map<String, dynamic>> getBreedingReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
 
@@ -480,7 +887,7 @@ class _ReportsQueries {
 
   // ==================== FINANCEIRO ====================
   static Future<List<Map<String, dynamic>>> _readFinancialRows(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) async {
     List<Map<String, dynamic>> rows = [];
@@ -490,12 +897,20 @@ class _ReportsQueries {
     Future<void> tryTable(String name) async {
       if (rows.isNotEmpty) return;
       try {
+        final clauses = <String>[
+          'DATE(COALESCE(paid_date, date, due_date, created_at, updated_at)) >= ?',
+          'DATE(COALESCE(paid_date, date, due_date, created_at, updated_at)) <= ?',
+        ];
+        final args = <dynamic>[startDate, endDate];
+        if (db.farmId != null) {
+          clauses.add('farm_id = ?');
+          args.add(db.farmId!);
+        }
         rows = await db.rawQuery('''
           SELECT *
           FROM $name
-          WHERE DATE(COALESCE(paid_date, date, due_date, created_at, updated_at)) >= ?
-            AND DATE(COALESCE(paid_date, date, due_date, created_at, updated_at)) <= ?
-        ''', [startDate, endDate]);
+          WHERE ${clauses.join(' AND ')}
+        ''', args);
       } catch (_) {
         try {
           rows = await db.query(name);
@@ -516,7 +931,7 @@ class _ReportsQueries {
   /// Período usa data efetiva: paid_date ?? date ?? due_date ?? created_at.
   static Future<Map<String, dynamic>> getFinancialReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     final animals = await _loadAnimals(database);
@@ -542,7 +957,7 @@ class _ReportsQueries {
   // ==================== ANOTAÇÕES ====================
   static Future<Map<String, dynamic>> getNotesReport(
     ReportFilters filters, {
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
 
@@ -582,7 +997,7 @@ class _ReportsQueries {
     required String reportType,
     required Map<String, dynamic> parameters,
     String generatedBy = 'Dashboard',
-    Database? db,
+    _ReportDb? db,
   }) async {
     final database = await _resolveDatabase(db);
     final normalizedType = _normalizeStoredReportType(reportType);
@@ -593,6 +1008,7 @@ class _ReportsQueries {
 
     await database.insert('reports', {
       'id': 'rep_${DateTime.now().millisecondsSinceEpoch}',
+      if (database.farmId != null) 'farm_id': database.farmId,
       'title': title,
       'report_type': normalizedType,
       'parameters': jsonEncode(paramsToStore),
@@ -603,7 +1019,7 @@ class _ReportsQueries {
 
   // ---------- Animals helpers ----------
   static Future<List<Animal>> _animalsWithinPeriod(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) async {
     final startDate = _yyyyMmDd(filters.startDate);
@@ -624,6 +1040,31 @@ class _ReportsQueries {
     return animals
         .where((a) => _animalMatchesReportFilters(a, filters))
         .toList();
+  }
+
+  static List<Map<String, dynamic>> _filterRowsByPeriod(
+    List<Map<String, dynamic>> rows, {
+    required ReportFilters filters,
+    required List<String> dateKeys,
+    required bool fallbackAllWhenEmpty,
+  }) {
+    DateTime? resolveDate(Map<String, dynamic> row) {
+      for (final key in dateKeys) {
+        final date = _toDate(row[key]);
+        if (date != null) return date;
+      }
+      return null;
+    }
+
+    final filtered = rows.where((row) {
+      final date = resolveDate(row);
+      return _between(date, filters.startDate, filters.endDate);
+    }).toList();
+
+    if (filtered.isEmpty && fallbackAllWhenEmpty) {
+      return List<Map<String, dynamic>>.from(rows);
+    }
+    return filtered;
   }
 
   static Map<String, dynamic> _buildAnimalSummary(List<Animal> animals) {
@@ -771,7 +1212,7 @@ class _ReportsQueries {
 
   // ---------- Vaccination / Medication helpers ----------
   static Future<List<Map<String, dynamic>>> _fetchVaccinationsWithAnimals(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) {
     final startDate = _yyyyMmDd(filters.startDate);
@@ -790,8 +1231,19 @@ class _ReportsQueries {
       clauses.add('v.vaccine_type = ?');
       args.add(filters.vaccineType);
     }
+    if (db.farmId != null) {
+      clauses.add('v.farm_id = ?');
+      args.add(db.farmId!);
+    }
 
     final where = clauses.join(' AND ');
+    final joinAnimals = db.farmId != null
+        ? 'LEFT JOIN animals a ON a.id = v.animal_id AND a.farm_id = ?'
+        : 'LEFT JOIN animals a ON a.id = v.animal_id';
+    final queryArgs = <dynamic>[
+      if (db.farmId != null) db.farmId!,
+      ...args,
+    ];
     return db.rawQuery('''
       SELECT 
         v.*,
@@ -805,14 +1257,14 @@ class _ReportsQueries {
         a.reproductive_status AS animal_reproductive_status,
         a.lote AS animal_lote
       FROM vaccinations v
-      LEFT JOIN animals a ON a.id = v.animal_id
+      $joinAnimals
       WHERE $where
       ORDER BY COALESCE(v.applied_date, v.scheduled_date) DESC
-    ''', args);
+    ''', queryArgs);
   }
 
   static Future<List<Map<String, dynamic>>> _fetchMedicationsWithAnimals(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) {
     const dateExpr =
@@ -831,8 +1283,19 @@ class _ReportsQueries {
       clauses.add('m.status = ?');
       args.add(filters.medicationStatus);
     }
+    if (db.farmId != null) {
+      clauses.add('m.farm_id = ?');
+      args.add(db.farmId!);
+    }
 
     final where = clauses.join(' AND ');
+    final joinAnimals = db.farmId != null
+        ? 'LEFT JOIN animals a ON a.id = m.animal_id AND a.farm_id = ?'
+        : 'LEFT JOIN animals a ON a.id = m.animal_id';
+    final queryArgs = <dynamic>[
+      if (db.farmId != null) db.farmId!,
+      ...args,
+    ];
     return db.rawQuery('''
       SELECT 
         m.*,
@@ -846,17 +1309,32 @@ class _ReportsQueries {
         a.reproductive_status AS animal_reproductive_status,
         a.lote AS animal_lote
       FROM medications m
-      LEFT JOIN animals a ON a.id = m.animal_id
+      $joinAnimals
       WHERE $where
       ORDER BY $dateExpr DESC
-    ''', args);
+    ''', queryArgs);
   }
 
   static Map<String, dynamic> _buildStatusSummary(
       List<Map<String, dynamic>> rows) {
-    final scheduled = rows.where((m) => m['status'] == 'Agendado').length;
-    final applied = rows.where((m) => m['status'] == 'Aplicado').length;
-    final cancelled = rows.where((m) => m['status'] == 'Cancelado').length;
+    bool isScheduled(dynamic status) {
+      final s = _normText(status);
+      return s == 'agendado' || s == 'agendada';
+    }
+
+    bool isApplied(dynamic status) {
+      final s = _normText(status);
+      return s == 'aplicado' || s == 'aplicada';
+    }
+
+    bool isCancelled(dynamic status) {
+      final s = _normText(status);
+      return s == 'cancelado' || s == 'cancelada';
+    }
+
+    final scheduled = rows.where((m) => isScheduled(m['status'])).length;
+    final applied = rows.where((m) => isApplied(m['status'])).length;
+    final cancelled = rows.where((m) => isCancelled(m['status'])).length;
 
     return {
       'total': rows.length,
@@ -909,7 +1387,7 @@ class _ReportsQueries {
 
   // ---------- Breeding helpers ----------
   static Future<List<Map<String, dynamic>>> _fetchBreedingRecords(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) async {
     final startDate = _yyyyMmDd(filters.startDate);
@@ -1108,7 +1586,7 @@ class _ReportsQueries {
         .where((row) => _rowAnimalMatchesReportFilters(
               row,
               filters,
-              includeStatus: false,
+              includeStatus: true,
             ))
         .toList();
     return result;
@@ -1168,7 +1646,7 @@ class _ReportsQueries {
 
   // ---------- Notes helpers ----------
   static Future<List<Map<String, dynamic>>> _fetchNotes(
-    Database db,
+    _ReportDb db,
     ReportFilters filters,
   ) async {
     final startDate = _yyyyMmDd(filters.startDate);
@@ -1238,43 +1716,99 @@ class _ReportsQueries {
 
 class ReportsRepository {
   final AppDatabase _appDatabase;
+  final AppDriftDatabase? _driftDb;
+  final String? Function()? _farmIdProvider;
+  final LegacySqfliteToDriftBridge? _legacyBridge;
 
-  ReportsRepository(this._appDatabase);
+  ReportsRepository(
+    AppDatabase appDatabase, {
+    AppDriftDatabase? driftDb,
+    String? Function()? farmIdProvider,
+  })  : _appDatabase = appDatabase,
+        _driftDb = driftDb,
+        _farmIdProvider = farmIdProvider,
+        _legacyBridge = driftDb == null
+            ? null
+            : LegacySqfliteToDriftBridge(
+                legacyDb: appDatabase,
+                driftDb: driftDb,
+              );
 
-  Database get _db => _appDatabase.db;
+  String? get _currentFarmId => _farmIdProvider?.call();
 
-  Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) =>
-      _ReportsQueries.getAnimalsReport(filters, db: _db);
+  Future<_ReportDb> _resolveReportDb() async {
+    final farmId = _currentFarmId;
+    if (farmId != null && _driftDb != null) {
+      await _legacyBridge?.migrateForFarm(farmId);
+      return _DriftReportDb(_driftDb, farmId);
+    }
+    return _SqfliteReportDb(_appDatabase.db);
+  }
 
-  Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) =>
-      _ReportsQueries.getWeightsReport(filters, db: _db);
+  Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getAnimalsReport(filters, db: db);
+  }
 
-  Future<Map<String, dynamic>> getVaccinationsReport(ReportFilters filters) =>
-      _ReportsQueries.getVaccinationsReport(filters, db: _db);
+  Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getWeightsReport(filters, db: db);
+  }
 
-  Future<Map<String, dynamic>> getMedicationsReport(ReportFilters filters) =>
-      _ReportsQueries.getMedicationsReport(filters, db: _db);
+  Future<Map<String, dynamic>> getVaccinationsReport(
+    ReportFilters filters,
+  ) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getVaccinationsReport(filters, db: db);
+  }
 
-  Future<Map<String, dynamic>> getBreedingReport(ReportFilters filters) =>
-      _ReportsQueries.getBreedingReport(filters, db: _db);
+  Future<Map<String, dynamic>> getMedicationsReport(
+    ReportFilters filters,
+  ) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getMedicationsReport(filters, db: db);
+  }
 
-  Future<Map<String, dynamic>> getFinancialReport(ReportFilters filters) =>
-      _ReportsQueries.getFinancialReport(filters, db: _db);
+  Future<Map<String, dynamic>> getFeedingReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getFeedingReport(filters, db: db);
+  }
 
-  Future<Map<String, dynamic>> getNotesReport(ReportFilters filters) =>
-      _ReportsQueries.getNotesReport(filters, db: _db);
+  Future<Map<String, dynamic>> getPharmacyReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getPharmacyReport(filters, db: db);
+  }
+
+  Future<Map<String, dynamic>> getBreedingReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getBreedingReport(filters, db: db);
+  }
+
+  Future<Map<String, dynamic>> getFinancialReport(
+    ReportFilters filters,
+  ) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getFinancialReport(filters, db: db);
+  }
+
+  Future<Map<String, dynamic>> getNotesReport(ReportFilters filters) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.getNotesReport(filters, db: db);
+  }
 
   Future<void> saveGeneratedReport({
     required String title,
     required String reportType,
     required Map<String, dynamic> parameters,
     String generatedBy = 'Dashboard',
-  }) =>
-      _ReportsQueries.saveGeneratedReport(
-        title: title,
-        reportType: reportType,
-        parameters: parameters,
-        generatedBy: generatedBy,
-        db: _db,
-      );
+  }) async {
+    final db = await _resolveReportDb();
+    return _ReportsQueries.saveGeneratedReport(
+      title: title,
+      reportType: reportType,
+      parameters: parameters,
+      generatedBy: generatedBy,
+      db: db,
+    );
+  }
 }

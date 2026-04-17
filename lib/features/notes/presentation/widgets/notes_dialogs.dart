@@ -5,10 +5,13 @@ import '../../../../utils/responsive_utils.dart';
 import 'notes_form.dart';
 import 'notes_helpers.dart';
 
-Future<bool?> showAddNoteDialog(BuildContext context) {
+Future<bool?> showAddNoteDialog(
+  BuildContext context, {
+  VoidCallback? onSaved,
+}) {
   return showDialog<bool>(
     context: context,
-    builder: (context) => const NotesFormDialog(),
+    builder: (context) => NotesFormDialog(onSaved: onSaved),
   );
 }
 

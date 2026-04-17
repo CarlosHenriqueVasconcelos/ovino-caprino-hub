@@ -4,14 +4,18 @@ import 'package:provider/provider.dart';
 
 import '../../../../models/financial_account.dart';
 import '../../../../services/financial_service.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
-import '../../../../shared/widgets/common/app_card.dart';
-import '../../../../shared/widgets/common/app_empty_state.dart';
-import '../../../../shared/widgets/common/section_header.dart';
-import '../../../../shared/widgets/common/status_chip.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_spacing.dart';
 import 'financial_form.dart';
+
+const _kBrand = Color(0xFF2F8F5B);
+const _kBrand50 = Color(0xFFE8F5EE);
+const _kSurface = Color(0xFFFBFBF8);
+const _kBorder = Color(0xFFE6E4DC);
+const _kText = Color(0xFF22313A);
+const _kText2 = Color(0xFF5A6E78);
+const _kText3 = Color(0xFF9AABB4);
+const _kErr = Color(0xFFC94A4A);
+const _kErr50 = Color(0xFFFAEAEA);
+const _kGold50 = Color(0xFFFBF4E6);
 
 class FinancialAccountsReceivable extends StatefulWidget {
   final VoidCallback? onUpdate;
@@ -159,21 +163,6 @@ class _FinancialAccountsReceivableState
     }
   }
 
-  StatusChipVariant _statusVariant(String status) {
-    switch (status) {
-      case 'Pago':
-        return StatusChipVariant.success;
-      case 'Vencido':
-        return StatusChipVariant.danger;
-      case 'Pendente':
-        return StatusChipVariant.warning;
-      case 'Cancelado':
-        return StatusChipVariant.neutral;
-      default:
-        return StatusChipVariant.info;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final loaderExtra = (isLoadingMore || hasMore) ? 1 : 0;
@@ -182,81 +171,83 @@ class _FinancialAccountsReceivableState
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
-            AppSpacing.xs,
-          ),
-          child: AppCard(
-            variant: AppCardVariant.soft,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kBorder.withValues(alpha: 0.95)),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SectionHeader(
-                  title: 'Contas a Receber',
-                  subtitle: 'Receitas previstas, vencidas e recebidas',
-                  action: Icon(Icons.arrow_upward, color: AppColors.success),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 760;
-                    final segments = SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'Todos', label: Text('Todos')),
-                          ButtonSegment(value: 'Pendente', label: Text('Pendente')),
-                          ButtonSegment(value: 'Pago', label: Text('Recebido')),
-                          ButtonSegment(value: 'Vencido', label: Text('Vencido')),
-                        ],
-                        selected: {filterStatus},
-                        onSelectionChanged: (Set<String> newSelection) {
-                          setState(() {
-                            filterStatus = newSelection.first;
-                          });
-                          _loadAccounts();
-                        },
+                const Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Contas a Receber',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _kText,
+                        ),
                       ),
-                    );
-
-                    final addButton = PrimaryButton(
-                      label: 'Adicionar',
-                      icon: Icons.add,
-                      fullWidth: isCompact,
-                      onPressed: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const FinancialFormScreen(type: 'receita'),
-                          ),
-                        );
-                        _loadAccounts();
-                        widget.onUpdate?.call();
-                      },
-                    );
-
-                    if (isCompact) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          segments,
-                          const SizedBox(height: AppSpacing.sm),
-                          addButton,
-                        ],
-                      );
-                    }
-
-                    return Row(
+                    ),
+                    Row(
                       children: [
-                        Expanded(child: segments),
-                        const SizedBox(width: AppSpacing.sm),
-                        addButton,
+                        Icon(Icons.arrow_upward, size: 14, color: _kBrand),
+                        SizedBox(width: 4),
+                        Text(
+                          'Receitas',
+                          style: TextStyle(
+                            color: _kBrand,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
-                    );
-                  },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('Todos'),
+                      _buildFilterChip('Pendente'),
+                      _buildFilterChip('Pago'),
+                      _buildFilterChip('Vencido'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const FinancialFormScreen(type: 'receita'),
+                        ),
+                      );
+                      _loadAccounts();
+                      widget.onUpdate?.call();
+                    },
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Nova receita'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _kBrand,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -266,22 +257,10 @@ class _FinancialAccountsReceivableState
           child: isLoading
               ? const Center(child: CircularProgressIndicator())
               : filteredAccounts.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(AppSpacing.md),
-                      child: AppEmptyState(
-                        title: 'Nenhuma receita encontrada',
-                        description: 'Cadastre uma receita para acompanhar entradas.',
-                        icon: Icons.savings_outlined,
-                      ),
-                    )
+                  ? _buildEmptyState()
                   : ListView.builder(
                       controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        0,
-                        AppSpacing.md,
-                        AppSpacing.md,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                       itemCount: itemCount,
                       itemBuilder: (context, index) {
                         if ((isLoadingMore || hasMore) &&
@@ -293,86 +272,99 @@ class _FinancialAccountsReceivableState
                         }
 
                         final account = filteredAccounts[index];
-                        return AppCard(
-                          margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          variant: AppCardVariant.elevated,
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(12),
                           onTap: () => _showAccountActions(account),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: AppColors.success.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_upward,
-                                  color: AppColors.success,
-                                  size: 18,
-                                ),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 7),
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              color: _kSurface,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _kBorder.withValues(alpha: 0.9),
                               ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _kText.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  decoration: BoxDecoration(
+                                    color: _kBrand50,
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.arrow_upward,
+                                    color: _kBrand,
+                                    size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        account.description ?? account.category,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: _kText,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Vencimento: ${_formatDate(account.dueDate)}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: _kText2,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Cliente: ${account.supplierCustomer?.trim().isNotEmpty == true ? account.supplierCustomer : 'não informado'}',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: _kText2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      _buildStatusBadge(account.status),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      account.description ?? account.category,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall
-                                          ?.copyWith(fontWeight: FontWeight.w700),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Vencimento: ${_formatDate(account.dueDate)}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(color: AppColors.textSecondary),
-                                    ),
-                                    if (account.supplierCustomer != null &&
-                                        account.supplierCustomer!.trim().isNotEmpty)
-                                      Text(
-                                        'Cliente: ${account.supplierCustomer}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(color: AppColors.textSecondary),
+                                      _formatCurrency(account.amount),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: _kBrand,
+                                        fontWeight: FontWeight.w700,
                                       ),
-                                    const SizedBox(height: AppSpacing.xxs),
-                                    StatusChip(
-                                      label: account.status,
-                                      variant: _statusVariant(account.status),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Icon(
+                                      Icons.more_horiz,
+                                      size: 18,
+                                      color: _kText3,
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    _formatCurrency(account.amount),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleSmall
-                                        ?.copyWith(
-                                          color: AppColors.success,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  const SizedBox(height: AppSpacing.xs),
-                                  const Icon(
-                                    Icons.more_horiz,
-                                    size: 18,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -382,12 +374,114 @@ class _FinancialAccountsReceivableState
     );
   }
 
+  Widget _buildFilterChip(String label) {
+    final selected = filterStatus == label;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () {
+          if (filterStatus == label) return;
+          setState(() {
+            filterStatus = label;
+          });
+          _loadAccounts();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            color: selected ? _kBrand : _kSurface,
+            border: Border.all(
+              color: selected ? _kBrand : _kBorder,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : _kText2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(String status) {
+    Color bg = const Color(0xFFF2F1ED);
+    Color fg = _kText2;
+
+    if (status == 'Pendente') {
+      bg = _kGold50;
+      fg = const Color(0xFF7A5C00);
+    } else if (status == 'Pago') {
+      bg = _kBrand50;
+      fg = _kBrand;
+    } else if (status == 'Vencido') {
+      bg = _kErr50;
+      fg = _kErr;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status == 'Pago' ? 'Recebido' : status,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kBorder.withValues(alpha: 0.95)),
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.savings_outlined, color: _kText3),
+            SizedBox(height: 8),
+            Text(
+              'Nenhuma receita encontrada',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: _kText,
+              ),
+            ),
+            SizedBox(height: 2),
+            Text(
+              'Cadastre uma receita para acompanhar entradas.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: _kText3),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAccountActions(FinancialAccount account) {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -24,6 +24,7 @@ class HerdRepository {
   Future<List<Animal>> getFilteredAnimals({
     bool includeSold = true,
     String? statusEquals,
+    String? genderEquals,
     String? nameColor,
     String? categoryEquals,
     String? searchQuery,
@@ -33,6 +34,7 @@ class HerdRepository {
     return _animalRepository.getFilteredAnimals(
       includeSold: includeSold,
       statusEquals: statusEquals,
+      genderEquals: genderEquals,
       nameColor: nameColor,
       categoryEquals: categoryEquals,
       searchQuery: searchQuery,

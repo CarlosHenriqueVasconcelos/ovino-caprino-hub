@@ -5,19 +5,30 @@ import 'package:provider/provider.dart';
 import '../../../../models/animal.dart';
 import '../../../../services/animal_service.dart';
 import '../../../../services/weight_service.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
-import '../../../../shared/widgets/common/app_card.dart';
-import '../../../../shared/widgets/common/app_empty_state.dart';
-import '../../../../shared/widgets/common/section_header.dart';
-import '../../../../shared/widgets/common/status_chip.dart';
+import '../../../../theme/app_colors.dart';
 import '../../../../theme/app_spacing.dart';
 import '../../../../utils/animal_record_display.dart';
 import 'weight_tracking_filters_bar.dart';
 import 'weight_tracking_pagination_bar.dart';
-import 'weight_tracking_table.dart';
+
+// ── Color palette (shared with screen) ───────────────────────────────────────
+
+const _kSurface = Color(0xFFFBFBF8);
+const _kSurface2 = Color(0xFFF2F1ED);
+const _kBorder = Color(0xFFE6E4DC);
+const _kText = Color(0xFF22313A);
+const _kText2 = Color(0xFF5A6E78);
+const _kText3 = Color(0xFF9AABB4);
+const _kGold = Color(0xFFD9B15F);
+const _kGoldBg = Color(0xFFFBF4E6);
 
 class AdultWeightTracking extends StatefulWidget {
-  const AdultWeightTracking({super.key});
+  final bool embedInParentScroll;
+
+  const AdultWeightTracking({
+    super.key,
+    this.embedInParentScroll = false,
+  });
 
   @override
   State<AdultWeightTracking> createState() => _AdultWeightTrackingState();
@@ -38,50 +49,18 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.md,
-      ),
-      child: Column(
-        children: [
-          const AppCard(
-            variant: AppCardVariant.soft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionHeader(
-                  title: 'Adultos e Reprodutores',
-                  subtitle:
-                      'Acompanhe pesagens mensais de animais não borregos por até 24 meses',
-                ),
-                SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: [
-                    StatusChip(
-                      label: 'Controle mensal',
-                      icon: Icons.calendar_month,
-                      variant: StatusChipVariant.info,
-                    ),
-                    StatusChip(
-                      label: 'Janela: 24 meses',
-                      icon: Icons.timeline,
-                      variant: StatusChipVariant.neutral,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          // Context card
+          _buildContextCard(),
+          const SizedBox(height: AppSpacing.xs),
+
+          // Search
           WeightTrackingFiltersBar(
             searchController: _searchController,
             searchLabel: 'Pesquisar animal',
-            searchHint: 'Digite o nome ou código do animal...',
+            searchHint: 'Digite o nome ou código...',
             onSearchChanged: (value) {
               setState(() {
                 _searchQuery = value.toLowerCase();
@@ -99,340 +78,379 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
             },
             dropdowns: const [],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
+
+          // List
           FutureBuilder<WeightTrackingResult>(
-            future: _future ??= context.read<AnimalService>().weightTrackingQuery(
-                  category: WeightCategoryFilter.nonLambs,
-                  searchQuery: _searchQuery,
-                  page: _currentPage,
-                  pageSize: _itemsPerPage,
-                ),
+            future: _future ??=
+                context.read<AnimalService>().weightTrackingQuery(
+                      category: WeightCategoryFilter.nonLambs,
+                      searchQuery: _searchQuery,
+                      page: _currentPage,
+                      pageSize: _itemsPerPage,
+                    ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const AppCard(
-                  variant: AppCardVariant.elevated,
+                return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: CircularProgressIndicator(),
                   ),
                 );
               }
 
               final result = snapshot.data;
-              final nonLambAnimals = result?.items ?? const <Animal>[];
+              final animals = result?.items ?? const <Animal>[];
               final total = result?.total ?? 0;
-              final totalPages = (total / _itemsPerPage).ceil().clamp(1, 9999);
+              final totalPages =
+                  (total / _itemsPerPage).ceil().clamp(1, 9999);
 
-              return AppCard(
-                variant: AppCardVariant.elevated,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SectionHeader(
-                      title: 'Registros de Adultos',
-                      subtitle: '$total ${total == 1 ? 'animal' : 'animais'}',
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Section header
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      bottom: AppSpacing.xs,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    WeightTrackingTable<Animal>(
-                      items: nonLambAnimals,
-                      mode: WeightTrackingTableMode.list,
-                      itemBuilder: (context, adult) => _buildAdultCard(context, adult),
-                      emptyState: _buildEmptyState(context),
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppSpacing.sm),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Registros de Adultos · $total',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _kText,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    WeightTrackingPaginationBar(
-                      currentPage: _currentPage,
-                      totalPages: totalPages,
-                      itemsPerPage: _itemsPerPage,
-                      onPageChanged: (page) {
-                        setState(() {
-                          _currentPage = page;
-                          _future = null;
-                        });
-                      },
+                  ),
+
+                  if (animals.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ...animals.map(
+                      (a) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                        child: _buildAdultCard(a),
+                      ),
                     ),
-                  ],
-                ),
+
+                  const SizedBox(height: AppSpacing.xs),
+                  WeightTrackingPaginationBar(
+                    currentPage: _currentPage,
+                    totalPages: totalPages,
+                    itemsPerPage: _itemsPerPage,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentPage = page;
+                        _future = null;
+                      });
+                    },
+                  ),
+                ],
               );
             },
+          ),
+      ],
+    );
+
+    if (widget.embedInParentScroll) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
+        child: content,
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      child: content,
+    );
+  }
+
+  // ── Context card ────────────────────────────────────────────────────────────
+
+  Widget _buildContextCard() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.20),
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Adultos e Reprodutores',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: _kText,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            'Pesagem mensal por até 24 meses',
+            style: TextStyle(fontSize: 8, color: _kText2, height: 1.4),
+          ),
+          SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            children: [
+              _CtxChip(label: 'Controle mensal', color: AppColors.primary),
+              _CtxChip(label: 'Janela: 24 meses', color: AppColors.primary),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return AppEmptyState(
-      title: 'Nenhum animal encontrado',
-      description: _searchQuery.isEmpty
-          ? 'Cadastre animais fora da categoria Borrego.'
-          : 'Tente outra pesquisa.',
-      icon: Icons.scale_outlined,
-      action: PrimaryButton(
-        label: 'Limpar busca',
-        icon: Icons.refresh,
-        onPressed: _searchQuery.isEmpty
-            ? null
-            : () {
-                setState(() {
-                  _searchController.clear();
-                  _searchQuery = '';
-                  _currentPage = 0;
-                  _future = null;
-                });
-              },
-      ),
-    );
-  }
+  // ── Adult card ──────────────────────────────────────────────────────────────
 
-  Widget _buildAdultCard(BuildContext context, Animal adult) {
-    final theme = Theme.of(context);
-    return AppCard(
-      variant: AppCardVariant.elevated,
-      padding: const EdgeInsets.all(AppSpacing.md),
+  Widget _buildAdultCard(Animal adult) {
+    final ageInMonths = DateTime.now()
+        .difference(adult.birthDate)
+        .inDays ~/
+        30;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder.withValues(alpha: 0.8)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header row
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: _kSurface2,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _kBorder.withValues(alpha: 0.6),
+                  ),
                 ),
-                child: Text(
-                  adult.speciesIcon,
-                  style: const TextStyle(fontSize: 24),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.pets,
+                  size: 14,
+                  color: _kText3,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildAnimalNameText(adult, theme),
+                    _buildAnimalName(adult),
+                    const SizedBox(height: 1),
                     Text(
-                      '${adult.breed} • ${adult.gender} • ${adult.category}',
-                      style: theme.textTheme.bodyMedium,
+                      '${adult.breed} · ${adult.gender} · ${adult.category}',
+                      style: const TextStyle(
+                        fontSize: 8,
+                        color: _kText2,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       'Peso atual: ${adult.weight.toStringAsFixed(1)} kg',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: _kText,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          _buildInitialMilestonesPanel(theme, adult),
-          const SizedBox(height: 16),
-
-          // Monthly Weight Control
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Controle de 24 Meses (2 Anos)',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+              GestureDetector(
+                onTap: () => _showMonthlyWeightDialog(adult),
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: _kSurface2,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    size: 10,
+                    color: _kText2,
                   ),
                 ),
-                const SizedBox(height: 16),
-                    FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _getMonthlyWeights(adult.id),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-
-                        final weights = snapshot.data!;
-                        final isMobile = MediaQuery.of(context).size.width < 600;
-                        final columns = isMobile ? 2 : 5;
-                        final rowsPerColumn = isMobile ? 12 : 5;
-                        
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: List.generate(columns, (colIndex) {
-                              return Container(
-                                width: isMobile ? 120 : null,
-                                padding: EdgeInsets.only(right: isMobile ? 8 : 0),
-                                child: Column(
-                                  children: List.generate(rowsPerColumn, (rowIndex) {
-                                    final monthIndex = colIndex * rowsPerColumn + rowIndex;
-                                    if (monthIndex >= 24) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return _buildMonthField(
-                                        theme, monthIndex + 1, weights);
-                                  }),
-                                ),
-                              );
-                            }),
-                          ),
-                        );
-                      },
-                    ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Register Button
-          SizedBox(
-            width: double.infinity,
-            child: PrimaryButton(
-              onPressed: () => _showMonthlyWeightDialog(adult),
-              fullWidth: true,
-              icon: Icons.add,
-              label: 'Registrar Pesagem Mensal',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInitialMilestonesPanel(ThemeData theme, Animal adult) {
-    final milestones = <({String label, double? weight})>[
-      (label: 'Nascimento', weight: adult.birthWeight),
-      (label: '30d', weight: adult.weight30Days),
-      (label: '60d', weight: adult.weight60Days),
-      (label: '90d', weight: adult.weight90Days),
-      (label: '120d', weight: adult.weight120Days),
-    ];
-    final hasAny = milestones.any((m) => (m.weight ?? 0) > 0);
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Marcos Iniciais (Histórico)',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (!hasAny)
-            Text(
-              'Nenhum marco inicial registrado.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
               ),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: milestones
-                  .map(
-                    (m) => _buildInitialMilestoneChip(
-                      theme,
-                      m.label,
-                      m.weight,
-                    ),
-                  )
-                  .toList(),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacing.xs),
+
+          // Month grid label
+          const Text(
+            'Controle 24 meses',
+            style: TextStyle(
+              fontSize: 8,
+              color: _kText3,
+              fontWeight: FontWeight.w500,
             ),
+          ),
+          const SizedBox(height: 4),
+
+          // Month grid (async)
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _getMonthlyWeights(adult.id),
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return const SizedBox(
+                  height: 40,
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                );
+              }
+              return _buildMonthGrid(snap.data!, ageInMonths, adult);
+            },
+          ),
+
+          // Legend
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              _LegendDot(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderColor: AppColors.primary.withValues(alpha: 0.30),
+                label: 'Registrado',
+              ),
+              const SizedBox(width: 8),
+              _LegendDot(
+                color: _kGoldBg,
+                borderColor: _kGold.withValues(alpha: 0.40),
+                label: 'Pendente',
+              ),
+              const SizedBox(width: 8),
+              _LegendDot(
+                color: _kSurface2,
+                borderColor: _kBorder.withValues(alpha: 0.5),
+                label: 'Futuro',
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInitialMilestoneChip(
-    ThemeData theme,
-    String label,
-    double? weight,
+  Widget _buildMonthGrid(
+    List<Map<String, dynamic>> weights,
+    int ageInMonths,
+    Animal animal,
   ) {
-    final hasValue = (weight ?? 0) > 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: hasValue
-            ? theme.colorScheme.primary.withValues(alpha: 0.12)
-            : theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        '$label: ${hasValue ? '${weight!.toStringAsFixed(1)} kg' : '—'}',
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-        ),
-      ),
+    const cols = 5;
+    const totalMonths = 24;
+    final rows = (totalMonths / cols).ceil();
+    final cycleAgeInMonths = ageInMonths <= 0 ? 0 : (((ageInMonths - 1) % 24) + 1);
+    final shouldResetCycleVisual = ageInMonths > 24 && _hasCompleteMonthlyCycle(weights);
+
+    return Column(
+      children: List.generate(rows, (row) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: List.generate(cols, (col) {
+              final month = row * cols + col + 1;
+              if (month > totalMonths) {
+                return const Expanded(child: SizedBox.shrink());
+              }
+              final hasWeight = shouldResetCycleVisual
+                  ? false
+                  : weights.any(
+                      (w) => w['milestone']?.toString() == 'monthly_$month',
+                    );
+              final isPending = !hasWeight && month <= cycleAgeInMonths;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: col < cols - 1 ? 3 : 0),
+                  child: _MonthCell(
+                    label: 'M$month',
+                    isDone: hasWeight,
+                    isPending: isPending,
+                    onTap: () => _showMonthlyWeightDialog(
+                      animal,
+                      presetMonth: month,
+                      resetCycleOnSave: shouldResetCycleVisual && month == 1,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      }),
     );
   }
 
-  Widget _buildMonthField(
-      ThemeData theme, int month, List<Map<String, dynamic>> weights) {
-    final monthWeight = weights.where((w) {
-      final milestone = w['milestone']?.toString();
-      return milestone == 'monthly_$month';
-    }).toList();
+  // ── Empty state ─────────────────────────────────────────────────────────────
 
-    final weight = monthWeight.isNotEmpty
-        ? (monthWeight.first['weight'] as num).toDouble()
-        : null;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+      alignment: Alignment.center,
+      child: Column(
         children: [
           Container(
             width: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+            height: 48,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
+              color: _kSurface2,
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Text(
-              'M$month',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.scale_outlined, size: 22, color: _kText3),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            weight != null
-                ? weight.toStringAsFixed(1)
-                : '—',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight:
-                  weight != null ? FontWeight.bold : FontWeight.normal,
-              color: weight != null
-                  ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            _searchQuery.isEmpty
+                ? 'Nenhum adulto cadastrado'
+                : 'Nenhum resultado para "$_searchQuery"',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _kText,
             ),
           ),
         ],
@@ -440,17 +458,55 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
     );
   }
 
-  Future<List<Map<String, dynamic>>> _getMonthlyWeights(String animalId) async {
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  Widget _buildAnimalName(Animal animal) {
+    final record = {
+      'animal_name': animal.name,
+      'animal_code': animal.code,
+      'animal_color': animal.nameColor,
+    };
+    final label = AnimalRecordDisplay.labelFromRecord(record);
+    final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: accent ?? AppColors.primary,
+        letterSpacing: -0.2,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _getMonthlyWeights(
+      String animalId) async {
     final weightService = Provider.of<WeightService>(context, listen: false);
     return await weightService.getMonthlyWeights(animalId);
   }
 
-  void _showMonthlyWeightDialog(Animal animal) async {
+  bool _hasCompleteMonthlyCycle(List<Map<String, dynamic>> weights) {
+    final completedMonths = weights
+        .where((w) => w['milestone']?.toString().startsWith('monthly_') ?? false)
+        .map((w) => int.tryParse(
+              (w['milestone']?.toString() ?? '').replaceFirst('monthly_', ''),
+            ))
+        .whereType<int>()
+        .toSet();
+    return completedMonths.length >= 24;
+  }
+
+  void _showMonthlyWeightDialog(
+    Animal animal, {
+    int? presetMonth,
+    bool resetCycleOnSave = false,
+  }) async {
     final weightController = TextEditingController();
     final weightService = Provider.of<WeightService>(context, listen: false);
     final animalService = Provider.of<AnimalService>(context, listen: false);
 
-    // Buscar pesos mensais existentes para determinar o próximo mês
     final existingWeights = await _getMonthlyWeights(animal.id);
     final existingMonths = existingWeights
         .where(
@@ -461,17 +517,20 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       return int.tryParse(monthStr) ?? 0;
     }).toList();
 
-    // Determinar próximo mês disponível
-    int? selectedMonth;
-    if (existingMonths.isEmpty) {
-      selectedMonth = 1; // Primeiro registro
-    } else {
-      existingMonths.sort();
-      final lastMonth = existingMonths.last;
-      if (lastMonth < 24) {
-        selectedMonth = lastMonth + 1; // Próximo mês
+    int? selectedMonth = presetMonth;
+    var shouldResetCycle = resetCycleOnSave;
+    if (selectedMonth == null) {
+      if (existingMonths.isEmpty) {
+        selectedMonth = 1;
       } else {
-        selectedMonth = null; // Todos os 24 meses já foram registrados
+        existingMonths.sort();
+        final lastMonth = existingMonths.last;
+        if (lastMonth < 24) {
+          selectedMonth = lastMonth + 1;
+        } else {
+          selectedMonth = 1;
+          shouldResetCycle = true;
+        }
       }
     }
 
@@ -484,8 +543,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
           title: Text('Registrar Pesagem Mensal - ${animal.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<int>(
+            children: [
+              DropdownButtonFormField<int>(
                 initialValue: selectedMonth,
                 decoration: const InputDecoration(
                   labelText: 'Selecione o mês',
@@ -497,11 +556,8 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                     child: Text('Mês $month'),
                   );
                 }).toList(),
-                onChanged: (value) {
-                  setDialogState(() {
-                    selectedMonth = value;
-                  });
-                },
+                onChanged: (value) =>
+                    setDialogState(() => selectedMonth = value),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -528,16 +584,16 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                 if (selectedMonth == null || weightController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Preencha todos os campos'),
-                    ),
+                        content: Text('Preencha todos os campos')),
                   );
                   return;
                 }
-
                 final weight = double.tryParse(weightController.text);
                 if (weight == null) return;
-
                 try {
+                  if (shouldResetCycle && selectedMonth == 1) {
+                    await weightService.resetMonthlyCycle(animal.id);
+                  }
                   await weightService.addWeight(
                     animal.id,
                     DateTime.now(),
@@ -550,15 +606,13 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
                       updatedAt: DateTime.now(),
                     ),
                   );
-
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Pesagem registrada com sucesso!'),
-                      ),
+                          content: Text('Pesagem registrada com sucesso!')),
                     );
-                    setState(() {}); // Refresh the list
+                    setState(() => _future = null);
                   }
                 } catch (e) {
                   if (context.mounted) {
@@ -575,22 +629,132 @@ class _AdultWeightTrackingState extends State<AdultWeightTracking> {
       ),
     );
   }
+}
 
-  Widget _buildAnimalNameText(Animal animal, ThemeData theme) {
-    final record = {
-      'animal_name': animal.name,
-      'animal_code': animal.code,
-      'animal_color': animal.nameColor,
-    };
-    final label = AnimalRecordDisplay.labelFromRecord(record);
-    final accent = AnimalRecordDisplay.colorFromDescriptor(animal.nameColor);
+// ── Month cell ────────────────────────────────────────────────────────────────
 
-    return Text(
-      label,
-      style: theme.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: accent ?? theme.colorScheme.onSurface,
+class _MonthCell extends StatelessWidget {
+  final String label;
+  final bool isDone;
+  final bool isPending;
+  final VoidCallback? onTap;
+
+  const _MonthCell({
+    required this.label,
+    required this.isDone,
+    required this.isPending,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg;
+    final Color textColor;
+    final Color borderColor;
+
+    if (isDone) {
+      bg = AppColors.primary.withValues(alpha: 0.12);
+      textColor = AppColors.primary;
+      borderColor = AppColors.primary.withValues(alpha: 0.30);
+    } else if (isPending) {
+      bg = _kGoldBg;
+      textColor = const Color(0xFF7A5C00);
+      borderColor = _kGold.withValues(alpha: 0.40);
+    } else {
+      bg = _kSurface2;
+      textColor = _kText3;
+      borderColor = _kBorder.withValues(alpha: 0.5);
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: borderColor),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 7,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
+          ),
+        ),
       ),
+    );
+  }
+}
+
+// ── Context chip ──────────────────────────────────────────────────────────────
+
+class _CtxChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _CtxChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Legend dot ────────────────────────────────────────────────────────────────
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final Color borderColor;
+  final String label;
+
+  const _LegendDot({
+    required this.color,
+    required this.borderColor,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+            border: Border.all(color: borderColor),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 7, color: _kText3),
+        ),
+      ],
     );
   }
 }

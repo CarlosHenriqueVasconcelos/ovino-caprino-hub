@@ -82,11 +82,11 @@ class AnimalService extends ChangeNotifier {
   Future<void> loadData() async {
     _setLoading(true);
     try {
-      // Estatísticas
-      await _scheduleStatsRefresh(immediate: true);
-
-      // Atualiza o painel de alertas (Vacinas + Medicações + Pesagens)
-      await refreshAlerts(immediate: true);
+      // Estatísticas e alertas em paralelo — antes eram sequenciais
+      await Future.wait([
+        _scheduleStatsRefresh(immediate: true),
+        refreshAlerts(immediate: true),
+      ]);
     } catch (e) {
       debugPrint('Error loading data: $e');
     } finally {
@@ -119,6 +119,34 @@ class AnimalService extends ChangeNotifier {
       _animalCacheById[id] = fromDb;
     }
     return fromDb;
+  }
+
+  /// Busca múltiplos animais com uma única query (substitui N chamadas a getAnimalById).
+  /// Retorna Map<id, Animal> — IDs não encontrados são omitidos.
+  Future<Map<String, Animal>> getAnimalsByIds(List<String> ids) async {
+    if (ids.isEmpty) return const {};
+
+    // Separa os que já estão no cache dos que precisam ir ao banco
+    final result = <String, Animal>{};
+    final missing = <String>[];
+    for (final id in ids) {
+      final cached = _animalCacheById[id];
+      if (cached != null) {
+        result[id] = cached;
+      } else {
+        missing.add(id);
+      }
+    }
+
+    if (missing.isNotEmpty) {
+      final fromDb = await _animalRepository.getAnimalsByIds(missing);
+      for (final a in fromDb) {
+        _animalCacheById[a.id] = a;
+        result[a.id] = a;
+      }
+    }
+
+    return result;
   }
 
   // ----------------- CRUD: Animal -----------------

@@ -1,59 +1,95 @@
-import 'package:sqflite_common/sqlite_api.dart' show ConflictAlgorithm;
+import 'package:drift/drift.dart' show Variable;
 
-import '../../../data/local_db.dart';
+import '../../../data/drift/app_database.dart';
 import '../../../models/matrix_candidate_ranking.dart';
 import '../../../models/matrix_evaluation.dart';
 
 class MatrixEvaluationRepository {
-  final AppDatabase _db;
+  final AppDriftDatabase _db;
+  final String? Function()? _farmIdProvider;
 
-  MatrixEvaluationRepository(this._db);
+  MatrixEvaluationRepository(this._db, {String? Function()? farmIdProvider})
+      : _farmIdProvider = farmIdProvider;
+
+  String? get _farmId => _farmIdProvider?.call();
+
+  // ── Escrita ────────────────────────────────────────────────────────────────
 
   Future<void> upsertEvaluation(MatrixEvaluation evaluation) async {
     final nowIso = DateTime.now().toIso8601String();
-    final row = Map<String, dynamic>.from(evaluation.toMap());
-    final id = row['id']?.toString().trim() ?? '';
-
+    final row = evaluation.toMap();
+    final id = (row['id']?.toString().trim() ?? '');
     row['id'] = id.isEmpty ? _newId() : id;
     row['created_at'] ??= nowIso;
     row['updated_at'] = nowIso;
+    // farm_id obrigatório no Drift (FK via sync)
+    row['farm_id'] = _farmId;
 
-    await _db.db.insert(
-      'matrix_evaluations',
-      row,
-      conflictAlgorithm: ConflictAlgorithm.replace,
+    final cols = row.keys.toList();
+    final vals = row.values.toList();
+    final placeholders = cols.map((_) => '?').join(',');
+
+    await _db.customStatement(
+      'INSERT OR REPLACE INTO matrix_evaluations (${cols.join(',')}) '
+      'VALUES ($placeholders)',
+      vals,
     );
   }
 
   Future<void> deleteEvaluation(String id) async {
-    await _db.db.delete(
-      'matrix_evaluations',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final farmId = _farmId;
+    if (farmId != null) {
+      await _db.customStatement(
+        'DELETE FROM matrix_evaluations WHERE id = ? AND farm_id = ?',
+        [id, farmId],
+      );
+    } else {
+      await _db.customStatement(
+        'DELETE FROM matrix_evaluations WHERE id = ?',
+        [id],
+      );
+    }
   }
 
+  // ── Leitura ────────────────────────────────────────────────────────────────
+
   Future<MatrixEvaluation?> getById(String id) async {
-    final rows = await _db.db.query(
-      'matrix_evaluations',
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
+    final farmId = _farmId;
+    final rows = farmId != null
+        ? await _db.customSelect(
+            'SELECT * FROM matrix_evaluations WHERE id = ? AND farm_id = ? LIMIT 1',
+            variables: [Variable.withString(id), Variable.withString(farmId)],
+          ).get()
+        : await _db.customSelect(
+            'SELECT * FROM matrix_evaluations WHERE id = ? LIMIT 1',
+            variables: [Variable.withString(id)],
+          ).get();
     if (rows.isEmpty) return null;
-    return MatrixEvaluation.fromMap(Map<String, dynamic>.from(rows.first));
+    return MatrixEvaluation.fromMap(rows.first.data);
   }
 
   Future<MatrixEvaluation?> getLatestEvaluationByAnimal(String animalId) async {
-    final rows = await _db.db.query(
-      'matrix_evaluations',
-      where: 'animal_id = ?',
-      whereArgs: [animalId],
-      orderBy: 'evaluation_date DESC, updated_at DESC',
-      limit: 1,
-    );
+    final farmId = _farmId;
+    final rows = farmId != null
+        ? await _db.customSelect(
+            'SELECT * FROM matrix_evaluations '
+            'WHERE animal_id = ? AND farm_id = ? '
+            'ORDER BY evaluation_date DESC, updated_at DESC '
+            'LIMIT 1',
+            variables: [
+              Variable.withString(animalId),
+              Variable.withString(farmId),
+            ],
+          ).get()
+        : await _db.customSelect(
+            'SELECT * FROM matrix_evaluations '
+            'WHERE animal_id = ? '
+            'ORDER BY evaluation_date DESC, updated_at DESC '
+            'LIMIT 1',
+            variables: [Variable.withString(animalId)],
+          ).get();
     if (rows.isEmpty) return null;
-    return MatrixEvaluation.fromMap(Map<String, dynamic>.from(rows.first));
+    return MatrixEvaluation.fromMap(rows.first.data);
   }
 
   Future<List<MatrixEvaluation>> getEvaluationsByAnimal(
@@ -61,17 +97,32 @@ class MatrixEvaluationRepository {
     int limit = 30,
     int offset = 0,
   }) async {
-    final rows = await _db.db.query(
-      'matrix_evaluations',
-      where: 'animal_id = ?',
-      whereArgs: [animalId],
-      orderBy: 'evaluation_date DESC, updated_at DESC',
-      limit: limit,
-      offset: offset,
-    );
-    return rows
-        .map((m) => MatrixEvaluation.fromMap(Map<String, dynamic>.from(m)))
-        .toList();
+    final farmId = _farmId;
+    final rows = farmId != null
+        ? await _db.customSelect(
+            'SELECT * FROM matrix_evaluations '
+            'WHERE animal_id = ? AND farm_id = ? '
+            'ORDER BY evaluation_date DESC, updated_at DESC '
+            'LIMIT ? OFFSET ?',
+            variables: [
+              Variable.withString(animalId),
+              Variable.withString(farmId),
+              Variable.withInt(limit),
+              Variable.withInt(offset),
+            ],
+          ).get()
+        : await _db.customSelect(
+            'SELECT * FROM matrix_evaluations '
+            'WHERE animal_id = ? '
+            'ORDER BY evaluation_date DESC, updated_at DESC '
+            'LIMIT ? OFFSET ?',
+            variables: [
+              Variable.withString(animalId),
+              Variable.withInt(limit),
+              Variable.withInt(offset),
+            ],
+          ).get();
+    return rows.map((r) => MatrixEvaluation.fromMap(r.data)).toList();
   }
 
   Future<List<MatrixCandidateRanking>> getLatestRanking({
@@ -84,12 +135,14 @@ class MatrixEvaluationRepository {
     int limit = 100,
     int offset = 0,
   }) async {
+    final farmId = _farmId;
     final where = <String>[
       '''
       me.id = (
         SELECT me2.id
         FROM matrix_evaluations me2
         WHERE me2.animal_id = me.animal_id
+          AND me2.farm_id IS me.farm_id
         ORDER BY me2.evaluation_date DESC, me2.updated_at DESC
         LIMIT 1
       )
@@ -97,6 +150,10 @@ class MatrixEvaluationRepository {
     ];
     final args = <dynamic>[];
 
+    if (farmId != null) {
+      where.add('me.farm_id = ?');
+      args.add(farmId);
+    }
     if (onlyFemales) {
       where.add("LOWER(a.gender) = 'fêmea'");
     }
@@ -121,7 +178,7 @@ class MatrixEvaluationRepository {
       args.add(minScore);
     }
 
-    final rows = await _db.db.rawQuery(
+    final rows = await _db.customSelect(
       '''
       SELECT
         me.animal_id AS animal_id,
@@ -147,16 +204,26 @@ class MatrixEvaluationRepository {
         a.lote AS animal_lote,
         a.name_color AS animal_name_color
       FROM matrix_evaluations me
-      INNER JOIN animals a ON a.id = me.animal_id
+      INNER JOIN animals a ON a.id = me.animal_id AND a.farm_id IS me.farm_id
       WHERE ${where.join(' AND ')}
       ORDER BY me.final_score DESC, me.evaluation_date DESC
       LIMIT ? OFFSET ?
       ''',
-      [...args, limit, offset],
-    );
+      variables: [
+        for (final a in args)
+          if (a is int)
+            Variable.withInt(a)
+          else if (a is double)
+            Variable.withReal(a)
+          else
+            Variable.withString(a.toString()),
+        Variable.withInt(limit),
+        Variable.withInt(offset),
+      ],
+    ).get();
 
     return rows
-        .map((m) => MatrixCandidateRanking.fromMap(Map<String, dynamic>.from(m)))
+        .map((r) => MatrixCandidateRanking.fromMap(r.data))
         .toList();
   }
 

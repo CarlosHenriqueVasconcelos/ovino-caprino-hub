@@ -11,12 +11,14 @@ class MatrixEvaluationFormDialog extends StatefulWidget {
   final MatrixEvaluation? initialEvaluation;
   final String? initialAnimalId;
   final bool lockAnimalSelection;
+  final Future<void> Function()? onSaved;
 
   const MatrixEvaluationFormDialog({
     super.key,
     this.initialEvaluation,
     this.initialAnimalId,
     this.lockAnimalSelection = false,
+    this.onSaved,
   });
 
   @override
@@ -165,8 +167,9 @@ class _MatrixEvaluationFormDialogState extends State<MatrixEvaluationFormDialog>
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedAnimal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione uma fêmea para avaliar.')),
+      await _showFormMessage(
+        'Selecione uma fêmea para avaliar.',
+        isError: true,
       );
       return;
     }
@@ -180,22 +183,18 @@ class _MatrixEvaluationFormDialogState extends State<MatrixEvaluationFormDialog>
 
     if ([fertility, maternal, lactation, dentition].any((v) => v == null) ||
         bodyCondition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Preencha corretamente os campos: scores 0-10 e escore corporal 1-5.',
-          ),
-        ),
+      await _showFormMessage(
+        'Preencha corretamente os campos: scores 0-10 e escore corporal 1-5.',
+        isError: true,
       );
       return;
     }
     if (lambingWeight != null &&
         weaningWeight != null &&
         weaningWeight < lambingWeight) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Peso na desmama não pode ser menor que peso ao parir.'),
-        ),
+      await _showFormMessage(
+        'Peso na desmama não pode ser menor que peso ao parir.',
+        isError: true,
       );
       return;
     }
@@ -223,15 +222,37 @@ class _MatrixEvaluationFormDialogState extends State<MatrixEvaluationFormDialog>
       );
 
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      await widget.onSaved?.call();
+      await _showFormMessage('Avaliação salva com sucesso.');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar avaliação: $e')),
+      await _showFormMessage(
+        'Erro ao salvar avaliação: $e',
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAnimalSelector(List<Animal> animals) {

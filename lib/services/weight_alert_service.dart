@@ -27,7 +27,10 @@ class WeightAlertService extends ChangeNotifier {
 
   /// Cria alertas de pesagem para borregos (30, 60, 90, 120 dias após nascimento)
   Future<void> createLambWeightAlerts(Animal animal) async {
-    if (!animal.category.toLowerCase().contains('borrego')) return;
+    final category = animal.category.toLowerCase();
+    if (!(category.contains('borrego') || category.contains('borrega'))) {
+      return;
+    }
 
     final birthDate = animal.birthDate;
     final animalId = animal.id;

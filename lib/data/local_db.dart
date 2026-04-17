@@ -37,16 +37,80 @@ class AppDatabase {
     final db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        // Base sem migrações incrementais: schema único e completo no onCreate.
         version: 1,
         onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON;'),
+        // _createAll só roda na criação do banco — nunca a cada abertura.
+        // Para adicionar colunas/índices em versões futuras use onUpgrade.
         onCreate: (db, v) async => _createAll(db),
+        onUpgrade: (db, oldVersion, newVersion) async {
+          // Reservado para migrações futuras (v2, v3…)
+          // Exemplo: if (oldVersion < 2) { await db.execute('ALTER TABLE…'); }
+        },
       ),
     );
     return AppDatabase(db);
   }
 
   static Future<String> dbPath() => _resolveDbPath();
+
+  /// Garante que tabelas/índices/triggers existam em bases antigas.
+  Future<void> ensureSchema() async {
+    await _createAll(db);
+    await _ensureFarmIdIndices(db);
+  }
+
+  /// Cria índices compostos com farm_id após a coluna ser adicionada pelo Drift.
+  /// Usa try/catch individual para não falhar se a coluna ainda não existir.
+  static Future<void> _ensureFarmIdIndices(Database db) async {
+    final indices = <String, String>{
+      // animals — cobertura para as queries mais frequentes
+      'idx_animals_farm_id':            'animals(farm_id)',
+      'idx_animals_farm_status':        'animals(farm_id, status)',
+      'idx_animals_farm_species':       'animals(farm_id, species)',
+      'idx_animals_farm_category':      'animals(farm_id, category)',
+      'idx_animals_farm_gender':        'animals(farm_id, gender)',
+      'idx_animals_farm_updated_at':    'animals(farm_id, updated_at)',
+      // animal_weights
+      'idx_animal_weights_farm_id':     'animal_weights(farm_id)',
+      'idx_animal_weights_farm_upd':    'animal_weights(farm_id, updated_at)',
+      // breeding_records
+      'idx_breeding_farm_id':           'breeding_records(farm_id)',
+      'idx_breeding_farm_updated_at':   'breeding_records(farm_id, updated_at)',
+      // medications
+      'idx_medications_farm_id':        'medications(farm_id)',
+      'idx_medications_farm_updated_at':'medications(farm_id, updated_at)',
+      // vaccinations
+      'idx_vaccinations_farm_id':       'vaccinations(farm_id)',
+      'idx_vaccinations_farm_updated_at':'vaccinations(farm_id, updated_at)',
+      // notes
+      'idx_notes_farm_id':              'notes(farm_id)',
+      'idx_notes_farm_updated_at':      'notes(farm_id, updated_at)',
+      // financial_records
+      'idx_finrec_farm_id':             'financial_records(farm_id)',
+      'idx_finrec_farm_updated_at':     'financial_records(farm_id, updated_at)',
+      // financial_accounts
+      'idx_finacc_farm_id':             'financial_accounts(farm_id)',
+      'idx_finacc_farm_updated_at':     'financial_accounts(farm_id, updated_at)',
+      // sold_animals
+      'idx_sold_farm_id':               'sold_animals(farm_id)',
+      'idx_sold_farm_updated_at':       'sold_animals(farm_id, updated_at)',
+      // deceased_animals
+      'idx_deceased_farm_id':           'deceased_animals(farm_id)',
+      'idx_deceased_farm_updated_at':   'deceased_animals(farm_id, updated_at)',
+      // weight_alerts
+      'idx_weight_alerts_farm_id':      'weight_alerts(farm_id)',
+    };
+
+    for (final entry in indices.entries) {
+      try {
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS ${entry.key} ON ${entry.value};',
+        );
+      } catch (_) {
+        // farm_id ainda não existe nesta tabela — será criado pelo Drift na próxima inicialização.
+      }
+    }
+  }
 
   /// Criação do schema 1:1 com o Supabase (tipos mapeados p/ SQLite),
   /// já **sem** budgets, cost_centers e cost_center_id.
@@ -774,7 +838,9 @@ class AppDatabase {
         FOR EACH ROW
         WHEN NEW.updated_at = OLD.updated_at
         BEGIN
-          UPDATE $table SET updated_at = datetime('now') WHERE id = OLD.id;
+          UPDATE $table
+          SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE id = OLD.id;
         END;
       ''');
     }

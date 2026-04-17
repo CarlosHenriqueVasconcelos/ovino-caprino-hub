@@ -7,8 +7,9 @@ import '../../../../utils/responsive_utils.dart';
 
 class PharmacyStockForm extends StatefulWidget {
   final PharmacyStock? stock;
+  final Future<void> Function()? onSaved;
 
-  const PharmacyStockForm({super.key, this.stock});
+  const PharmacyStockForm({super.key, this.stock, this.onSaved});
 
   @override
   State<PharmacyStockForm> createState() => _PharmacyStockFormState();
@@ -97,8 +98,10 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         medicationType: _selectedType,
         unitOfMeasure: _selectedUnit,
         quantityPerUnit: quantityPerUnitValue,
-        totalQuantity:
-            double.parse(_totalQuantityController.text.replaceAll(',', '.')),
+        totalQuantity: double.tryParse(
+              _totalQuantityController.text.replaceAll(',', '.'),
+            ) ??
+            (throw const FormatException('Quantidade total inválida.')),
         minStockAlert: _minStockController.text.isEmpty
             ? null
             : double.tryParse(_minStockController.text.replaceAll(',', '.')),
@@ -116,23 +119,18 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
       }
 
       if (mounted) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.stock == null
-                ? 'Medicamento cadastrado com sucesso!'
-                : 'Medicamento atualizado com sucesso!'),
-            backgroundColor: Colors.green,
-          ),
+        await widget.onSaved?.call();
+        await _showFormMessage(
+          widget.stock == null
+              ? 'Medicamento cadastrado com sucesso!'
+              : 'Medicamento atualizado com sucesso!',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
-          ),
+        await _showFormMessage(
+          'Erro ao salvar: $e',
+          isError: true,
         );
       }
     } finally {
@@ -140,6 +138,26 @@ class _PharmacyStockFormState extends State<PharmacyStockForm> {
         setState(() => _isSaving = false);
       }
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

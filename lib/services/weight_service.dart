@@ -51,4 +51,9 @@ class WeightService extends ChangeNotifier {
   ) async {
     return await _repository.getWeightRecord(animalId, milestone);
   }
+
+  Future<void> resetMonthlyCycle(String animalId) async {
+    await _repository.clearMonthlyWeights(animalId);
+    notifyListeners();
+  }
 }

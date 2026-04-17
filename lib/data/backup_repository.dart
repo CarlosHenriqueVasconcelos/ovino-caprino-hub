@@ -1,23 +1,41 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:sqflite_common/sqlite_api.dart'
     show ConflictAlgorithm, Database, DatabaseExecutor;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/legacy_sqflite_to_drift_bridge.dart';
+import 'drift/app_database.dart';
 import 'local_db.dart';
 
 typedef Progress = void Function(String step);
 
 class BackupRepository {
   final AppDatabase _appDb;
+  final AppDriftDatabase? _driftDb;
+  final String? Function()? _farmIdProvider;
+  final LegacySqfliteToDriftBridge? _legacyBridge;
   final SupabaseClient _client;
 
   BackupRepository({
     required AppDatabase database,
     required SupabaseClient client,
+    AppDriftDatabase? driftDb,
+    String? Function()? farmIdProvider,
   })  : _appDb = database,
+        _driftDb = driftDb,
+        _farmIdProvider = farmIdProvider,
+        _legacyBridge = driftDb == null
+            ? null
+            : LegacySqfliteToDriftBridge(
+                legacyDb: database,
+                driftDb: driftDb,
+              ),
         _client = client;
+
+  String? get _currentFarmId => _farmIdProvider?.call();
 
   static const List<String> _pushOrder = [
     'animals',
@@ -42,6 +60,29 @@ class BackupRepository {
     'reports',
     'push_tokens',
   ];
+
+  static const Set<String> _farmScopedTables = {
+    'animals',
+    'sold_animals',
+    'deceased_animals',
+    'feeding_pens',
+    'feeding_schedules',
+    'app_settings',
+    'animal_lineage_meta',
+    'animal_lineage',
+    'financial_accounts',
+    'financial_records',
+    'notes',
+    'matrix_evaluations',
+    'pharmacy_stock',
+    'pharmacy_stock_movements',
+    'vaccinations',
+    'medications',
+    'animal_weights',
+    'breeding_records',
+    'weight_alerts',
+    'reports',
+  };
 
   static const List<String> _deleteChildFirst = [
     'pharmacy_stock_movements',
@@ -95,6 +136,7 @@ class BackupRepository {
   static final Map<String, Set<String>> _cols = {
     'animals': {
       'id',
+      'farm_id',
       'code',
       'name',
       'species',
@@ -126,6 +168,7 @@ class BackupRepository {
     },
     'animal_weights': {
       'id',
+      'farm_id',
       'animal_id',
       'date',
       'weight',
@@ -135,6 +178,7 @@ class BackupRepository {
     },
     'weight_alerts': {
       'id',
+      'farm_id',
       'animal_id',
       'alert_type',
       'due_date',
@@ -144,6 +188,7 @@ class BackupRepository {
     },
     'breeding_records': {
       'id',
+      'farm_id',
       'female_animal_id',
       'male_animal_id',
       'breeding_date',
@@ -162,6 +207,7 @@ class BackupRepository {
     },
     'feeding_pens': {
       'id',
+      'farm_id',
       'name',
       'number',
       'notes',
@@ -170,6 +216,7 @@ class BackupRepository {
     },
     'feeding_schedules': {
       'id',
+      'farm_id',
       'pen_id',
       'feed_type',
       'quantity',
@@ -181,6 +228,7 @@ class BackupRepository {
     },
     'financial_accounts': {
       'id',
+      'farm_id',
       'type',
       'category',
       'description',
@@ -203,6 +251,7 @@ class BackupRepository {
     },
     'financial_records': {
       'id',
+      'farm_id',
       'type',
       'category',
       'description',
@@ -214,6 +263,7 @@ class BackupRepository {
     },
     'medications': {
       'id',
+      'farm_id',
       'animal_id',
       'medication_name',
       'date',
@@ -230,6 +280,7 @@ class BackupRepository {
     },
     'notes': {
       'id',
+      'farm_id',
       'animal_id',
       'title',
       'content',
@@ -243,6 +294,7 @@ class BackupRepository {
     },
     'matrix_evaluations': {
       'id',
+      'farm_id',
       'animal_id',
       'evaluation_date',
       'fertility_score',
@@ -274,6 +326,7 @@ class BackupRepository {
     },
     'reports': {
       'id',
+      'farm_id',
       'title',
       'report_type',
       'parameters',
@@ -282,6 +335,7 @@ class BackupRepository {
     },
     'sold_animals': {
       'id',
+      'farm_id',
       'original_animal_id',
       'code',
       'name',
@@ -313,6 +367,7 @@ class BackupRepository {
     },
     'deceased_animals': {
       'id',
+      'farm_id',
       'original_animal_id',
       'code',
       'name',
@@ -342,11 +397,13 @@ class BackupRepository {
       'updated_at',
     },
     'app_settings': {
+      'farm_id',
       'setting_key',
       'setting_value',
       'updated_at',
     },
     'animal_lineage': {
+      'farm_id',
       'descendant_id',
       'ancestor_id',
       'depth',
@@ -355,12 +412,14 @@ class BackupRepository {
       'updated_at',
     },
     'animal_lineage_meta': {
+      'farm_id',
       'meta_key',
       'meta_value',
       'updated_at',
     },
     'vaccinations': {
       'id',
+      'farm_id',
       'animal_id',
       'vaccine_name',
       'vaccine_type',
@@ -374,6 +433,7 @@ class BackupRepository {
     },
     'pharmacy_stock': {
       'id',
+      'farm_id',
       'medication_name',
       'medication_type',
       'unit_of_measure',
@@ -389,6 +449,7 @@ class BackupRepository {
     },
     'pharmacy_stock_movements': {
       'id',
+      'farm_id',
       'pharmacy_stock_id',
       'medication_id',
       'movement_type',
@@ -398,10 +459,64 @@ class BackupRepository {
     },
   };
 
+  static bool _isFarmScopedTable(String table) {
+    return _farmScopedTables.contains(table);
+  }
+
+  List<Variable<Object>> _asVariables(List<Object?> args) {
+    return args
+        .map((arg) => Variable<Object>(arg as Object))
+        .toList(growable: false);
+  }
+
+  Future<String?> _prepareFarmContext() async {
+    final farmId = _currentFarmId;
+    if (farmId == null || _driftDb == null) return null;
+    await _legacyBridge?.migrateForFarm(farmId);
+    return farmId;
+  }
+
+  Future<List<Map<String, dynamic>>> _driftSelect(
+    String sql,
+    List<Object?> args,
+  ) async {
+    final rows = await _driftDb!.customSelect(
+      sql,
+      variables: _asVariables(args),
+    ).get();
+    return rows.map((row) => Map<String, dynamic>.from(row.data)).toList();
+  }
+
+  Future<void> _driftInsert(String table, Map<String, dynamic> row) async {
+    final cols = row.keys.toList(growable: false);
+    final placeholders = List.filled(cols.length, '?').join(',');
+    final args = cols.map((col) => row[col]).toList(growable: false);
+    await _driftDb!.customStatement(
+      'INSERT INTO $table (${cols.join(',')}) VALUES ($placeholders)',
+      args,
+    );
+  }
+
   Future<void> backupMirrorRemote({
     Progress? onProgress,
     int chunk = 500,
   }) async {
+    onProgress?.call('Validando schema local…');
+    await _appDb.ensureSchema();
+    final farmId = await _prepareFarmContext();
+    if (farmId != null) {
+      onProgress?.call('Verificando/ajustando IDs inválidos…');
+      await _sanitizeDriftIds(farmId);
+      await _pushTablesToRemoteDrift(
+        farmId: farmId,
+        onProgress: onProgress,
+        chunk: chunk,
+      );
+      await _syncRemoteDeletionsDrift(farmId: farmId, onProgress: onProgress);
+      onProgress?.call('Upload finalizado.');
+      return;
+    }
+
     onProgress?.call('Verificando/ajustando IDs inválidos…');
     await _sanitizeLocalIds();
     await _pushTablesToRemote(onProgress: onProgress, chunk: chunk);
@@ -413,13 +528,41 @@ class BackupRepository {
     Progress? onProgress,
     int pageSize = 1000,
   }) async {
+    onProgress?.call('Validando schema local…');
+    await _appDb.ensureSchema();
+    final farmId = await _prepareFarmContext();
+    if (farmId != null) {
+      await _restoreFromRemoteDrift(
+        farmId: farmId,
+        onProgress: onProgress,
+        pageSize: pageSize,
+      );
+      return;
+    }
+
+    // Mesmo sem Drift, usa farmId para filtrar a busca remota e evitar
+    // que dados de outras fazendas sejam baixados.
+    final legacyFarmId = _currentFarmId;
+
     final db = _appDb.db;
     onProgress?.call('Validando estrutura remota e baixando dados…');
     final remoteByTable = <String, List<Map<String, dynamic>>>{};
     for (final table in _pushOrder) {
       onProgress?.call('Baixando $table…');
-      final rows = await _fetchRemoteTableRows(table, pageSize);
+      final rows = await _fetchRemoteTableRows(
+        table,
+        pageSize,
+        farmId: legacyFarmId,
+      );
       remoteByTable[table] = rows;
+    }
+
+    // Descobre quais colunas realmente existem no schema local (sqflite legado
+    // pode não ter farm_id). Isso evita inserções com colunas desconhecidas.
+    final existingCols = <String, Set<String>>{};
+    for (final table in _pushOrder) {
+      final info = await db.rawQuery('PRAGMA table_info($table)');
+      existingCols[table] = info.map((r) => r['name'] as String).toSet();
     }
 
     onProgress?.call('Aplicando restauração local…');
@@ -427,13 +570,25 @@ class BackupRepository {
     try {
       await db.transaction((txn) async {
         for (final table in _deleteChildFirst) {
-          await txn.delete(table);
+          if (legacyFarmId != null && _isFarmScopedTable(table) &&
+              existingCols[table]?.contains('farm_id') == true) {
+            await txn.delete(table, where: 'farm_id = ?', whereArgs: [legacyFarmId]);
+          } else {
+            await txn.delete(table);
+          }
         }
 
         for (final table in _pushOrder) {
           final rows = remoteByTable[table] ?? const <Map<String, dynamic>>[];
           if (rows.isEmpty) continue;
-          final toLocal = rows.map((r) => _toLocal(table, r)).toList();
+          final allowedCols = existingCols[table] ?? const {};
+          final toLocal = rows.map((r) {
+            final row = _toLocal(table, r, farmId: legacyFarmId);
+            // Remove colunas que não existem no schema local atual.
+            return Map<String, dynamic>.fromEntries(
+              row.entries.where((e) => allowedCols.contains(e.key)),
+            );
+          }).toList();
           onProgress?.call('Gravando $table (${toLocal.length})…');
           for (final row in toLocal) {
             await txn.insert(
@@ -451,6 +606,143 @@ class BackupRepository {
     onProgress?.call('Download finalizado.');
   }
 
+  Future<void> _restoreFromRemoteDrift({
+    required String farmId,
+    Progress? onProgress,
+    int pageSize = 1000,
+  }) async {
+    onProgress?.call('Validando estrutura remota e baixando dados…');
+    final remoteByTable = <String, List<Map<String, dynamic>>>{};
+    for (final table in _pushOrder) {
+      if (!_isFarmScopedTable(table)) continue;
+      onProgress?.call('Baixando $table…');
+      final rows = await _fetchRemoteTableRows(
+        table,
+        pageSize,
+        farmId: farmId,
+      );
+      remoteByTable[table] = rows;
+    }
+
+    onProgress?.call('Aplicando restauração local…');
+    await _driftDb!.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await _driftDb.transaction(() async {
+        for (final table in _deleteChildFirst) {
+          if (!_isFarmScopedTable(table)) continue;
+          await _driftDb.customStatement(
+            'DELETE FROM $table WHERE farm_id = ?',
+            [farmId],
+          );
+        }
+
+        for (final table in _pushOrder) {
+          if (!_isFarmScopedTable(table)) continue;
+          final rows = remoteByTable[table] ?? const <Map<String, dynamic>>[];
+          if (rows.isEmpty) continue;
+          final toLocal = rows
+              .map((r) => _toLocal(table, r, farmId: farmId))
+              .toList(growable: false);
+          onProgress?.call('Gravando $table (${toLocal.length})…');
+          for (final row in toLocal) {
+            await _driftInsert(table, row);
+          }
+        }
+      });
+    } finally {
+      await _driftDb.customStatement('PRAGMA foreign_keys = ON');
+    }
+
+    onProgress?.call('Download finalizado.');
+  }
+
+  Future<void> _sanitizeDriftIds(String farmId) async {
+    for (final table in _pushOrder) {
+      if (!_tableHasIdColumn(table)) continue;
+      if (!_isFarmScopedTable(table)) continue;
+      await _fixInvalidIdsCascadeDrift(table, farmId);
+    }
+  }
+
+  Future<void> _fixInvalidIdsCascadeDrift(String table, String farmId) async {
+    final uuidRe = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    final rows = await _driftSelect(
+      'SELECT rowid AS __rid, id FROM $table WHERE farm_id = ?',
+      [farmId],
+    );
+    final fixes = <_IdFix>[];
+    for (final row in rows) {
+      final old = (row['id'] ?? '').toString();
+      final needFix = old.isEmpty || !uuidRe.hasMatch(old);
+      if (needFix) {
+        fixes.add(
+          _IdFix(
+            rowId: (row['__rid'] as int),
+            oldId: old.isEmpty ? null : old,
+            newId: _uuidV4(),
+          ),
+        );
+      }
+    }
+    if (fixes.isEmpty) return;
+
+    await _driftDb!.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await _driftDb.transaction(() async {
+        final refs = _fkMap[table] ?? const <_FkRef>[];
+        for (final fix in fixes) {
+          if (fix.oldId != null && fix.oldId!.isNotEmpty) {
+            for (final ref in refs) {
+              if (_isFarmScopedTable(ref.childTable)) {
+                await _driftDb.customStatement(
+                  '''
+                  UPDATE ${ref.childTable}
+                  SET ${ref.childColumn} = ?
+                  WHERE farm_id = ? AND ${ref.childColumn} = ?
+                  ''',
+                  [fix.newId, farmId, fix.oldId],
+                );
+              } else {
+                await _driftDb.customStatement(
+                  '''
+                  UPDATE ${ref.childTable}
+                  SET ${ref.childColumn} = ?
+                  WHERE ${ref.childColumn} = ?
+                  ''',
+                  [fix.newId, fix.oldId],
+                );
+              }
+            }
+          }
+          await _updateIdDrift(table, farmId, fix);
+        }
+      });
+    } finally {
+      await _driftDb.customStatement('PRAGMA foreign_keys = ON');
+    }
+  }
+
+  Future<void> _updateIdDrift(
+    String table,
+    String farmId,
+    _IdFix fix,
+  ) async {
+    if (fix.oldId == null || fix.oldId!.isEmpty) {
+      await _driftDb!.customStatement(
+        'UPDATE $table SET id = ? WHERE farm_id = ? AND rowid = ?',
+        [fix.newId, farmId, fix.rowId],
+      );
+      return;
+    }
+
+    await _driftDb!.customStatement(
+      'UPDATE $table SET id = ? WHERE farm_id = ? AND id = ?',
+      [fix.newId, farmId, fix.oldId],
+    );
+  }
+
   Future<void> _sanitizeLocalIds() async {
     for (final table in _pushOrder) {
       if (!_tableHasIdColumn(table)) continue;
@@ -463,9 +755,29 @@ class BackupRepository {
     int chunk = 500,
   }) async {
     final db = _appDb.db;
+    final legacyFarmId = _currentFarmId;
+
+    // Descobre quais tabelas já têm farm_id no schema local.
+    final tablesWithFarmId = <String>{};
+    for (final table in _pushOrder) {
+      try {
+        final info = await db.rawQuery('PRAGMA table_info($table)');
+        if (info.any((r) => r['name'] == 'farm_id')) {
+          tablesWithFarmId.add(table);
+        }
+      } catch (_) {}
+    }
+
     for (final table in _pushOrder) {
       onProgress?.call('Preparando $table…');
-      final rows = await db.query(table);
+      final List<Map<String, dynamic>> rows;
+      if (legacyFarmId != null &&
+          _isFarmScopedTable(table) &&
+          tablesWithFarmId.contains(table)) {
+        rows = await db.query(table, where: 'farm_id = ?', whereArgs: [legacyFarmId]);
+      } else {
+        rows = await db.query(table);
+      }
       if (rows.isEmpty) continue;
 
       final payload = rows.map((r) => _toRemote(table, r)).toList();
@@ -485,24 +797,74 @@ class BackupRepository {
     }
   }
 
+  Future<void> _pushTablesToRemoteDrift({
+    required String farmId,
+    Progress? onProgress,
+    int chunk = 500,
+  }) async {
+    for (final table in _pushOrder) {
+      if (!_isFarmScopedTable(table)) continue;
+      onProgress?.call('Preparando $table…');
+      final rows = await _driftSelect(
+        'SELECT * FROM $table WHERE farm_id = ?',
+        [farmId],
+      );
+      if (rows.isEmpty) continue;
+
+      final payload = rows
+          .map((r) => _toRemote(table, r, farmId: farmId))
+          .toList(growable: false);
+      final hasIdColumn = _tableHasIdColumn(table);
+      for (final row in payload) {
+        if (hasIdColumn && _missingId(row['id'])) {
+          row['id'] = _uuidV4();
+        }
+      }
+
+      onProgress?.call('Enviando $table (${payload.length})…');
+      for (var i = 0; i < payload.length; i += chunk) {
+        final end = (i + chunk) > payload.length ? payload.length : i + chunk;
+        final part = payload.sublist(i, end);
+        await _upsertChunk(table, part, farmId: farmId);
+      }
+    }
+  }
+
   Future<void> _upsertChunk(
     String table,
-    List<Map<String, dynamic>> part,
-  ) async {
+    List<Map<String, dynamic>> part, {
+    String? farmId,
+  }) async {
+    final payload = part
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+    if (farmId != null && _isFarmScopedTable(table)) {
+      for (final row in payload) {
+        row['farm_id'] = row['farm_id'] ?? farmId;
+      }
+    }
+
     switch (table) {
       case 'app_settings':
-        await _client.from(table).upsert(part, onConflict: 'setting_key');
+        await _client.from(table).upsert(
+              payload,
+              onConflict:
+                  farmId == null ? 'setting_key' : 'farm_id,setting_key',
+            );
         return;
       case 'animal_lineage':
         await _client
             .from(table)
-            .upsert(part, onConflict: 'descendant_id,ancestor_id');
+            .upsert(payload, onConflict: 'descendant_id,ancestor_id');
         return;
       case 'animal_lineage_meta':
-        await _client.from(table).upsert(part, onConflict: 'meta_key');
+        await _client.from(table).upsert(
+              payload,
+              onConflict: farmId == null ? 'meta_key' : 'meta_key,farm_id',
+            );
         return;
       default:
-        await _client.from(table).upsert(part);
+        await _client.from(table).upsert(payload);
     }
   }
 
@@ -536,6 +898,144 @@ class BackupRepository {
       if (table == 'animal_lineage') {
         await _syncRemoteDeletionsLineage(db);
       }
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsDrift({
+    required String farmId,
+    Progress? onProgress,
+  }) async {
+    for (final table in _deleteChildFirst) {
+      if (!_isFarmScopedTable(table)) continue;
+      onProgress?.call('Sincronizando exclusões em $table…');
+      if (_tableHasIdColumn(table)) {
+        await _syncRemoteDeletionsByIdDrift(table, farmId);
+        continue;
+      }
+
+      if (table == 'app_settings') {
+        await _syncRemoteDeletionsBySingleKeyDrift(
+          table: table,
+          keyColumn: 'setting_key',
+          farmId: farmId,
+        );
+        continue;
+      }
+
+      if (table == 'animal_lineage_meta') {
+        await _syncRemoteDeletionsBySingleKeyDrift(
+          table: table,
+          keyColumn: 'meta_key',
+          farmId: farmId,
+        );
+        continue;
+      }
+
+      if (table == 'animal_lineage') {
+        await _syncRemoteDeletionsLineageDrift(farmId);
+      }
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsByIdDrift(String table, String farmId) async {
+    final localIds = (await _driftSelect(
+      'SELECT id FROM $table WHERE farm_id = ?',
+      [farmId],
+    ))
+        .map((row) => (row['id'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    final remoteIds = (await _client
+            .from(table)
+            .select('id')
+            .eq('farm_id', farmId))
+        .map<String>((row) => (row['id'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    final toDelete = remoteIds.difference(localIds).toList(growable: false);
+    if (toDelete.isEmpty) return;
+
+    const batch = 300;
+    for (var i = 0; i < toDelete.length; i += batch) {
+      final end = (i + batch) > toDelete.length ? toDelete.length : i + batch;
+      final part = toDelete.sublist(i, end);
+      final orExpr = part.map((id) => 'id.eq.$id').join(',');
+      await _client.from(table).delete().eq('farm_id', farmId).or(orExpr);
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsBySingleKeyDrift({
+    required String table,
+    required String keyColumn,
+    required String farmId,
+  }) async {
+    final localKeys = (await _driftSelect(
+      'SELECT $keyColumn FROM $table WHERE farm_id = ?',
+      [farmId],
+    ))
+        .map((row) => (row[keyColumn] ?? '').toString())
+        .where((key) => key.isNotEmpty)
+        .toSet();
+
+    final remoteKeys = (await _client
+            .from(table)
+            .select(keyColumn)
+            .eq('farm_id', farmId))
+        .map<String>((row) => (row[keyColumn] ?? '').toString())
+        .where((key) => key.isNotEmpty)
+        .toSet();
+
+    final toDelete = remoteKeys.difference(localKeys);
+    for (final key in toDelete) {
+      await _client
+          .from(table)
+          .delete()
+          .eq('farm_id', farmId)
+          .eq(keyColumn, key);
+    }
+  }
+
+  Future<void> _syncRemoteDeletionsLineageDrift(String farmId) async {
+    final localRows = await _driftSelect(
+      '''
+      SELECT descendant_id, ancestor_id
+      FROM animal_lineage
+      WHERE farm_id = ?
+      ''',
+      [farmId],
+    );
+    final localKeys = localRows
+        .map(
+          (row) =>
+              '${(row['descendant_id'] ?? '').toString()}|${(row['ancestor_id'] ?? '').toString()}',
+        )
+        .where((key) => !key.startsWith('|') && !key.endsWith('|'))
+        .toSet();
+
+    final remoteRows = await _client
+        .from('animal_lineage')
+        .select('descendant_id,ancestor_id')
+        .eq('farm_id', farmId);
+    final remoteKeys = remoteRows
+        .map<String>(
+          (row) =>
+              '${(row['descendant_id'] ?? '').toString()}|${(row['ancestor_id'] ?? '').toString()}',
+        )
+        .where((key) => !key.startsWith('|') && !key.endsWith('|'))
+        .toSet();
+
+    final toDelete = remoteKeys.difference(localKeys);
+    for (final key in toDelete) {
+      final parts = key.split('|');
+      if (parts.length != 2) continue;
+      await _client
+          .from('animal_lineage')
+          .delete()
+          .eq('farm_id', farmId)
+          .eq('descendant_id', parts[0])
+          .eq('ancestor_id', parts[1]);
     }
   }
 
@@ -629,14 +1129,19 @@ class BackupRepository {
 
   Future<List<Map<String, dynamic>>> _fetchRemoteTableRows(
     String table,
-    int pageSize,
-  ) async {
+    int pageSize, {
+    String? farmId,
+  }) async {
     try {
       final out = <Map<String, dynamic>>[];
       int from = 0;
       while (true) {
         final to = from + pageSize - 1;
-        final page = await _client.from(table).select('*').range(from, to);
+        dynamic query = _client.from(table).select('*');
+        if (farmId != null && _isFarmScopedTable(table)) {
+          query = query.eq('farm_id', farmId);
+        }
+        final page = await query.range(from, to);
         if (page.isEmpty) break;
         out.addAll(page.map((e) => Map<String, dynamic>.from(e)));
         if (page.length < pageSize) break;
@@ -721,9 +1226,13 @@ class BackupRepository {
 
   static Map<String, dynamic> _toRemote(
     String table,
-    Map<String, dynamic> row,
-  ) {
+    Map<String, dynamic> row, {
+    String? farmId,
+  }) {
     final r = Map<String, dynamic>.from(row);
+    if (farmId != null && _isFarmScopedTable(table)) {
+      r['farm_id'] = farmId;
+    }
 
     if (table == 'animals') r['pregnant'] = _toBool(row['pregnant']);
     if (table == 'notes') r['is_read'] = _toBool(row['is_read']);
@@ -744,9 +1253,13 @@ class BackupRepository {
 
   static Map<String, dynamic> _toLocal(
     String table,
-    Map<String, dynamic> row,
-  ) {
+    Map<String, dynamic> row, {
+    String? farmId,
+  }) {
     final r = Map<String, dynamic>.from(row);
+    if (farmId != null && _isFarmScopedTable(table)) {
+      r['farm_id'] = farmId;
+    }
 
     if (table == 'reports') r['parameters'] = _jsonOut(row['parameters']);
     if (table == 'push_tokens') {

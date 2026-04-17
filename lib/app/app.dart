@@ -10,6 +10,7 @@ import '../data/breeding_repository.dart';
 import '../data/deceased_repository.dart';
 import '../data/feeding_repository.dart';
 import '../data/finance_repository.dart';
+import '../data/drift/app_database.dart';
 import '../data/local_db.dart';
 import '../data/maintenance_repository.dart';
 import '../data/medication_repository.dart';
@@ -29,7 +30,9 @@ import '../features/reports/data/reports_repository.dart';
 import '../services/animal_delete_cascade.dart';
 import '../services/animal_history_service.dart';
 import '../services/animal_service.dart';
+import '../services/auth_service.dart';
 import '../services/backup_service.dart';
+import '../services/sync_service.dart';
 import '../services/breeding_service.dart';
 import '../services/deceased_service.dart';
 import '../services/feeding_service.dart';
@@ -44,10 +47,12 @@ import '../services/weight_alert_service.dart';
 import '../services/weight_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_scroll_behavior.dart';
-import 'presentation/complete_dashboard_screen.dart';
+import 'presentation/auth_gate.dart';
 
 class AppDependencies {
   final AppDatabase db;
+  final AppDriftDatabase driftDb;
+  final AuthService authService;
   final AnimalRepository animalRepository;
   final AnimalCascadeRepository animalCascadeRepository;
   final AnimalLifecycleRepository animalLifecycleRepository;
@@ -65,9 +70,12 @@ class AppDependencies {
   final WeightAlertRepository weightAlertRepository;
   final BackupService backup;
   final ReportsRepository reportsRepository;
+  final SyncService syncService;
 
   const AppDependencies({
     required this.db,
+    required this.driftDb,
+    required this.authService,
     required this.animalRepository,
     required this.animalCascadeRepository,
     required this.animalLifecycleRepository,
@@ -85,6 +93,7 @@ class AppDependencies {
     required this.weightAlertRepository,
     required this.backup,
     required this.reportsRepository,
+    required this.syncService,
   });
 }
 
@@ -101,17 +110,22 @@ class FazendaSaoPetronioApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AppDatabase>.value(value: deps.db),
+        Provider<AppDriftDatabase>.value(value: deps.driftDb),
         Provider<BackupService>.value(value: deps.backup),
+        ChangeNotifierProvider<AuthService>.value(value: deps.authService),
+        ChangeNotifierProvider<SyncService>.value(value: deps.syncService),
 
         Provider<AnimalRepository>.value(value: deps.animalRepository),
         Provider<KinshipRepository>(
           create: (context) => KinshipRepository(
             context.read<AppDatabase>(),
+            farmIdProvider: () => context.read<AuthService>().currentFarmId,
           ),
         ),
         Provider<MatrixEvaluationRepository>(
           create: (context) => MatrixEvaluationRepository(
-            context.read<AppDatabase>(),
+            context.read<AppDriftDatabase>(),
+            farmIdProvider: () => context.read<AuthService>().currentFarmId,
           ),
         ),
         Provider<AnimalCascadeRepository>.value(
@@ -264,7 +278,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.system,
         scrollBehavior: const AppScrollBehavior(),
-        home: const CompleteDashboardScreen(),
+        home: const AuthGate(),
       ),
     );
   }

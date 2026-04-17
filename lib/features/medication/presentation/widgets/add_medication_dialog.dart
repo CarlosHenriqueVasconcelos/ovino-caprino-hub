@@ -256,11 +256,9 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
 
     if (_type == 'Medicamento') {
       if (_selectedMedication == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Selecione um medicamento da farmácia'),
-            backgroundColor: Colors.red,
-          ),
+        await _showFormMessage(
+          'Selecione um medicamento da farmácia',
+          isError: true,
         );
         return;
       }
@@ -317,25 +315,37 @@ class _AddMedicationDialogState extends State<AddMedicationDialog> {
       }
 
       if (mounted) {
-        Navigator.pop(context);
         widget.onSaved();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$_type agendada com sucesso!'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
+        await _showFormMessage('$_type agendada com sucesso!');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+        await _showFormMessage(
+          'Erro: $e',
+          isError: true,
         );
       }
     }
+  }
+
+  Future<void> _showFormMessage(
+    String message, {
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isError ? 'Erro' : 'Confirmação'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
