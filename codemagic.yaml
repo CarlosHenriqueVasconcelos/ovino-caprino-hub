@@ -21,12 +21,18 @@ workflows:
           SUPABASE_URL=$SUPABASE_URL
           SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
           EOF
+      - name: Inicializar keychain
+        script: |
+          keychain initialize
       - name: Buscar ou criar certificado e provisioning profile
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key "@env:CERTIFICATE_PRIVATE_KEY" \
             --create
+      - name: Adicionar certificado ao keychain
+        script: |
+          keychain add-certificates
       - name: Configurar assinatura de código no projeto Xcode
         script: |
           xcode-project use-profiles
