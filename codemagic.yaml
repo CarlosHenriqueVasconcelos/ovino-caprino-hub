@@ -10,10 +10,17 @@ workflows:
         BUNDLE_ID: "com.terratech.ovinocaprino"
       groups:
         - ios_signing
+        - app_env
       flutter: stable
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Gerar arquivo .env
+        script: |
+          cat > .env <<EOF
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          EOF
       - name: Buscar ou criar certificado e provisioning profile
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
