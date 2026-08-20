@@ -113,7 +113,7 @@ class _MedicationRowCard extends StatelessWidget {
     final statusIcon = _statusIcon(status);
 
     return InkWell(
-      onTap: () => onSelectedChanged(!selected),
+      onTap: onShowDetails,
       child: Container(
         decoration: BoxDecoration(
           color: selected ? Colors.blue.withValues(alpha: 0.05) : Colors.white,

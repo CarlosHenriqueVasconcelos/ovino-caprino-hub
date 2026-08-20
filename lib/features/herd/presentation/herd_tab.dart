@@ -236,7 +236,7 @@ class _HerdViewState extends State<HerdView>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                       const AppBrandHeader(
-                        title: 'Fazenda São Petrônio',
+                        title: 'Terra Tech',
                         subtitle: 'Gestão de Ovinos e Caprinos',
                         margin: EdgeInsets.zero,
                       ),

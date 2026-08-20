@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../models/animal.dart';
 import '../../../models/matrix_candidate_ranking.dart';
+import '../../../services/animal_service.dart';
 import '../../../shared/widgets/buttons/primary_button.dart';
 import '../../../shared/widgets/common/app_empty_state.dart';
 import '../../../theme/app_colors.dart';
@@ -40,6 +42,7 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
   final TextEditingController _loteFilterController = TextEditingController();
 
   List<MatrixCandidateRanking> _ranking = [];
+  final Set<String> _promotingAnimalIds = <String>{};
   bool _loading = false;
   String? _error;
   bool _hasNextPage = false;
@@ -208,6 +211,72 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
     if (!_hasNextPage) return;
     setState(() => _currentPage += 1);
     _loadRanking();
+  }
+
+  bool _isMatrixCategory(String category) {
+    return category.trim().toLowerCase().contains('matriz');
+  }
+
+  Future<void> _promoteToMatrix(MatrixCandidateRanking row) async {
+    if (_isMatrixCategory(row.category) ||
+        _promotingAnimalIds.contains(row.animalId)) {
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Promover para Matriz'),
+        content: Text(
+          'Deseja promover ${row.name} (${row.code}) para a categoria Matriz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Promover'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _promotingAnimalIds.add(row.animalId));
+    try {
+      final animalService = context.read<AnimalService>();
+      final animal = await animalService.getAnimalById(row.animalId);
+      if (animal == null) {
+        throw Exception('Animal não encontrado para promoção.');
+      }
+
+      final Animal updated = animal.copyWith(category: 'Matriz');
+      await animalService.updateAnimal(updated);
+      if (!mounted) return;
+      await _loadRanking();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${row.name} (${row.code}) foi promovida para Matriz.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Não foi possível promover: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _promotingAnimalIds.remove(row.animalId));
+      }
+    }
   }
 
   @override
@@ -536,6 +605,9 @@ class _MatrixSelectionTabState extends State<MatrixSelectionTab> {
               rank: initialRank + index + 1,
               row: row,
               onSelectedAction: (action) => _handleRowAction(action, row),
+              onPromote: () => _promoteToMatrix(row),
+              showPromoteButton: !_isMatrixCategory(row.category),
+              promoting: _promotingAnimalIds.contains(row.animalId),
             );
           },
         ),
@@ -603,11 +675,17 @@ class _MatrixRankingCard extends StatelessWidget {
   final int rank;
   final MatrixCandidateRanking row;
   final ValueChanged<_RowAction> onSelectedAction;
+  final VoidCallback onPromote;
+  final bool showPromoteButton;
+  final bool promoting;
 
   const _MatrixRankingCard({
     required this.rank,
     required this.row,
     required this.onSelectedAction,
+    required this.onPromote,
+    required this.showPromoteButton,
+    required this.promoting,
   });
 
   @override
@@ -741,6 +819,26 @@ class _MatrixRankingCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (showPromoteButton) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton.icon(
+                      onPressed: promoting ? null : onPromote,
+                      icon: promoting
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.trending_up, size: 16),
+                      label: Text(promoting ? 'Promovendo...' : 'Promover para Matriz'),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

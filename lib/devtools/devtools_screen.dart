@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../data/animal_lifecycle_repository.dart';
 import '../data/animal_repository.dart';
-import '../data/local_db.dart';
+import '../data/drift/app_database.dart';
 import '../services/animal_service.dart';
 import '../services/deceased_service.dart';
 import '../services/system_maintenance_service.dart';
@@ -26,7 +26,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     setState(() => _running = true);
     try {
       final runner = DiagnosticRunner(
-        appDb: context.read<AppDatabase>(),
+        driftDb: context.read<AppDriftDatabase>(),
         animalRepo: context.read<AnimalRepository>(),
         lifecycleRepo: context.read<AnimalLifecycleRepository>(),
         animalService: context.read<AnimalService>(),

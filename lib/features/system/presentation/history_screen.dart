@@ -41,7 +41,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadHistory());
   }
 
   @override

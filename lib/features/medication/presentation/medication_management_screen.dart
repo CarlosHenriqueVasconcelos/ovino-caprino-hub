@@ -27,6 +27,13 @@ const _kSurface = Color(0xFFFBFBF8);
 const _kBeige = Color(0xFFF6F5F1);
 const _kBorder = Color(0xFFE6E4DC);
 
+String _fmtQty(dynamic v) {
+  if (v == null) return 'N/A';
+  final n = v is num ? v.toDouble() : double.tryParse(v.toString());
+  if (n == null) return v.toString();
+  return n == n.truncateToDouble() ? n.toInt().toString() : n.toStringAsFixed(1);
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 class MedicationManagementScreen extends StatefulWidget {
@@ -571,7 +578,9 @@ class _MedicationManagementScreenState
     final badgeBg =
         isOverdue ? _kErrBg : isScheduled ? _kGoldBg : Colors.transparent;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _showDetails(v, isVaccination: true),
+      child: Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       decoration: BoxDecoration(
         color: _kSurface,
@@ -730,6 +739,7 @@ class _MedicationManagementScreenState
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -757,7 +767,9 @@ class _MedicationManagementScreenState
     final badgeColor = isOverdue ? _kErrColor : _kGoldColor;
     final badgeBg = isOverdue ? _kErrBg : isScheduled ? _kGoldBg : Colors.transparent;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _showDetails(m, isVaccination: false),
+      child: Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       decoration: BoxDecoration(
         color: _kSurface,
@@ -877,6 +889,13 @@ class _MedicationManagementScreenState
                   label: 'Data',
                   value: _formatDate(m['date']),
                 ),
+                if (m['quantity_used'] != null) ...[
+                  const SizedBox(width: AppSpacing.md),
+                  _MetaItem(
+                    label: 'Qtd',
+                    value: _fmtQty(m['quantity_used']),
+                  ),
+                ],
                 if (m['dosage'] != null) ...[
                   const SizedBox(width: AppSpacing.md),
                   _MetaItem(
@@ -912,6 +931,7 @@ class _MedicationManagementScreenState
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -1010,8 +1030,9 @@ class _MedicationManagementScreenState
             'status': 'Aplicado',
             'applied_date': now,
           });
-          final stockId = med['pharmacy_stock_id'] as String?;
-          final qty = med['quantity_used'] as double?;
+          final stockId = med['pharmacy_stock_id']?.toString();
+          final qtyRaw = med['quantity_used'];
+          final qty = qtyRaw is num ? qtyRaw.toDouble() : double.tryParse(qtyRaw?.toString() ?? '');
           if (stockId != null && qty != null && qty > 0) {
             await pharmSvc.deductFromStock(stockId, qty, id);
           }
@@ -1498,6 +1519,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
   final _veterinarianController = TextEditingController();
   final _notesController = TextEditingController();
   final _dosageController = TextEditingController();
+  final _quantityController = TextEditingController();
 
   String _type = 'Vacinação';
   String _vaccineType = 'Obrigatória';
@@ -1508,6 +1530,20 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
 
   List<PharmacyStock> _pharmacyStock = [];
   PharmacyStock? _selectedMedication;
+
+  bool get _isVolumeUnit {
+    if (_selectedMedication == null) return false;
+    final unit = _selectedMedication!.unitOfMeasure.toLowerCase();
+    return (unit == 'ml' || unit == 'mg' || unit == 'g') &&
+        _selectedMedication!.quantityPerUnit != null &&
+        _selectedMedication!.quantityPerUnit! > 0;
+  }
+
+  double get _availableVolume {
+    if (_selectedMedication == null) return 0;
+    final m = _selectedMedication!;
+    return (m.totalQuantity * (m.quantityPerUnit ?? 0)) + m.openedQuantity;
+  }
 
   @override
   void initState() {
@@ -1698,6 +1734,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                                   setState(() {
                                     _selectedMedication = null;
                                     _nameController.clear();
+                                    _quantityController.clear();
                                   });
                                   ctrl.clear();
                                 },
@@ -1809,13 +1846,42 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
                     onChanged: (v) => setState(() => _vaccineType = v!),
                   )
                 else
-                  TextFormField(
-                    controller: _dosageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Dosagem',
-                      border: OutlineInputBorder(),
-                      hintText: 'Ex: 5ml, 2 comprimidos',
-                    ),
+                  Column(
+                    children: [
+                      // Campo de quantidade dedicado para medicamentos com unidade volumétrica
+                      if (_isVolumeUnit) ...[
+                        TextFormField(
+                          controller: _quantityController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Quantidade a aplicar *',
+                            border: const OutlineInputBorder(),
+                            suffixText: _selectedMedication!.unitOfMeasure,
+                            helperText:
+                                'Disponível: ${_availableVolume.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure}'
+                                '${_selectedMedication!.openedQuantity > 0 ? ' (${_selectedMedication!.openedQuantity.toStringAsFixed(1)} aberto + ${(_selectedMedication!.totalQuantity * (_selectedMedication!.quantityPerUnit ?? 0)).toStringAsFixed(1)} fechado)' : ''}',
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) return 'Informe a quantidade';
+                            final qty = double.tryParse(v.replaceAll(',', '.'));
+                            if (qty == null || qty <= 0) return 'Quantidade inválida';
+                            if (qty > _availableVolume) {
+                              return 'Insuficiente! Disponível: ${_availableVolume.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure}';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      TextFormField(
+                        controller: _dosageController,
+                        decoration: const InputDecoration(
+                          labelText: 'Dosagem / Observação',
+                          border: OutlineInputBorder(),
+                          hintText: 'Ex: via intramuscular, 2x ao dia',
+                        ),
+                      ),
+                    ],
                   ),
                 const SizedBox(height: 16),
                 InkWell(
@@ -1899,26 +1965,22 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
         );
         return;
       }
-      final dosageText = _dosageController.text.trim();
-      final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
-      if (qtyMatch != null) {
-        final qty =
-            double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.')) ?? 0;
-        final unit = _selectedMedication!.unitOfMeasure.toLowerCase();
-        final useVol = (unit == 'ml' || unit == 'mg' || unit == 'g') &&
-            _selectedMedication!.quantityPerUnit != null &&
-            _selectedMedication!.quantityPerUnit! > 0;
-        final avail = useVol
-            ? (_selectedMedication!.totalQuantity *
-                    _selectedMedication!.quantityPerUnit!) +
-                _selectedMedication!.openedQuantity
-            : _selectedMedication!.totalQuantity;
-        if (qty > avail) {
-          await _showFormMessage(
-            'Estoque insuficiente! Disponível: ${avail.toStringAsFixed(1)} ${_selectedMedication!.unitOfMeasure.toLowerCase()}',
-            isError: true,
-          );
-          return;
+      // Validação de estoque para unidade volumétrica é feita pelo campo _quantityController.
+      // Para unidades não-volumétricas, valida pelo campo dosagem.
+      if (!_isVolumeUnit) {
+        final dosageText = _dosageController.text.trim();
+        final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosageText);
+        if (qtyMatch != null) {
+          final qty =
+              double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.')) ?? 0;
+          final avail = _selectedMedication!.totalQuantity;
+          if (qty > avail) {
+            await _showFormMessage(
+              'Estoque insuficiente! Disponível: ${avail.toStringAsFixed(0)} ${_selectedMedication!.unitOfMeasure}',
+              isError: true,
+            );
+            return;
+          }
         }
       }
     }
@@ -1945,10 +2007,16 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
       } else {
         final svc = Provider.of<MedicationService>(context, listen: false);
         final dosage = _dosageController.text.trim();
-        final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosage);
-        final qty = qtyMatch != null
-            ? double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.'))
-            : null;
+        // Para unidades volumétricas usa o campo dedicado; para demais, extrai da dosagem
+        double? qty;
+        if (_isVolumeUnit && _quantityController.text.trim().isNotEmpty) {
+          qty = double.tryParse(_quantityController.text.trim().replaceAll(',', '.'));
+        } else {
+          final qtyMatch = RegExp(r'[\d.,]+').firstMatch(dosage);
+          qty = qtyMatch != null
+              ? double.tryParse(qtyMatch.group(0)!.replaceAll(',', '.'))
+              : null;
+        }
         await svc.createMedication({
           'id': const Uuid().v4(),
           'animal_id': _selectedAnimalId!,
@@ -2009,6 +2077,7 @@ class _AddMedicationDialogState extends State<_AddMedicationDialog> {
     _veterinarianController.dispose();
     _notesController.dispose();
     _dosageController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 }
@@ -2140,10 +2209,19 @@ class _DetailsDialog extends StatelessWidget {
                     ] else ...[
                       _buildDetailSection(
                         icon: Icons.medication_liquid,
-                        title: 'Dosagem',
+                        title: 'Dosagem / Observação',
                         content: data['dosage'] ?? 'N/A',
                         color: accentColor,
                       ),
+                      if (data['quantity_used'] != null) ...[
+                        const SizedBox(height: 16),
+                        _buildDetailSection(
+                          icon: Icons.science_outlined,
+                          title: 'Quantidade a Aplicar',
+                          content: _fmtQty(data['quantity_used']),
+                          color: accentColor,
+                        ),
+                      ],
                     ],
                     const SizedBox(height: 16),
                     _buildDetailSection(

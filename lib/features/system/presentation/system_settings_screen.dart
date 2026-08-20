@@ -8,7 +8,6 @@ import '../../../devtools/devtools_screen.dart';
 import '../../../models/animal.dart';
 import '../../../services/animal_service.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/backup_service.dart';
 import '../../../services/sync_service.dart';
 import '../../breeding/application/kinship_service.dart';
 import '../../../services/system_maintenance_service.dart';
@@ -28,52 +27,57 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   bool _vaccinationReminders = true;
   bool _birthReminders = true;
   bool _weightTracking = true;
-  bool _loadingKinshipPolicy = true;
-  bool _blockCousinBreeding = true;
-  bool _autoBackup = false;
-  String _backupFrequency = 'daily';
+  bool _loadingKinshipPolicies = true;
+  final Map<KinshipBlockRule, bool> _kinshipPolicies = {
+    for (final rule in KinshipBlockRule.values) rule: true,
+  };
 
   @override
   void initState() {
     super.initState();
-    _loadKinshipPolicy();
+    _loadKinshipPolicies();
   }
 
-  Future<void> _loadKinshipPolicy() async {
+  Future<void> _loadKinshipPolicies() async {
     try {
       final kinshipService = context.read<KinshipService>();
-      final enabled = await kinshipService.getBlockCousinBreedingEnabled();
+      final policies = await kinshipService.getKinshipBlockRules();
       if (!mounted) return;
       setState(() {
-        _blockCousinBreeding = enabled;
-        _loadingKinshipPolicy = false;
+        _kinshipPolicies
+          ..clear()
+          ..addAll(policies);
+        _loadingKinshipPolicies = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loadingKinshipPolicy = false);
+      setState(() => _loadingKinshipPolicies = false);
     }
   }
 
-  Future<void> _setBlockCousinBreeding(bool enabled) async {
-    final previous = _blockCousinBreeding;
-    setState(() => _blockCousinBreeding = enabled);
+  Future<void> _setKinshipPolicy(
+    KinshipBlockRule rule,
+    bool enabled,
+  ) async {
+    final previous = _kinshipPolicies[rule] ?? true;
+    setState(() => _kinshipPolicies[rule] = enabled);
 
     try {
       final kinshipService = context.read<KinshipService>();
-      await kinshipService.setBlockCousinBreedingEnabled(enabled);
+      await kinshipService.setKinshipBlockRuleEnabled(rule, enabled);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled
-                ? 'Bloqueio entre primos ativado.'
-                : 'Bloqueio entre primos desativado.',
+                ? 'Bloqueio ${rule.settingsTitle.replaceFirst('Bloquear ', '').toLowerCase()} ativado.'
+                : 'Bloqueio ${rule.settingsTitle.replaceFirst('Bloquear ', '').toLowerCase()} desativado.',
           ),
         ),
       );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _blockCousinBreeding = previous);
+      setState(() => _kinshipPolicies[rule] = previous);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Não foi possível salvar a regra de parentesco.'),
@@ -135,7 +139,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                         if (!isMobile) ...[
                           const SizedBox(height: 16),
                           Text(
-                            'Configure notificações, gerencie backups e mantenha seus dados sempre seguros.',
+                            'Configure notificações, sincronização e mantenha seus dados sempre seguros.',
                             style: theme.textTheme.bodyLarge?.copyWith(
                               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                             ),
@@ -236,24 +240,34 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (_loadingKinshipPolicy)
+                    if (_loadingKinshipPolicies)
                       const LinearProgressIndicator(minHeight: 2)
-                    else
-                      SwitchListTile(
-                        title: const Text('Bloquear cruzamento entre primos'),
-                        subtitle: const Text(
-                          'Impede coberturas quando há avô/avó em comum.',
+                    else ...[
+                      for (int i = 0; i < KinshipBlockRule.values.length; i++) ...[
+                        SwitchListTile(
+                          title: Text(KinshipBlockRule.values[i].settingsTitle),
+                          subtitle: Text(
+                            KinshipBlockRule.values[i].settingsSubtitle,
+                          ),
+                          value:
+                              _kinshipPolicies[KinshipBlockRule.values[i]] ??
+                                  true,
+                          onChanged: (enabled) => _setKinshipPolicy(
+                            KinshipBlockRule.values[i],
+                            enabled,
+                          ),
                         ),
-                        value: _blockCousinBreeding,
-                        onChanged: _setBlockCousinBreeding,
-                      ),
+                        if (i < KinshipBlockRule.values.length - 1)
+                          const Divider(height: 0),
+                      ],
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // Backup & Dados
+            // Sincronização & Dados
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -262,11 +276,11 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.backup, color: theme.colorScheme.primary,
+                        Icon(Icons.sync, color: theme.colorScheme.primary,
                             size: MediaQuery.of(context).size.width < 600 ? 20 : 24),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text('Backup e Dados',
+                          child: Text('Sincronização e Dados',
                               style: (MediaQuery.of(context).size.width < 600
                                   ? theme.textTheme.titleMedium
                                   : theme.textTheme.titleLarge)
@@ -277,53 +291,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    SwitchListTile(
-                      title: const Text('Backup Automático'),
-                      subtitle:
-                          const Text('Fazer backup dos dados automaticamente'),
-                      value: _autoBackup,
-                      onChanged: (v) => setState(() => _autoBackup = v),
-                    ),
-                    if (_autoBackup) ...[
-                      const Divider(),
-                      ListTile(
-                        title: const Text('Frequência do Backup'),
-                        subtitle: Text(_getBackupFrequencyLabel()),
-                        trailing: DropdownButton<String>(
-                          value: _backupFrequency,
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'daily', child: Text('Diário')),
-                            DropdownMenuItem(
-                                value: 'weekly', child: Text('Semanal')),
-                            DropdownMenuItem(
-                                value: 'monthly', child: Text('Mensal')),
-                          ],
-                          onChanged: (value) => setState(() =>
-                              _backupFrequency = value ?? _backupFrequency),
-                        ),
-                      ),
-                    ],
-                    const Divider(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _performBackup,
-                            icon: const Icon(Icons.cloud_upload),
-                            label: const Text('Fazer Backup Agora'),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _restoreBackup,
-                            icon: const Icon(Icons.cloud_download),
-                            label: const Text('Restaurar Backup'),
-                          ),
-                        ),
-                      ],
-                    ),
                     const Divider(),
                     Consumer<SyncService>(
                       builder: (context, sync, _) => SwitchListTile(
@@ -604,7 +571,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                     ListTile(
                       leading:
                           Icon(Icons.info, color: theme.colorScheme.primary),
-                      title: const Text('Sobre o BEGO Agritech'),
+                      title: const Text('Sobre o Terra Tech'),
                       subtitle: const Text(
                           'Versão 1.0.0 - Sistema de Gestão Pecuária'),
                       onTap: _showAboutDialog,
@@ -698,110 +665,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     return 'há ${diff.inDays} dia(s)';
   }
 
-  String _getBackupFrequencyLabel() {
-    switch (_backupFrequency) {
-      case 'daily':
-        return 'Todo dia às 02:00';
-      case 'weekly':
-        return 'Toda segunda-feira às 02:00';
-      case 'monthly':
-        return 'Todo dia 1º às 02:00';
-      default:
-        return 'Não configurado';
-    }
-  }
-
-  Future<void> _performBackup() async {
-    final backup = context.read<BackupService>();
-    final stream = backup.backupAll();
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Backup para Supabase'),
-        content: StreamBuilder<String>(
-          stream: stream,
-          builder: (_, snap) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const LinearProgressIndicator(),
-              const SizedBox(height: 12),
-              Text(snap.data ?? 'Preparando...'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _restoreBackup() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restaurar Backup'),
-        content: const Text(
-          'Esta ação substituirá todos os dados atuais pelos dados do backup do Supabase. '
-          'Tem certeza de que deseja continuar?',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _performRestore();
-            },
-            child: const Text('Restaurar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _performRestore() async {
-    final backup = context.read<BackupService>();
-    final stream = backup.restoreAll();
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('Restauração do Supabase'),
-        content: StreamBuilder<String>(
-          stream: stream,
-          builder: (_, snap) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const LinearProgressIndicator(),
-              const SizedBox(height: 12),
-              Text(snap.data ?? 'Preparando...'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Atualiza UI recarregando dados
-              context.read<AnimalService>().loadData();
-            },
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDataStatistics(AnimalService animalService) {
     final stats = animalService.stats;
     showDialog(
@@ -854,7 +717,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           children: [
             Text('🐑'),
             SizedBox(width: 8),
-            Text('BEGO Agritech'),
+            Text('Terra Tech'),
             SizedBox(width: 8),
             Text('🐐')
           ],
@@ -1117,7 +980,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
         ),
         content: const Text(
           'ATENÇÃO: Esta ação irá apagar os dados locais da fazenda atual permanentemente. '
-          'Certifique-se de ter um backup antes de continuar. Esta ação NÃO PODE ser desfeita.',
+          'Certifique-se de que a sincronização esteja em dia antes de continuar. '
+          'Esta ação NÃO PODE ser desfeita.',
         ),
         actions: [
           TextButton(

@@ -4,12 +4,9 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:sqflite_common/sqlite_api.dart';
 
-import '../data/local_db.dart';
 import '../models/animal.dart';
 import '../models/report_filters.dart';
-import '../services/legacy_sqflite_to_drift_bridge.dart';
 import 'drift/app_database.dart';
 
 void _log(String message) {
@@ -40,48 +37,11 @@ abstract class _ReportDb {
   Future<void> insert(String table, Map<String, dynamic> values);
 }
 
-class _SqfliteReportDb implements _ReportDb {
-  _SqfliteReportDb(this._db);
-
-  final Database _db;
-
-  @override
-  String? get farmId => null;
-
-  @override
-  Future<List<Map<String, dynamic>>> query(
-    String table, {
-    String? where,
-    List<dynamic>? whereArgs,
-    String? orderBy,
-  }) {
-    return _db.query(
-      table,
-      where: where,
-      whereArgs: whereArgs,
-      orderBy: orderBy,
-    );
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> rawQuery(
-    String sql, [
-    List<dynamic>? arguments,
-  ]) {
-    return _db.rawQuery(sql, arguments);
-  }
-
-  @override
-  Future<void> insert(String table, Map<String, dynamic> values) async {
-    await _db.insert(table, values);
-  }
-}
-
 class _DriftReportDb implements _ReportDb {
   _DriftReportDb(this._db, this._farmId);
 
   final AppDriftDatabase _db;
-  final String _farmId;
+  final String? _farmId;
 
   @override
   String? get farmId => _farmId;
@@ -93,14 +53,18 @@ class _DriftReportDb implements _ReportDb {
     List<dynamic>? whereArgs,
     String? orderBy,
   }) async {
-    final clauses = <String>['farm_id = ?'];
-    final args = <dynamic>[_farmId];
+    final clauses = <String>[];
+    final args = <dynamic>[];
+    if (_farmId != null) {
+      clauses.add('farm_id = ?');
+      args.add(_farmId);
+    }
     if (where != null && where.trim().isNotEmpty) {
       clauses.add('($where)');
       if (whereArgs != null) args.addAll(whereArgs);
     }
-    final sql = StringBuffer('SELECT * FROM $table')
-      ..write(' WHERE ${clauses.join(' AND ')}');
+    final sql = StringBuffer('SELECT * FROM $table');
+    if (clauses.isNotEmpty) sql.write(' WHERE ${clauses.join(' AND ')}');
     if (orderBy != null && orderBy.trim().isNotEmpty) {
       sql.write(' ORDER BY $orderBy');
     }
@@ -1245,7 +1209,7 @@ class _ReportsQueries {
       ...args,
     ];
     return db.rawQuery('''
-      SELECT 
+      SELECT
         v.*,
         a.name AS animal_name,
         a.code AS animal_code,
@@ -1297,7 +1261,7 @@ class _ReportsQueries {
       ...args,
     ];
     return db.rawQuery('''
-      SELECT 
+      SELECT
         m.*,
         a.name AS animal_name,
         a.code AS animal_code,
@@ -1715,84 +1679,67 @@ class _ReportsQueries {
 }
 
 class ReportsRepository {
-  final AppDatabase _appDatabase;
-  final AppDriftDatabase? _driftDb;
+  final AppDriftDatabase _db;
   final String? Function()? _farmIdProvider;
-  final LegacySqfliteToDriftBridge? _legacyBridge;
 
   ReportsRepository(
-    AppDatabase appDatabase, {
-    AppDriftDatabase? driftDb,
+    AppDriftDatabase db, {
     String? Function()? farmIdProvider,
-  })  : _appDatabase = appDatabase,
-        _driftDb = driftDb,
-        _farmIdProvider = farmIdProvider,
-        _legacyBridge = driftDb == null
-            ? null
-            : LegacySqfliteToDriftBridge(
-                legacyDb: appDatabase,
-                driftDb: driftDb,
-              );
+  })  : _db = db,
+        _farmIdProvider = farmIdProvider;
 
   String? get _currentFarmId => _farmIdProvider?.call();
 
-  Future<_ReportDb> _resolveReportDb() async {
-    final farmId = _currentFarmId;
-    if (farmId != null && _driftDb != null) {
-      await _legacyBridge?.migrateForFarm(farmId);
-      return _DriftReportDb(_driftDb, farmId);
-    }
-    return _SqfliteReportDb(_appDatabase.db);
-  }
+  _ReportDb _resolveReportDb() => _DriftReportDb(_db, _currentFarmId);
 
   Future<Map<String, dynamic>> getAnimalsReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getAnimalsReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getWeightsReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getWeightsReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getVaccinationsReport(
     ReportFilters filters,
   ) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getVaccinationsReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getMedicationsReport(
     ReportFilters filters,
   ) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getMedicationsReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getFeedingReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getFeedingReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getPharmacyReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getPharmacyReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getBreedingReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getBreedingReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getFinancialReport(
     ReportFilters filters,
   ) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getFinancialReport(filters, db: db);
   }
 
   Future<Map<String, dynamic>> getNotesReport(ReportFilters filters) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.getNotesReport(filters, db: db);
   }
 
@@ -1802,7 +1749,7 @@ class ReportsRepository {
     required Map<String, dynamic> parameters,
     String generatedBy = 'Dashboard',
   }) async {
-    final db = await _resolveReportDb();
+    final db = _resolveReportDb();
     return _ReportsQueries.saveGeneratedReport(
       title: title,
       reportType: reportType,

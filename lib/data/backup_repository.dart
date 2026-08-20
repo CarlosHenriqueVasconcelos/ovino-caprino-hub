@@ -2,40 +2,27 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:sqflite_common/sqlite_api.dart'
-    show ConflictAlgorithm, Database, DatabaseExecutor;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/legacy_sqflite_to_drift_bridge.dart';
 import 'drift/app_database.dart';
-import 'local_db.dart';
 
 typedef Progress = void Function(String step);
 
 class BackupRepository {
-  final AppDatabase _appDb;
-  final AppDriftDatabase? _driftDb;
+  final AppDriftDatabase _db;
   final String? Function()? _farmIdProvider;
-  final LegacySqfliteToDriftBridge? _legacyBridge;
-  final SupabaseClient _client;
+  final SupabaseClient Function() _clientProvider;
 
   BackupRepository({
-    required AppDatabase database,
-    required SupabaseClient client,
-    AppDriftDatabase? driftDb,
+    required AppDriftDatabase database,
+    required SupabaseClient Function() clientProvider,
     String? Function()? farmIdProvider,
-  })  : _appDb = database,
-        _driftDb = driftDb,
+  })  : _db = database,
         _farmIdProvider = farmIdProvider,
-        _legacyBridge = driftDb == null
-            ? null
-            : LegacySqfliteToDriftBridge(
-                legacyDb: database,
-                driftDb: driftDb,
-              ),
-        _client = client;
+        _clientProvider = clientProvider;
 
-  String? get _currentFarmId => _farmIdProvider?.call();
+  String? get _farmId => _farmIdProvider?.call();
+  SupabaseClient get _client => _clientProvider();
 
   static const List<String> _pushOrder = [
     'animals',
@@ -459,9 +446,8 @@ class BackupRepository {
     },
   };
 
-  static bool _isFarmScopedTable(String table) {
-    return _farmScopedTables.contains(table);
-  }
+  static bool _isFarmScopedTable(String table) =>
+      _farmScopedTables.contains(table);
 
   List<Variable<Object>> _asVariables(List<Object?> args) {
     return args
@@ -469,29 +455,22 @@ class BackupRepository {
         .toList(growable: false);
   }
 
-  Future<String?> _prepareFarmContext() async {
-    final farmId = _currentFarmId;
-    if (farmId == null || _driftDb == null) return null;
-    await _legacyBridge?.migrateForFarm(farmId);
-    return farmId;
-  }
-
-  Future<List<Map<String, dynamic>>> _driftSelect(
+  Future<List<Map<String, dynamic>>> _select(
     String sql,
     List<Object?> args,
   ) async {
-    final rows = await _driftDb!.customSelect(
+    final rows = await _db.customSelect(
       sql,
       variables: _asVariables(args),
     ).get();
     return rows.map((row) => Map<String, dynamic>.from(row.data)).toList();
   }
 
-  Future<void> _driftInsert(String table, Map<String, dynamic> row) async {
+  Future<void> _insert(String table, Map<String, dynamic> row) async {
     final cols = row.keys.toList(growable: false);
     final placeholders = List.filled(cols.length, '?').join(',');
     final args = cols.map((col) => row[col]).toList(growable: false);
-    await _driftDb!.customStatement(
+    await _db.customStatement(
       'INSERT INTO $table (${cols.join(',')}) VALUES ($placeholders)',
       args,
     );
@@ -501,26 +480,19 @@ class BackupRepository {
     Progress? onProgress,
     int chunk = 500,
   }) async {
-    onProgress?.call('Validando schema local…');
-    await _appDb.ensureSchema();
-    final farmId = await _prepareFarmContext();
-    if (farmId != null) {
-      onProgress?.call('Verificando/ajustando IDs inválidos…');
-      await _sanitizeDriftIds(farmId);
-      await _pushTablesToRemoteDrift(
-        farmId: farmId,
-        onProgress: onProgress,
-        chunk: chunk,
-      );
-      await _syncRemoteDeletionsDrift(farmId: farmId, onProgress: onProgress);
-      onProgress?.call('Upload finalizado.');
+    final farmId = _farmId;
+    if (farmId == null) {
+      onProgress?.call('Fazenda não identificada. Backup cancelado.');
       return;
     }
-
     onProgress?.call('Verificando/ajustando IDs inválidos…');
-    await _sanitizeLocalIds();
-    await _pushTablesToRemote(onProgress: onProgress, chunk: chunk);
-    await _syncRemoteDeletions(onProgress: onProgress);
+    await _sanitizeIds(farmId);
+    await _pushTablesToRemote(
+      farmId: farmId,
+      onProgress: onProgress,
+      chunk: chunk,
+    );
+    await _syncRemoteDeletions(farmId: farmId, onProgress: onProgress);
     onProgress?.call('Upload finalizado.');
   }
 
@@ -528,85 +500,19 @@ class BackupRepository {
     Progress? onProgress,
     int pageSize = 1000,
   }) async {
-    onProgress?.call('Validando schema local…');
-    await _appDb.ensureSchema();
-    final farmId = await _prepareFarmContext();
-    if (farmId != null) {
-      await _restoreFromRemoteDrift(
-        farmId: farmId,
-        onProgress: onProgress,
-        pageSize: pageSize,
-      );
+    final farmId = _farmId;
+    if (farmId == null) {
+      onProgress?.call('Fazenda não identificada. Restauração cancelada.');
       return;
     }
-
-    // Mesmo sem Drift, usa farmId para filtrar a busca remota e evitar
-    // que dados de outras fazendas sejam baixados.
-    final legacyFarmId = _currentFarmId;
-
-    final db = _appDb.db;
-    onProgress?.call('Validando estrutura remota e baixando dados…');
-    final remoteByTable = <String, List<Map<String, dynamic>>>{};
-    for (final table in _pushOrder) {
-      onProgress?.call('Baixando $table…');
-      final rows = await _fetchRemoteTableRows(
-        table,
-        pageSize,
-        farmId: legacyFarmId,
-      );
-      remoteByTable[table] = rows;
-    }
-
-    // Descobre quais colunas realmente existem no schema local (sqflite legado
-    // pode não ter farm_id). Isso evita inserções com colunas desconhecidas.
-    final existingCols = <String, Set<String>>{};
-    for (final table in _pushOrder) {
-      final info = await db.rawQuery('PRAGMA table_info($table)');
-      existingCols[table] = info.map((r) => r['name'] as String).toSet();
-    }
-
-    onProgress?.call('Aplicando restauração local…');
-    await db.execute('PRAGMA foreign_keys = OFF');
-    try {
-      await db.transaction((txn) async {
-        for (final table in _deleteChildFirst) {
-          if (legacyFarmId != null && _isFarmScopedTable(table) &&
-              existingCols[table]?.contains('farm_id') == true) {
-            await txn.delete(table, where: 'farm_id = ?', whereArgs: [legacyFarmId]);
-          } else {
-            await txn.delete(table);
-          }
-        }
-
-        for (final table in _pushOrder) {
-          final rows = remoteByTable[table] ?? const <Map<String, dynamic>>[];
-          if (rows.isEmpty) continue;
-          final allowedCols = existingCols[table] ?? const {};
-          final toLocal = rows.map((r) {
-            final row = _toLocal(table, r, farmId: legacyFarmId);
-            // Remove colunas que não existem no schema local atual.
-            return Map<String, dynamic>.fromEntries(
-              row.entries.where((e) => allowedCols.contains(e.key)),
-            );
-          }).toList();
-          onProgress?.call('Gravando $table (${toLocal.length})…');
-          for (final row in toLocal) {
-            await txn.insert(
-              table,
-              row,
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
-          }
-        }
-      });
-    } finally {
-      await db.execute('PRAGMA foreign_keys = ON');
-    }
-
-    onProgress?.call('Download finalizado.');
+    await _restoreFromRemote(
+      farmId: farmId,
+      onProgress: onProgress,
+      pageSize: pageSize,
+    );
   }
 
-  Future<void> _restoreFromRemoteDrift({
+  Future<void> _restoreFromRemote({
     required String farmId,
     Progress? onProgress,
     int pageSize = 1000,
@@ -625,12 +531,12 @@ class BackupRepository {
     }
 
     onProgress?.call('Aplicando restauração local…');
-    await _driftDb!.customStatement('PRAGMA foreign_keys = OFF');
+    await _db.customStatement('PRAGMA foreign_keys = OFF');
     try {
-      await _driftDb.transaction(() async {
+      await _db.transaction(() async {
         for (final table in _deleteChildFirst) {
           if (!_isFarmScopedTable(table)) continue;
-          await _driftDb.customStatement(
+          await _db.customStatement(
             'DELETE FROM $table WHERE farm_id = ?',
             [farmId],
           );
@@ -645,30 +551,30 @@ class BackupRepository {
               .toList(growable: false);
           onProgress?.call('Gravando $table (${toLocal.length})…');
           for (final row in toLocal) {
-            await _driftInsert(table, row);
+            await _insert(table, row);
           }
         }
       });
     } finally {
-      await _driftDb.customStatement('PRAGMA foreign_keys = ON');
+      await _db.customStatement('PRAGMA foreign_keys = ON');
     }
 
     onProgress?.call('Download finalizado.');
   }
 
-  Future<void> _sanitizeDriftIds(String farmId) async {
+  Future<void> _sanitizeIds(String farmId) async {
     for (final table in _pushOrder) {
       if (!_tableHasIdColumn(table)) continue;
       if (!_isFarmScopedTable(table)) continue;
-      await _fixInvalidIdsCascadeDrift(table, farmId);
+      await _fixInvalidIdsCascade(table, farmId);
     }
   }
 
-  Future<void> _fixInvalidIdsCascadeDrift(String table, String farmId) async {
+  Future<void> _fixInvalidIdsCascade(String table, String farmId) async {
     final uuidRe = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     );
-    final rows = await _driftSelect(
+    final rows = await _select(
       'SELECT rowid AS __rid, id FROM $table WHERE farm_id = ?',
       [farmId],
     );
@@ -688,15 +594,15 @@ class BackupRepository {
     }
     if (fixes.isEmpty) return;
 
-    await _driftDb!.customStatement('PRAGMA foreign_keys = OFF');
+    await _db.customStatement('PRAGMA foreign_keys = OFF');
     try {
-      await _driftDb.transaction(() async {
+      await _db.transaction(() async {
         final refs = _fkMap[table] ?? const <_FkRef>[];
         for (final fix in fixes) {
           if (fix.oldId != null && fix.oldId!.isNotEmpty) {
             for (final ref in refs) {
               if (_isFarmScopedTable(ref.childTable)) {
-                await _driftDb.customStatement(
+                await _db.customStatement(
                   '''
                   UPDATE ${ref.childTable}
                   SET ${ref.childColumn} = ?
@@ -705,7 +611,7 @@ class BackupRepository {
                   [fix.newId, farmId, fix.oldId],
                 );
               } else {
-                await _driftDb.customStatement(
+                await _db.customStatement(
                   '''
                   UPDATE ${ref.childTable}
                   SET ${ref.childColumn} = ?
@@ -716,88 +622,29 @@ class BackupRepository {
               }
             }
           }
-          await _updateIdDrift(table, farmId, fix);
+          await _updateId(table, farmId, fix);
         }
       });
     } finally {
-      await _driftDb.customStatement('PRAGMA foreign_keys = ON');
+      await _db.customStatement('PRAGMA foreign_keys = ON');
     }
   }
 
-  Future<void> _updateIdDrift(
-    String table,
-    String farmId,
-    _IdFix fix,
-  ) async {
+  Future<void> _updateId(String table, String farmId, _IdFix fix) async {
     if (fix.oldId == null || fix.oldId!.isEmpty) {
-      await _driftDb!.customStatement(
+      await _db.customStatement(
         'UPDATE $table SET id = ? WHERE farm_id = ? AND rowid = ?',
         [fix.newId, farmId, fix.rowId],
       );
       return;
     }
-
-    await _driftDb!.customStatement(
+    await _db.customStatement(
       'UPDATE $table SET id = ? WHERE farm_id = ? AND id = ?',
       [fix.newId, farmId, fix.oldId],
     );
   }
 
-  Future<void> _sanitizeLocalIds() async {
-    for (final table in _pushOrder) {
-      if (!_tableHasIdColumn(table)) continue;
-      await _fixInvalidIdsCascade(table);
-    }
-  }
-
   Future<void> _pushTablesToRemote({
-    Progress? onProgress,
-    int chunk = 500,
-  }) async {
-    final db = _appDb.db;
-    final legacyFarmId = _currentFarmId;
-
-    // Descobre quais tabelas já têm farm_id no schema local.
-    final tablesWithFarmId = <String>{};
-    for (final table in _pushOrder) {
-      try {
-        final info = await db.rawQuery('PRAGMA table_info($table)');
-        if (info.any((r) => r['name'] == 'farm_id')) {
-          tablesWithFarmId.add(table);
-        }
-      } catch (_) {}
-    }
-
-    for (final table in _pushOrder) {
-      onProgress?.call('Preparando $table…');
-      final List<Map<String, dynamic>> rows;
-      if (legacyFarmId != null &&
-          _isFarmScopedTable(table) &&
-          tablesWithFarmId.contains(table)) {
-        rows = await db.query(table, where: 'farm_id = ?', whereArgs: [legacyFarmId]);
-      } else {
-        rows = await db.query(table);
-      }
-      if (rows.isEmpty) continue;
-
-      final payload = rows.map((r) => _toRemote(table, r)).toList();
-      final hasIdColumn = _tableHasIdColumn(table);
-      for (final r in payload) {
-        if (hasIdColumn && _missingId(r['id'])) {
-          r['id'] = _uuidV4();
-        }
-      }
-
-      onProgress?.call('Enviando $table (${payload.length})…');
-      for (var i = 0; i < payload.length; i += chunk) {
-        final end = (i + chunk) > payload.length ? payload.length : i + chunk;
-        final part = payload.sublist(i, end);
-        await _upsertChunk(table, part);
-      }
-    }
-  }
-
-  Future<void> _pushTablesToRemoteDrift({
     required String farmId,
     Progress? onProgress,
     int chunk = 500,
@@ -805,7 +652,7 @@ class BackupRepository {
     for (final table in _pushOrder) {
       if (!_isFarmScopedTable(table)) continue;
       onProgress?.call('Preparando $table…');
-      final rows = await _driftSelect(
+      final rows = await _select(
         'SELECT * FROM $table WHERE farm_id = ?',
         [farmId],
       );
@@ -868,40 +715,7 @@ class BackupRepository {
     }
   }
 
-  Future<void> _syncRemoteDeletions({Progress? onProgress}) async {
-    final db = _appDb.db;
-    for (final table in _deleteChildFirst) {
-      onProgress?.call('Sincronizando exclusões em $table…');
-      if (_tableHasIdColumn(table)) {
-        await _syncRemoteDeletionsById(table, db);
-        continue;
-      }
-
-      if (table == 'app_settings') {
-        await _syncRemoteDeletionsBySingleKey(
-          table: table,
-          keyColumn: 'setting_key',
-          db: db,
-        );
-        continue;
-      }
-
-      if (table == 'animal_lineage_meta') {
-        await _syncRemoteDeletionsBySingleKey(
-          table: table,
-          keyColumn: 'meta_key',
-          db: db,
-        );
-        continue;
-      }
-
-      if (table == 'animal_lineage') {
-        await _syncRemoteDeletionsLineage(db);
-      }
-    }
-  }
-
-  Future<void> _syncRemoteDeletionsDrift({
+  Future<void> _syncRemoteDeletions({
     required String farmId,
     Progress? onProgress,
   }) async {
@@ -909,12 +723,12 @@ class BackupRepository {
       if (!_isFarmScopedTable(table)) continue;
       onProgress?.call('Sincronizando exclusões em $table…');
       if (_tableHasIdColumn(table)) {
-        await _syncRemoteDeletionsByIdDrift(table, farmId);
+        await _syncRemoteDeletionsById(table, farmId);
         continue;
       }
 
       if (table == 'app_settings') {
-        await _syncRemoteDeletionsBySingleKeyDrift(
+        await _syncRemoteDeletionsBySingleKey(
           table: table,
           keyColumn: 'setting_key',
           farmId: farmId,
@@ -923,7 +737,7 @@ class BackupRepository {
       }
 
       if (table == 'animal_lineage_meta') {
-        await _syncRemoteDeletionsBySingleKeyDrift(
+        await _syncRemoteDeletionsBySingleKey(
           table: table,
           keyColumn: 'meta_key',
           farmId: farmId,
@@ -932,13 +746,13 @@ class BackupRepository {
       }
 
       if (table == 'animal_lineage') {
-        await _syncRemoteDeletionsLineageDrift(farmId);
+        await _syncRemoteDeletionsLineage(farmId);
       }
     }
   }
 
-  Future<void> _syncRemoteDeletionsByIdDrift(String table, String farmId) async {
-    final localIds = (await _driftSelect(
+  Future<void> _syncRemoteDeletionsById(String table, String farmId) async {
+    final localIds = (await _select(
       'SELECT id FROM $table WHERE farm_id = ?',
       [farmId],
     ))
@@ -966,12 +780,12 @@ class BackupRepository {
     }
   }
 
-  Future<void> _syncRemoteDeletionsBySingleKeyDrift({
+  Future<void> _syncRemoteDeletionsBySingleKey({
     required String table,
     required String keyColumn,
     required String farmId,
   }) async {
-    final localKeys = (await _driftSelect(
+    final localKeys = (await _select(
       'SELECT $keyColumn FROM $table WHERE farm_id = ?',
       [farmId],
     ))
@@ -997,8 +811,8 @@ class BackupRepository {
     }
   }
 
-  Future<void> _syncRemoteDeletionsLineageDrift(String farmId) async {
-    final localRows = await _driftSelect(
+  Future<void> _syncRemoteDeletionsLineage(String farmId) async {
+    final localRows = await _select(
       '''
       SELECT descendant_id, ancestor_id
       FROM animal_lineage
@@ -1039,88 +853,6 @@ class BackupRepository {
     }
   }
 
-  Future<void> _syncRemoteDeletionsById(String table, Database db) async {
-    final localIds = (await db.query(table, columns: ['id']))
-        .map((m) => (m['id'] ?? '').toString())
-        .where((s) => s.isNotEmpty)
-        .toSet();
-
-    final remoteIds = (await _client.from(table).select('id'))
-        .map<String>((e) => (e['id'] ?? '').toString())
-        .where((s) => s.isNotEmpty)
-        .toSet();
-
-    final toDelete = remoteIds.difference(localIds).toList();
-    if (toDelete.isEmpty) return;
-
-    const batch = 300;
-    for (var i = 0; i < toDelete.length; i += batch) {
-      final end = (i + batch) > toDelete.length ? toDelete.length : i + batch;
-      final part = toDelete.sublist(i, end);
-      final orExpr = part.map((id) => 'id.eq.$id').join(',');
-      await _client.from(table).delete().or(orExpr);
-    }
-  }
-
-  Future<void> _syncRemoteDeletionsBySingleKey({
-    required String table,
-    required String keyColumn,
-    required Database db,
-  }) async {
-    final localKeys = (await db.query(table, columns: [keyColumn]))
-        .map((m) => (m[keyColumn] ?? '').toString())
-        .where((s) => s.isNotEmpty)
-        .toSet();
-
-    final remoteKeys = (await _client.from(table).select(keyColumn))
-        .map<String>((e) => (e[keyColumn] ?? '').toString())
-        .where((s) => s.isNotEmpty)
-        .toSet();
-
-    final toDelete = remoteKeys.difference(localKeys);
-    for (final key in toDelete) {
-      await _client.from(table).delete().eq(keyColumn, key);
-    }
-  }
-
-  Future<void> _syncRemoteDeletionsLineage(Database db) async {
-    final localRows = await db.query(
-      'animal_lineage',
-      columns: ['descendant_id', 'ancestor_id'],
-    );
-    final localKeys = localRows
-        .map(
-          (m) =>
-              '${(m['descendant_id'] ?? '').toString()}|${(m['ancestor_id'] ?? '').toString()}',
-        )
-        .where((s) => !s.startsWith('|') && !s.endsWith('|'))
-        .toSet();
-
-    final remoteRows = await _client
-        .from('animal_lineage')
-        .select('descendant_id,ancestor_id');
-    final remoteKeys = remoteRows
-        .map<String>(
-          (e) =>
-              '${(e['descendant_id'] ?? '').toString()}|${(e['ancestor_id'] ?? '').toString()}',
-        )
-        .where((s) => !s.startsWith('|') && !s.endsWith('|'))
-        .toSet();
-
-    final toDelete = remoteKeys.difference(localKeys);
-    for (final key in toDelete) {
-      final parts = key.split('|');
-      if (parts.length != 2) continue;
-      final descendantId = parts[0];
-      final ancestorId = parts[1];
-      await _client
-          .from('animal_lineage')
-          .delete()
-          .eq('descendant_id', descendantId)
-          .eq('ancestor_id', ancestorId);
-    }
-  }
-
   static bool _tableHasIdColumn(String table) {
     final cols = _cols[table];
     if (cols == null) return false;
@@ -1150,77 +882,6 @@ class BackupRepository {
       return out;
     } catch (e) {
       throw Exception('Falha ao baixar tabela "$table": $e');
-    }
-  }
-
-  Future<void> _fixInvalidIdsCascade(String table) async {
-    final db = _appDb.db;
-    final uuidRe = RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-    );
-
-    final rows = await db.rawQuery('SELECT rowid AS __rid, id FROM $table');
-    final fixes = <_IdFix>[];
-
-    for (final r in rows) {
-      final old = (r['id'] ?? '').toString();
-      final needFix = old.isEmpty || !uuidRe.hasMatch(old);
-      if (needFix) {
-        fixes.add(
-          _IdFix(
-            rowId: (r['__rid'] as int),
-            oldId: old.isEmpty ? null : old,
-            newId: _uuidV4(),
-          ),
-        );
-      }
-    }
-
-    if (fixes.isEmpty) return;
-
-    await db.execute('PRAGMA foreign_keys = OFF');
-    try {
-      await db.transaction((txn) async {
-        final refs = _fkMap[table] ?? const <_FkRef>[];
-        for (final fix in fixes) {
-          if (fix.oldId != null && fix.oldId!.isNotEmpty) {
-            for (final ref in refs) {
-              await txn.update(
-                ref.childTable,
-                {ref.childColumn: fix.newId},
-                where: '${ref.childColumn} = ?',
-                whereArgs: [fix.oldId],
-              );
-            }
-          }
-
-          await _updateId(txn, table, fix);
-        }
-      });
-    } finally {
-      await db.execute('PRAGMA foreign_keys = ON');
-    }
-  }
-
-  Future<void> _updateId(
-    DatabaseExecutor txn,
-    String table,
-    _IdFix fix,
-  ) async {
-    if (fix.oldId == null || fix.oldId!.isEmpty) {
-      await txn.update(
-        table,
-        {'id': fix.newId},
-        where: 'rowid = ?',
-        whereArgs: [fix.rowId],
-      );
-    } else {
-      await txn.update(
-        table,
-        {'id': fix.newId},
-        where: 'id = ?',
-        whereArgs: [fix.oldId],
-      );
     }
   }
 
@@ -1394,47 +1055,17 @@ class BackupRepository {
 
   static String _deaccent(String s) {
     const map = {
-      'á': 'a',
-      'à': 'a',
-      'ã': 'a',
-      'â': 'a',
-      'ä': 'a',
-      'é': 'e',
-      'ê': 'e',
-      'è': 'e',
-      'ë': 'e',
-      'í': 'i',
-      'ì': 'i',
-      'ï': 'i',
-      'ó': 'o',
-      'ô': 'o',
-      'õ': 'o',
-      'ò': 'o',
-      'ö': 'o',
-      'ú': 'u',
-      'ù': 'u',
-      'ü': 'u',
+      'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'ä': 'a',
+      'é': 'e', 'ê': 'e', 'è': 'e', 'ë': 'e',
+      'í': 'i', 'ì': 'i', 'ï': 'i',
+      'ó': 'o', 'ô': 'o', 'õ': 'o', 'ò': 'o', 'ö': 'o',
+      'ú': 'u', 'ù': 'u', 'ü': 'u',
       'ç': 'c',
-      'Á': 'A',
-      'À': 'A',
-      'Ã': 'A',
-      'Â': 'A',
-      'Ä': 'A',
-      'É': 'E',
-      'Ê': 'E',
-      'È': 'E',
-      'Ë': 'E',
-      'Í': 'I',
-      'Ì': 'I',
-      'Ï': 'I',
-      'Ó': 'O',
-      'Ô': 'O',
-      'Õ': 'O',
-      'Ò': 'O',
-      'Ö': 'O',
-      'Ú': 'U',
-      'Ù': 'U',
-      'Ü': 'U',
+      'Á': 'A', 'À': 'A', 'Ã': 'A', 'Â': 'A', 'Ä': 'A',
+      'É': 'E', 'Ê': 'E', 'È': 'E', 'Ë': 'E',
+      'Í': 'I', 'Ì': 'I', 'Ï': 'I',
+      'Ó': 'O', 'Ô': 'O', 'Õ': 'O', 'Ò': 'O', 'Ö': 'O',
+      'Ú': 'U', 'Ù': 'U', 'Ü': 'U',
       'Ç': 'C',
     };
     final sb = StringBuffer();

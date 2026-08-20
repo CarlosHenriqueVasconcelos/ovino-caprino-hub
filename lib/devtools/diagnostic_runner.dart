@@ -1,10 +1,11 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/animal_lifecycle_repository.dart';
 import '../data/animal_repository.dart';
-import '../data/local_db.dart';
+import '../data/drift/app_database.dart';
 import '../models/animal.dart';
 import '../services/animal_service.dart';
 import '../services/deceased_service.dart';
@@ -43,7 +44,7 @@ class DiagnosticResult {
 }
 
 class DiagnosticRunner {
-  final AppDatabase appDb;
+  final AppDriftDatabase driftDb;
   final AnimalRepository animalRepo;
   final AnimalLifecycleRepository lifecycleRepo;
   final AnimalService animalService;
@@ -51,7 +52,7 @@ class DiagnosticRunner {
   final SystemMaintenanceService maintenanceService;
 
   DiagnosticRunner({
-    required this.appDb,
+    required this.driftDb,
     required this.animalRepo,
     required this.lifecycleRepo,
     required this.animalService,
@@ -92,9 +93,9 @@ class DiagnosticRunner {
   Future<void> _seedData(DiagnosticLog log, {required bool stress}) async {
     log.info('Seeding data...');
     if (stress) {
-      await SeedFactory.seedStress(db: appDb, log: log);
+      await SeedFactory.seedStress(db: driftDb, log: log);
     } else {
-      await SeedFactory.seedSmall(db: appDb, log: log);
+      await SeedFactory.seedSmall(db: driftDb, log: log);
     }
   }
 
@@ -196,18 +197,14 @@ class DiagnosticRunner {
         notes: 'Diagnóstico automático',
       );
 
-      final soldRows = await appDb.db.query(
-        'sold_animals',
-        where: 'id = ?',
-        whereArgs: [target.id],
-        limit: 1,
-      );
-      final stillInAnimals = await appDb.db.query(
-        'animals',
-        where: 'id = ?',
-        whereArgs: [target.id],
-        limit: 1,
-      );
+      final soldRows = await driftDb.customSelect(
+        'SELECT 1 FROM sold_animals WHERE id = ? LIMIT 1',
+        variables: [Variable.withString(target.id)],
+      ).get();
+      final stillInAnimals = await driftDb.customSelect(
+        'SELECT 1 FROM animals WHERE id = ? LIMIT 1',
+        variables: [Variable.withString(target.id)],
+      ).get();
       if (soldRows.isEmpty || stillInAnimals.isNotEmpty) {
         throw Exception('Animal not moved to sold_animals correctly');
       }
@@ -232,18 +229,14 @@ class DiagnosticRunner {
         notes: 'Marcado pelo diagnóstico automático',
       );
 
-      final deceasedRows = await appDb.db.query(
-        'deceased_animals',
-        where: 'id = ?',
-        whereArgs: [target.id],
-        limit: 1,
-      );
-      final stillInAnimals = await appDb.db.query(
-        'animals',
-        where: 'id = ?',
-        whereArgs: [target.id],
-        limit: 1,
-      );
+      final deceasedRows = await driftDb.customSelect(
+        'SELECT 1 FROM deceased_animals WHERE id = ? LIMIT 1',
+        variables: [Variable.withString(target.id)],
+      ).get();
+      final stillInAnimals = await driftDb.customSelect(
+        'SELECT 1 FROM animals WHERE id = ? LIMIT 1',
+        variables: [Variable.withString(target.id)],
+      ).get();
       if (deceasedRows.isEmpty || stillInAnimals.isNotEmpty) {
         throw Exception('Animal not moved to deceased_animals correctly');
       }
@@ -269,7 +262,7 @@ class DiagnosticRunner {
   Future<void> _scenarioFkIntegrity(DiagnosticLog log) async {
     log.info('[SCENARIO] FK integrity quick check');
     try {
-      final res = await appDb.db.rawQuery('PRAGMA foreign_key_check;');
+      final res = await driftDb.customSelect('PRAGMA foreign_key_check;').get();
       if (res.isNotEmpty) {
         log.warn('foreign_key_check returned ${res.length} rows: $res');
       } else {
@@ -282,7 +275,6 @@ class DiagnosticRunner {
   }
 
   Future<Animal?> _pickSafeAnimalForMove() async {
-    // Prefer an animal with no external deps to avoid conflicts.
     final safe = await _pickSafeAnimalForDelete();
     if (safe != null) return safe;
     final animals = await animalRepo.all(limit: 1);
@@ -291,7 +283,7 @@ class DiagnosticRunner {
   }
 
   Future<Animal?> _pickSafeAnimalForDelete() async {
-    final rows = await appDb.db.rawQuery('''
+    final rows = await driftDb.customSelect('''
       SELECT a.id
       FROM animals a
       WHERE
@@ -302,10 +294,10 @@ class DiagnosticRunner {
         AND NOT EXISTS (SELECT 1 FROM financial_records f WHERE f.animal_id = a.id)
         AND NOT EXISTS (SELECT 1 FROM financial_accounts fa WHERE fa.animal_id = a.id)
         AND NOT EXISTS (SELECT 1 FROM breeding_records b WHERE b.female_animal_id = a.id OR b.male_animal_id = a.id)
-      LIMIT 1;
-    ''');
+      LIMIT 1
+    ''').get();
     if (rows.isEmpty) return null;
-    final id = rows.first['id']?.toString();
+    final id = rows.first.data['id']?.toString();
     if (id == null || id.isEmpty) return null;
     return animalRepo.getAnimalById(id);
   }

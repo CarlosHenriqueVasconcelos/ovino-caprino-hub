@@ -54,7 +54,7 @@ class AppDriftDatabase extends _$AppDriftDatabase {
   // Versão do schema — incremente junto com cada MigrationStep abaixo.
   // -------------------------------------------------------------------------
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 1;
 
   // -------------------------------------------------------------------------
   // Estratégia de migração
@@ -67,36 +67,11 @@ class AppDriftDatabase extends _$AppDriftDatabase {
           await _ensureFarmIdColumns();
           await _createIndexes();
           await _createSyncIndexes();
+          await _ensureUpdatedAtTriggers();
           await _seedDefaults();
         },
-        onUpgrade: (m, from, to) async {
-          await _ensureSyncTombstonesInfra();
-          if (from < 2) {
-            await _ensureFarmIdColumns();
-            await _createIndexes();
-          }
-          if (from < 3) {
-            await _renameWeightColumns();
-          }
-          if (from < 4) {
-            await _migrateAppSettingsPk();
-          }
-          if (from < 5) {
-            await _createSyncIndexes();
-          }
-          if (from < 6) {
-            // Re-executa _createSyncIndexes (idempotente via IF NOT EXISTS)
-            // para garantir o índice correto de pharmacy_stock_movements e os
-            // novos índices de animal_lineage, animal_lineage_meta, app_settings
-            // e push_tokens em bases já migradas para v5.
-            await _createSyncIndexes();
-          }
-        },
         beforeOpen: (details) async {
-          await _ensureSyncTombstonesInfra();
-          await _ensureFarmIdColumns();
-          await _ensureUpdatedAtTriggers();
-          // Habilita foreign keys a cada abertura (requisito do SQLite)
+          // Apenas o PRAGMA obrigatório — pesado em beforeOpen bloqueia o cold start.
           await customStatement('PRAGMA foreign_keys = ON;');
         },
       );
@@ -278,81 +253,6 @@ class AppDriftDatabase extends _$AppDriftDatabase {
       final name = row.data['name']?.toString().toLowerCase();
       return name == target;
     });
-  }
-
-  /// Renomeia colunas weight com prefixo numérico para o padrão correto
-  /// (ex.: weight30_days → weight_30_days) para compatibilidade com o Supabase.
-  Future<void> _renameWeightColumns() async {
-    const tables = ['animals', 'sold_animals', 'deceased_animals'];
-    const renames = {
-      'weight30_days': 'weight_30_days',
-      'weight60_days': 'weight_60_days',
-      'weight90_days': 'weight_90_days',
-      'weight120_days': 'weight_120_days',
-    };
-    for (final table in tables) {
-      final exists = await _tableExists(table);
-      if (!exists) continue;
-      for (final entry in renames.entries) {
-        final hasOld = await _tableHasColumn(table, entry.key);
-        if (!hasOld) continue;
-        await customStatement(
-          'ALTER TABLE $table RENAME COLUMN ${entry.key} TO ${entry.value}',
-        );
-      }
-    }
-  }
-
-  /// Recria app_settings com PK composta (farm_id, setting_key).
-  ///
-  /// SQLite não suporta ALTER TABLE para alterar PKs, então a estratégia é:
-  ///   1. Renomear a tabela antiga para _backup
-  ///   2. Criar a nova tabela com a PK correta
-  ///   3. Copiar os dados, resolvendo duplicatas pelo updated_at mais recente
-  ///   4. Remover o backup
-  Future<void> _migrateAppSettingsPk() async {
-    final exists = await _tableExists('app_settings');
-    if (!exists) return;
-
-    await customStatement(
-      'ALTER TABLE app_settings RENAME TO app_settings_pk_backup',
-    );
-
-    await customStatement('''
-      CREATE TABLE app_settings (
-        farm_id   TEXT,
-        setting_key   TEXT NOT NULL,
-        setting_value TEXT NOT NULL,
-        updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-        PRIMARY KEY (farm_id, setting_key)
-      )
-    ''');
-
-    // Copia linhas mais recentes quando há duplicatas (farm_id, setting_key).
-    await customStatement('''
-      INSERT INTO app_settings (farm_id, setting_key, setting_value, updated_at)
-      SELECT farm_id, setting_key, setting_value, updated_at
-      FROM app_settings_pk_backup
-      WHERE rowid IN (
-        SELECT rowid FROM app_settings_pk_backup AS a
-        WHERE updated_at = (
-          SELECT MAX(b.updated_at)
-          FROM app_settings_pk_backup AS b
-          WHERE COALESCE(b.farm_id,'') = COALESCE(a.farm_id,'')
-            AND b.setting_key = a.setting_key
-        )
-      )
-    ''');
-
-    await customStatement('DROP TABLE app_settings_pk_backup');
-
-    // Dropa triggers de tombstone para que _ensureSyncTombstonesInfra
-    // os recrie (no próximo beforeOpen) com o SQL atualizado.
-    for (final table in _tombstoneTrackedTables) {
-      await customStatement(
-        'DROP TRIGGER IF EXISTS trg_sync_tombstone_$table',
-      );
-    }
   }
 
   Future<void> _ensureSyncTombstonesInfra() async {

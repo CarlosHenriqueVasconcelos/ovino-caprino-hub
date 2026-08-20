@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -17,7 +18,6 @@ import '../data/deceased_repository.dart';
 import '../data/feeding_repository.dart';
 import '../data/finance_repository.dart';
 import '../data/drift/app_database.dart';
-import '../data/local_db.dart';
 import '../data/maintenance_repository.dart';
 import '../data/medication_repository.dart';
 import '../data/note_repository.dart';
@@ -67,126 +67,101 @@ Future<void> bootstrapApp() async {
   };
 
   await runZonedGuarded<Future<void>>(() async {
+    final bootWatch = Stopwatch()..start();
+    void bootLog(String message) {
+      if (!kDebugMode) return;
+      debugPrint('BOOT +${bootWatch.elapsedMilliseconds}ms $message');
+    }
+
     WidgetsFlutterBinding.ensureInitialized();
     Intl.defaultLocale = 'pt_BR';
+    bootLog('binding:ready');
 
-    // Carrega variáveis de ambiente antes de qualquer outra coisa.
-    await dotenv.load(fileName: '.env');
-    AppConfig.validate();
-
-    // Inicializações independentes em paralelo — reduz o tempo de startup
-    // colocando Supabase, DB local e formatação a correr ao mesmo tempo.
-    late final AppDatabase appDb;
-    await Future.wait([
-      initializeDateFormatting('pt_BR', null),
-      logService.initialize(),
-      Supabase.initialize(
-        url: AppConfig.supabaseUrl,
-        anonKey: AppConfig.supabaseAnonKey,
-      ),
-      AppDatabase.open().then((db) => appDb = db),
-    ]);
-
+    // Cria DB e serviços de forma síncrona (sem I/O).
     final driftDb = AppDriftDatabase();
-
     final authService = AuthService(driftDb);
-    await authService.initialize();
-    final syncService = SyncService(driftDb, authService, appDb);
-    await syncService.initialize();
+    final syncService = SyncService(driftDb, authService);
+    bootLog('core_services:created');
 
     final animalRepository = AnimalRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final pharmacyRepository = PharmacyRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final breedingRepository = BreedingRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final financeRepository = FinanceRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final feedingRepository = FeedingRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final vaccinationRepository = VaccinationRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final medicationRepository = MedicationRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final noteRepository = NoteRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final animalHistoryRepository = AnimalHistoryRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final deceasedRepository = DeceasedRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final soldAnimalsRepository = SoldAnimalsRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final weightAlertRepository = WeightAlertRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final animalCascadeRepository = AnimalCascadeRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final animalLifecycleRepository = AnimalLifecycleRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final maintenanceRepository = MaintenanceRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
     final reportsRepository = ReportsRepository(
-      appDb,
-      driftDb: driftDb,
+      driftDb,
       farmIdProvider: () => authService.currentFarmId,
     );
 
+    // BackupRepository usa cliente Supabase de forma lazy — pode ser criado
+    // antes de Supabase.initialize() pois o cliente só é acessado em operações
+    // de backup, nunca durante o startup.
     final backupRepository = BackupRepository(
-      database: appDb,
-      client: Supabase.instance.client,
-      driftDb: driftDb,
+      database: driftDb,
+      clientProvider: () => Supabase.instance.client,
       farmIdProvider: () => authService.currentFarmId,
     );
     final backupService = BackupService(repository: backupRepository);
 
+    // runApp antes de toda inicialização pesada — o splash aparece imediatamente.
     runApp(
-      FazendaSaoPetronioApp(
+      TerraTechApp(
         deps: AppDependencies(
-          db: appDb,
           driftDb: driftDb,
           authService: authService,
           animalRepository: animalRepository,
@@ -209,6 +184,71 @@ Future<void> bootstrapApp() async {
           syncService: syncService,
         ),
       ),
+    );
+    bootLog('runApp:called');
+    final infraReadyCompleter = Completer<void>();
+    final infraReady = infraReadyCompleter.future;
+    bootLog('infra:scheduled_after_first_frame');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      bootLog('first_frame:rendered');
+      unawaited(() async {
+        try {
+          // Infra de rede/i18n inicia só após o primeiro frame.
+          bootLog('infra:start');
+          await dotenv.load(fileName: '.env');
+          bootLog('.env:loaded');
+          AppConfig.validate();
+
+          final supabaseUrl = AppConfig.supabaseUrl;
+          final supabaseAnonKey = AppConfig.supabaseAnonKey;
+
+          await Future.wait([
+            logService.initialize().then((_) => bootLog('log_service:ready')),
+            initializeDateFormatting(
+              'pt_BR',
+              null,
+            ).then((_) => bootLog('intl:pt_BR_ready')),
+            Supabase.initialize(
+              url: supabaseUrl,
+              anonKey: supabaseAnonKey,
+            ).then((_) => bootLog('supabase:init_done')),
+          ]);
+          bootLog('infra:ready');
+          if (!infraReadyCompleter.isCompleted) {
+            infraReadyCompleter.complete();
+          }
+        } catch (e, st) {
+          bootLog('infra:error:$e');
+          if (!infraReadyCompleter.isCompleted) {
+            infraReadyCompleter.complete();
+          }
+          unawaited(
+            logService.logWarning(
+              'Falha na infraestrutura de bootstrap: $e',
+            ),
+          );
+          debugPrint('bootstrap infra error: $e\n$st');
+        }
+      }());
+    });
+
+    // Auth verifica cache local (Drift) imediatamente — o fast path não precisa
+    // do Supabase. Em usuários já logados, o AuthGate abre em < 1 s.
+    // O slow path (primeiro acesso) aguarda o infraReady internamente.
+    await authService.initialize(supabaseReady: infraReady);
+    bootLog('auth_initialize:done');
+    // Sync inicializa em background para não competir com o primeiro frame.
+    unawaited(
+      syncService.initialize().catchError((Object error, StackTrace stackTrace) {
+        unawaited(
+          logService.logWarning(
+            'Falha ao inicializar SyncService no bootstrap: $error',
+          ),
+        );
+        debugPrint(
+          'SyncService.initialize bootstrap error: $error\n$stackTrace',
+        );
+      }),
     );
   }, (error, stack) {
     logService.logError(

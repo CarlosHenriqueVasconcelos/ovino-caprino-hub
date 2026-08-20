@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+
 import '../data/matrix_evaluation_repository.dart';
 import '../../../models/matrix_candidate_ranking.dart';
 import '../../../models/matrix_evaluation.dart';
@@ -25,6 +27,7 @@ class MatrixRankingFilters {
 }
 
 class MatrixSelectionService {
+  static const Uuid _uuid = Uuid();
   final MatrixEvaluationRepository _repository;
 
   const MatrixSelectionService(this._repository);
@@ -297,5 +300,5 @@ class MatrixSelectionService {
     return _repository.deleteEvaluation(id);
   }
 
-  String _newId() => 'me_${DateTime.now().microsecondsSinceEpoch}';
+  String _newId() => _uuid.v4();
 }

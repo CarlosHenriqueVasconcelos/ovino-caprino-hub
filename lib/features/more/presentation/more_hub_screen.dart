@@ -48,7 +48,7 @@ class MoreHubScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const AppBrandHeader(
-            title: 'Fazenda São Petrônio',
+            title: 'Terra Tech',
             subtitle: 'Gestão de Ovinos e Caprinos',
             margin: EdgeInsets.zero,
           ),

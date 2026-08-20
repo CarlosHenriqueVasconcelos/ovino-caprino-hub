@@ -1,4 +1,4 @@
-﻿#define MyAppName "Fazenda SÃ£o PetrÃ´nio"
+﻿#define MyAppName "Terra Tech"
 #define MyCompany "flutter_desktop"
 #define MyAppVersion "1.0.1"
 #define MyAppExeName "flutter_desktop.exe"
@@ -36,7 +36,7 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Executar Fazenda SÃ£o PetrÃ´nio"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "Executar Terra Tech"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\logs"

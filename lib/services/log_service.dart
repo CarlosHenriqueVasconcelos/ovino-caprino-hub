@@ -204,7 +204,7 @@ class LogService {
       final XFile file = XFile(_logFile!.path);
       await Share.shareXFiles(
         [file],
-        subject: 'Logs do Sistema - BEGO Agritech',
+        subject: 'Logs do Sistema - Terra Tech',
         text: 'Logs de erros e overflow do aplicativo',
       );
       

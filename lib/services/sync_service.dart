@@ -1,15 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart' show Value, Variable;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
+import '../app/app_logging.dart';
 import '../data/drift/app_database.dart';
-import '../data/local_db.dart';
 import 'auth_service.dart';
-import 'legacy_sqflite_to_drift_bridge.dart';
 
 enum SyncStatus { idle, syncing, success, error }
 
@@ -23,9 +24,17 @@ enum SyncStatus { idle, syncing, success, error }
 /// O banco local usa AppDriftDatabase (fazenda_drift.db) que já tem farm_id
 /// em todas as tabelas — compatível com o schema do Supabase.
 class SyncService extends ChangeNotifier {
+  static const Uuid _uuid = Uuid();
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[0-9a-fA-F]{12}$',
+  );
+
   final AppDriftDatabase _db;
   final AuthService _auth;
-  final LegacySqfliteToDriftBridge _legacyBridge;
 
   SyncStatus _status = SyncStatus.idle;
   String? _lastError;
@@ -33,6 +42,11 @@ class SyncService extends ChangeNotifier {
   bool _syncEnabled = true;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   Timer? _periodicSyncTimer;
+  DateTime? _lastReachabilityCheckAt;
+  bool _lastReachability = false;
+  bool _lastOfflineMode = false;
+  String? _lastKnownFarmId;
+  final Set<String> _preparedFarmIds = <String>{};
 
   // Cache de colunas locais por tabela — populado lazily, válido por sessão.
   final Map<String, Set<String>> _localColumnCache = {};
@@ -43,11 +57,7 @@ class SyncService extends ChangeNotifier {
   bool get isSyncing => _status == SyncStatus.syncing;
   bool get syncEnabled => _syncEnabled;
 
-  SyncService(this._db, this._auth, AppDatabase legacyDb)
-      : _legacyBridge = LegacySqfliteToDriftBridge(
-          legacyDb: legacyDb,
-          driftDb: _db,
-        );
+  SyncService(this._db, this._auth);
 
   /// Carrega preferências e inicia listener de conectividade.
   Future<void> initialize() async {
@@ -57,6 +67,11 @@ class SyncService extends ChangeNotifier {
     );
     _syncEnabled = val != '0';
     await _ensureSyncDeviceId();
+
+    _lastOfflineMode = _auth.isOfflineMode;
+    _lastKnownFarmId = _auth.currentFarmId;
+    _auth.removeListener(_handleAuthStateChanged);
+    _auth.addListener(_handleAuthStateChanged);
 
     // Auto-sync sempre que a rede voltar
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
@@ -73,9 +88,33 @@ class SyncService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _auth.removeListener(_handleAuthStateChanged);
     _connectivitySub?.cancel();
     _periodicSyncTimer?.cancel();
     super.dispose();
+  }
+
+  void _handleAuthStateChanged() {
+    final isOffline = _auth.isOfflineMode;
+    final farmId = _auth.currentFarmId;
+    final wasOffline = _lastOfflineMode;
+    final previousFarmId = _lastKnownFarmId;
+
+    _lastOfflineMode = isOffline;
+    _lastKnownFarmId = farmId;
+
+    if (!_syncEnabled) return;
+
+    // Sessão Supabase foi restaurada após fast path offline.
+    if (wasOffline && !isOffline) {
+      unawaited(sync());
+      return;
+    }
+
+    // Primeiro login no ciclo atual (farm passou de nulo para valor).
+    if (previousFarmId == null && farmId != null && !isOffline) {
+      unawaited(sync());
+    }
   }
 
   /// Liga/desliga o sync automático e persiste a preferência.
@@ -105,9 +144,9 @@ class SyncService extends ChangeNotifier {
     'notes',
     'matrix_evaluations',
     'pharmacy_stock',
+    'medications',
     'pharmacy_stock_movements',
     'vaccinations',
-    'medications',
     'animal_weights',
     'breeding_records',
     'weight_alerts',
@@ -135,6 +174,7 @@ class SyncService extends ChangeNotifier {
     if (_auth.isOfflineMode) return; // sem sessão Supabase válida
     final farmId = _auth.currentFarmId;
     if (farmId == null) return;
+    if (!await _hasNetworkLink()) return;
 
     await _prepareTenantData(farmId);
 
@@ -150,9 +190,69 @@ class SyncService extends ChangeNotifier {
     } catch (e, st) {
       _lastError = e.toString();
       _status = SyncStatus.error;
+      unawaited(
+        logService.logError(
+          'Falha de sincronização: $e',
+          stackTrace: st,
+          widget: 'SyncService.sync',
+        ),
+      );
       debugPrint('SyncService error: $e\n$st');
     } finally {
       notifyListeners();
+    }
+  }
+
+  Future<bool> _hasNetworkLink() async {
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasNetworkInterface = connectivity.any(
+        (r) => r != ConnectivityResult.none,
+      );
+      if (!hasNetworkInterface) return false;
+    } catch (_) {
+      // Se o plugin falhar, mantém comportamento de tentar sincronizar.
+      return true;
+    }
+
+    final now = DateTime.now();
+    final cachedAt = _lastReachabilityCheckAt;
+    if (cachedAt != null &&
+        now.difference(cachedAt) < const Duration(seconds: 8)) {
+      return _lastReachability;
+    }
+
+    final reachable = await _canReachSupabase();
+    _lastReachability = reachable;
+    _lastReachabilityCheckAt = now;
+    return reachable;
+  }
+
+  Future<bool> _canReachSupabase() async {
+    HttpClient? client;
+    try {
+      final restUri = Uri.parse(Supabase.instance.client.rest.url);
+      final probeUri = Uri(
+        scheme: restUri.scheme,
+        host: restUri.host,
+        port: restUri.hasPort ? restUri.port : null,
+        path: '/rest/v1/',
+      );
+      final apiKey = Supabase.instance.client.headers['apikey'];
+      client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 2);
+      final request = await client
+          .getUrl(probeUri)
+          .timeout(const Duration(seconds: 2));
+      if (apiKey != null && apiKey.isNotEmpty) {
+        request.headers.set('apikey', apiKey);
+      }
+      final response = await request.close().timeout(const Duration(seconds: 2));
+      return response.statusCode > 0 && response.statusCode < 500;
+    } catch (_) {
+      return false;
+    } finally {
+      client?.close(force: true);
     }
   }
 
@@ -188,6 +288,7 @@ class SyncService extends ChangeNotifier {
     } catch (e, st) {
       // Tombstone push indisponível (tabela remota ou RLS ausente).
       // Dados continuam sendo enviados normalmente.
+      unawaited(logService.logWarning('Tombstone push ignorado: $e'));
       debugPrint('SyncService: tombstone push skipped — $e\n$st');
     }
 
@@ -199,6 +300,9 @@ class SyncService extends ChangeNotifier {
         since: since,
       );
     }
+
+    await _pushLineage(client: client, farmId: farmId, since: since);
+    await _pushLineageMeta(client: client, farmId: farmId, since: since);
 
     await _deleteRemoteClosedAnimals(
       client: client,
@@ -243,6 +347,7 @@ class SyncService extends ChangeNotifier {
     } catch (e, st) {
       // Tombstone pull indisponível (tabela remota ou RLS ausente).
       // Pull de dados continua com cutoffs vazios (sem filtro de deleção).
+      unawaited(logService.logWarning('Tombstone pull ignorado: $e'));
       debugPrint('SyncService: tombstone pull skipped — $e\n$st');
     }
 
@@ -255,6 +360,9 @@ class SyncService extends ChangeNotifier {
         tombstoneCutoffs: tombstoneCutoffs,
       );
     }
+
+    await _pullLineage(client: client, farmId: farmId, since: since);
+    await _pullLineageMeta(client: client, farmId: farmId, since: since);
 
     await _withTombstoneSuppressed(() async {
       await _reconcileClosedAnimalsLocally(farmId);
@@ -331,12 +439,53 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<void> _prepareTenantData(String farmId) async {
-    await _legacyBridge.migrateForFarm(farmId);
+    if (_preparedFarmIds.contains(farmId)) return;
 
     for (final table in _syncTables) {
       await _db.customStatement(
         'UPDATE $table SET farm_id = ? WHERE farm_id IS NULL',
         [farmId],
+      );
+    }
+    for (final table in const ['animal_lineage', 'animal_lineage_meta']) {
+      await _db.customStatement(
+        'UPDATE $table SET farm_id = ? WHERE farm_id IS NULL',
+        [farmId],
+      );
+    }
+    await _normalizeLegacyMatrixEvaluationIds(farmId);
+    _preparedFarmIds.add(farmId);
+  }
+
+  bool _isUuid(String value) => _uuidRegex.hasMatch(value.trim());
+
+  Future<void> _normalizeLegacyMatrixEvaluationIds(String farmId) async {
+    final rows = await _db.customSelect(
+      'SELECT id FROM matrix_evaluations WHERE farm_id = ?',
+      variables: [Variable.withString(farmId)],
+    ).get();
+    if (rows.isEmpty) return;
+
+    var converted = 0;
+    for (final row in rows) {
+      final oldId = row.data['id']?.toString().trim() ?? '';
+      if (oldId.isEmpty || _isUuid(oldId)) continue;
+
+      final newId = _uuid.v4();
+      await _db.customStatement(
+        '''
+        UPDATE matrix_evaluations
+        SET id = ?, updated_at = ?
+        WHERE id = ? AND farm_id = ?
+        ''',
+        [newId, DateTime.now().toIso8601String(), oldId, farmId],
+      );
+      converted++;
+    }
+
+    if (converted > 0) {
+      debugPrint(
+        'SyncService: matrix_evaluations com ID legado convertidos para UUID: $converted',
       );
     }
   }
@@ -840,16 +989,20 @@ class SyncService extends ChangeNotifier {
   // ── Persistência de configurações (app_settings Drift) ───────
 
   Future<String?> _readSetting(String key) async {
-    final globalRow = await (_db.select(_db.appSettings)
-          ..where((s) => s.settingKey.equals(key) & s.farmId.isNull()))
-        .getSingleOrNull();
-    if (globalRow != null) return globalRow.settingValue;
+    final globalRows = await _db.customSelect(
+      'SELECT setting_value FROM app_settings WHERE setting_key = ? AND farm_id IS NULL',
+      variables: [Variable.withString(key)],
+    ).get();
+    if (globalRows.isNotEmpty) {
+      return globalRows.first.data['setting_value']?.toString();
+    }
 
     // Fallback defensivo para bases antigas com a mesma key fora do escopo global.
-    final fallback = await (_db.select(_db.appSettings)
-          ..where((s) => s.settingKey.equals(key)))
-        .getSingleOrNull();
-    return fallback?.settingValue;
+    final fallback = await _db.customSelect(
+      'SELECT setting_value FROM app_settings WHERE setting_key = ?',
+      variables: [Variable.withString(key)],
+    ).get();
+    return fallback.isNotEmpty ? fallback.first.data['setting_value']?.toString() : null;
   }
 
   Future<void> _saveSetting(String key, String value) async {
@@ -861,6 +1014,209 @@ class SyncService extends ChangeNotifier {
         updatedAt: Value(DateTime.now()),
       ),
     );
+  }
+
+  // ── Genealogia: push/pull com chave composta ─────────────────
+
+  Future<void> _pushLineage({
+    required SupabaseClient client,
+    required String farmId,
+    required String? since,
+  }) async {
+    const table = 'animal_lineage';
+    const tsCol = 'updated_at';
+
+    final localRows = since == null
+        ? (await _db.customSelect(
+            'SELECT * FROM $table WHERE farm_id = ?',
+            variables: [Variable.withString(farmId)],
+          ).get()).map((r) => r.data).toList()
+        : (await _db.customSelect(
+            'SELECT * FROM $table WHERE farm_id = ? AND $tsCol > ?',
+            variables: [Variable.withString(farmId), Variable.withString(since)],
+          ).get()).map((r) => r.data).toList();
+
+    if (localRows.isEmpty) return;
+
+    final remoteAll = List<Map<String, dynamic>>.from(
+      await client
+          .from(table)
+          .select('descendant_id,ancestor_id,$tsCol')
+          .eq('farm_id', farmId),
+    );
+    final remoteTs = <String, DateTime>{};
+    for (final r in remoteAll) {
+      final key = '${r['descendant_id']}|${r['ancestor_id']}';
+      final ts = _parseTimestamp(r[tsCol]);
+      if (ts != null) remoteTs[key] = ts;
+    }
+
+    final winners = <Map<String, dynamic>>[];
+    for (final row in localRows) {
+      final key = '${row['descendant_id']}|${row['ancestor_id']}';
+      final localTs = _parseTimestamp(row[tsCol]);
+      if (_shouldApplyLocal(localTs: localTs, remoteTs: remoteTs[key])) {
+        winners.add({...row, 'farm_id': (row['farm_id'] ?? farmId).toString()});
+      }
+    }
+    if (winners.isEmpty) return;
+
+    for (var i = 0; i < winners.length; i += 100) {
+      final batch = winners.sublist(i, min(i + 100, winners.length));
+      await client.from(table).upsert(batch, onConflict: 'descendant_id,ancestor_id');
+    }
+    debugPrint('SyncService push [$table]: ${localRows.length} registros');
+  }
+
+  Future<void> _pullLineage({
+    required SupabaseClient client,
+    required String farmId,
+    required String? since,
+  }) async {
+    const table = 'animal_lineage';
+    const tsCol = 'updated_at';
+
+    final remoteRows = await _fetchAllRemoteRows(
+      client: client,
+      table: table,
+      farmId: farmId,
+      tsCol: tsCol,
+      since: since,
+    );
+    if (remoteRows.isEmpty) return;
+
+    final localAll = (await _db.customSelect(
+      'SELECT descendant_id, ancestor_id, $tsCol FROM $table WHERE farm_id = ?',
+      variables: [Variable.withString(farmId)],
+    ).get()).map((r) => r.data).toList();
+    final localTs = <String, DateTime>{};
+    for (final r in localAll) {
+      final key = '${r['descendant_id']}|${r['ancestor_id']}';
+      final ts = _parseTimestamp(r[tsCol]);
+      if (ts != null) localTs[key] = ts;
+    }
+
+    final allowedCols = await _localColumns(table);
+    for (final row in remoteRows) {
+      final key = '${row['descendant_id']}|${row['ancestor_id']}';
+      final remote = _parseTimestamp(row[tsCol]);
+      if (!_shouldApplyRemote(remoteTs: remote, localTs: localTs[key])) continue;
+
+      final local = _toLocal(row);
+      final filtered = Map<String, dynamic>.fromEntries(
+        local.entries.where((e) => allowedCols.contains(e.key)),
+      );
+      if (filtered.isEmpty) continue;
+      final cols = filtered.keys.toList();
+      final placeholders = cols.map((_) => '?').join(',');
+      await _db.customStatement(
+        'INSERT OR REPLACE INTO $table (${cols.join(',')}) VALUES ($placeholders)',
+        filtered.values.toList(),
+      );
+    }
+    debugPrint('SyncService pull [$table]: ${remoteRows.length} registros');
+  }
+
+  Future<void> _pushLineageMeta({
+    required SupabaseClient client,
+    required String farmId,
+    required String? since,
+  }) async {
+    const table = 'animal_lineage_meta';
+    const tsCol = 'updated_at';
+
+    final localRows = since == null
+        ? (await _db.customSelect(
+            'SELECT * FROM $table WHERE farm_id = ?',
+            variables: [Variable.withString(farmId)],
+          ).get()).map((r) => r.data).toList()
+        : (await _db.customSelect(
+            'SELECT * FROM $table WHERE farm_id = ? AND $tsCol > ?',
+            variables: [Variable.withString(farmId), Variable.withString(since)],
+          ).get()).map((r) => r.data).toList();
+
+    if (localRows.isEmpty) return;
+
+    final remoteAll = List<Map<String, dynamic>>.from(
+      await client
+          .from(table)
+          .select('meta_key,$tsCol')
+          .eq('farm_id', farmId),
+    );
+    final remoteTs = <String, DateTime>{};
+    for (final r in remoteAll) {
+      final key = r['meta_key']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      final ts = _parseTimestamp(r[tsCol]);
+      if (ts != null) remoteTs[key] = ts;
+    }
+
+    final winners = <Map<String, dynamic>>[];
+    for (final row in localRows) {
+      final key = row['meta_key']?.toString() ?? '';
+      final localTs = _parseTimestamp(row[tsCol]);
+      if (_shouldApplyLocal(localTs: localTs, remoteTs: remoteTs[key])) {
+        winners.add({...row, 'farm_id': (row['farm_id'] ?? farmId).toString()});
+      }
+    }
+    if (winners.isEmpty) return;
+
+    for (var i = 0; i < winners.length; i += 100) {
+      final batch = winners.sublist(i, min(i + 100, winners.length));
+      await client.from(table).upsert(batch, onConflict: 'meta_key,farm_id');
+    }
+    debugPrint('SyncService push [$table]: ${localRows.length} registros');
+  }
+
+  Future<void> _pullLineageMeta({
+    required SupabaseClient client,
+    required String farmId,
+    required String? since,
+  }) async {
+    const table = 'animal_lineage_meta';
+    const tsCol = 'updated_at';
+
+    final remoteRows = await _fetchAllRemoteRows(
+      client: client,
+      table: table,
+      farmId: farmId,
+      tsCol: tsCol,
+      since: since,
+    );
+    if (remoteRows.isEmpty) return;
+
+    final localAll = (await _db.customSelect(
+      'SELECT meta_key, $tsCol FROM $table WHERE farm_id = ?',
+      variables: [Variable.withString(farmId)],
+    ).get()).map((r) => r.data).toList();
+    final localTs = <String, DateTime>{};
+    for (final r in localAll) {
+      final key = r['meta_key']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      final ts = _parseTimestamp(r[tsCol]);
+      if (ts != null) localTs[key] = ts;
+    }
+
+    final allowedCols = await _localColumns(table);
+    for (final row in remoteRows) {
+      final key = row['meta_key']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      final remote = _parseTimestamp(row[tsCol]);
+      if (!_shouldApplyRemote(remoteTs: remote, localTs: localTs[key])) continue;
+
+      final local = _toLocal(row);
+      final filtered = Map<String, dynamic>.fromEntries(
+        local.entries.where((e) => allowedCols.contains(e.key)),
+      );
+      if (filtered.isEmpty) continue;
+      final cols = filtered.keys.toList();
+      final placeholders = cols.map((_) => '?').join(',');
+      await _db.customStatement(
+        'INSERT OR REPLACE INTO $table (${cols.join(',')}) VALUES ($placeholders)',
+        filtered.values.toList(),
+      );
+    }
+    debugPrint('SyncService pull [$table]: ${remoteRows.length} registros');
   }
 
   Future<void> _ensureSyncDeviceId() async {

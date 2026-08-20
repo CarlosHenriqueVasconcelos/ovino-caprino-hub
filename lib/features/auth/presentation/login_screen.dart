@@ -19,24 +19,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePass = true;
   bool _signingIn = false;
   String? _errorMessage;
-  bool _hasSavedAccount = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedEmail();
-  }
-
-  Future<void> _loadSavedEmail() async {
-    final auth = context.read<AuthService>();
-    final email = await auth.getSavedEmail();
-    if (email != null && mounted) {
-      setState(() {
-        _emailCtrl.text = email;
-        _hasSavedAccount = true;
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -86,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _emailCtrl.clear();
       _passCtrl.clear();
-      _hasSavedAccount = false;
       _errorMessage = null;
     });
   }
@@ -121,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Título
                 const Text(
-                  'Fazenda São Petrônio',
+                  'Terra Tech',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
@@ -261,20 +242,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
-                      // Opção de trocar conta (só aparece se há conta salva)
-                      if (_hasSavedAccount) ...[
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: _signingIn ? null : _switchAccount,
-                          child: const Text(
-                            'Usar outra conta',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 13,
-                            ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: _signingIn ? null : _switchAccount,
+                        child: const Text(
+                          'Limpar sessão local',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),

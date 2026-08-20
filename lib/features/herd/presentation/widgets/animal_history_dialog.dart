@@ -116,6 +116,13 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
     }
   }
 
+  String _fmtQtyHist(dynamic v) {
+    if (v == null) return '-';
+    final n = v is num ? v.toDouble() : double.tryParse(v.toString());
+    if (n == null) return v.toString();
+    return n == n.truncateToDouble() ? n.toInt().toString() : n.toStringAsFixed(1);
+  }
+
   String _fmtNumber(dynamic value) {
     if (value == null) return '-';
     final parsed = double.tryParse(value.toString());
@@ -769,6 +776,8 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         Text(
                           'Agendada: ${_fmtDate(row['scheduled_date'])} • Aplicada: ${_fmtDate(row['applied_date'])}',
                         ),
+                        if ((row['status'] ?? '').toString().isNotEmpty)
+                          Text('Status: ${row['status']}'),
                         if ((row['veterinarian'] ?? '').toString().isNotEmpty)
                           Text('Veterinário: ${row['veterinarian']}'),
                         if ((row['notes'] ?? '').toString().isNotEmpty)
@@ -791,8 +800,12 @@ class _AnimalHistoryDialogState extends State<AnimalHistoryDialog>
                         Text(
                           'Data: ${_fmtDate(row['date'])} • Aplicada: ${_fmtDate(row['applied_date'])}',
                         ),
+                        if ((row['status'] ?? '').toString().isNotEmpty)
+                          Text('Status: ${row['status']}'),
+                        if (row['quantity_used'] != null)
+                          Text('Qtd aplicada: ${_fmtQtyHist(row['quantity_used'])}'),
                         if ((row['dosage'] ?? '').toString().isNotEmpty)
-                          Text('Dosagem: ${row['dosage']}'),
+                          Text('Observação: ${row['dosage']}'),
                         if ((row['veterinarian'] ?? '').toString().isNotEmpty)
                           Text('Veterinário: ${row['veterinarian']}'),
                         if ((row['notes'] ?? '').toString().isNotEmpty)

@@ -1,10 +1,12 @@
 import 'package:drift/drift.dart' show Variable;
+import 'package:uuid/uuid.dart';
 
 import '../../../data/drift/app_database.dart';
 import '../../../models/matrix_candidate_ranking.dart';
 import '../../../models/matrix_evaluation.dart';
 
 class MatrixEvaluationRepository {
+  static const Uuid _uuid = Uuid();
   final AppDriftDatabase _db;
   final String? Function()? _farmIdProvider;
 
@@ -227,5 +229,5 @@ class MatrixEvaluationRepository {
         .toList();
   }
 
-  String _newId() => 'me_${DateTime.now().microsecondsSinceEpoch}';
+  String _newId() => _uuid.v4();
 }

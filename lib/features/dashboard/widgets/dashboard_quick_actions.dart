@@ -356,8 +356,11 @@ class _MedicationFormDialogState extends State<_MedicationFormDialog> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(_loadPharmacyStock);
-    Future.microtask(_loadAnimals);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadPharmacyStock();
+      _loadAnimals();
+    });
   }
 
   Future<void> _loadPharmacyStock() async {

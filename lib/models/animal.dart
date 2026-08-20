@@ -244,6 +244,10 @@ class AnimalStats {
   final int healthy;
   final int pregnant;
   final int underTreatment;
+  final int injured;
+  final int matrices;
+  final int sold;
+  final int deceased;
   final int vaccinesThisMonth;
   final int birthsThisMonth;
   final double avgWeight;
@@ -266,6 +270,10 @@ class AnimalStats {
     required this.birthsThisMonth,
     required this.avgWeight,
     required this.revenue,
+    this.injured = 0,
+    this.matrices = 0,
+    this.sold = 0,
+    this.deceased = 0,
     this.maleReproducers = 0,
     this.maleLambs = 0,
     this.femaleLambs = 0,
@@ -290,6 +298,10 @@ class AnimalStats {
       pregnant: toInt(map['pregnant']),
       revenue: toDouble(map['revenue']),
       underTreatment: toInt(map['underTreatment']),
+      injured: toInt(map['injured']),
+      matrices: toInt(map['matrices']),
+      sold: toInt(map['sold']),
+      deceased: toInt(map['deceased']),
       vaccinesThisMonth: toInt(map['vaccinesThisMonth']),
       birthsThisMonth: toInt(map['birthsThisMonth']),
       avgWeight: toDouble(map['avgWeight']),

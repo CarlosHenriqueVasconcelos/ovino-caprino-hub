@@ -42,13 +42,20 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
   int _currentPage = 0;
   final int _itemsPerPage = 50;
   late final ScrollController _scrollController;
+  late final PharmacyService _pharmacyService;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _scrollController.addListener(_handleScroll);
+    _pharmacyService = context.read<PharmacyService>();
+    _pharmacyService.addListener(_onStockChanged);
     _loadStock();
+  }
+
+  void _onStockChanged() {
+    if (mounted && !_isLoading) _loadStock();
   }
 
   void _handleScroll() {
@@ -85,6 +92,7 @@ class _PharmacyManagementScreenState extends State<PharmacyManagementScreen> {
 
   @override
   void dispose() {
+    _pharmacyService.removeListener(_onStockChanged);
     _scrollController.dispose();
     super.dispose();
   }

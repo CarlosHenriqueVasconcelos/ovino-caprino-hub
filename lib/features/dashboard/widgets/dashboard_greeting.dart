@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../../../services/auth_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 
 class DashboardGreeting extends StatelessWidget {
   const DashboardGreeting({super.key});
 
-  String _greeting() {
+  String _greeting(String? farmName) {
+    final displayName = (farmName != null && farmName.trim().isNotEmpty)
+        ? farmName.trim()
+        : 'Fazenda';
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Bom dia, Fazenda';
-    if (hour < 18) return 'Boa tarde, Fazenda';
-    return 'Boa noite, Fazenda';
+    if (hour < 12) return 'Bom dia, $displayName';
+    if (hour < 18) return 'Boa tarde, $displayName';
+    return 'Boa noite, $displayName';
   }
 
   String _formattedDate() {
@@ -25,6 +30,9 @@ class DashboardGreeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final farmName = context.select<AuthService, String?>(
+      (auth) => auth.currentFarmName,
+    );
     return Padding(
       padding: const EdgeInsets.only(
         bottom: AppSpacing.sm,
@@ -44,7 +52,7 @@ class DashboardGreeting extends StatelessWidget {
           Row(
             children: [
               Text(
-                _greeting(),
+                _greeting(farmName),
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,

@@ -10,6 +10,7 @@ import '../widgets/dashboard_bottom_stats.dart';
 import '../widgets/dashboard_greeting.dart';
 import '../widgets/dashboard_hero_kpi.dart';
 import '../widgets/dashboard_mini_stats.dart';
+import '../widgets/dashboard_herd_insights.dart';
 import '../widgets/dashboard_quick_actions.dart';
 import '../../../theme/app_spacing.dart';
 import '../../../services/animal_service.dart';
@@ -142,7 +143,7 @@ class _DashboardContent extends StatelessWidget {
             children: [
               // ── Header ─────────────────────────────────────────────
               const AppBrandHeader(
-                title: 'Fazenda São Petrônio',
+                title: 'Terra Tech',
                 subtitle: 'Ovinos e Caprinos',
               ),
 
@@ -175,6 +176,15 @@ class _DashboardContent extends StatelessWidget {
 
                     // ── Reprodução + Peso médio ───────────────────────
                     DashboardBottomStats(stats: stats),
+                    const SizedBox(height: gap),
+
+                    // ── Insights do rebanho ───────────────────────────
+                    const _SectionLabel(label: 'Rebanho'),
+                    const SizedBox(height: AppSpacing.xs),
+                    DashboardHerdInsights(
+                      stats: stats,
+                      onGoToHerd: () => onGoToTab(1),
+                    ),
                     const SizedBox(height: AppSpacing.lg),
                   ],
                 ),
@@ -226,7 +236,7 @@ class _DashboardLoading extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const AppBrandHeader(
-                title: 'Fazenda São Petrônio',
+                title: 'Terra Tech',
                 subtitle: 'Ovinos e Caprinos',
               ),
               Padding(

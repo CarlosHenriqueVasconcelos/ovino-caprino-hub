@@ -1,41 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../models/weight_alert.dart';
-import '../../../services/animal_service.dart';
 import '../../../services/medication_service.dart';
 import '../../../services/vaccination_service.dart';
-import '../../../services/breeding_service.dart';
 import '../../../services/weight_alert_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_spacing.dart';
 
 class DashboardAlertsCompact extends StatefulWidget {
   final void Function(int) onGoToTab;
-
   const DashboardAlertsCompact({super.key, required this.onGoToTab});
 
   @override
-  State<DashboardAlertsCompact> createState() =>
-      _DashboardAlertsCompactState();
+  State<DashboardAlertsCompact> createState() => _DashboardAlertsCompactState();
 }
 
 class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
   bool _loading = true;
-  final List<_AlertItem> _alerts = [];
+  List<_SectionItem> _vacItems = [];
+  List<_SectionItem> _medItems = [];
+  List<_SectionItem> _weightItems = [];
 
   VaccinationService? _vacService;
   MedicationService? _medService;
-  BreedingService? _breedingService;
   WeightAlertService? _weightService;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     final vacService = context.read<VaccinationService>();
     final medService = context.read<MedicationService>();
-    final breedingService = context.read<BreedingService>();
     final weightService = context.read<WeightAlertService>();
 
     if (_vacService != vacService) {
@@ -46,17 +40,16 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
       _medService?.removeListener(_load);
       _medService = medService..addListener(_load);
     }
-    if (_breedingService != breedingService) {
-      _breedingService?.removeListener(_load);
-      _breedingService = breedingService..addListener(_load);
-    }
     if (_weightService != weightService) {
       _weightService?.removeListener(_load);
       _weightService = weightService..addListener(_load);
     }
-
     if (_loading) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 180), () {
+          if (mounted) _load();
+        });
+      });
     }
   }
 
@@ -64,193 +57,141 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
   void dispose() {
     _vacService?.removeListener(_load);
     _medService?.removeListener(_load);
-    _breedingService?.removeListener(_load);
     _weightService?.removeListener(_load);
     super.dispose();
   }
 
-  // Debounce: se já há um load em andamento, não enfileira outro
   bool _loadInProgress = false;
 
   Future<void> _load() async {
-    if (!mounted) return;
-    if (_loadInProgress) return;
+    if (!mounted || _loadInProgress) return;
     _loadInProgress = true;
-
-    // Captura serviços antes de qualquer await
-    final vacService = context.read<VaccinationService>();
-    final medService = context.read<MedicationService>();
-    final breedingService = context.read<BreedingService>();
-    final weightService = context.read<WeightAlertService>();
-    final animalService = context.read<AnimalService>();
-
     setState(() => _loading = true);
 
-    // ── Dispara todas as futures em paralelo ──────────────────────
-    final fVacKpi      = vacService.getKpiCounts();
-    final fMedKpi      = medService.getKpiCounts();
-    final fVacFirst    = vacService.getOverdueVaccinationsWithAnimalInfo(
-      options: const VaccinationQueryOptions(limit: 1),
-    );
-    final fMedFirst    = medService.getOverdueMedicationsWithAnimalInfo(
-      options: const MedicationQueryOptions(limit: 1),
-    );
-    final fBreeding    = breedingService.getBreedingRecords(limit: 100);
-    final fWeight      = weightService.fetchPendingAlertsSnapshot(horizonDays: 0);
+    final vacService = context.read<VaccinationService>();
+    final medService = context.read<MedicationService>();
+    final weightService = context.read<WeightAlertService>();
 
-    ({int overdue, int scheduled, int applied})? vacKpi;
-    ({int overdue, int scheduled, int applied})? medKpi;
-    List<Map<String, dynamic>> vacFirst = const [];
-    List<Map<String, dynamic>> medFirst = const [];
-    List<Map<String, dynamic>> breedingRecords = const [];
-    List<WeightAlert> pending = const [];
+    final now = DateTime.now();
+    final horizon = now.add(const Duration(days: 3));
+    final horizonEnd = DateTime(horizon.year, horizon.month, horizon.day, 23, 59, 59);
 
-    try { vacKpi          = await fVacKpi;     } catch (_) {}
-    try { medKpi          = await fMedKpi;     } catch (_) {}
-    try { vacFirst        = await fVacFirst;   } catch (_) {}
-    try { medFirst        = await fMedFirst;   } catch (_) {}
-    try { breedingRecords = await fBreeding;   } catch (_) {}
-    try { pending         = await fWeight;     } catch (_) {}
+    final fVacOverdue = vacService.getOverdueVaccinationsWithAnimalInfo(
+      options: const VaccinationQueryOptions(limit: 20),
+    );
+    final fVacUpcoming = vacService.getScheduledVaccinationsWithAnimalInfo(
+      options: VaccinationQueryOptions(endDate: horizonEnd, limit: 20),
+    );
+    final fMedOverdue = medService.getOverdueMedicationsWithAnimalInfo(
+      options: const MedicationQueryOptions(limit: 20),
+    );
+    final fMedUpcoming = medService.getScheduledMedicationsWithAnimalInfo(
+      options: MedicationQueryOptions(endDate: horizonEnd, limit: 20),
+    );
+    final fWeight = weightService.getPendingWeightAlerts(horizon);
+
+    List<Map<String, dynamic>> vacOverdue = [];
+    List<Map<String, dynamic>> vacUpcoming = [];
+    List<Map<String, dynamic>> medOverdue = [];
+    List<Map<String, dynamic>> medUpcoming = [];
+    List<Map<String, dynamic>> weightRaw = [];
+
+    try { vacOverdue  = await fVacOverdue;  } catch (_) {}
+    try { vacUpcoming = await fVacUpcoming; } catch (_) {}
+    try { medOverdue  = await fMedOverdue;  } catch (_) {}
+    try { medUpcoming = await fMedUpcoming; } catch (_) {}
+    try { weightRaw   = await fWeight;      } catch (_) {}
 
     if (!mounted) { _loadInProgress = false; return; }
 
-    final alerts = <_AlertItem>[];
-
-    // ── Vacinas atrasadas ─────────────────────────────────────────
-    final overdueVacs = vacKpi?.overdue ?? 0;
-    if (overdueVacs > 0) {
-      final firstName = vacFirst.isNotEmpty
-          ? (vacFirst.first['vaccine_name'] ?? 'Vacina').toString()
-          : 'Vacina';
-      alerts.add(_AlertItem(
-        title: 'Vacinas atrasadas — $overdueVacs animal${overdueVacs > 1 ? 'is' : ''}',
-        subtitle: '$firstName • Sanidade',
-        icon: Icons.health_and_safety_outlined,
-        accentColor: AppColors.error,
-        badgeLabel: 'Urgente',
-        badgeColor: AppColors.error,
-        onTap: () => widget.onGoToTab(6),
+    // Vaccinations: overdue first, then upcoming, dedup by id
+    final vacSeen = <String>{};
+    final vacItems = <_SectionItem>[];
+    for (final row in [...vacOverdue, ...vacUpcoming]) {
+      final id = row['id']?.toString() ?? '';
+      if (!vacSeen.add(id)) continue;
+      final date = _parseDate(row['scheduled_date']);
+      if (date == null) continue;
+      vacItems.add(_SectionItem(
+        animalLabel: _animalLabel(row),
+        description: row['vaccine_name']?.toString() ?? 'Vacina',
+        dueDate: date,
       ));
     }
 
-    // ── Medicações atrasadas ──────────────────────────────────────
-    final overdueMeds = medKpi?.overdue ?? 0;
-    if (overdueMeds > 0 && alerts.length < 3) {
-      final firstName = medFirst.isNotEmpty
-          ? (medFirst.first['medication_name'] ?? 'Medicação').toString()
-          : 'Medicação';
-      alerts.add(_AlertItem(
-        title: 'Medicações atrasadas — $overdueMeds animal${overdueMeds > 1 ? 'is' : ''}',
-        subtitle: '$firstName • Sanidade',
-        icon: Icons.medication_outlined,
-        accentColor: const Color(0xFFB04FAD),
-        badgeLabel: 'Urgente',
-        badgeColor: const Color(0xFFB04FAD),
-        onTap: () => widget.onGoToTab(6),
+    // Medications: overdue first, then upcoming, dedup by id
+    final medSeen = <String>{};
+    final medItems = <_SectionItem>[];
+    for (final row in [...medOverdue, ...medUpcoming]) {
+      final id = row['id']?.toString() ?? '';
+      if (!medSeen.add(id)) continue;
+      final date = _parseDate(row['date']) ?? _parseDate(row['next_date']);
+      if (date == null) continue;
+      medItems.add(_SectionItem(
+        animalLabel: _animalLabel(row),
+        description: row['medication_name']?.toString() ?? 'Medicação',
+        dueDate: date,
       ));
     }
 
-    // ── Partos previstos nos próximos 14 dias ─────────────────────
-    if (alerts.length < 3) {
-      try {
-        final now = DateTime.now();
-        final upcoming = breedingRecords.where((r) {
-          final expectedStr = r['expected_birth'] as String?;
-          if (expectedStr == null) return false;
-          final expected = DateTime.tryParse(expectedStr);
-          if (expected == null) return false;
-          final diff = expected.difference(now).inDays;
-          return diff >= 0 && diff <= 14;
-        }).toList();
-
-        if (upcoming.isNotEmpty) {
-          final first = upcoming.first;
-          final femaleId = first['female_animal_id']?.toString() ?? '';
-
-          String femaleLabel = '';
-          try {
-            if (femaleId.isNotEmpty) {
-              final animal = await animalService.getAnimalById(femaleId);
-              if (animal != null) {
-                femaleLabel = animal.name.isNotEmpty ? animal.name : animal.code;
-              }
-            }
-          } catch (_) {}
-          if (!mounted) { _loadInProgress = false; return; }
-
-          final expectedStr = first['expected_birth'] as String?;
-          String daysLabel = 'Reprodução';
-          if (expectedStr != null) {
-            final expected = DateTime.tryParse(expectedStr);
-            if (expected != null) {
-              final diff = expected.difference(now).inDays;
-              final day = expected.day.toString().padLeft(2, '0');
-              final month = expected.month.toString().padLeft(2, '0');
-              daysLabel = '$day/$month • $diff dia${diff != 1 ? 's' : ''}';
-            }
-          }
-
-          final title = femaleLabel.isNotEmpty
-              ? 'Parto previsto • $femaleLabel'
-              : 'Parto previsto • ${upcoming.length} fêmea${upcoming.length > 1 ? 's' : ''}';
-
-          alerts.add(_AlertItem(
-            title: title,
-            subtitle: daysLabel,
-            icon: Icons.favorite_outline,
-            accentColor: const Color(0xFF4B73C7),
-            badgeLabel: 'Parto',
-            badgeColor: const Color(0xFF4B73C7),
-            onTap: () => widget.onGoToTab(4),
-          ));
-        }
-      } catch (_) {}
+    // Weight alerts
+    final weightItems = <_SectionItem>[];
+    for (final row in weightRaw) {
+      final date = _parseDate(row['due_date']);
+      if (date == null) continue;
+      final animalName = row['animal_name']?.toString() ?? '';
+      final animalCode = row['animal_code']?.toString() ?? '';
+      weightItems.add(_SectionItem(
+        animalLabel: animalName.isNotEmpty ? animalName : (animalCode.isNotEmpty ? animalCode : 'Animal'),
+        description: _weightTypeLabel(row['alert_type']?.toString() ?? ''),
+        dueDate: date,
+      ));
     }
 
-    // ── Pesagens pendentes ────────────────────────────────────────
-    if (alerts.length < 3) {
-      try {
-        if (pending.isNotEmpty) {
-          final count = pending.length;
-          final types = pending.map((a) => a.typeLabel).toSet().take(2).join(', ');
-          final subtitle = types.isNotEmpty
-              ? '$types • $count pendente${count > 1 ? 's' : ''}'
-              : '$count animal${count > 1 ? 'is' : ''} pendente${count > 1 ? 's' : ''}';
-
-          alerts.add(_AlertItem(
-            title: 'Pesagem em atraso',
-            subtitle: subtitle,
-            icon: Icons.monitor_weight_outlined,
-            accentColor: AppColors.goldSoft,
-            badgeLabel: 'Pendente',
-            badgeColor: AppColors.goldSoft,
-            onTap: () => widget.onGoToTab(3),
-          ));
-        }
-      } catch (_) {}
-    }
-
-    if (!mounted) { _loadInProgress = false; return; }
     _loadInProgress = false;
+    if (!mounted) return;
     setState(() {
-      _alerts
-        ..clear()
-        ..addAll(alerts.take(3));
+      _vacItems = vacItems;
+      _medItems = medItems;
+      _weightItems = weightItems;
       _loading = false;
     });
+  }
+
+  DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s);
+  }
+
+  String _animalLabel(Map<String, dynamic> row) {
+    final name = row['animal_name']?.toString() ?? '';
+    final code = row['animal_code']?.toString() ?? '';
+    return name.isNotEmpty ? name : (code.isNotEmpty ? code : 'Animal');
+  }
+
+  String _weightTypeLabel(String type) {
+    switch (type) {
+      case '30d':    return 'Pesagem 30 dias';
+      case '60d':    return 'Pesagem 60 dias';
+      case '90d':    return 'Pesagem 90 dias';
+      case '120d':   return 'Pesagem 120 dias';
+      case 'monthly': return 'Pesagem mensal';
+      default:       return 'Pesagem';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final totalAlerts = _vacItems.length + _medItems.length + _weightItems.length;
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.borderNeutral.withValues(alpha: 0.8),
-        ),
+        border: Border.all(color: AppColors.borderNeutral.withValues(alpha: 0.8)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.025),
@@ -273,12 +214,30 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
             child: Row(
               children: [
                 Text(
-                  'Alertas ativos',
+                  'Alertas',
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                if (!_loading && totalAlerts > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$totalAlerts',
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 GestureDetector(
                   onTap: () => widget.onGoToTab(6),
@@ -294,7 +253,6 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
             ),
           ),
 
-          // Conteúdo
           if (_loading)
             const Padding(
               padding: EdgeInsets.all(AppSpacing.md),
@@ -306,25 +264,120 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
                 ),
               ),
             )
-          else if (_alerts.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.xs,
-                AppSpacing.md,
-                AppSpacing.md,
+          else ...[
+            _AlertSection(
+              icon: Icons.health_and_safety_outlined,
+              title: 'Vacinação',
+              color: AppColors.error,
+              items: _vacItems,
+              onTap: () => widget.onGoToTab(6),
+            ),
+            Divider(height: 1, color: AppColors.borderNeutral.withValues(alpha: 0.5)),
+            _AlertSection(
+              icon: Icons.medication_outlined,
+              title: 'Medicação',
+              color: const Color(0xFFB04FAD),
+              items: _medItems,
+              onTap: () => widget.onGoToTab(6),
+            ),
+            Divider(height: 1, color: AppColors.borderNeutral.withValues(alpha: 0.5)),
+            _AlertSection(
+              icon: Icons.monitor_weight_outlined,
+              title: 'Pesagem',
+              color: AppColors.goldSoft,
+              items: _weightItems,
+              onTap: () => widget.onGoToTab(3),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Data model ────────────────────────────────────────────────────────────────
+
+class _SectionItem {
+  final String animalLabel;
+  final String description;
+  final DateTime dueDate;
+
+  const _SectionItem({
+    required this.animalLabel,
+    required this.description,
+    required this.dueDate,
+  });
+}
+
+// ── Section widget ─────────────────────────────────────────────────────────────
+
+class _AlertSection extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final Color color;
+  final List<_SectionItem> items;
+  final VoidCallback onTap;
+
+  const _AlertSection({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.items,
+    required this.onTap,
+  });
+
+  static const double _rowHeight = 46.0;
+  static const int _maxVisible = 4;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section title
+          Row(
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 4),
+              Text(
+                title,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
+              if (items.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '(${items.length})',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.check_circle_outline,
-                    size: 16,
-                    color: AppColors.primary,
+                    size: 12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.55),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: 4),
                   Text(
-                    'Nenhum alerta pendente',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    'Nenhum alerta',
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -332,19 +385,17 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
               ),
             )
           else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              itemCount: _alerts.length,
-              separatorBuilder: (_, __) => Divider(
-                height: 1,
-                indent: AppSpacing.md,
-                endIndent: AppSpacing.md,
-                color: AppColors.borderNeutral.withValues(alpha: 0.6),
+            SizedBox(
+              height: _rowHeight * _maxVisible.clamp(1, items.length),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: items.length,
+                itemExtent: _rowHeight,
+                itemBuilder: (context, index) => _SectionRow(
+                  item: items[index],
+                  onTap: onTap,
+                ),
               ),
-              itemBuilder: (context, index) =>
-                  _AlertRow(item: _alerts[index]),
             ),
         ],
       ),
@@ -352,97 +403,90 @@ class _DashboardAlertsCompactState extends State<DashboardAlertsCompact> {
   }
 }
 
-class _AlertItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accentColor;
-  final String badgeLabel;
-  final Color badgeColor;
+// ── Row widget ────────────────────────────────────────────────────────────────
+
+class _SectionRow extends StatelessWidget {
+  final _SectionItem item;
   final VoidCallback onTap;
 
-  const _AlertItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accentColor,
-    required this.badgeLabel,
-    required this.badgeColor,
-    required this.onTap,
-  });
-}
-
-class _AlertRow extends StatelessWidget {
-  final _AlertItem item;
-
-  const _AlertRow({required this.item});
+  const _SectionRow({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final dueOnly = DateTime(item.dueDate.year, item.dueDate.month, item.dueDate.day);
+    final diff = dueOnly.difference(todayOnly).inDays;
+
+    final Color badgeColor;
+    final String badgeLabel;
+    if (diff < 0) {
+      badgeLabel = 'Atrasado';
+      badgeColor = AppColors.error;
+    } else if (diff == 0) {
+      badgeLabel = 'Hoje';
+      badgeColor = Colors.orange;
+    } else if (diff == 1) {
+      badgeLabel = 'Amanhã';
+      badgeColor = AppColors.warning;
+    } else {
+      badgeLabel = 'Em $diff dias';
+      badgeColor = AppColors.primary;
+    }
+
     return InkWell(
-      onTap: item.onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
+      onTap: onTap,
+      child: SizedBox(
+        height: _AlertSection._rowHeight,
         child: Row(
           children: [
+            // Time badge
             Container(
-              width: 36,
-              height: 36,
+              constraints: const BoxConstraints(minWidth: 64),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: item.accentColor.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
+                color: badgeColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: badgeColor.withValues(alpha: 0.28)),
               ),
-              alignment: Alignment.center,
-              child: Icon(item.icon, size: 18, color: item.accentColor),
+              child: Text(
+                badgeLabel,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: badgeColor,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: 8),
+            // Animal + description
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    item.title,
+                    item.animalLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    item.subtitle,
+                    item.description,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: AppColors.textSecondary,
+                      height: 1.2,
                     ),
                   ),
                 ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: item.badgeColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: item.badgeColor.withValues(alpha: 0.30),
-                ),
-              ),
-              child: Text(
-                item.badgeLabel,
-                style: TextStyle(
-                  color: item.badgeColor,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
           ],

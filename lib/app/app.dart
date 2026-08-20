@@ -11,7 +11,6 @@ import '../data/deceased_repository.dart';
 import '../data/feeding_repository.dart';
 import '../data/finance_repository.dart';
 import '../data/drift/app_database.dart';
-import '../data/local_db.dart';
 import '../data/maintenance_repository.dart';
 import '../data/medication_repository.dart';
 import '../data/note_repository.dart';
@@ -50,7 +49,6 @@ import '../utils/app_scroll_behavior.dart';
 import 'presentation/auth_gate.dart';
 
 class AppDependencies {
-  final AppDatabase db;
   final AppDriftDatabase driftDb;
   final AuthService authService;
   final AnimalRepository animalRepository;
@@ -73,7 +71,6 @@ class AppDependencies {
   final SyncService syncService;
 
   const AppDependencies({
-    required this.db,
     required this.driftDb,
     required this.authService,
     required this.animalRepository,
@@ -97,10 +94,10 @@ class AppDependencies {
   });
 }
 
-class FazendaSaoPetronioApp extends StatelessWidget {
+class TerraTechApp extends StatelessWidget {
   final AppDependencies deps;
 
-  const FazendaSaoPetronioApp({
+  const TerraTechApp({
     super.key,
     required this.deps,
   });
@@ -109,7 +106,6 @@ class FazendaSaoPetronioApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AppDatabase>.value(value: deps.db),
         Provider<AppDriftDatabase>.value(value: deps.driftDb),
         Provider<BackupService>.value(value: deps.backup),
         ChangeNotifierProvider<AuthService>.value(value: deps.authService),
@@ -118,7 +114,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         Provider<AnimalRepository>.value(value: deps.animalRepository),
         Provider<KinshipRepository>(
           create: (context) => KinshipRepository(
-            context.read<AppDatabase>(),
+            context.read<AppDriftDatabase>(),
             farmIdProvider: () => context.read<AuthService>().currentFarmId,
           ),
         ),
@@ -263,7 +259,7 @@ class FazendaSaoPetronioApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'Fazenda São Petrônio - Sistema de Gestão Pecuária',
+        title: 'Terra Tech',
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,

@@ -1,25 +1,25 @@
 import 'dart:math';
 
-import '../data/local_db.dart';
+import '../data/drift/app_database.dart';
 import 'diagnostic_runner.dart';
 
 class SeedFactory {
   static Future<void> seedSmall({
-    required AppDatabase db,
+    required AppDriftDatabase db,
     required DiagnosticLog log,
   }) async {
     await _seed(db: db, log: log, count: 24, stress: false);
   }
 
   static Future<void> seedStress({
-    required AppDatabase db,
+    required AppDriftDatabase db,
     required DiagnosticLog log,
   }) async {
     await _seed(db: db, log: log, count: 300, stress: true);
   }
 
   static Future<void> _seed({
-    required AppDatabase db,
+    required AppDriftDatabase db,
     required DiagnosticLog log,
     required int count,
     required bool stress,
@@ -29,41 +29,16 @@ class SeedFactory {
     final animals = <Map<String, dynamic>>[];
 
     final baseNames = <String>[
-      'Luna',
-      'Brisa',
-      'Sol',
-      'Duna',
-      'Nina',
-      'Bela',
-      'Zeca',
-      'Tico',
-      'Rita',
-      'Roxo',
-      'Azulão',
-      'Caramelo',
-      'Mel',
-      'Pingo',
-      'Pérola',
-      'Estrela',
+      'Luna', 'Brisa', 'Sol', 'Duna', 'Nina', 'Bela', 'Zeca', 'Tico',
+      'Rita', 'Roxo', 'Azulão', 'Caramelo', 'Mel', 'Pingo', 'Pérola', 'Estrela',
     ];
 
     final colors = <String>[
-      'azul',
-      'vermelho',
-      'verde',
-      'amarelo',
-      'preto',
-      'branco',
-      'cinza',
-      'laranja',
+      'azul', 'vermelho', 'verde', 'amarelo', 'preto', 'branco', 'cinza', 'laranja',
     ];
 
     final categories = <String>[
-      'Matriz',
-      'Reprodutor',
-      'Borrego',
-      'Lactante',
-      'Engorda',
+      'Matriz', 'Reprodutor', 'Borrego', 'Lactante', 'Engorda',
     ];
 
     void addAnimal({
@@ -112,26 +87,14 @@ class SeedFactory {
     }
 
     addAnimal(
-      id: 'seed_m1',
-      code: 'M001',
-      name: 'Mãe Base',
-      species: 'Ovino',
-      gender: 'Fêmea',
-      birthDate: now.subtract(const Duration(days: 1500)),
-      weight: 65,
-      category: 'Matriz',
-      nameColor: 'azul',
+      id: 'seed_m1', code: 'M001', name: 'Mãe Base', species: 'Ovino',
+      gender: 'Fêmea', birthDate: now.subtract(const Duration(days: 1500)),
+      weight: 65, category: 'Matriz', nameColor: 'azul',
     );
     addAnimal(
-      id: 'seed_f1',
-      code: 'P001',
-      name: 'Pai Base',
-      species: 'Ovino',
-      gender: 'Macho',
-      birthDate: now.subtract(const Duration(days: 1800)),
-      weight: 75,
-      category: 'Reprodutor',
-      nameColor: 'preto',
+      id: 'seed_f1', code: 'P001', name: 'Pai Base', species: 'Ovino',
+      gender: 'Macho', birthDate: now.subtract(const Duration(days: 1800)),
+      weight: 75, category: 'Reprodutor', nameColor: 'preto',
     );
 
     for (var i = 0; i < count; i++) {
@@ -280,30 +243,25 @@ class SeedFactory {
       }
     }
 
-    await db.db.transaction((txn) async {
-      final batch = txn.batch();
-      for (final row in animals) {
-        batch.insert('animals', row);
+    await db.transaction(() async {
+      Future<void> insertAll(String table, List<Map<String, dynamic>> rows) async {
+        for (final row in rows) {
+          final cols = row.keys.join(',');
+          final placeholders = List.filled(row.length, '?').join(',');
+          await db.customStatement(
+            'INSERT INTO $table ($cols) VALUES ($placeholders)',
+            row.values.toList(),
+          );
+        }
       }
-      for (final row in pharmacyStock) {
-        batch.insert('pharmacy_stock', row);
-      }
-      for (final row in weights) {
-        batch.insert('animal_weights', row);
-      }
-      for (final row in vaccinations) {
-        batch.insert('vaccinations', row);
-      }
-      for (final row in medications) {
-        batch.insert('medications', row);
-      }
-      for (final row in stockMovements) {
-        batch.insert('pharmacy_stock_movements', row);
-      }
-      for (final row in notes) {
-        batch.insert('notes', row);
-      }
-      await batch.commit(noResult: true);
+
+      await insertAll('animals', animals);
+      await insertAll('pharmacy_stock', pharmacyStock);
+      await insertAll('animal_weights', weights);
+      await insertAll('vaccinations', vaccinations);
+      await insertAll('medications', medications);
+      await insertAll('pharmacy_stock_movements', stockMovements);
+      await insertAll('notes', notes);
     });
 
     log.info(

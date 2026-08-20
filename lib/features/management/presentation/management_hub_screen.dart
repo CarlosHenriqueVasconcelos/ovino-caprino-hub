@@ -233,7 +233,7 @@ class _HubLoading extends StatelessWidget {
           child: Column(
             children: [
               const AppBrandHeader(
-                title: 'Fazenda São Petrônio',
+                title: 'Terra Tech',
                 subtitle: 'Gestão de Ovinos e Caprinos',
               ),
               Padding(
@@ -287,7 +287,7 @@ class _HubContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const AppBrandHeader(
-                title: 'Fazenda São Petrônio',
+                title: 'Terra Tech',
                 subtitle: 'Gestão de Ovinos e Caprinos',
               ),
               Padding(

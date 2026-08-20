@@ -317,51 +317,27 @@ class PharmacyService extends ChangeNotifier {
       }
     }
 
-    // Não há frasco aberto
-    if (quantityUsed == unitSize) {
-      // Usa um frasco completo
-      final newQuantity = stock.totalQuantity - 1;
-      if (newQuantity < 0) {
+    // Não há frasco aberto — abre quantos forem necessários
+    {
+      final containersNeeded = (quantityUsed / unitSize).ceil();
+      if (stock.totalQuantity < containersNeeded) {
         throw Exception('Quantidade insuficiente em estoque');
       }
 
+      final newOpenedQty = (containersNeeded * unitSize) - quantityUsed;
       final updated = stock.copyWith(
-        totalQuantity: newQuantity,
+        totalQuantity: stock.totalQuantity - containersNeeded,
+        openedQuantity: newOpenedQty,
+        isOpened: newOpenedQty > 0,
         updatedAt: DateTime.now(),
       );
       await updateMedication(stock.id, updated);
 
-      await recordMovement(
-        PharmacyStockMovement(
-          id: _uuid.v4(),
-          pharmacyStockId: stock.id,
-          medicationId: medicationId,
-          movementType: 'saida',
-          quantity: 1,
-          reason: 'Aplicação de medicamento ($container completo)',
-          createdAt: DateTime.now(),
-        ),
-      );
-    } else {
-      // Uso parcial - abre um novo frasco
-      final remaining = unitSize - quantityUsed;
-      if (remaining < 0) {
-        throw Exception(
-            'Quantidade usada maior que a capacidade do $container');
-      }
-
-      if (stock.totalQuantity < 1) {
-        throw Exception('Quantidade insuficiente em estoque');
-      }
-
-      final updated = stock.copyWith(
-        totalQuantity: stock.totalQuantity - 1,
-        openedQuantity: remaining,
-        isOpened: true,
-        updatedAt: DateTime.now(),
-      );
-      await updateMedication(stock.id, updated);
-
+      final reason = containersNeeded == 1 && newOpenedQty == 0
+          ? 'Aplicação de medicamento ($container completo)'
+          : containersNeeded == 1
+              ? 'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit de $container aberto, sobram ${newOpenedQty.toStringAsFixed(2)} $unit)'
+              : 'Aplicação de medicamento ($containersNeeded ${container}s abertos, sobram ${newOpenedQty.toStringAsFixed(2)} $unit)';
       await recordMovement(
         PharmacyStockMovement(
           id: _uuid.v4(),
@@ -369,8 +345,7 @@ class PharmacyService extends ChangeNotifier {
           medicationId: medicationId,
           movementType: 'saida',
           quantity: quantityUsed,
-          reason:
-              'Aplicação de medicamento (${quantityUsed.toStringAsFixed(2)} $unit usados, ${remaining.toStringAsFixed(2)} $unit restantes no $container aberto)',
+          reason: reason,
           createdAt: DateTime.now(),
         ),
       );
