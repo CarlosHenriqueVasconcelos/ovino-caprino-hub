@@ -6,13 +6,17 @@ workflows:
     integrations:
       app_store_connect: Codemagic CI
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.terratech.ovinocaprino
+      vars:
+        BUNDLE_ID: "com.terratech.ovinocaprino"
       flutter: stable
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Buscar ou criar certificado e provisioning profile
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
       - name: Configurar assinatura de código no projeto Xcode
         script: |
           xcode-project use-profiles
