@@ -8,6 +8,8 @@ workflows:
     environment:
       vars:
         BUNDLE_ID: "com.terratech.ovinocaprino"
+      groups:
+        - ios_signing
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -16,6 +18,7 @@ workflows:
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key "@env:CERTIFICATE_PRIVATE_KEY" \
             --create
       - name: Configurar assinatura de código no projeto Xcode
         script: |
